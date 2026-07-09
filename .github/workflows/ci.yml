@@ -18,13 +18,11 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
-      - name: Set up Maven
-        uses: maven/apache-maven-setup@v4
-        with:
-          maven-version: 3.9.9
-      - name: Build
+      - name: Build with Maven Wrapper
         working-directory: backend
-        run: mvn -B -DskipTests verify
+        run: |
+          chmod +x mvnw
+          ./mvnw -B -DskipTests verify
 
   frontend:
     name: Frontend build
@@ -40,5 +38,6 @@ jobs:
       - name: Install and build
         working-directory: frontend
         run: |
+          npm install -g npm@11
           npm ci
           npm run build
