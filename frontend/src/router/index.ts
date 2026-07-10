@@ -17,6 +17,12 @@ const router = createRouter({
         { path: '', name: 'dashboard', component: () => import('@/views/DashboardView.vue') },
         { path: 'assets', name: 'assets', component: () => import('@/views/AssetsView.vue') },
         { path: 'ai', name: 'ai', component: () => import('@/views/AiChatView.vue') },
+        {
+          path: 'settings/ai',
+          name: 'ai-settings',
+          component: () => import('@/views/AiProvidersView.vue'),
+          meta: { requiresAdmin: true },
+        },
         { path: 'terminal/:assetId?', name: 'terminal', component: () => import('@/views/TerminalView.vue') },
         { path: 'approvals', name: 'approvals', component: () => import('@/views/ApprovalsView.vue') },
         { path: 'audit', name: 'audit', component: () => import('@/views/AuditView.vue') },
@@ -44,6 +50,9 @@ router.beforeEach(async (to) => {
       authStore.clearSession()
       return { name: 'login' }
     }
+  }
+  if (to.meta.requiresAdmin && !authStore.user?.roles?.includes('ROLE_ADMIN')) {
+    return { name: 'dashboard' }
   }
   return true
 })

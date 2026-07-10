@@ -54,8 +54,9 @@ services:
     restart: unless-stopped
     environment:
       SPRING_PROFILES_ACTIVE: compose
-      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set}
-      CREDENTIALS_MASTER_KEY: ${CREDENTIALS_MASTER_KEY:?CREDENTIALS_MASTER_KEY must be set}
+      JWT_SECRET: ${JWT_SECRET:-}
+      CREDENTIALS_MASTER_KEY: ${CREDENTIALS_MASTER_KEY:-}
+      CLOUDOPS_SECRETS_PATH: /data/cloudops/secrets.properties
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
       POSTGRES_DB: ${POSTGRES_DB:-cloudops}
@@ -88,6 +89,8 @@ services:
       retries: 10
       start_period: 90s
     stop_grace_period: 30s
+    volumes:
+      - cloudops_secrets:/data/cloudops
 
   frontend:
     build:
@@ -105,3 +108,4 @@ volumes:
   postgres_data:
   redis_data:
   minio_data:
+  cloudops_secrets:

@@ -23,14 +23,12 @@ sudo usermod -aG docker $USER
 ```bash
 cp deploy/compose/.env.example deploy/compose/.env
 
-# Generate strong secrets
-export JWT_SECRET=$(openssl rand -base64 32)
-export CREDENTIALS_MASTER_KEY=$(openssl rand -base64 32)
+# JWT_SECRET and CREDENTIALS_MASTER_KEY are optional — leave empty to auto-generate
+# on first boot and persist to the cloudops_secrets volume.
 
+# Optional: set OPENAI_API_KEY for one-time seed migration to default AI Provider.
+# After deploy, configure providers in the admin UI: Settings → AI Settings.
 # Edit deploy/compose/.env and set:
-# - JWT_SECRET
-# - CREDENTIALS_MASTER_KEY
-# - OPENAI_API_KEY (or switch AI_DEFAULT_PROVIDER=ollama)
 # - CORS_ALLOWED_ORIGINS=http://your-server-ip
 ```
 

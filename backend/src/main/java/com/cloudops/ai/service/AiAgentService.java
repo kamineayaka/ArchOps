@@ -1,11 +1,11 @@
 package com.cloudops.ai.service;
 
 import com.cloudops.ai.domain.AiConversation;
-import com.cloudops.ai.llm.LlmProvider;
 import com.cloudops.ai.llm.LlmProvider.ChatMessage;
 import com.cloudops.ai.llm.LlmProvider.CompletionResult;
 import com.cloudops.ai.llm.LlmProvider.ToolCall;
-import com.cloudops.ai.llm.LlmProviderResolver;
+import com.cloudops.ai.runtime.LlmRuntime;
+import com.cloudops.ai.runtime.LlmRuntimeResolver;
 import com.cloudops.ai.repository.AiMessageRepository;
 import com.cloudops.knowledge.service.KnowledgeContextService;
 import com.cloudops.mcp.ToolRegistry;
@@ -36,7 +36,7 @@ public class AiAgentService {
             use the provided tools. Respond in the same language the user writes in.
             """;
 
-    private final LlmProviderResolver llmProviderResolver;
+    private final LlmRuntimeResolver llmRuntimeResolver;
     private final ToolRegistry toolRegistry;
     private final ToolExecutorService toolExecutorService;
     private final ConversationService conversationService;
@@ -45,14 +45,14 @@ public class AiAgentService {
     private final ObjectMapper objectMapper;
 
     public AiAgentService(
-            LlmProviderResolver llmProviderResolver,
+            LlmRuntimeResolver llmRuntimeResolver,
             ToolRegistry toolRegistry,
             ToolExecutorService toolExecutorService,
             ConversationService conversationService,
             KnowledgeContextService knowledgeContextService,
             AiMessageRepository messageRepository,
             ObjectMapper objectMapper) {
-        this.llmProviderResolver = llmProviderResolver;
+        this.llmRuntimeResolver = llmRuntimeResolver;
         this.toolRegistry = toolRegistry;
         this.toolExecutorService = toolExecutorService;
         this.conversationService = conversationService;
@@ -62,7 +62,7 @@ public class AiAgentService {
     }
 
     @Transactional
-    public AgentResult chat(Long userId, Long conversationId, String userMessage, Consumer<AgentEvent> onEvent) {
+    public AgentResult chat(Long userId, Long conversationId, String userMessage, Long providerId, Consumer<AgentEvent> onEvent) {
         AiConversation conversation = conversationService.requireOwned(conversationId, userId);
         conversationService.appendMessage(conversationId, "user", userMessage, "[]");
         if (onEvent != null) {
@@ -70,9 +70,11 @@ public class AiAgentService {
         }
 
         List<ChatMessage> messages = buildContext(conversationId, userMessage);
-        LlmProvider llm = llmProviderResolver.active();
-        if (llm == null) {
-            String err = "未配置可用的 LLM Provider，请检查 OPENAI_API_KEY 或 Ollama 配置";
+        LlmRuntime llm;
+        try {
+            llm = llmRuntimeResolver.resolve(providerId).runtime();
+        } catch (Exception ex) {
+            String err = ex.getMessage() != null ? ex.getMessage() : "未配置可用的 AI Provider，请在系统设置中添加";
             conversationService.appendMessage(conversationId, "assistant", err, "[]");
             return new AgentResult(err, List.of());
         }

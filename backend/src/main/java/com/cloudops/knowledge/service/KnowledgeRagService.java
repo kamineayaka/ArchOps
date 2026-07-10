@@ -1,6 +1,7 @@
 package com.cloudops.knowledge.service;
 
-import com.cloudops.common.config.RagProperties;
+import com.cloudops.ai.provider.repository.AiProviderRepository;
+import com.cloudops.ai.provider.service.PlatformAiSettingsService;
 import com.cloudops.knowledge.domain.KnowledgeSourceType;
 import com.cloudops.knowledge.dto.IndexStatsResponse;
 import com.cloudops.knowledge.dto.ManualDocumentResponse;
@@ -20,17 +21,20 @@ public class KnowledgeRagService {
 
     private static final AtomicLong MANUAL_DOC_SEQ = new AtomicLong(System.currentTimeMillis());
 
-    private final RagProperties ragProperties;
+    private final PlatformAiSettingsService settingsService;
+    private final AiProviderRepository providerRepository;
     private final RagRetrievalService ragRetrievalService;
     private final KnowledgeIndexingService indexingService;
     private final KbChunkRepository kbChunkRepository;
 
     public KnowledgeRagService(
-            RagProperties ragProperties,
+            PlatformAiSettingsService settingsService,
+            AiProviderRepository providerRepository,
             RagRetrievalService ragRetrievalService,
             KnowledgeIndexingService indexingService,
             KbChunkRepository kbChunkRepository) {
-        this.ragProperties = ragProperties;
+        this.settingsService = settingsService;
+        this.providerRepository = providerRepository;
         this.ragRetrievalService = ragRetrievalService;
         this.indexingService = indexingService;
         this.kbChunkRepository = kbChunkRepository;
@@ -46,9 +50,16 @@ public class KnowledgeRagService {
 
     @Transactional(readOnly = true)
     public IndexStatsResponse stats() {
+        var settings = settingsService.getSettings();
+        String embeddingLabel = "none";
+        if (settings.getDefaultEmbeddingProviderId() != null) {
+            embeddingLabel = providerRepository.findById(settings.getDefaultEmbeddingProviderId())
+                    .map(p -> p.getName() + " / " + p.getEmbeddingModel())
+                    .orElse("unknown");
+        }
         return new IndexStatsResponse(
-                ragProperties.enabled(),
-                ragProperties.provider(),
+                settings.isRagEnabled(),
+                embeddingLabel,
                 kbChunkRepository.count(),
                 kbChunkRepository.countBySourceType(KnowledgeSourceType.ARCHITECTURE),
                 kbChunkRepository.countBySourceType(KnowledgeSourceType.WORK_LOG),

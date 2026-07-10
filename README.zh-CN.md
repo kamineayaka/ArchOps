@@ -16,7 +16,7 @@
 | **用户与 RBAC** | JWT 认证、角色权限（ADMIN / OPERATOR / VIEWER）、单会话挤下 |
 | **资产管理** | 服务器 / 集群 / 服务清单，SSH 凭证 AES-256-GCM 加密存储 |
 | **Web SSH 终端** | 浏览器内终端（xterm.js + Apache MINA SSHD） |
-| **AI Agent** | ReAct 工具调用循环，可插拔 LLM（OpenAI 兼容 / Ollama） |
+| **AI Agent** | ReAct 工具调用循环，数据库驱动的多 Provider（OpenAI 兼容 / Anthropic） |
 | **MCP 工具网关** | 可扩展工具注册中心（`ssh_exec`、`list_assets` 等） |
 | **审批工作流** | 按 RBAC 分级风险识别（LOW / MEDIUM / HIGH）与人工门控 |
 | **知识库** | 架构快照 + 工作日志 + pgvector RAG 语义检索 |
@@ -29,7 +29,7 @@
 
 - Docker 24+ 与 Docker Compose v2
 - 最低 2 核 CPU、4 GB 内存（启用可观测性栈建议 8 GB）
-- OpenAI 兼容 API Key，或本地 Ollama 实例
+- OpenAI 兼容 API Key 或 Anthropic API Key（可在控制台「AI 设置」中配置；也可通过 `OPENAI_API_KEY` 环境变量种子迁移）
 - 前端开发需 Node.js 22+
 
 ### 部署步骤
@@ -38,9 +38,10 @@
 git clone https://github.com/kamineayaka/CloudOps.git
 cd CloudOps
 
-# 配置密钥
+# 配置环境（JWT/凭证密钥可留空，首次启动自动生成并持久化）
 cp deploy/compose/.env.example deploy/compose/.env
-# 编辑 deploy/compose/.env，设置 JWT_SECRET、CREDENTIALS_MASTER_KEY、OPENAI_API_KEY
+# 可选：在 deploy/compose/.env 中设置 OPENAI_API_KEY，首次启动会自动迁移为默认 AI Provider
+# 也可在部署后于 Web 控制台「AI 设置」中配置多个 Provider
 
 # 启动平台
 docker compose -f deploy/compose/compose.yaml --env-file deploy/compose/.env up -d --build

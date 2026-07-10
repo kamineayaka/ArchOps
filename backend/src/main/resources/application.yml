@@ -52,7 +52,9 @@ cloudops:
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost}
   credentials:
-    master-key: ${CREDENTIALS_MASTER_KEY:dev-only-master-key-change-in-prod-32bytes!!}
+    master-key: ${CREDENTIALS_MASTER_KEY:}
+  secrets:
+    path: ${CLOUDOPS_SECRETS_PATH:./data/secrets.properties}
   ai:
     default-provider: ${AI_DEFAULT_PROVIDER:openai-compat}
     openai-compat:

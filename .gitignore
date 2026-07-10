@@ -42,6 +42,7 @@ logs/
 # Runtime
 *.pid
 *.seed
+data/
 
 # Build artifacts
 coverage/

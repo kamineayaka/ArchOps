@@ -16,7 +16,7 @@ Designed for deployment on any Linux server — from a single VPS to a productio
 | **User & RBAC** | JWT auth, role-based access (ADMIN / OPERATOR / VIEWER), single-session kick-out |
 | **Asset Management** | Server/cluster/service inventory, AES-256-GCM encrypted SSH credentials |
 | **Web SSH Terminal** | Browser-based terminal via xterm.js + Apache MINA SSHD |
-| **AI Agent** | ReAct tool-calling loop with pluggable LLM (OpenAI-compatible / Ollama) |
+| **AI Agent** | ReAct tool-calling loop with DB-driven multi-provider (OpenAI-compatible / Anthropic) |
 | **MCP Tool Gateway** | Extensible tool registry (`ssh_exec`, `list_assets`, ...) |
 | **Approval Workflow** | RBAC-tiered risk classification (LOW / MEDIUM / HIGH) with human gate |
 | **Knowledge Base** | Architecture snapshot + work logs + pgvector RAG semantic retrieval |
@@ -29,7 +29,7 @@ Designed for deployment on any Linux server — from a single VPS to a productio
 
 - Docker 24+ and Docker Compose v2
 - 2 CPU cores, 4 GB RAM minimum (8 GB recommended with observability stack)
-- An OpenAI-compatible API key (or a local Ollama instance)
+- An OpenAI-compatible or Anthropic API key (configure in admin UI → AI Settings; optional `OPENAI_API_KEY` env seed)
 - Node.js 22+ for frontend development
 
 ### Deploy
@@ -38,9 +38,9 @@ Designed for deployment on any Linux server — from a single VPS to a productio
 git clone https://github.com/kamineayaka/CloudOps.git
 cd CloudOps
 
-# Configure secrets
+# Configure environment (JWT/credentials auto-generate if left empty)
 cp deploy/compose/.env.example deploy/compose/.env
-# Edit deploy/compose/.env — set JWT_SECRET, CREDENTIALS_MASTER_KEY, OPENAI_API_KEY
+# Optional: set OPENAI_API_KEY for seed migration, or configure providers in AI Settings after deploy
 
 # Start platform
 docker compose -f deploy/compose/compose.yaml --env-file deploy/compose/.env up -d --build

@@ -1,5 +1,6 @@
 package com.cloudops.knowledge.indexing;
 
+import com.cloudops.ai.provider.service.PlatformAiSettingsService;
 import com.cloudops.common.config.RagProperties;
 import com.cloudops.knowledge.domain.ArchitectureSnapshot;
 import com.cloudops.knowledge.domain.KnowledgeSourceType;
@@ -24,6 +25,7 @@ public class KnowledgeIndexingService {
     private static final Logger log = LoggerFactory.getLogger(KnowledgeIndexingService.class);
     private static final int EMBED_BATCH_SIZE = 16;
 
+    private final PlatformAiSettingsService settingsService;
     private final RagProperties ragProperties;
     private final TextChunker textChunker;
     private final EmbeddingProviderResolver embeddingProviderResolver;
@@ -34,6 +36,7 @@ public class KnowledgeIndexingService {
     private final ObjectMapper objectMapper;
 
     public KnowledgeIndexingService(
+            PlatformAiSettingsService settingsService,
             RagProperties ragProperties,
             TextChunker textChunker,
             EmbeddingProviderResolver embeddingProviderResolver,
@@ -42,6 +45,7 @@ public class KnowledgeIndexingService {
             ArchitectureSnapshotRepository snapshotRepository,
             WorkLogRepository workLogRepository,
             ObjectMapper objectMapper) {
+        this.settingsService = settingsService;
         this.ragProperties = ragProperties;
         this.textChunker = textChunker;
         this.embeddingProviderResolver = embeddingProviderResolver;
@@ -54,7 +58,7 @@ public class KnowledgeIndexingService {
 
     @Async("ragTaskExecutor")
     public void scheduleIndexArchitecture(Long snapshotId) {
-        if (!ragProperties.enabled()) {
+        if (!settingsService.getSettings().isRagEnabled()) {
             return;
         }
         try {
@@ -66,7 +70,7 @@ public class KnowledgeIndexingService {
 
     @Async("ragTaskExecutor")
     public void scheduleIndexWorkLog(Long workLogId) {
-        if (!ragProperties.enabled()) {
+        if (!settingsService.getSettings().isRagEnabled()) {
             return;
         }
         try {
@@ -119,7 +123,7 @@ public class KnowledgeIndexingService {
 
     @Transactional
     public ReindexResult reindexAll() {
-        if (!ragProperties.enabled()) {
+        if (!settingsService.getSettings().isRagEnabled()) {
             return new ReindexResult(0, 0, "RAG is disabled");
         }
         vectorRepository.deleteAllChunks();
@@ -144,7 +148,7 @@ public class KnowledgeIndexingService {
             Long sourceId,
             String text,
             Map<String, Object> metadata) {
-        if (!ragProperties.enabled()) {
+        if (!settingsService.getSettings().isRagEnabled()) {
             return 0;
         }
         kbChunkRepository.deleteBySource(sourceType, sourceId);

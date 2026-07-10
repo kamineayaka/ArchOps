@@ -1,5 +1,6 @@
 package com.cloudops.common.security;
 
+import com.cloudops.common.bootstrap.PlatformSecrets;
 import com.cloudops.common.config.JwtProperties;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
@@ -18,9 +19,9 @@ public class JwtTokenProvider {
     private final JwtProperties jwtProperties;
     private final SecretKey secretKey;
 
-    public JwtTokenProvider(JwtProperties jwtProperties) {
+    public JwtTokenProvider(JwtProperties jwtProperties, PlatformSecrets platformSecrets) {
         this.jwtProperties = jwtProperties;
-        this.secretKey = Keys.hmacShaKeyFor(resolveSecret(jwtProperties.secret()));
+        this.secretKey = Keys.hmacShaKeyFor(resolveSecret(platformSecrets.jwtSecret()));
     }
 
     public String createAccessToken(Long userId, String username, String sessionId) {

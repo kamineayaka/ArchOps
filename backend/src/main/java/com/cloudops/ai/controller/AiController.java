@@ -59,7 +59,7 @@ public class AiController {
             conversationId = conversationService.create(principal.getUserId(), truncate(request.message())).id();
         }
         AiAgentService.AgentResult result = aiAgentService.chat(
-                principal.getUserId(), conversationId, request.message(), null);
+                principal.getUserId(), conversationId, request.message(), request.providerId(), null);
         return ApiResponse.ok(Map.of(
                 "conversationId", conversationId,
                 "answer", result.answer(),

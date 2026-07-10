@@ -61,8 +61,9 @@ public class AiStreamWebSocketHandler extends TextWebSocketHandler {
                     objectMapper.writeValueAsString(Map.of("type", "conversation", "conversationId", conversationId))));
         }
 
+        Long providerId = root.hasNonNull("providerId") ? root.get("providerId").asLong() : null;
         Long finalConversationId = conversationId;
-        aiAgentService.chat(userId, finalConversationId, userMessage, event -> {
+        aiAgentService.chat(userId, finalConversationId, userMessage, providerId, event -> {
             try {
                 if (session.isOpen()) {
                     session.sendMessage(new TextMessage(objectMapper.writeValueAsString(event)));

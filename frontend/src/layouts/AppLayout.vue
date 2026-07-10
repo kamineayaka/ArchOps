@@ -20,6 +20,7 @@ import {
   GridOutline,
   LogOutOutline,
   ServerOutline,
+  SettingsOutline,
   ShieldCheckmarkOutline,
 } from '@vicons/ionicons5'
 import { useAuthStore } from '@/stores/auth'
@@ -31,18 +32,31 @@ const authStore = useAuthStore()
 
 const username = computed(() => authStore.user?.displayName || authStore.user?.username || '')
 
-const menuOptions = computed(() => [
-  { label: t('nav.dashboard'), key: 'dashboard', icon: () => h(NIcon, null, { default: () => h(GridOutline) }) },
-  { label: t('nav.assets'), key: 'assets', icon: () => h(NIcon, null, { default: () => h(ServerOutline) }) },
-  { label: t('nav.ai'), key: 'ai', icon: () => h(NIcon, null, { default: () => h(ChatbubbleEllipsesOutline) }) },
-  { label: t('nav.terminal'), key: 'terminal', icon: () => h(NIcon, null, { default: () => h(DesktopOutline) }) },
-  { label: t('nav.approvals'), key: 'approvals', icon: () => h(NIcon, null, { default: () => h(ShieldCheckmarkOutline) }) },
-  { label: t('nav.audit'), key: 'audit', icon: () => h(NIcon, null, { default: () => h(DocumentTextOutline) }) },
-])
+const isAdmin = computed(() => authStore.user?.roles?.includes('ROLE_ADMIN') ?? false)
+
+const menuOptions = computed(() => {
+  const items = [
+    { label: t('nav.dashboard'), key: 'dashboard', icon: () => h(NIcon, null, { default: () => h(GridOutline) }) },
+    { label: t('nav.assets'), key: 'assets', icon: () => h(NIcon, null, { default: () => h(ServerOutline) }) },
+    { label: t('nav.ai'), key: 'ai', icon: () => h(NIcon, null, { default: () => h(ChatbubbleEllipsesOutline) }) },
+    { label: t('nav.terminal'), key: 'terminal', icon: () => h(NIcon, null, { default: () => h(DesktopOutline) }) },
+    { label: t('nav.approvals'), key: 'approvals', icon: () => h(NIcon, null, { default: () => h(ShieldCheckmarkOutline) }) },
+    { label: t('nav.audit'), key: 'audit', icon: () => h(NIcon, null, { default: () => h(DocumentTextOutline) }) },
+  ]
+  if (isAdmin.value) {
+    items.push({
+      label: t('nav.aiSettings'),
+      key: 'ai-settings',
+      icon: () => h(NIcon, null, { default: () => h(SettingsOutline) }),
+    })
+  }
+  return items
+})
 
 const activeKey = computed(() => {
   const name = route.name as string
   if (name === 'terminal') return 'terminal'
+  if (name === 'ai-settings') return 'ai-settings'
   return name
 })
 

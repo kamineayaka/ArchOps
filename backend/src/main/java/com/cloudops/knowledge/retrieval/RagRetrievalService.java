@@ -1,6 +1,6 @@
 package com.cloudops.knowledge.retrieval;
 
-import com.cloudops.common.config.RagProperties;
+import com.cloudops.ai.provider.service.PlatformAiSettingsService;
 import com.cloudops.knowledge.indexing.EmbeddingException;
 import com.cloudops.knowledge.indexing.EmbeddingProvider;
 import com.cloudops.knowledge.indexing.EmbeddingProviderResolver;
@@ -14,15 +14,15 @@ public class RagRetrievalService {
 
     private static final Logger log = LoggerFactory.getLogger(RagRetrievalService.class);
 
-    private final RagProperties ragProperties;
+    private final PlatformAiSettingsService settingsService;
     private final EmbeddingProviderResolver embeddingProviderResolver;
     private final KbChunkVectorRepository vectorRepository;
 
     public RagRetrievalService(
-            RagProperties ragProperties,
+            PlatformAiSettingsService settingsService,
             EmbeddingProviderResolver embeddingProviderResolver,
             KbChunkVectorRepository vectorRepository) {
-        this.ragProperties = ragProperties;
+        this.settingsService = settingsService;
         this.embeddingProviderResolver = embeddingProviderResolver;
         this.vectorRepository = vectorRepository;
     }
@@ -32,17 +32,18 @@ public class RagRetrievalService {
     }
 
     public List<ScoredChunk> retrieve(String query, Integer topKOverride) {
-        if (!ragProperties.enabled() || query == null || query.isBlank()) {
+        var settings = settingsService.getSettings();
+        if (!settings.isRagEnabled() || query == null || query.isBlank()) {
             return List.of();
         }
-        int topK = topKOverride != null && topKOverride > 0 ? topKOverride : ragProperties.topK();
+        int topK = topKOverride != null && topKOverride > 0 ? topKOverride : settings.getRagTopK();
         try {
             EmbeddingProvider provider = embeddingProviderResolver.active();
             float[] queryVector = provider.embed(query.strip());
             return vectorRepository.searchSimilar(
                     queryVector,
                     topK,
-                    ragProperties.minSimilarity());
+                    settings.getRagMinSimilarity());
         } catch (EmbeddingException ex) {
             log.warn("RAG retrieval skipped: {}", ex.getMessage());
             return List.of();

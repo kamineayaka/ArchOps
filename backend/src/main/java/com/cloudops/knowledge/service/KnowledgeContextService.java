@@ -1,6 +1,6 @@
 package com.cloudops.knowledge.service;
 
-import com.cloudops.common.config.RagProperties;
+import com.cloudops.ai.provider.service.PlatformAiSettingsService;
 import com.cloudops.knowledge.domain.ArchitectureSnapshot;
 import com.cloudops.knowledge.domain.KnowledgeSourceType;
 import com.cloudops.knowledge.domain.WorkLog;
@@ -17,19 +17,19 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class KnowledgeContextService {
 
-    private final RagProperties ragProperties;
+    private final PlatformAiSettingsService settingsService;
     private final ArchitectureSnapshotRepository snapshotRepository;
     private final WorkLogRepository workLogRepository;
     private final KbChunkRepository kbChunkRepository;
     private final RagRetrievalService ragRetrievalService;
 
     public KnowledgeContextService(
-            RagProperties ragProperties,
+            PlatformAiSettingsService settingsService,
             ArchitectureSnapshotRepository snapshotRepository,
             WorkLogRepository workLogRepository,
             KbChunkRepository kbChunkRepository,
             RagRetrievalService ragRetrievalService) {
-        this.ragProperties = ragProperties;
+        this.settingsService = settingsService;
         this.snapshotRepository = snapshotRepository;
         this.workLogRepository = workLogRepository;
         this.kbChunkRepository = kbChunkRepository;
@@ -46,7 +46,7 @@ public class KnowledgeContextService {
                         s -> sb.append(s.getSummary() != null ? s.getSummary() : s.getContent()).append('\n'),
                         () -> sb.append("No architecture snapshot recorded yet.\n"));
 
-        if (ragProperties.enabled() && userQuery != null && !userQuery.isBlank()) {
+        if (settingsService.getSettings().isRagEnabled() && userQuery != null && !userQuery.isBlank()) {
             List<ScoredChunk> chunks = ragRetrievalService.retrieve(userQuery);
             if (!chunks.isEmpty()) {
                 sb.append("\n## Relevant Knowledge (semantic retrieval)\n");
@@ -74,7 +74,7 @@ public class KnowledgeContextService {
         }
 
         sb.append("\n## Knowledge Index\n");
-        sb.append("- RAG enabled: ").append(ragProperties.enabled()).append('\n');
+        sb.append("- RAG enabled: ").append(settingsService.getSettings().isRagEnabled()).append('\n');
         sb.append("- Indexed chunks: ").append(kbChunkRepository.count()).append('\n');
         sb.append("- By source: architecture=")
                 .append(kbChunkRepository.countBySourceType(KnowledgeSourceType.ARCHITECTURE))

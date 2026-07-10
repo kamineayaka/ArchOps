@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { NButton, NCard, NInput, NSpace, NTag, useMessage } from 'naive-ui'
+import { NButton, NCard, NInput, NSelect, NSpace, NTag, useMessage } from 'naive-ui'
 import { createConversation, getMessages, sendChat, type ChatMessage } from '@/api/ai'
+import { listChatProviders, type AiProvider } from '@/api/ai-providers'
 
 const { t } = useI18n()
 const message = useMessage()
@@ -11,6 +12,26 @@ const conversationId = ref<number | null>(null)
 const input = ref('')
 const loading = ref(false)
 const messages = ref<ChatMessage[]>([])
+const providers = ref<AiProvider[]>([])
+const selectedProviderId = ref<number | undefined>(undefined)
+
+const providerOptions = computed(() =>
+  providers.value.map((p) => ({
+    label: p.defaultChat ? `${p.name} (${t('ai.providerDefault')})` : p.name,
+    value: p.id,
+  })),
+)
+
+async function loadProviders() {
+  const res = await listChatProviders()
+  if (res.success && res.data) {
+    providers.value = res.data
+    const defaultProvider = res.data.find((p) => p.defaultChat)
+    if (defaultProvider && selectedProviderId.value === undefined) {
+      selectedProviderId.value = undefined
+    }
+  }
+}
 
 async function ensureConversation() {
   if (conversationId.value) return
@@ -32,13 +53,17 @@ async function handleSend() {
   messages.value.push({ role: 'user', content: userMsg, createdAt: new Date().toISOString() })
   try {
     await ensureConversation()
-    const res = await sendChat(userMsg, conversationId.value ?? undefined)
+    const res = await sendChat(
+      userMsg,
+      conversationId.value ?? undefined,
+      selectedProviderId.value ?? undefined,
+    )
     if (res.success && res.data) {
       conversationId.value = res.data.conversationId
       messages.value.push({ role: 'assistant', content: res.data.answer, createdAt: new Date().toISOString() })
     }
   } catch {
-    message.error('AI 请求失败，请检查 OPENAI_API_KEY 配置')
+    message.error(t('ai.requestFailed'))
   } finally {
     loading.value = false
     await nextTick()
@@ -53,6 +78,7 @@ async function handleNewChat() {
 }
 
 onMounted(async () => {
+  await loadProviders()
   await ensureConversation()
   await loadMessages()
 })
@@ -61,7 +87,16 @@ onMounted(async () => {
 <template>
   <NCard :title="t('ai.title')" style="height: calc(100vh - 120px); display: flex; flex-direction: column">
     <template #header-extra>
-      <NButton @click="handleNewChat">{{ t('ai.newChat') }}</NButton>
+      <NSpace align="center">
+        <NSelect
+          v-model:value="selectedProviderId"
+          :options="providerOptions"
+          :placeholder="t('ai.provider')"
+          style="width: 220px"
+          clearable
+        />
+        <NButton @click="handleNewChat">{{ t('ai.newChat') }}</NButton>
+      </NSpace>
     </template>
 
     <div class="chat-messages">

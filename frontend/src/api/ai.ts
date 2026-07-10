@@ -29,10 +29,11 @@ export async function getMessages(conversationId: number) {
   return data
 }
 
-export async function sendChat(message: string, conversationId?: number) {
+export async function sendChat(message: string, conversationId?: number, providerId?: number) {
   const { data } = await client.post<ApiResponse<{ conversationId: number; answer: string }>>('/api/ai/chat', {
     message,
     conversationId,
+    providerId,
   })
   return data
 }

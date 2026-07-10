@@ -11,3 +11,5 @@ spring:
 cloudops:
   cors:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost}
+  secrets:
+    path: ${CLOUDOPS_SECRETS_PATH:/data/cloudops/secrets.properties}

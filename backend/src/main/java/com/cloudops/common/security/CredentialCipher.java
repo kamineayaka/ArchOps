@@ -8,6 +8,7 @@ import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
+import com.cloudops.common.bootstrap.PlatformSecrets;
 import org.springframework.stereotype.Component;
 
 /**
@@ -27,8 +28,8 @@ public class CredentialCipher {
     private final SecretKey secretKey;
     private final SecureRandom random = new SecureRandom();
 
-    public CredentialCipher(com.cloudops.common.config.CredentialProperties properties) {
-        this.secretKey = deriveKey(properties.masterKey());
+    public CredentialCipher(PlatformSecrets platformSecrets) {
+        this.secretKey = deriveKey(platformSecrets.credentialsMasterKey());
     }
 
     public EncryptedSecret encrypt(String plaintext) {
