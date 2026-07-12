@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, h } from 'vue'
+import { computed, h, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
@@ -10,6 +10,7 @@ import {
   NLayoutHeader,
   NLayoutSider,
   NMenu,
+  NSelect,
   NSpace,
   NText,
 } from 'naive-ui'
@@ -24,11 +25,24 @@ import {
   ShieldCheckmarkOutline,
 } from '@vicons/ionicons5'
 import { useAuthStore } from '@/stores/auth'
+import { setAppLocale } from '@/i18n'
 
 const route = useRoute()
 const router = useRouter()
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const authStore = useAuthStore()
+
+const localeOptions = [
+  { label: '中文', value: 'zh-CN' },
+  { label: 'English', value: 'en-US' },
+]
+
+const currentLocale = ref(locale.value)
+
+function handleLocaleChange(value: 'zh-CN' | 'en-US') {
+  setAppLocale(value)
+  currentLocale.value = value
+}
 
 const username = computed(() => authStore.user?.displayName || authStore.user?.username || '')
 
@@ -81,6 +95,14 @@ async function handleLogout() {
         <NSpace align="center" justify="space-between" style="width: 100%">
           <NText depth="3">{{ route.meta.title || '' }}</NText>
           <NSpace align="center">
+            <NSelect
+              v-model:value="currentLocale"
+              :options="localeOptions"
+              size="small"
+              style="width: 120px"
+              :consistent-menu-width="false"
+              @update:value="handleLocaleChange"
+            />
             <NText>{{ username }}</NText>
             <NButton quaternary @click="handleLogout">
               <template #icon><NIcon :component="LogOutOutline" /></template>
