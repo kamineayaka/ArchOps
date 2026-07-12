@@ -84,3 +84,6 @@ cloudops:
       model: ${RAG_OLLAMA_EMBEDDING_MODEL:nomic-embed-text}
       dimensions: ${RAG_OLLAMA_EMBEDDING_DIMENSIONS:768}
       timeout-ms: ${RAG_EMBEDDING_TIMEOUT_MS:60000}
+  ssh-pool:
+    idle-timeout: ${SSH_POOL_IDLE_TIMEOUT:5m}
+    connect-timeout: ${SSH_POOL_CONNECT_TIMEOUT:15s}

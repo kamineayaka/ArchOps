@@ -8,6 +8,9 @@ import com.cloudops.ai.runtime.LlmRuntime;
 import com.cloudops.ai.runtime.LlmRuntimeResolver;
 import com.cloudops.ai.repository.AiMessageRepository;
 import com.cloudops.knowledge.service.KnowledgeContextService;
+import com.cloudops.asset.dto.AssetResponse;
+import com.cloudops.asset.service.AssetService;
+import com.cloudops.mcp.McpTool;
 import com.cloudops.mcp.ToolRegistry;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
@@ -42,6 +45,7 @@ public class AiAgentService {
     private final ConversationService conversationService;
     private final KnowledgeContextService knowledgeContextService;
     private final AiMessageRepository messageRepository;
+    private final AssetService assetService;
     private final ObjectMapper objectMapper;
 
     public AiAgentService(
@@ -51,6 +55,7 @@ public class AiAgentService {
             ConversationService conversationService,
             KnowledgeContextService knowledgeContextService,
             AiMessageRepository messageRepository,
+            AssetService assetService,
             ObjectMapper objectMapper) {
         this.llmRuntimeResolver = llmRuntimeResolver;
         this.toolRegistry = toolRegistry;
@@ -58,6 +63,7 @@ public class AiAgentService {
         this.conversationService = conversationService;
         this.knowledgeContextService = knowledgeContextService;
         this.messageRepository = messageRepository;
+        this.assetService = assetService;
         this.objectMapper = objectMapper;
     }
 
@@ -69,7 +75,12 @@ public class AiAgentService {
             onEvent.accept(AgentEvent.userMessage(userMessage));
         }
 
-        List<ChatMessage> messages = buildContext(conversationId, userMessage);
+        List<ChatMessage> messages = buildContext(conversation, conversationId, userMessage);
+        McpTool.ExecutionContext toolContext = new McpTool.ExecutionContext(
+                userId,
+                null,
+                conversationId,
+                conversation.getTargetAssetIds());
         LlmRuntime llm;
         try {
             llm = llmRuntimeResolver.resolve(providerId).runtime();
@@ -103,7 +114,8 @@ public class AiAgentService {
                 if (onEvent != null) {
                     onEvent.accept(AgentEvent.toolStart(toolCall.name(), toolCall.arguments()));
                 }
-                ToolExecutorService.ToolExecutionResult exec = toolExecutorService.execute(toolCall, userId, null);
+                ToolExecutorService.ToolExecutionResult exec =
+                        toolExecutorService.execute(toolCall, userId, null, toolContext);
                 toolSummaries.add(new ToolExecutionSummary(toolCall.name(), exec.status(), exec.output()));
 
                 if ("PENDING_APPROVAL".equals(exec.status())) {
@@ -140,16 +152,37 @@ public class AiAgentService {
         return new AgentResult(finalAnswer, toolSummaries);
     }
 
-    private List<ChatMessage> buildContext(Long conversationId, String latestUserMessage) {
+    private List<ChatMessage> buildContext(AiConversation conversation, Long conversationId, String latestUserMessage) {
         List<ChatMessage> messages = new ArrayList<>();
         String knowledge = knowledgeContextService.buildContextSnippet(latestUserMessage);
-        messages.add(ChatMessage.system(SYSTEM_PROMPT + "\n\n" + knowledge));
+        String targets = formatTargetAssets(conversation.getTargetAssetIds());
+        messages.add(ChatMessage.system(SYSTEM_PROMPT + "\n\n" + targets + "\n\n" + knowledge));
 
         messageRepository.findByConversationIdOrderByCreatedAtAsc(conversationId).stream()
                 .filter(m -> !"user".equals(m.getRole()) || !m.getContent().equals(latestUserMessage))
                 .forEach(m -> messages.add(new ChatMessage(m.getRole(), m.getContent(), List.of())));
         messages.add(ChatMessage.user(latestUserMessage));
         return messages;
+    }
+
+    private String formatTargetAssets(List<Long> targetAssetIds) {
+        if (targetAssetIds == null || targetAssetIds.isEmpty()) {
+            return "Active target assets: none. Ask the user to select target assets before running ssh_exec, "
+                    + "or pass assetId explicitly after listing assets.";
+        }
+        StringBuilder sb = new StringBuilder("Active target assets (prefer these for ssh_exec without assetId):\n");
+        for (Long assetId : targetAssetIds) {
+            try {
+                AssetResponse asset = assetService.get(assetId);
+                sb.append("- id=").append(asset.id())
+                        .append(" name=").append(asset.name())
+                        .append(" host=").append(asset.host() != null ? asset.host() : "n/a")
+                        .append('\n');
+            } catch (Exception ex) {
+                sb.append("- id=").append(assetId).append(" (unavailable)\n");
+            }
+        }
+        return sb.toString();
     }
 
     private String writeToolSummaries(List<ToolExecutionSummary> summaries) {

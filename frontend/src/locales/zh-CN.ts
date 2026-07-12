@@ -74,12 +74,17 @@ export default {
   },
   ai: {
     title: 'AI 运维助手',
-    placeholder: '描述你想执行的运维任务，例如：检查所有服务器的磁盘使用情况',
+    placeholder: '描述你想执行的运维任务，例如：检查磁盘使用情况',
     send: '发送',
     newChat: '新对话',
     provider: 'AI 提供商',
     providerDefault: '平台默认',
     requestFailed: 'AI 请求失败，请检查 AI 设置中的 Provider 配置',
+    targetAssets: '目标资产',
+    targetsSaved: '目标资产已保存，SSH 连接已预热',
+    targetsSaveFailed: '保存目标资产失败',
+    poolConnected: '池已连接',
+    poolIdle: '未预热',
   },
   aiSettings: {
     providersTitle: 'AI 提供商',
@@ -122,6 +127,8 @@ export default {
     title: 'Web SSH 终端',
     selectAsset: '选择目标资产',
     connect: '连接',
+    pooled: '连接池已就绪',
+    connectFailed: '连接失败，请检查资产 SSH 凭证',
   },
   approvals: {
     title: '审批中心',

@@ -4,6 +4,7 @@ import type { ApiResponse } from './types'
 export interface Conversation {
   id: number
   title: string
+  targetAssetIds: number[]
   createdAt: string
   updatedAt: string
 }
@@ -35,5 +36,18 @@ export async function sendChat(message: string, conversationId?: number, provide
     conversationId,
     providerId,
   })
+  return data
+}
+
+export async function getConversationTargets(conversationId: number) {
+  const { data } = await client.get<ApiResponse<number[]>>(`/api/ai/conversations/${conversationId}/targets`)
+  return data
+}
+
+export async function updateConversationTargets(conversationId: number, targetAssetIds: number[]) {
+  const { data } = await client.put<ApiResponse<Conversation>>(
+    `/api/ai/conversations/${conversationId}/targets`,
+    { targetAssetIds },
+  )
   return data
 }

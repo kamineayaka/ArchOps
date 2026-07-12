@@ -75,12 +75,17 @@ export default {
   },
   ai: {
     title: 'AI operations assistant',
-    placeholder: 'Describe the task, e.g. check disk usage on all servers',
+    placeholder: 'Describe the task, e.g. check disk usage on target servers',
     send: 'Send',
     newChat: 'New chat',
     provider: 'AI provider',
     providerDefault: 'Platform default',
     requestFailed: 'AI request failed. Check provider settings.',
+    targetAssets: 'Target assets',
+    targetsSaved: 'Target assets saved and SSH connections warmed',
+    targetsSaveFailed: 'Failed to save target assets',
+    poolConnected: 'pooled',
+    poolIdle: 'not warmed',
   },
   aiSettings: {
     providersTitle: 'AI providers',
@@ -123,6 +128,8 @@ export default {
     title: 'Web SSH terminal',
     selectAsset: 'Select target asset',
     connect: 'Connect',
+    pooled: 'Pool ready',
+    connectFailed: 'Connection failed. Check SSH credentials.',
   },
   approvals: {
     title: 'Approvals',

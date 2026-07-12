@@ -50,6 +50,15 @@ public class ToolExecutorService {
 
     @Transactional
     public ToolExecutionResult execute(ToolCall toolCall, Long userId, Long approvalId) {
+        return execute(toolCall, userId, approvalId, new McpTool.ExecutionContext(userId, null));
+    }
+
+    @Transactional
+    public ToolExecutionResult execute(
+            ToolCall toolCall,
+            Long userId,
+            Long approvalId,
+            McpTool.ExecutionContext toolContext) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "用户不存在"));
         McpTool tool = toolRegistry.find(toolCall.name())
@@ -77,7 +86,12 @@ public class ToolExecutorService {
         try {
             Map<String, Object> args = objectMapper.readValue(
                     toolCall.arguments(), new TypeReference<Map<String, Object>>() {});
-            String output = tool.execute(args, new McpTool.ExecutionContext(userId, user.getUsername()));
+            McpTool.ExecutionContext context = new McpTool.ExecutionContext(
+                    userId,
+                    user.getUsername(),
+                    toolContext.conversationId(),
+                    toolContext.targetAssetIds());
+            String output = tool.execute(args, context);
             auditService.record(new AuditService.AuditEntry(
                     userId,
                     user.getUsername(),

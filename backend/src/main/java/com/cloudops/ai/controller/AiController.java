@@ -3,6 +3,7 @@ package com.cloudops.ai.controller;
 import com.cloudops.ai.dto.ChatMessageResponse;
 import com.cloudops.ai.dto.ChatRequest;
 import com.cloudops.ai.dto.ConversationResponse;
+import com.cloudops.ai.dto.ConversationTargetsRequest;
 import com.cloudops.ai.service.AiAgentService;
 import com.cloudops.ai.service.ConversationService;
 import com.cloudops.common.dto.ApiResponse;
@@ -15,6 +16,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -48,6 +50,22 @@ public class AiController {
             @AuthenticationPrincipal AuthUserPrincipal principal) {
         conversationService.requireOwned(id, principal.getUserId());
         return ApiResponse.ok(conversationService.history(id));
+    }
+
+    @GetMapping("/conversations/{id}/targets")
+    public ApiResponse<List<Long>> targets(
+            @PathVariable Long id,
+            @AuthenticationPrincipal AuthUserPrincipal principal) {
+        return ApiResponse.ok(conversationService.targetAssetIds(id, principal.getUserId()));
+    }
+
+    @PutMapping("/conversations/{id}/targets")
+    public ApiResponse<ConversationResponse> updateTargets(
+            @PathVariable Long id,
+            @RequestBody ConversationTargetsRequest request,
+            @AuthenticationPrincipal AuthUserPrincipal principal) {
+        return ApiResponse.ok(conversationService.updateTargets(
+                id, principal.getUserId(), request.targetAssetIds()));
     }
 
     @PostMapping("/chat")

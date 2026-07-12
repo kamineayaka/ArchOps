@@ -9,6 +9,10 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "ai_conversations")
@@ -23,6 +27,10 @@ public class AiConversation {
 
     @Column(length = 255)
     private String title;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "target_asset_ids", nullable = false)
+    private List<Long> targetAssetIds = new ArrayList<>();
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -48,6 +56,10 @@ public class AiConversation {
     public void setUserId(Long userId) { this.userId = userId; }
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }
+    public List<Long> getTargetAssetIds() { return targetAssetIds; }
+    public void setTargetAssetIds(List<Long> targetAssetIds) {
+        this.targetAssetIds = targetAssetIds != null ? targetAssetIds : new ArrayList<>();
+    }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
 }

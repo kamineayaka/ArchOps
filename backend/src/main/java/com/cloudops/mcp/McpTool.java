@@ -23,5 +23,14 @@ public interface McpTool {
      */
     String execute(Map<String, Object> arguments, ExecutionContext context) throws Exception;
 
-    record ExecutionContext(Long userId, String username) {}
+    record ExecutionContext(
+            Long userId,
+            String username,
+            Long conversationId,
+            List<Long> targetAssetIds) {
+
+        public ExecutionContext(Long userId, String username) {
+            this(userId, username, null, List.of());
+        }
+    }
 }
