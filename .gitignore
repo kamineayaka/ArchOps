@@ -47,3 +47,5 @@ data/
 # Build artifacts
 coverage/
 *.lcov
+__pycache__/
+*.pyc
