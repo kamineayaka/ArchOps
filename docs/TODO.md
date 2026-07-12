@@ -37,8 +37,8 @@
 |---|------|------|----------|
 | [x] P1-1 | **英文 UI（`en-US`）** | 新增 `frontend/src/locales/en-US.ts`，顶栏语言切换 | 主要页面双语可切换 |
 | [x] P1-2 | **清理硬编码中文** | 如 `AssetsView`「已配置」等迁入 i18n | grep 无用户可见硬编码 |
-| P1-3 | **密钥轮换文档** | `docs/deployment.md`：轮换 `JWT_SECRET` / `CREDENTIALS_MASTER_KEY` 影响 | 文档可照做 |
-| P1-4 | **Embedding 切换指引** | 设置页或知识库 API 返回 reindex 提示文案 | 切换 Provider/dims 后有明确提示 |
+| [x] P1-3 | **密钥轮换文档** | `docs/deployment.md`：轮换 `JWT_SECRET` / `CREDENTIALS_MASTER_KEY` 影响 | 文档可照做 |
+| [x] P1-4 | **Embedding 切换指引** | 设置页或知识库 API 返回 reindex 提示文案 | 切换 Provider/dims 后有明确提示 |
 | P1-5 | **审批后 Agent 续跑** | 工具 `PENDING_APPROVAL` 后用户批准可继续 ReAct 循环 | 独立 Issue，非本阶段必须 |
 
 ---
