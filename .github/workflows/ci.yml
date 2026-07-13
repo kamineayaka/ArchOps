@@ -8,7 +8,7 @@ on:
 
 jobs:
   backend:
-    name: Backend build
+    name: Backend build & test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -18,11 +18,11 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
-      - name: Build with Maven Wrapper
+      - name: Build and test with Maven Wrapper
         working-directory: backend
         run: |
           chmod +x mvnw
-          ./mvnw -B -DskipTests verify
+          ./mvnw -B verify
 
   frontend:
     name: Frontend build
