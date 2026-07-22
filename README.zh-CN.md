@@ -112,7 +112,7 @@ CloudOps/
 | AI | OpenAI 兼容 API / Ollama，进程内 Agent 工具，pgvector RAG |
 | 部署 | Docker Compose、Nginx、Prometheus / Grafana / Loki |
 
-更多架构说明见 [docs/architecture.md](docs/architecture.md)。
+产品愿景与整体思想见 [docs/product-vision.md](docs/product-vision.md)。更多工程架构说明见 [docs/architecture.md](docs/architecture.md)。
 
 ## 安全
 

@@ -1,5 +1,7 @@
 # Architecture
 
+> Product north star (why / what): see [product-vision.md](product-vision.md). This document describes the current engineering shape.
+
 ## Overview
 
 CloudOps AI Platform is a **B/S control plane** for managing Linux server fleets with AI-assisted operations.

@@ -111,7 +111,7 @@ CloudOps/
 | AI | OpenAI-compatible API / Ollama, in-process agent tools, pgvector RAG |
 | Deploy | Docker Compose, Nginx, Prometheus / Grafana / Loki |
 
-See [docs/architecture.md](docs/architecture.md) for more details.
+Product vision (north star): [docs/product-vision.md](docs/product-vision.md). Engineering architecture: [docs/architecture.md](docs/architecture.md).
 
 ## Security
 
