@@ -390,3 +390,4 @@ flowchart TD
 |------|------|
 | 2026-07-22 | 初版：架构评审结论完整 TODO（A0–A4），不考虑工程量上限 |
 | 2026-07-22 | ARCH-A1-01：`com.cloudops.mcp` → `com.cloudops.tools`，`McpTool` → `AgentTool` |
+| 2026-07-22 | ARCH-A1-01：`com.cloudops.mcp` → `com.cloudops.tools`，`McpTool` → `AgentTool` |

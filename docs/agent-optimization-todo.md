@@ -2,7 +2,8 @@
 
 > 基于 2026-07-12 全项目评审产出。  
 > 配套 Prompt：`docs/agent-optimization-prompt.md`  
-> 仓库：https://github.com/kamineayaka/CloudOps
+> 仓库：https://github.com/kamineayaka/CloudOps  
+> **架构重构（包边界/依赖/状态模型）见独立清单：** [`docs/architecture-refactor-todo.md`](architecture-refactor-todo.md)（`ARCH-*`）。与本文件重叠时（如 `user_assets`、权限模型），以 ARCH-A0 决策为准。
 
 **使用方式：**
 
