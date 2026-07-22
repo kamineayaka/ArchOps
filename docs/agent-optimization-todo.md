@@ -100,8 +100,8 @@
 |------|------|
 | **问题** | `user_assets` 表存在但 Java 层未实现；任意 OPERATOR 可访问所有资产 |
 | **涉及文件** | 新建 `backend/src/main/java/com/cloudops/asset/domain/UserAsset.java`、`UserAssetRepository.java`；修改 `AssetService.java`、`AssetController.java`；可选 admin API 分配资产 |
-| **实现要点** | 1) ADMIN 可见全部资产；2) OPERATOR/VIEWER 仅可见 `user_assets` 中分配的资产；3) 未分配时 OPERATOR 行为需明确（建议：ADMIN 分配前不可见，或文档说明默认全可见仅 dev）；4) `list_assets` MCP 工具同步过滤 |
-| **完成标准** | 集成测试：用户 A 无法通过 API/MCP 访问未分配资产；ADMIN 可分配 |
+| **实现要点** | 1) ADMIN 可见全部资产；2) OPERATOR/VIEWER 仅可见 `user_assets` 中分配的资产；3) 未分配时 OPERATOR 行为需明确（建议：ADMIN 分配前不可见，或文档说明默认全可见仅 dev）；4) `list_assets` 内置工具同步过滤 |
+| **完成标准** | 集成测试：用户 A 无法通过 API/内置工具访问未分配资产；ADMIN 可分配 |
 | **测试** | 新增 `AssetAclIntegrationTest` |
 | **依赖** | 无 |
 

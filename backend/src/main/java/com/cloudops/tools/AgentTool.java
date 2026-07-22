@@ -1,14 +1,15 @@
-package com.cloudops.mcp;
+package com.cloudops.tools;
 
-import com.cloudops.ai.llm.LlmProvider.ToolDefinition;
 import java.util.List;
 import java.util.Map;
 
 /**
  * A single executable tool exposed to the AI agent. Tools are registered with
  * the {@link ToolRegistry} and discovered by the agent at conversation time.
+ *
+ * <p>This is an in-process tool contract, not an MCP protocol implementation.
  */
-public interface McpTool {
+public interface AgentTool {
 
     String name();
 

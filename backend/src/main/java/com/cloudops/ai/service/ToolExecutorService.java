@@ -9,8 +9,8 @@ import com.cloudops.approval.service.RiskClassifier;
 import com.cloudops.ai.llm.LlmProvider.ToolCall;
 import com.cloudops.audit.service.AuditService;
 import com.cloudops.common.exception.BusinessException;
-import com.cloudops.mcp.McpTool;
-import com.cloudops.mcp.ToolRegistry;
+import com.cloudops.tools.AgentTool;
+import com.cloudops.tools.ToolRegistry;
 import com.cloudops.user.domain.User;
 import com.cloudops.user.repository.UserRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -51,7 +51,7 @@ public class ToolExecutorService {
 
     @Transactional
     public ToolExecutionResult execute(ToolCall toolCall, Long userId, Long approvalId) {
-        return execute(toolCall, userId, approvalId, new McpTool.ExecutionContext(userId, null));
+        return execute(toolCall, userId, approvalId, new AgentTool.ExecutionContext(userId, null));
     }
 
     @Transactional
@@ -59,10 +59,10 @@ public class ToolExecutorService {
             ToolCall toolCall,
             Long userId,
             Long approvalId,
-            McpTool.ExecutionContext toolContext) {
+            AgentTool.ExecutionContext toolContext) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "用户不存在"));
-        McpTool tool = toolRegistry.find(toolCall.name())
+        AgentTool tool = toolRegistry.find(toolCall.name())
                 .orElseThrow(() -> new BusinessException(HttpStatus.BAD_REQUEST, "TOOL_NOT_FOUND", "工具不存在: " + toolCall.name()));
 
         RiskLevel risk = riskClassifier.classify(toolCall.name(), toolCall.arguments());
@@ -96,7 +96,7 @@ public class ToolExecutorService {
         try {
             Map<String, Object> args = objectMapper.readValue(
                     toolCall.arguments(), new TypeReference<Map<String, Object>>() {});
-            McpTool.ExecutionContext context = new McpTool.ExecutionContext(
+            AgentTool.ExecutionContext context = new AgentTool.ExecutionContext(
                     userId,
                     user.getUsername(),
                     toolContext.conversationId(),

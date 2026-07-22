@@ -1,8 +1,8 @@
-package com.cloudops.mcp.tool;
+package com.cloudops.tools.tool;
 
 import com.cloudops.asset.dto.AssetResponse;
 import com.cloudops.asset.service.AssetService;
-import com.cloudops.mcp.McpTool;
+import com.cloudops.tools.AgentTool;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 
 /** Lists all registered assets so the agent can pick a target for other tools. */
 @Component
-public class ListAssetsTool implements McpTool {
+public class ListAssetsTool implements AgentTool {
 
     private final AssetService assetService;
 

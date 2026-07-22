@@ -5,7 +5,7 @@
 [![CI](https://github.com/kamineayaka/CloudOps/actions/workflows/ci.yml/badge.svg)](https://github.com/kamineayaka/CloudOps/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-**CloudOps AI Platform** 是一套面向 Linux 服务器集群的云原生智能运维控制平面，采用 B/S 架构。它提供统一的 Web 管理界面，集成 AI 辅助运维、Web SSH 终端、MCP 工具网关、知识库 RAG、分级审批工作流，以及可防篡改的审计日志。
+**CloudOps AI Platform** 是一套面向 Linux 服务器集群的云原生智能运维控制平面，采用 B/S 架构。它提供统一的 Web 管理界面，集成 AI 辅助运维、Web SSH 终端、进程内工具注册表、知识库 RAG、分级审批工作流，以及可防篡改的审计日志。
 
 适用于从单台 VPS 到生产级集群的部署场景，方便其他开发者自行搭建与二次开发。
 
@@ -18,7 +18,7 @@
 | **SSH 连接池** | 服务端按用户/资产复用 SSH 会话，支持预热 API，终端与 `ssh_exec` 共用 |
 | **Web SSH 终端** | 浏览器内终端（xterm.js + MINA SSHD），基于连接池，支持 PTY 缩放 |
 | **AI Agent** | ReAct 工具调用循环；对话可固定目标资产，`ssh_exec` 无需每次传 `assetId` |
-| **MCP 工具网关** | 可扩展工具注册中心（`ssh_exec`、`list_assets` 等） |
+| **内置工具注册表** | 可扩展的进程内 Agent 工具（`ssh_exec`、`list_assets` 等） |
 | **审批工作流** | 按 RBAC 分级风险识别（LOW / MEDIUM / HIGH）与人工门控 |
 | **知识库** | 架构快照 + 工作日志 + pgvector RAG 语义检索 |
 | **审计中心** | 追加写入日志 + SHA-256 哈希链防篡改校验 |
@@ -109,7 +109,7 @@ CloudOps/
 |---|---|
 | 后端 | Java 21、Spring Boot 3、Flyway、PostgreSQL + pgvector、Redis |
 | 前端 | Vue 3、Naive UI、Pinia、vue-i18n |
-| AI | OpenAI 兼容 API / Ollama，MCP 工具网关，pgvector RAG |
+| AI | OpenAI 兼容 API / Ollama，进程内 Agent 工具，pgvector RAG |
 | 部署 | Docker Compose、Nginx、Prometheus / Grafana / Loki |
 
 更多架构说明见 [docs/architecture.md](docs/architecture.md)。

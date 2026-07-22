@@ -16,8 +16,8 @@ import com.cloudops.asset.dto.AssetResponse;
 import com.cloudops.asset.service.AssetService;
 import com.cloudops.common.exception.BusinessException;
 import com.cloudops.knowledge.service.KnowledgeContextService;
-import com.cloudops.mcp.McpTool;
-import com.cloudops.mcp.ToolRegistry;
+import com.cloudops.tools.AgentTool;
+import com.cloudops.tools.ToolRegistry;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
@@ -88,7 +88,7 @@ public class AiAgentService {
         }
 
         List<ChatMessage> messages = buildContext(conversation, conversationId, userMessage);
-        McpTool.ExecutionContext toolContext = new McpTool.ExecutionContext(
+        AgentTool.ExecutionContext toolContext = new AgentTool.ExecutionContext(
                 userId, null, conversationId, conversation.getTargetAssetIds(), providerId);
 
         LlmRuntime llm;
@@ -124,7 +124,7 @@ public class AiAgentService {
         Long userId = approval.getRequesterId();
 
         AiConversation conversation = conversationService.requireOwned(conversationId, userId);
-        McpTool.ExecutionContext toolContext = new McpTool.ExecutionContext(
+        AgentTool.ExecutionContext toolContext = new AgentTool.ExecutionContext(
                 userId, null, conversationId, conversation.getTargetAssetIds(), providerId);
         ToolCall toolCall = new ToolCall("approval-" + approvalId, toolName, toolArgs);
 
@@ -178,7 +178,7 @@ public class AiAgentService {
             Long conversationId,
             AiConversation conversation,
             Long providerId,
-            McpTool.ExecutionContext toolContext,
+            AgentTool.ExecutionContext toolContext,
             List<ToolExecutionSummary> toolSummaries,
             Consumer<AgentEvent> onEvent) {
         List<ToolDefinition> tools = toolRegistry.definitions();

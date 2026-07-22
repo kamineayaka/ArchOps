@@ -1,10 +1,10 @@
-package com.cloudops.mcp.tool;
+package com.cloudops.tools.tool;
 
 import com.cloudops.asset.dto.AssetResponse;
 import com.cloudops.asset.service.AssetService;
-import com.cloudops.mcp.McpTool;
 import com.cloudops.terminal.pool.PooledSshHandle;
 import com.cloudops.terminal.pool.SshConnectionPool;
+import com.cloudops.tools.AgentTool;
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.List;
@@ -18,7 +18,7 @@ import org.springframework.stereotype.Component;
  * When {@code assetId} is omitted, runs on all conversation target assets sequentially.
  */
 @Component
-public class SshExecTool implements McpTool {
+public class SshExecTool implements AgentTool {
 
     private final AssetService assetService;
     private final SshConnectionPool sshConnectionPool;

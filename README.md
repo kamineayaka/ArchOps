@@ -5,7 +5,7 @@
 [![CI](https://github.com/kamineayaka/CloudOps/actions/workflows/ci.yml/badge.svg)](https://github.com/kamineayaka/CloudOps/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-**CloudOps AI Platform** is a B/S cloud-native intelligent operations control plane for Linux server fleets. It provides a unified web interface with AI-assisted operations, Web SSH terminal, MCP tool gateway, knowledge-base RAG, RBAC-tiered approval workflow, and tamper-evident audit logging.
+**CloudOps AI Platform** is a B/S cloud-native intelligent operations control plane for Linux server fleets. It provides a unified web interface with AI-assisted operations, Web SSH terminal, in-process agent tool registry, knowledge-base RAG, RBAC-tiered approval workflow, and tamper-evident audit logging.
 
 Designed for deployment on any Linux server — from a single VPS to a production cluster — and for other developers to self-host and extend.
 
@@ -18,7 +18,7 @@ Designed for deployment on any Linux server — from a single VPS to a productio
 | **SSH Connection Pool** | Server-side pooled SSH sessions per user/asset; warm API; reused by terminal and `ssh_exec` |
 | **Web SSH Terminal** | Browser terminal (xterm.js + MINA SSHD) over pooled connections, PTY resize |
 | **AI Agent** | ReAct tool-calling loop; pin target assets per conversation so `ssh_exec` needs no repeated `assetId` |
-| **MCP Tool Gateway** | Extensible tool registry (`ssh_exec`, `list_assets`, ...) |
+| **Built-in Tool Registry** | Extensible in-process agent tools (`ssh_exec`, `list_assets`, ...) |
 | **Approval Workflow** | RBAC-tiered risk classification (LOW / MEDIUM / HIGH) with human gate |
 | **Knowledge Base** | Architecture snapshot + work logs + pgvector RAG semantic retrieval |
 | **Audit Center** | Append-only log with SHA-256 hash chain for tamper detection |
@@ -108,7 +108,7 @@ CloudOps/
 |---|---|
 | Backend | Java 21, Spring Boot 3, Flyway, PostgreSQL + pgvector, Redis |
 | Frontend | Vue 3, Naive UI, Pinia, vue-i18n |
-| AI | OpenAI-compatible API / Ollama, MCP tool gateway, pgvector RAG |
+| AI | OpenAI-compatible API / Ollama, in-process agent tools, pgvector RAG |
 | Deploy | Docker Compose, Nginx, Prometheus / Grafana / Loki |
 
 See [docs/architecture.md](docs/architecture.md) for more details.

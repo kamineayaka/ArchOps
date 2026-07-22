@@ -16,7 +16,7 @@ Spring Boot Backend (stateless)
       ├── asset/      Inventory, encrypted SSH credentials
       ├── terminal/   Web SSH proxy (MINA SSHD)
       ├── ai/         Agent loop, LLM providers, streaming WS
-      ├── mcp/        Tool registry (ssh_exec, list_assets, ...)
+      ├── tools/      In-process agent tool registry (ssh_exec, list_assets, ...)
       ├── approval/   RiskClassifier + ApprovalGate + workflow
       ├── knowledge/  Architecture snapshot + work logs → AI context
       ├── audit/      Append-only hash-chain log

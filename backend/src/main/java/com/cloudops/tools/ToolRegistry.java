@@ -1,4 +1,4 @@
-package com.cloudops.mcp;
+package com.cloudops.tools;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -7,21 +7,21 @@ import java.util.Optional;
 import org.springframework.stereotype.Component;
 
 /**
- * Registry of MCP tools available to the AI agent. Tools self-register as
- * Spring beans; the registry indexes them by name for dispatch.
+ * Registry of in-process agent tools. Tools self-register as Spring beans;
+ * the registry indexes them by name for dispatch.
  */
 @Component
 public class ToolRegistry {
 
-    private final Map<String, McpTool> tools = new LinkedHashMap<>();
+    private final Map<String, AgentTool> tools = new LinkedHashMap<>();
 
-    public ToolRegistry(List<McpTool> registered) {
-        for (McpTool tool : registered) {
+    public ToolRegistry(List<AgentTool> registered) {
+        for (AgentTool tool : registered) {
             tools.put(tool.name(), tool);
         }
     }
 
-    public List<McpTool> all() {
+    public List<AgentTool> all() {
         return List.copyOf(tools.values());
     }
 
@@ -31,7 +31,7 @@ public class ToolRegistry {
                 .toList();
     }
 
-    public Optional<McpTool> find(String name) {
+    public Optional<AgentTool> find(String name) {
         return Optional.ofNullable(tools.get(name));
     }
 }
