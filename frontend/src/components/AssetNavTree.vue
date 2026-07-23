@@ -13,6 +13,7 @@ const router = useRouter()
 const loading = ref(false)
 const treeData = ref<TreeOption[]>([])
 const expandedKeys = ref<Array<string | number>>([])
+const assetsById = ref<Map<number, Asset>>(new Map())
 
 function groupKey(id: number) {
   return `group:${id}`
@@ -42,6 +43,7 @@ async function loadTree() {
     const [groupRes, assetRes] = await Promise.all([listAssetGroups(), listAssets()])
     const groups: AssetGroup[] = groupRes.success && groupRes.data ? groupRes.data : []
     const assets: Asset[] = assetRes.success && assetRes.data ? assetRes.data : []
+    assetsById.value = new Map(assets.map((a) => [a.id, a]))
     const memberIds = new Set<number>()
 
     const groupNodes: TreeOption[] = groups.map((group) => ({
@@ -101,8 +103,12 @@ function handleSelect(keys: Array<string | number>) {
   }
   if (key.startsWith('asset:')) {
     const id = Number(key.slice('asset:'.length))
-    if (Number.isFinite(id)) {
+    if (!Number.isFinite(id)) return
+    const asset = assetsById.value.get(id)
+    if (asset?.hasSshCredential) {
       void router.push({ name: 'terminal', params: { assetId: String(id) } })
+    } else {
+      void router.push({ name: 'assets' })
     }
   }
 }

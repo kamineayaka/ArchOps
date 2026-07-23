@@ -32,6 +32,7 @@ public class WorkLog {
     @Column(nullable = false, columnDefinition = "text")
     private String summary;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
     private String diff = "{}";
 

@@ -138,9 +138,10 @@ public class AssetService {
     }
 
     private void applyRequest(Asset asset, AssetRequest request) {
-        asset.setName(request.name());
+        asset.setName(request.name() != null ? request.name().trim() : request.name());
         asset.setKind(request.kind());
-        asset.setHost(request.host());
+        String host = request.host();
+        asset.setHost(host != null && !host.isBlank() ? host.trim() : host);
         asset.setPort(request.port());
         asset.setMetadata(mergeMetadata(request.metadata(), request.description()));
         asset.setParentId(request.parentId());
