@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -50,8 +51,11 @@ public class KnowledgeController {
     }
 
     @GetMapping("/work-logs")
-    public ApiResponse<List<WorkLogResponse>> workLogs() {
-        return ApiResponse.ok(knowledgeService.recentLogs());
+    public ApiResponse<List<WorkLogResponse>> workLogs(
+            @RequestParam(required = false) Long conversationId,
+            @RequestParam(required = false) Long assetId,
+            @RequestParam(required = false) Long groupId) {
+        return ApiResponse.ok(knowledgeService.findWorkLogs(conversationId, assetId, groupId));
     }
 
     @PostMapping("/search")

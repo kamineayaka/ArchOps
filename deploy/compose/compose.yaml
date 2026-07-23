@@ -77,6 +77,7 @@ services:
       RAG_EMBEDDING_DIMENSIONS: ${RAG_EMBEDDING_DIMENSIONS:-1536}
       RAG_TOP_K: ${RAG_TOP_K:-5}
       RAG_MIN_SIMILARITY: ${RAG_MIN_SIMILARITY:-0.35}
+      ARCH_AUTO_MERGE_ENABLED: ${ARCH_AUTO_MERGE_ENABLED:-false}
     depends_on:
       postgres:
         condition: service_healthy

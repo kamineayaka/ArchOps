@@ -2,6 +2,11 @@ package com.archops.knowledge.indexing;
 
 import com.archops.ai.provider.service.PlatformAiSettingsService;
 import com.archops.common.config.RagProperties;
+import com.archops.knowledge.architecture.PartitionKeys;
+import com.archops.knowledge.architecture.domain.ArchitecturePartition;
+import com.archops.knowledge.architecture.domain.ArchitectureRevision;
+import com.archops.knowledge.architecture.repository.ArchitecturePartitionRepository;
+import com.archops.knowledge.architecture.repository.ArchitectureRevisionRepository;
 import com.archops.knowledge.domain.ArchitectureSnapshot;
 import com.archops.knowledge.domain.KnowledgeSourceType;
 import com.archops.knowledge.domain.WorkLog;
@@ -11,6 +16,7 @@ import com.archops.knowledge.repository.WorkLogRepository;
 import com.archops.knowledge.retrieval.KbChunkVectorRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -33,6 +39,8 @@ public class KnowledgeIndexingService {
     private final KbChunkVectorRepository vectorRepository;
     private final ArchitectureSnapshotRepository snapshotRepository;
     private final WorkLogRepository workLogRepository;
+    private final ArchitecturePartitionRepository partitionRepository;
+    private final ArchitectureRevisionRepository revisionRepository;
     private final ObjectMapper objectMapper;
 
     public KnowledgeIndexingService(
@@ -44,6 +52,8 @@ public class KnowledgeIndexingService {
             KbChunkVectorRepository vectorRepository,
             ArchitectureSnapshotRepository snapshotRepository,
             WorkLogRepository workLogRepository,
+            ArchitecturePartitionRepository partitionRepository,
+            ArchitectureRevisionRepository revisionRepository,
             ObjectMapper objectMapper) {
         this.settingsService = settingsService;
         this.ragProperties = ragProperties;
@@ -53,6 +63,8 @@ public class KnowledgeIndexingService {
         this.vectorRepository = vectorRepository;
         this.snapshotRepository = snapshotRepository;
         this.workLogRepository = workLogRepository;
+        this.partitionRepository = partitionRepository;
+        this.revisionRepository = revisionRepository;
         this.objectMapper = objectMapper;
     }
 
@@ -90,10 +102,76 @@ public class KnowledgeIndexingService {
         if (snapshot.getContent() != null) {
             text.append(snapshot.getContent());
         }
-        Map<String, Object> metadata = Map.of(
-                "version", snapshot.getVersion(),
-                "createdAt", snapshot.getCreatedAt().toString());
+        Map<String, Object> metadata = new HashMap<>();
+        metadata.put("version", snapshot.getVersion());
+        metadata.put("createdAt", snapshot.getCreatedAt().toString());
+        metadata.put("partition_key", PartitionKeys.GLOBAL);
         return indexDocument(KnowledgeSourceType.ARCHITECTURE, snapshot.getId(), text.toString(), metadata);
+    }
+
+    @Transactional
+    public int indexPartitionRevision(ArchitecturePartition partition, ArchitectureRevision revision) {
+        StringBuilder text = new StringBuilder();
+        text.append("Architecture partition ")
+                .append(partition.getPartitionKey())
+                .append(" v")
+                .append(revision.getVersion())
+                .append('\n');
+        if (revision.getSummary() != null) {
+            text.append(revision.getSummary()).append('\n');
+        }
+        if (revision.getBodyMd() != null) {
+            text.append(revision.getBodyMd());
+        }
+        Map<String, Object> metadata = new HashMap<>();
+        metadata.put("partition_key", partition.getPartitionKey());
+        metadata.put("version", revision.getVersion());
+        metadata.put("revision_id", revision.getId());
+        if (partition.getPartitionKey().startsWith("asset:")) {
+            try {
+                metadata.put("asset_id", Long.parseLong(partition.getPartitionKey().substring(6)));
+            } catch (NumberFormatException ignored) {
+                // ignore
+            }
+        }
+        if (partition.getPartitionKey().startsWith("group:")) {
+            try {
+                metadata.put("group_id", Long.parseLong(partition.getPartitionKey().substring(6)));
+            } catch (NumberFormatException ignored) {
+                // ignore
+            }
+        }
+        // Use revision id as source id for partition-scoped chunks
+        return indexDocument(KnowledgeSourceType.ARCHITECTURE, revision.getId(), text.toString(), metadata);
+    }
+
+    @Transactional
+    public int reindexPartition(String partitionKey) {
+        if (!settingsService.getSettings().isRagEnabled()) {
+            return 0;
+        }
+        PartitionKeys.validate(partitionKey);
+        ArchitecturePartition partition = partitionRepository.findByPartitionKey(partitionKey).orElse(null);
+        if (partition == null) {
+            return 0;
+        }
+        ArchitectureRevision latest = revisionRepository
+                .findTopByPartitionIdOrderByVersionDesc(partition.getId())
+                .orElse(null);
+        if (latest == null) {
+            return 0;
+        }
+        // Drop previous chunks for this revision source id, then reindex latest
+        return indexPartitionRevision(partition, latest);
+    }
+
+    @Async("ragTaskExecutor")
+    public void scheduleReindexPartition(String partitionKey) {
+        try {
+            reindexPartition(partitionKey);
+        } catch (Exception ex) {
+            log.warn("Async partition reindex failed for {}: {}", partitionKey, ex.getMessage());
+        }
     }
 
     @Transactional
@@ -107,10 +185,24 @@ public class KnowledgeIndexingService {
         if (workLog.getDiff() != null && !workLog.getDiff().isBlank() && !"{}".equals(workLog.getDiff())) {
             text.append("\nDetails: ").append(workLog.getDiff());
         }
-        Map<String, Object> metadata = Map.of(
-                "logType", workLog.getLogType(),
-                "actorName", workLog.getActorName() != null ? workLog.getActorName() : "",
-                "createdAt", workLog.getCreatedAt().toString());
+        Map<String, Object> metadata = new HashMap<>();
+        metadata.put("logType", workLog.getLogType());
+        metadata.put("actorName", workLog.getActorName() != null ? workLog.getActorName() : "");
+        metadata.put("createdAt", workLog.getCreatedAt().toString());
+        if (workLog.getConversationId() != null) {
+            metadata.put("conversationId", workLog.getConversationId());
+        }
+        if (workLog.getLevel() != null) {
+            metadata.put("level", workLog.getLevel());
+        }
+        if (workLog.getAssetIds() != null && !workLog.getAssetIds().isEmpty()) {
+            metadata.put("assetIds", workLog.getAssetIds());
+            metadata.put("asset_id", workLog.getAssetIds().getFirst());
+        }
+        if (workLog.getGroupIds() != null && !workLog.getGroupIds().isEmpty()) {
+            metadata.put("groupIds", workLog.getGroupIds());
+            metadata.put("group_id", workLog.getGroupIds().getFirst());
+        }
         return indexDocument(KnowledgeSourceType.WORK_LOG, workLog.getId(), text.toString(), metadata);
     }
 

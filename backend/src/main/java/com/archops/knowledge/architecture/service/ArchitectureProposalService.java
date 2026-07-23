@@ -148,6 +148,11 @@ public class ArchitectureProposalService {
         List<FactOpRequest> ops = new ArrayList<>();
         if (facts != null) {
             for (Map<String, Object> fact : facts) {
+                String provenance = "{\"source\":\"propose_architecture_update\"";
+                if (conversationId != null) {
+                    provenance += ",\"conversationId\":" + conversationId;
+                }
+                provenance += "}";
                 ops.add(new FactOpRequest(
                         "ADD",
                         str(fact.get("factType"), "ROLE"),
@@ -156,7 +161,7 @@ public class ArchitectureProposalService {
                         str(fact.get("object"), "unknown"),
                         asLong(fact.get("assetId")),
                         asDouble(fact.get("confidence")),
-                        null));
+                        provenance));
             }
         }
 
