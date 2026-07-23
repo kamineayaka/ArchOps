@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { isAdmin } from '@/utils/roles'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -99,7 +100,7 @@ router.beforeEach(async (to) => {
       return { name: 'login' }
     }
   }
-  if (to.meta.requiresAdmin && !authStore.user?.roles?.includes('ROLE_ADMIN')) {
+  if (to.meta.requiresAdmin && !isAdmin(authStore.user?.roles)) {
     return { name: 'dashboard' }
   }
   return true

@@ -153,7 +153,10 @@
 
 OpsKat 是优秀的 **「单人运维工作台 + 带策略的 AI 手」**；ArchOps 要做的是 **「多人控制面 + 可治理的组织架构记忆」**。  
 
-**最该偷的三样：** ① 资产/策略双注册扩展模型；② Allow/Deny/Confirm/Grant/Audit 工具闭环；③ 「上下文槽位」组装方式。  
+**最该偷的三样（原）：** ① 资产/策略双注册；② Allow/Deny/Confirm/Grant/Audit；③ 上下文槽位。  
+
+**2026-07-23 修正（用户三图反馈）：** 另须 **字段级对齐** SSH 创建表单、**布局级对齐** 终端 IDE+Agent 侧栏、**字段级对齐** AI Provider（含 reasoning）。工作台不足会阻断主线触达。详见 [`workbench-gap-audit.md`](workbench-gap-audit.md)。
+
 **最该自己做、他们没有的：** 分区 Architecture SSOT、Proposal 写回、范围化 RAG、多用户 ACL。
 
 ---

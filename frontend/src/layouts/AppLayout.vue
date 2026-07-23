@@ -38,6 +38,7 @@ import AssetNavTree from '@/components/AssetNavTree.vue'
 import { useAiWorkbenchShell } from '@/composables/useAiWorkbenchShell'
 import { useAuthStore } from '@/stores/auth'
 import { useTheme } from '@/composables/useTheme'
+import { isAdmin as roleIsAdmin } from '@/utils/roles'
 import { setAppLocale } from '@/i18n'
 
 const route = useRoute()
@@ -74,7 +75,7 @@ function handleLocaleChange(value: 'zh-CN' | 'en-US') {
 const username = computed(() => authStore.user?.displayName || authStore.user?.username || '')
 const userInitial = computed(() => (username.value ? username.value.charAt(0).toUpperCase() : '?'))
 
-const isAdmin = computed(() => authStore.user?.roles?.includes('ROLE_ADMIN') ?? false)
+const isAdmin = computed(() => roleIsAdmin(authStore.user?.roles))
 
 const pageTitle = computed(() => {
   const key = route.meta.titleKey as string | undefined

@@ -21,6 +21,7 @@ import '@/assetTypes'
 import { defaultPortFor, getAssetType, listAssetTypes } from '@/assetTypes/registry'
 import EmptyState from '@/components/EmptyState.vue'
 import PageHeader from '@/components/PageHeader.vue'
+import { apiErrorMessage } from '@/utils/apiError'
 
 const { t } = useI18n()
 const message = useMessage()
@@ -121,18 +122,33 @@ async function load() {
 }
 
 async function handleCreate() {
-  const payload = {
-    name: form.value.name,
-    kind: form.value.kind,
-    host: form.value.host || undefined,
-    port: form.value.port ?? undefined,
+  if (!form.value.name.trim()) {
+    message.warning(t('assets.nameRequired'))
+    return
   }
-  const res = await createAsset(payload)
-  if (res.success) {
-    message.success(t('assets.created'))
-    showCreate.value = false
-    resetForm()
-    await load()
+  const def = getAssetType(form.value.kind)
+  if (def?.showHost && !form.value.host.trim()) {
+    message.warning(t('assets.hostRequired'))
+    return
+  }
+  try {
+    const payload = {
+      name: form.value.name.trim(),
+      kind: form.value.kind,
+      host: form.value.host || undefined,
+      port: form.value.port ?? undefined,
+    }
+    const res = await createAsset(payload)
+    if (res.success) {
+      message.success(t('assets.created'))
+      showCreate.value = false
+      resetForm()
+      await load()
+    } else {
+      message.error(res.message || t('common.failed'))
+    }
+  } catch (err) {
+    message.error(apiErrorMessage(err, t('common.failed')))
   }
 }
 
@@ -150,11 +166,17 @@ function openCredential(assetId: number) {
 
 async function handleSaveCredential() {
   if (!selectedAssetId.value) return
-  const res = await saveSshCredential(selectedAssetId.value, credForm.value)
-  if (res.success) {
-    message.success(t('assets.credentialSaved'))
-    showCredential.value = false
-    await load()
+  try {
+    const res = await saveSshCredential(selectedAssetId.value, credForm.value)
+    if (res.success) {
+      message.success(t('assets.credentialSaved'))
+      showCredential.value = false
+      await load()
+    } else {
+      message.error(res.message || t('common.failed'))
+    }
+  } catch (err) {
+    message.error(apiErrorMessage(err, t('common.failed')))
   }
 }
 

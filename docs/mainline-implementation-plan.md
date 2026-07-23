@@ -2,7 +2,8 @@
 
 > **北极星：** [`docs/product-vision.md`](product-vision.md)  
 > **配套 Prompt：** [`docs/mainline-implementation-prompt.md`](mainline-implementation-prompt.md)  
-> **竞品学习（OpsKat）：** [`docs/opskat-learning.md`](opskat-learning.md) — 可扩展资产类型、工具治理、上下文槽位、UI 壳；**勿照搬** Description 当架构记忆 / 桌面单用户模型。  
+> **竞品学习（OpsKat）：** [`docs/opskat-learning.md`](opskat-learning.md)  
+> **工作台缺口与 Bug 审计：** [`docs/workbench-gap-audit.md`](workbench-gap-audit.md) — SSH≈IDE / Agent≈侧栏；W0–W4 波次  
 > **相关清单（勿混用）：**  
 > - `docs/architecture-refactor-todo.md`（`ARCH-*` 包边界/依赖）  
 > - `docs/agent-optimization-todo.md`（`OPT-*` 安全质量）  

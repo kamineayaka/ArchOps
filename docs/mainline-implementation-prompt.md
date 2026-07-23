@@ -149,6 +149,23 @@ HIGH 默认不可 grant。仅覆盖执行类工具（ssh_exec 等），不影响
 硬约束与验证见 docs/mainline-implementation-prompt.md 一键 Prompt — OpsKat 第二波。
 ```
 
+### 阶段 W0–W2 — 工作台急救（用户三图 + Bug，优先于锦上添花）
+
+```text
+必读 docs/workbench-gap-audit.md 全文。
+
+产品隐喻：SSH 终端页 = IDE Window；Agent = Agent Window（类似 Cursor）。
+
+请按波次交付（可多 PR）：
+W0：确认 BUG-01/02/03 已在 main（角色 ADMIN、nginx try_files、资产创建错误提示）；补回归。
+W1：对齐 OpsKat「添加 SSH」表单（主机/端口/用户/认证/密码或密钥/分组/描述/测试连接）；创建一次可连。
+W2：终端 IDE 壳 — 左资产树、多 Tab 会话、状态条、一键打开 Agent 侧轨。
+
+字段级可对照 / 照搬 OpsKat：AssetForm+SSHConfigSection、AIProviderForm（含 reasoning）。
+不要用 Description 当 Architecture SSOT；不要桌面 socket。
+验证：npm run build；手动：创建 SERVER→测试连接→多 Tab 终端→侧轨对话。
+```
+
 ---
 
 ## 单任务 Prompt 模板

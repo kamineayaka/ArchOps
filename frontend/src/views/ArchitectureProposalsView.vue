@@ -22,6 +22,7 @@ import {
 import EmptyState from '@/components/EmptyState.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import { useAuthStore } from '@/stores/auth'
+import { isOperatorOrAdmin } from '@/utils/roles'
 
 const { t } = useI18n()
 const message = useMessage()
@@ -34,10 +35,7 @@ const showDetail = ref(false)
 const detail = ref<ProposalResponse | null>(null)
 const deciding = ref(false)
 
-const canDecide = computed(() => {
-  const roles = authStore.user?.roles ?? []
-  return roles.includes('ROLE_ADMIN') || roles.includes('ROLE_OPERATOR')
-})
+const canDecide = computed(() => isOperatorOrAdmin(authStore.user?.roles))
 
 const statusOptions = computed(() => [
   { label: t('proposals.statusAll'), value: '' },

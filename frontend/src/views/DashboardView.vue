@@ -25,12 +25,13 @@ import { listAllProviders } from '@/api/ai-providers'
 import PageHeader from '@/components/PageHeader.vue'
 import { useAuthStore } from '@/stores/auth'
 import { formatRole } from '@/utils/format'
+import { isAdmin as roleIsAdmin } from '@/utils/roles'
 
 const { t } = useI18n()
 const router = useRouter()
 const authStore = useAuthStore()
 const user = computed(() => authStore.user)
-const isAdmin = computed(() => authStore.user?.roles?.includes('ROLE_ADMIN') ?? false)
+const isAdmin = computed(() => roleIsAdmin(authStore.user?.roles))
 const showNoProviderBanner = ref(false)
 
 const modules = computed(() => [

@@ -22,6 +22,7 @@ import {
 import EmptyState from '@/components/EmptyState.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import { useAuthStore } from '@/stores/auth'
+import { isAdmin as roleIsAdmin } from '@/utils/roles'
 
 const { t } = useI18n()
 const message = useMessage()
@@ -33,7 +34,7 @@ const detailLoading = ref(false)
 const selected = ref<PartitionDetail | null>(null)
 const rollbackVersion = ref<number | null>(null)
 
-const isAdmin = computed(() => authStore.user?.roles?.includes('ROLE_ADMIN') ?? false)
+const isAdmin = computed(() => roleIsAdmin(authStore.user?.roles))
 
 const columns = computed<DataTableColumns<PartitionSummary>>(() => [
   { title: t('architecture.partitionKey'), key: 'partitionKey', ellipsis: { tooltip: true } },
