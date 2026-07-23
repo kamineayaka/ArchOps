@@ -12,6 +12,7 @@ import {
 import { createAiStreamClient, type AiStreamEvent } from '@/api/aiStream'
 import { listChatProviders, type AiProvider } from '@/api/ai-providers'
 import { listAssets, type Asset } from '@/api/assets'
+import { listAssetGroups, type AssetGroup } from '@/api/assetGroups'
 import { listSshPool, type SshPoolEntry } from '@/api/sshPool'
 import EmptyState from '@/components/EmptyState.vue'
 import PageHeader from '@/components/PageHeader.vue'
@@ -39,9 +40,12 @@ const savingTargets = ref(false)
 const messages = ref<DisplayMessage[]>([])
 const providers = ref<AiProvider[]>([])
 const assets = ref<Asset[]>([])
+const groups = ref<AssetGroup[]>([])
 const poolEntries = ref<SshPoolEntry[]>([])
 const selectedProviderId = ref<number | undefined>(undefined)
 const targetAssetIds = ref<number[]>([])
+const targetGroupIds = ref<number[]>([])
+const resolvedAssetIds = ref<number[]>([])
 const chatBottomRef = ref<HTMLDivElement | null>(null)
 const streamingIndex = ref<number | null>(null)
 
@@ -56,6 +60,17 @@ const assetOptions = computed(() =>
   assets.value
     .filter((a) => a.hasSshCredential)
     .map((a) => ({ label: `${a.name} (${a.host})`, value: a.id })),
+)
+
+const groupOptions = computed(() =>
+  groups.value.map((g) => ({
+    label: `${g.name} (${g.memberCount})`,
+    value: g.id,
+  })),
+)
+
+const displayTargetAssetIds = computed(() =>
+  resolvedAssetIds.value.length ? resolvedAssetIds.value : targetAssetIds.value,
 )
 
 const poolStatusByAsset = computed(() => {
@@ -192,6 +207,13 @@ async function loadAssets() {
   }
 }
 
+async function loadGroups() {
+  const res = await listAssetGroups()
+  if (res.success && res.data) {
+    groups.value = res.data
+  }
+}
+
 async function refreshPool() {
   const res = await listSshPool()
   if (res.success && res.data) {
@@ -204,15 +226,25 @@ async function ensureConversation() {
   const res = await createConversation()
   if (res.success && res.data) {
     conversationId.value = res.data.id
-    targetAssetIds.value = res.data.targetAssetIds ?? []
+    applyTargets(res.data)
   }
+}
+
+function applyTargets(data: {
+  targetAssetIds?: number[]
+  targetGroupIds?: number[]
+  resolvedAssetIds?: number[]
+}) {
+  targetAssetIds.value = data.targetAssetIds ?? []
+  targetGroupIds.value = data.targetGroupIds ?? []
+  resolvedAssetIds.value = data.resolvedAssetIds ?? []
 }
 
 async function loadTargets() {
   if (!conversationId.value) return
   const res = await getConversationTargets(conversationId.value)
   if (res.success && res.data) {
-    targetAssetIds.value = res.data
+    applyTargets(res.data)
   }
 }
 
@@ -222,13 +254,13 @@ async function loadMessages() {
   if (res.success && res.data) messages.value = res.data
 }
 
-async function handleTargetsChange(value: number[]) {
+async function persistTargets(nextAssets: number[], nextGroups: number[]) {
   if (!conversationId.value) return
   savingTargets.value = true
   try {
-    const res = await updateConversationTargets(conversationId.value, value)
-    if (res.success) {
-      targetAssetIds.value = value
+    const res = await updateConversationTargets(conversationId.value, nextAssets, nextGroups)
+    if (res.success && res.data) {
+      applyTargets(res.data)
       await refreshPool()
       message.success(t('ai.targetsSaved'))
     }
@@ -237,6 +269,14 @@ async function handleTargetsChange(value: number[]) {
   } finally {
     savingTargets.value = false
   }
+}
+
+async function handleTargetsChange(value: number[]) {
+  await persistTargets(value, targetGroupIds.value)
+}
+
+async function handleGroupTargetsChange(value: number[]) {
+  await persistTargets(targetAssetIds.value, value)
 }
 
 async function scrollToBottom() {
@@ -270,6 +310,8 @@ async function handleNewChat() {
   conversationId.value = null
   messages.value = []
   targetAssetIds.value = []
+  targetGroupIds.value = []
+  resolvedAssetIds.value = []
   streamingIndex.value = null
   await ensureConversation()
 }
@@ -284,7 +326,7 @@ watch(conversationId, async (id) => {
 watch(messages, () => scrollToBottom(), { deep: true })
 
 onMounted(async () => {
-  await Promise.all([loadProviders(), loadAssets(), refreshPool()])
+  await Promise.all([loadProviders(), loadAssets(), loadGroups(), refreshPool()])
   await ensureConversation()
   await loadTargets()
   await loadMessages()
@@ -305,6 +347,16 @@ onBeforeUnmount(() => {
     <PageHeader :title="t('ai.title')" :description="t('ai.subtitle')">
       <template #extra>
         <NSpace align="center" :size="12">
+          <NSelect
+            v-model:value="targetGroupIds"
+            class="select-lg"
+            :options="groupOptions"
+            :placeholder="t('ai.targetGroups')"
+            :loading="savingTargets"
+            multiple
+            :aria-label="t('ai.targetGroups')"
+            @update:value="handleGroupTargetsChange"
+          />
           <NSelect
             v-model:value="targetAssetIds"
             class="select-lg"
@@ -328,9 +380,9 @@ onBeforeUnmount(() => {
       </template>
     </PageHeader>
 
-    <NSpace v-if="targetAssetIds.length" size="small" class="target-tags">
+    <NSpace v-if="displayTargetAssetIds.length" size="small" class="target-tags">
       <NTag
-        v-for="id in targetAssetIds"
+        v-for="id in displayTargetAssetIds"
         :key="id"
         size="small"
         :type="poolStatusByAsset.get(id)?.alive ? 'success' : 'default'"

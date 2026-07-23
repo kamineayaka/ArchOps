@@ -5,6 +5,8 @@ export interface Conversation {
   id: number
   title: string
   targetAssetIds: number[]
+  targetGroupIds: number[]
+  resolvedAssetIds: number[]
   createdAt: string
   updatedAt: string
 }
@@ -40,14 +42,18 @@ export async function sendChat(message: string, conversationId?: number, provide
 }
 
 export async function getConversationTargets(conversationId: number) {
-  const { data } = await client.get<ApiResponse<number[]>>(`/api/ai/conversations/${conversationId}/targets`)
+  const { data } = await client.get<ApiResponse<Conversation>>(`/api/ai/conversations/${conversationId}/targets`)
   return data
 }
 
-export async function updateConversationTargets(conversationId: number, targetAssetIds: number[]) {
+export async function updateConversationTargets(
+  conversationId: number,
+  targetAssetIds: number[],
+  targetGroupIds: number[] = [],
+) {
   const { data } = await client.put<ApiResponse<Conversation>>(
     `/api/ai/conversations/${conversationId}/targets`,
-    { targetAssetIds },
+    { targetAssetIds, targetGroupIds },
   )
   return data
 }
