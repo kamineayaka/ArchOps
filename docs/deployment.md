@@ -2,6 +2,8 @@
 
 ## Docker Compose (Recommended for Single Server)
 
+For turning a small Linux VPS into a dedicated test/deploy host (SSH key, swap, low-memory overlay, remote sync scripts), see [test-deploy-server.md](./test-deploy-server.md).
+
 ### 1. Server Requirements
 
 | Resource | Minimum | Recommended |

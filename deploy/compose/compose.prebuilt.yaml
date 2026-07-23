@@ -1,0 +1,13 @@
+# Use when JAR + frontend/dist are already built (see docs/test-deploy-server.md).
+#   docker compose -f compose.yaml -f compose.prebuilt.yaml -f compose.lowmem.yaml up -d --build
+
+services:
+  backend:
+    build:
+      context: ../../backend
+      dockerfile: ../docker/Dockerfile.backend.prebuilt
+
+  frontend:
+    build:
+      context: ../../frontend
+      dockerfile: Dockerfile.prebuilt

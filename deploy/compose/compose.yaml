@@ -54,6 +54,7 @@ services:
     restart: unless-stopped
     environment:
       SPRING_PROFILES_ACTIVE: compose
+      JAVA_OPTS: ${JAVA_OPTS:--XX:MaxRAMPercentage=75.0}
       JWT_SECRET: ${JWT_SECRET:-}
       CREDENTIALS_MASTER_KEY: ${CREDENTIALS_MASTER_KEY:-}
       ARCHOPS_SECRETS_PATH: /data/archops/secrets.properties

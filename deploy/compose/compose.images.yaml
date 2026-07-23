@@ -1,0 +1,17 @@
+# Use pre-tagged local images (no registry pull / no build).
+# Typical flow when Docker Hub mirrors are unreliable:
+#   1. Build archops-backend:latest / archops-frontend:latest on the host
+#      (FROM previously cached images, or load a docker save archive)
+#   2. docker compose -p archops -f compose.yaml -f compose.images.yaml \
+#        -f compose.lowmem.yaml --env-file .env up -d
+#
+# pull_policy: never keeps Compose from trying to refresh tags from a registry.
+
+services:
+  backend:
+    image: archops-backend:latest
+    pull_policy: never
+
+  frontend:
+    image: archops-frontend:latest
+    pull_policy: never
