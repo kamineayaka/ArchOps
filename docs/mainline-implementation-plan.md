@@ -143,7 +143,7 @@
 | **实现** | 约定分区键：`global` / `group:{id}` / `asset:{id}`；文档写入领域模型 |
 | **依赖** | ML-1-01；为 ML-2 铺路 |
 
-### [ ] ML-1-06 — 资产类型 SPI（OpsKat：双注册表）
+### [x] ML-1-06 — 资产类型 SPI（OpsKat：双注册表）
 
 | 字段 | 内容 |
 |------|------|
@@ -503,7 +503,7 @@
 | **不做什么** | 不移植 Wails Tab 体系；不做 RDP/VNC |
 | **依赖** | ML-1 分组 UI；现有 AiChat；建议与 ML-4-07 uiContext 联动 |
 
-### [ ] ML-8-07 — AI Provider 首次向导 / 测连通（OpsKat：Setup UX）
+### [x] ML-8-07 — AI Provider 首次向导 / 测连通（OpsKat：Setup UX）
 
 | 字段 | 内容 |
 |------|------|
@@ -518,12 +518,12 @@
 
 | ID | 标题 | 状态 |
 |----|------|------|
-| ML-1-06 | 资产类型 SPI | [ ] |
+| ML-1-06 | 资产类型 SPI | [x] |
 | ML-1-07 | Jump / proxy chain | [ ] |
 | ML-3-07 | 执行 Grant + decision_source | [ ] |
 | ML-4-07 | Prompt 槽位组装 | [ ] |
 | ML-8-06 | AI 侧轨工作台壳 | [ ] |
-| ML-8-07 | Provider 首次向导 | [ ] |
+| ML-8-07 | Provider 首次向导 | [x] |
 
 推荐实施顺序：`ML-1-06` →（`ML-1-07` ∥ `ML-8-07`）→ `ML-4-07` → `ML-3-07` → `ML-8-06`。
 
@@ -588,3 +588,4 @@ flowchart TD
 | 2026-07-23 | ML-1 完成：AssetGroup、对话目标组、工具范围、分区键约定 |
 | 2026-07-23 | ML-2…ML-8：SSOT/Proposal/Agent 写回/WorkLog/RAG/ACL/前端与指标 |
 | 2026-07-23 | OpsKat 第二波：正式纳入 ML-1-06/07、ML-3-07、ML-4-07、ML-8-06/07 |
+| 2026-07-23 | ML-1-06 完成：AssetTypeHandler SPI + 前端 register + DATABASE stub |

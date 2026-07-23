@@ -95,6 +95,8 @@ export default {
     kindServer: 'Server',
     kindCluster: 'Cluster',
     kindService: 'Service',
+    kindNetwork: 'Network',
+    kindDatabase: 'Database',
   },
   assetGroups: {
     title: 'Asset groups',

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, h, onMounted, ref } from 'vue'
+import { computed, h, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   NButton,
@@ -17,6 +17,8 @@ import {
   useMessage,
 } from 'naive-ui'
 import { createAsset, deleteAsset, listAssets, saveSshCredential, type Asset } from '@/api/assets'
+import '@/assetTypes'
+import { defaultPortFor, getAssetType, listAssetTypes } from '@/assetTypes/registry'
 import EmptyState from '@/components/EmptyState.vue'
 import PageHeader from '@/components/PageHeader.vue'
 
@@ -29,14 +31,29 @@ const showCreate = ref(false)
 const showCredential = ref(false)
 const selectedAssetId = ref<number | null>(null)
 
-const form = ref({ name: '', kind: 'SERVER', host: '', port: 22 })
+const form = ref<{ name: string; kind: string; host: string; port: number | null }>({
+  name: '',
+  kind: 'SERVER',
+  host: '',
+  port: 22,
+})
 const credForm = ref({ username: 'root', authType: 'PASSWORD', secret: '' })
 
-const kindOptions = computed(() => [
-  { label: t('assets.kindServer'), value: 'SERVER' },
-  { label: t('assets.kindCluster'), value: 'CLUSTER' },
-  { label: t('assets.kindService'), value: 'SERVICE' },
-])
+const kindOptions = computed(() =>
+  listAssetTypes().map((def) => ({
+    label: t(def.labelKey),
+    value: def.kind,
+  })),
+)
+
+const selectedType = computed(() => getAssetType(form.value.kind))
+
+watch(
+  () => form.value.kind,
+  (kind) => {
+    form.value.port = defaultPortFor(kind)
+  },
+)
 
 const columns = computed(() => [
   { title: t('common.id'), key: 'id', width: 60 },
@@ -75,6 +92,10 @@ const columns = computed(() => [
   },
 ])
 
+function resetForm() {
+  form.value = { name: '', kind: 'SERVER', host: '', port: defaultPortFor('SERVER') }
+}
+
 async function load() {
   loading.value = true
   try {
@@ -86,11 +107,17 @@ async function load() {
 }
 
 async function handleCreate() {
-  const res = await createAsset({ ...form.value, kind: form.value.kind as 'SERVER' })
+  const payload = {
+    name: form.value.name,
+    kind: form.value.kind,
+    host: form.value.host || undefined,
+    port: form.value.port ?? undefined,
+  }
+  const res = await createAsset(payload)
   if (res.success) {
     message.success(t('assets.created'))
     showCreate.value = false
-    form.value = { name: '', kind: 'SERVER', host: '', port: 22 }
+    resetForm()
     await load()
   }
 }
@@ -142,10 +169,12 @@ onMounted(load)
     <NForm :model="form" label-placement="top">
       <NFormItem :label="t('assets.name')"><NInput v-model:value="form.name" /></NFormItem>
       <NFormItem :label="t('assets.kind')"><NSelect v-model:value="form.kind" :options="kindOptions" /></NFormItem>
-      <NFormItem :label="t('assets.host')">
+      <NFormItem v-if="selectedType?.showHost !== false" :label="t('assets.host')">
         <NInput v-model:value="form.host" :placeholder="t('assets.hostPlaceholder')" />
       </NFormItem>
-      <NFormItem :label="t('assets.port')"><NInputNumber v-model:value="form.port" :min="1" :max="65535" class="full-width" /></NFormItem>
+      <NFormItem v-if="selectedType?.showPort !== false" :label="t('assets.port')">
+        <NInputNumber v-model:value="form.port" :min="1" :max="65535" class="full-width" />
+      </NFormItem>
       <NSpace justify="end">
         <NButton @click="showCreate = false">{{ t('common.cancel') }}</NButton>
         <NButton type="primary" @click="handleCreate">{{ t('common.create') }}</NButton>

@@ -94,6 +94,8 @@ export default {
     kindServer: '服务器',
     kindCluster: '集群',
     kindService: '服务',
+    kindNetwork: '网络',
+    kindDatabase: '数据库',
   },
   assetGroups: {
     title: '资产分组',

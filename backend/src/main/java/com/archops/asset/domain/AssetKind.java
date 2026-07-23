@@ -4,5 +4,6 @@ public enum AssetKind {
     SERVER,
     CLUSTER,
     SERVICE,
-    NETWORK
+    NETWORK,
+    DATABASE
 }
