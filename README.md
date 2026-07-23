@@ -111,7 +111,9 @@ ArchOps/
 | AI | OpenAI-compatible API / Ollama, in-process agent tools, pgvector RAG |
 | Deploy | Docker Compose, Nginx, Prometheus / Grafana / Loki |
 
-Product vision (north star): [docs/product-vision.md](docs/product-vision.md). Engineering architecture: [docs/architecture.md](docs/architecture.md).
+Product vision: [docs/product-vision.md](docs/product-vision.md).  
+Mainline plan (living Architecture): [docs/mainline-implementation-plan.md](docs/mainline-implementation-plan.md) — agent prompt: [docs/mainline-implementation-prompt.md](docs/mainline-implementation-prompt.md).  
+Engineering architecture: [docs/architecture.md](docs/architecture.md).
 
 ## Security
 

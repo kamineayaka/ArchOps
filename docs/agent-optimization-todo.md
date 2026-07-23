@@ -3,7 +3,8 @@
 > 基于 2026-07-12 全项目评审产出。  
 > 配套 Prompt：`docs/agent-optimization-prompt.md`  
 > 仓库：https://github.com/kamineayaka/ArchOps  
-> **架构重构（包边界/依赖/状态模型）见独立清单：** [`docs/architecture-refactor-todo.md`](architecture-refactor-todo.md)（`ARCH-*`）。与本文件重叠时（如 `user_assets`、权限模型），以 ARCH-A0 决策为准。
+> **架构重构（包边界/依赖/状态模型）见：** [`docs/architecture-refactor-todo.md`](architecture-refactor-todo.md)（`ARCH-*`）。  
+> **产品主线（Living Architecture / RAG）见：** [`docs/mainline-implementation-plan.md`](mainline-implementation-plan.md)（`ML-*`）与 [`docs/product-vision.md`](product-vision.md)。与主线重叠时（如 `user_assets`、RAG 索引），以 ML / 愿景决策为准并互链。
 
 **使用方式：**
 

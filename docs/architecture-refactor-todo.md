@@ -2,7 +2,7 @@
 
 > 基于 2026-07-22 架构评审结论。  
 > 配套 Prompt：`docs/architecture-refactor-prompt.md`  
-> 相关但不重复：`docs/agent-optimization-todo.md`（安全/质量优化，OPT-*）  
+> 相关：`docs/agent-optimization-todo.md`（`OPT-*`）；**产品主线** `docs/mainline-implementation-plan.md`（`ML-*`）与 `docs/product-vision.md`  
 > 仓库：https://github.com/kamineayaka/ArchOps
 
 ## 架构结论（执行前必读）

@@ -1,6 +1,8 @@
 # Architecture
 
-> Product north star (why / what): see [product-vision.md](product-vision.md). This document describes the current engineering shape.
+> Product north star: [product-vision.md](product-vision.md).  
+> Mainline delivery plan: [mainline-implementation-plan.md](mainline-implementation-plan.md).  
+> This document describes the current engineering shape.
 
 ## Overview
 

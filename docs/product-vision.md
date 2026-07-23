@@ -1,14 +1,14 @@
-# CloudOps 产品愿景与整体思想
+# ArchOps 产品愿景与整体思想
 
 > 本文是产品北极星文档：说明 **为什么做、做什么、不做什么**，以及核心难点上的设计立场。  
-> 工程实现细节见 `docs/architecture.md`；任务清单见 `docs/architecture-refactor-todo.md`、`docs/agent-optimization-todo.md`。  
+> 工程实现细节见 `docs/architecture.md`；主线实施计划见 `docs/mainline-implementation-plan.md`；任务清单见 `docs/architecture-refactor-todo.md`、`docs/agent-optimization-todo.md`。  
 > 灵感来源：[opskat/opskat](https://github.com/opskat/opskat)（运维工作台），本项目在此之上强调 **可共享、可演进的组织级运维记忆**。
 
 ---
 
 ## 1. 一句话定位
 
-**CloudOps** 是一个 B/S 架构的 AIOps 控制面：用户登记资产（Linux 服务器、K8s 集群等），通过对话驱动 Agent 在权限与审批约束下执行运维动作；**所有 Agent 共同维护一份持续更新的 Architecture 知识**，并以工作日志与 RAG 检索增强后续决策的准确性。
+**ArchOps** 是一个 B/S 架构的 AIOps 控制面：用户登记资产（Linux 服务器、K8s 集群等），通过对话驱动 Agent 在权限与审批约束下执行运维动作；**所有 Agent 共同维护一份持续更新的 Architecture 知识**，并以工作日志与 RAG 检索增强后续决策的准确性。
 
 它不是「带聊天框的 SSH」，而是 **资产控制面 + 可治理的执行闭环 + 活的架构记忆**。
 
@@ -149,7 +149,7 @@ RAG 不是装饰，而是规模化后的必需品：
 
 ## 7. 与 opskat 类项目的差异
 
-| 维度 | 运维工作台（如 opskat） | CloudOps 目标 |
+| 维度 | 运维工作台（如 opskat） | ArchOps 目标 |
 |------|-------------------------|---------------|
 | 重心 | 终端、工具、单人效率 | 控制面 + 组织记忆 |
 | 记忆 | 多在会话内 | 跨会话共享 Architecture |

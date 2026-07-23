@@ -112,7 +112,9 @@ ArchOps/
 | AI | OpenAI 兼容 API / Ollama，进程内 Agent 工具，pgvector RAG |
 | 部署 | Docker Compose、Nginx、Prometheus / Grafana / Loki |
 
-产品愿景与整体思想见 [docs/product-vision.md](docs/product-vision.md)。更多工程架构说明见 [docs/architecture.md](docs/architecture.md)。
+产品愿景与整体思想见 [docs/product-vision.md](docs/product-vision.md)。  
+主线实施计划（Living Architecture）见 [docs/mainline-implementation-plan.md](docs/mainline-implementation-plan.md)，Agent Prompt 见 [docs/mainline-implementation-prompt.md](docs/mainline-implementation-prompt.md)。  
+更多工程架构说明见 [docs/architecture.md](docs/architecture.md)。
 
 ## 安全
 
