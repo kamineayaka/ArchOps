@@ -88,8 +88,9 @@ public class AiAgentService {
         }
 
         List<ChatMessage> messages = buildContext(conversation, conversationId, userMessage);
+        List<Long> effectiveTargets = conversationService.resolveEffectiveTargetAssetIds(conversation);
         AgentTool.ExecutionContext toolContext = new AgentTool.ExecutionContext(
-                userId, null, conversationId, conversation.getTargetAssetIds(), providerId);
+                userId, null, conversationId, effectiveTargets, providerId);
 
         LlmRuntime llm;
         try {
@@ -124,8 +125,9 @@ public class AiAgentService {
         Long userId = approval.getRequesterId();
 
         AiConversation conversation = conversationService.requireOwned(conversationId, userId);
+        List<Long> effectiveTargets = conversationService.resolveEffectiveTargetAssetIds(conversation);
         AgentTool.ExecutionContext toolContext = new AgentTool.ExecutionContext(
-                userId, null, conversationId, conversation.getTargetAssetIds(), providerId);
+                userId, null, conversationId, effectiveTargets, providerId);
         ToolCall toolCall = new ToolCall("approval-" + approvalId, toolName, toolArgs);
 
         LlmRuntime llm;
@@ -251,7 +253,7 @@ public class AiAgentService {
     private List<ChatMessage> buildContext(AiConversation conversation, Long conversationId, String latestUserMessage) {
         List<ChatMessage> messages = new ArrayList<>();
         String knowledge = knowledgeContextService.buildContextSnippet(latestUserMessage);
-        String targets = formatTargetAssets(conversation.getTargetAssetIds());
+        String targets = formatTargetAssets(conversationService.resolveEffectiveTargetAssetIds(conversation));
         messages.add(ChatMessage.system(SYSTEM_PROMPT + "\n\n" + targets + "\n\n" + knowledge));
 
         messageRepository.findByConversationIdOrderByCreatedAtAsc(conversationId).stream()
@@ -269,7 +271,7 @@ public class AiAgentService {
                 .reduce((first, second) -> second)
                 .orElse("");
         String knowledge = knowledgeContextService.buildContextSnippet(lastUser);
-        String targets = formatTargetAssets(conversation.getTargetAssetIds());
+        String targets = formatTargetAssets(conversationService.resolveEffectiveTargetAssetIds(conversation));
         messages.add(ChatMessage.system(SYSTEM_PROMPT + "\n\n" + targets + "\n\n" + knowledge));
 
         messageRepository.findByConversationIdOrderByCreatedAtAsc(conversationId).stream()

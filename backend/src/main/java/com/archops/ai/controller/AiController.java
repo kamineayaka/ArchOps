@@ -53,10 +53,10 @@ public class AiController {
     }
 
     @GetMapping("/conversations/{id}/targets")
-    public ApiResponse<List<Long>> targets(
+    public ApiResponse<ConversationResponse> targets(
             @PathVariable Long id,
             @AuthenticationPrincipal AuthUserPrincipal principal) {
-        return ApiResponse.ok(conversationService.targetAssetIds(id, principal.getUserId()));
+        return ApiResponse.ok(conversationService.getTargets(id, principal.getUserId()));
     }
 
     @PutMapping("/conversations/{id}/targets")
@@ -65,7 +65,10 @@ public class AiController {
             @RequestBody ConversationTargetsRequest request,
             @AuthenticationPrincipal AuthUserPrincipal principal) {
         return ApiResponse.ok(conversationService.updateTargets(
-                id, principal.getUserId(), request.targetAssetIds()));
+                id,
+                principal.getUserId(),
+                request.targetAssetIds(),
+                request.targetGroupIds()));
     }
 
     @PostMapping("/chat")

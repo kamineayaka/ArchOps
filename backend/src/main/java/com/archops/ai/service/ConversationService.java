@@ -6,11 +6,14 @@ import com.archops.ai.dto.ChatMessageResponse;
 import com.archops.ai.dto.ConversationResponse;
 import com.archops.ai.repository.AiConversationRepository;
 import com.archops.ai.repository.AiMessageRepository;
+import com.archops.asset.service.AssetGroupService;
 import com.archops.asset.service.AssetService;
 import com.archops.common.exception.BusinessException;
 import com.archops.terminal.pool.SshConnectionPool;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,16 +24,19 @@ public class ConversationService {
     private final AiConversationRepository conversationRepository;
     private final AiMessageRepository messageRepository;
     private final AssetService assetService;
+    private final AssetGroupService assetGroupService;
     private final SshConnectionPool sshConnectionPool;
 
     public ConversationService(
             AiConversationRepository conversationRepository,
             AiMessageRepository messageRepository,
             AssetService assetService,
+            AssetGroupService assetGroupService,
             SshConnectionPool sshConnectionPool) {
         this.conversationRepository = conversationRepository;
         this.messageRepository = messageRepository;
         this.assetService = assetService;
+        this.assetGroupService = assetGroupService;
         this.sshConnectionPool = sshConnectionPool;
     }
 
@@ -77,15 +83,24 @@ public class ConversationService {
     }
 
     @Transactional
-    public ConversationResponse updateTargets(Long conversationId, Long userId, List<Long> targetAssetIds) {
+    public ConversationResponse updateTargets(
+            Long conversationId,
+            Long userId,
+            List<Long> targetAssetIds,
+            List<Long> targetGroupIds) {
         AiConversation conversation = requireOwned(conversationId, userId);
-        List<Long> normalized = targetAssetIds != null ? new ArrayList<>(targetAssetIds) : new ArrayList<>();
-        for (Long assetId : normalized) {
+        List<Long> assets = normalizeIds(targetAssetIds);
+        List<Long> groups = normalizeIds(targetGroupIds);
+        for (Long assetId : assets) {
             assetService.get(assetId);
         }
-        conversation.setTargetAssetIds(normalized);
+        // Validates groups exist and loads members.
+        assetGroupService.resolveMemberAssetIds(groups);
+
+        conversation.setTargetAssetIds(assets);
+        conversation.setTargetGroupIds(groups);
         ConversationResponse response = toResponse(conversationRepository.save(conversation));
-        for (Long assetId : normalized) {
+        for (Long assetId : response.resolvedAssetIds()) {
             try {
                 sshConnectionPool.warm(userId, assetId);
             } catch (Exception ignored) {
@@ -96,15 +111,37 @@ public class ConversationService {
     }
 
     @Transactional(readOnly = true)
-    public List<Long> targetAssetIds(Long conversationId, Long userId) {
-        return new ArrayList<>(requireOwned(conversationId, userId).getTargetAssetIds());
+    public ConversationResponse getTargets(Long conversationId, Long userId) {
+        return toResponse(requireOwned(conversationId, userId));
+    }
+
+    @Transactional(readOnly = true)
+    public List<Long> resolveEffectiveTargetAssetIds(AiConversation conversation) {
+        Set<Long> resolved = new LinkedHashSet<>();
+        if (conversation.getTargetAssetIds() != null) {
+            resolved.addAll(conversation.getTargetAssetIds());
+        }
+        if (conversation.getTargetGroupIds() != null && !conversation.getTargetGroupIds().isEmpty()) {
+            resolved.addAll(assetGroupService.resolveMemberAssetIds(conversation.getTargetGroupIds()));
+        }
+        return new ArrayList<>(resolved);
+    }
+
+    private List<Long> normalizeIds(List<Long> ids) {
+        if (ids == null) {
+            return new ArrayList<>();
+        }
+        return new ArrayList<>(new LinkedHashSet<>(ids));
     }
 
     private ConversationResponse toResponse(AiConversation conversation) {
+        List<Long> resolved = resolveEffectiveTargetAssetIds(conversation);
         return new ConversationResponse(
                 conversation.getId(),
                 conversation.getTitle(),
-                conversation.getTargetAssetIds(),
+                conversation.getTargetAssetIds() != null ? conversation.getTargetAssetIds() : List.of(),
+                conversation.getTargetGroupIds() != null ? conversation.getTargetGroupIds() : List.of(),
+                resolved,
                 conversation.getCreatedAt(),
                 conversation.getUpdatedAt());
     }

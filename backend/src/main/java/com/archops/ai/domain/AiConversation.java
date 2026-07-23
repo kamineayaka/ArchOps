@@ -32,6 +32,10 @@ public class AiConversation {
     @Column(name = "target_asset_ids", nullable = false)
     private List<Long> targetAssetIds = new ArrayList<>();
 
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "target_group_ids", nullable = false)
+    private List<Long> targetGroupIds = new ArrayList<>();
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -59,6 +63,10 @@ public class AiConversation {
     public List<Long> getTargetAssetIds() { return targetAssetIds; }
     public void setTargetAssetIds(List<Long> targetAssetIds) {
         this.targetAssetIds = targetAssetIds != null ? targetAssetIds : new ArrayList<>();
+    }
+    public List<Long> getTargetGroupIds() { return targetGroupIds; }
+    public void setTargetGroupIds(List<Long> targetGroupIds) {
+        this.targetGroupIds = targetGroupIds != null ? targetGroupIds : new ArrayList<>();
     }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
