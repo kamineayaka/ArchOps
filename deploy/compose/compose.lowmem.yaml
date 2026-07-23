@@ -1,0 +1,56 @@
+# Low-memory overlay for small VPS (≈2 GiB RAM).
+# Usage:
+#   docker compose -f compose.yaml -f compose.lowmem.yaml --env-file .env up -d --build
+#
+# Expects JAVA_OPTS in .env (see .env.example). Skip observability stack on low-RAM hosts.
+
+services:
+  postgres:
+    environment:
+      POSTGRES_SHARED_BUFFERS: 64MB
+      POSTGRES_EFFECTIVE_CACHE_SIZE: 192MB
+      POSTGRES_WORK_MEM: 4MB
+      POSTGRES_MAINTENANCE_WORK_MEM: 32MB
+    command:
+      - postgres
+      - -c
+      - shared_buffers=64MB
+      - -c
+      - effective_cache_size=192MB
+      - -c
+      - work_mem=4MB
+      - -c
+      - maintenance_work_mem=32MB
+      - -c
+      - max_connections=50
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  redis:
+    command: redis-server --appendonly yes --maxmemory 64mb --maxmemory-policy allkeys-lru
+    deploy:
+      resources:
+        limits:
+          memory: 96M
+
+  minio:
+    deploy:
+      resources:
+        limits:
+          memory: 192M
+
+  backend:
+    environment:
+      JAVA_OPTS: ${JAVA_OPTS:--Xms128m -Xmx384m -XX:+UseSerialGC -XX:MaxMetaspaceSize=128m}
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  frontend:
+    deploy:
+      resources:
+        limits:
+          memory: 64M
