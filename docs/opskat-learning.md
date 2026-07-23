@@ -131,31 +131,22 @@
 
 ---
 
-## 4. 映射到 ArchOps 主线：建议增补 / 调整
+## 4. 映射到 ArchOps 主线：已正式立项
 
-在现有 `ML-*` 之上，建议增加或加粗：
+下列项已写入 [`mainline-implementation-plan.md`](mainline-implementation-plan.md)，状态以该清单勾选为准：
 
-| ID 建议 | 内容 | 来源 |
-|---------|------|------|
-| **ML-1-06** | 资产类型 SPI（后端 Handler + 前端 register）与 `SERVER`/`K8S` 落地 | OpsKat assettype |
-| **ML-1-07** | Jump / proxy chain 配置（SSH 跳板） | OpsKat proxy_chain |
-| **ML-3-07** | 执行 Grant（TTL/会话记住）+ decision_source 审计字段 | OpsKat permission/grant |
-| **ML-4-07** | Prompt 槽位：targets + RAG + facts + open UI context | OpsKat PromptBuilder |
-| **ML-8-06** | 布局：资产树 + 主 Tab + AI 侧轨（终端旁挂助手） | OpsKat App shell |
-| **ML-8-07** | AI Provider 首次向导 / 测连通 UX | OpsKat AISetupWizard |
+| ID | 内容 | OpsKat 来源 |
+|----|------|-------------|
+| **ML-1-06** | 资产类型 SPI（后端 Handler + 前端 register） | assettype 双注册 |
+| **ML-1-07** | Jump / proxy chain | proxy_chain / Dialer |
+| **ML-3-07** | 执行 Grant + decision_source | permission / grant |
+| **ML-4-07** | Prompt 槽位组装 | PromptBuilder |
+| **ML-8-06** | 资产树 + AI 侧轨 | App shell / SideAssistant |
+| **ML-8-07** | AI Provider 首次向导 | AISetupWizard |
 
-**执行顺序建议（在原 ML 依赖图上）：**
+指挥 Agent：使用 [`mainline-implementation-prompt.md`](mainline-implementation-prompt.md) 中 **「一键 Prompt — OpsKat 第二波」** 或阶段 O1–O4。
 
-```
-ML-0 契约
-  → ML-1 分组 + 类型 SPI +（可选）跳板
-  → ML-2/3 Architecture SSOT + Proposal（主线差异点，OpsKat 没有）
-  → ML-4 写回 + Prompt 槽位（学组装，换内容）
-  → ML-3-07 Grant 与执行审批增强（可与 ML-4 并行）
-  → ML-6 范围 RAG
-  → ML-8 侧轨 UI + 架构/提案台
-```
-
+**推荐顺序：** `ML-1-06` →（`ML-1-07` ∥ `ML-8-07`）→ `ML-4-07` → `ML-3-07` → `ML-8-06`。
 ---
 
 ## 5. 一句话总判
@@ -172,3 +163,4 @@ OpsKat 是优秀的 **「单人运维工作台 + 带策略的 AI 手」**；Arch
 | 日期 | 说明 |
 |------|------|
 | 2026-07-23 | 初版：基于 opskat 源码阅读的 ArchOps 主线学习结论 |
+| 2026-07-23 | ML-*-06/07 已正式写入 mainline-implementation-plan；指挥入口改为 OpsKat 第二波 Prompt |

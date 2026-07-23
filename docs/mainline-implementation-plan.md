@@ -48,14 +48,16 @@
 | 阶段 | 主题 | 任务数 | 完成 | 产出 |
 |------|------|--------|------|------|
 | ML-0 | 对齐与契约 | 4 | 4 | 愿景落地、API/领域契约、成功指标 |
-| ML-1 | 资产分组与对话目标 | 5 | 5 | Group、目标绑定、工具范围 |
+| ML-1 | 资产分组与对话目标 | 7 | 5 | Group、目标绑定、工具范围；**+类型 SPI / 跳板（OpsKat）** |
 | ML-2 | Architecture SSOT v2 | 6 | 6 | 分区、结构化事实、版本、出处 |
-| ML-3 | Proposal 流水线 | 6 | 6 | 提案→审阅→合并→回滚→审计 |
-| ML-4 | Agent 写回与 L0/L1/L2 | 6 | 6 | 分类器、提案工具、自动/半自动策略 |
+| ML-3 | Proposal 流水线 | 7 | 6 | 提案→审阅→合并→回滚→审计；**+执行 Grant（OpsKat）** |
+| ML-4 | Agent 写回与 L0/L1/L2 | 7 | 6 | 分类器、提案工具；**+Prompt 槽位（OpsKat）** |
 | ML-5 | Work Log 一等公民 | 4 | 4 | 会话绑定、晋升规则、索引 |
 | ML-6 | RAG 主线化 | 5 | 5 | 范围检索、再索引、反模式消除 |
 | ML-7 | 知识治理与权限 | 4 | 4 | ACL、提案审批角色、越权拒绝 |
-| ML-8 | 前端体验与可观测 | 5 | 5 | 架构视图、提案 UI、指标与演示剧本 |
+| ML-8 | 前端体验与可观测 | 7 | 5 | 架构视图、提案 UI；**+AI 侧轨 / Provider 向导（OpsKat）** |
+
+> **ML-0…ML-8 核心主线已落地。** 下列带「OpsKat」标注的 `ML-*-06/07` 为第二波增强，任务状态以勾选为准；设计依据见 [`opskat-learning.md`](opskat-learning.md)。
 
 ---
 
@@ -140,6 +142,30 @@
 |------|------|
 | **实现** | 约定分区键：`global` / `group:{id}` / `asset:{id}`；文档写入领域模型 |
 | **依赖** | ML-1-01；为 ML-2 铺路 |
+
+### [ ] ML-1-06 — 资产类型 SPI（OpsKat：双注册表）
+
+| 字段 | 内容 |
+|------|------|
+| **来源** | OpsKat `internal/assettype` + `frontend/.../assetTypes`；见 `opskat-learning.md` §2 P1 |
+| **问题** | 当前资产 kind 偏硬编码；扩展 K8s/未来 DB 需改共享 switch，违反 OCP |
+| **后端** | 定义 `AssetTypeHandler`（或等价 SPI）：`type()`、`defaultPort()`、`safeView()`、`validateCreate/Update`、`policyKind()`、凭证解析钩子；`SERVER` / `KUBERNETES`（或现有 kind 枚举）以 `@Component` 自注册；共享代码 **禁止** `switch (kind)` 做类型专属逻辑 |
+| **前端** | `registerAssetType({ kind, connectAction, ConfigFields, DetailCard })`；Assets 表单/详情按注册表渲染 |
+| **文档** | 新增 `docs/adding-an-asset-type.md`（对标 OpsKat adding-an-asset-type） |
+| **完成标准** | 新增第三种类型（哪怕是 stub `DATABASE`）只需新增 Handler + 前端注册文件，不改调度核心；单测覆盖注册发现 |
+| **不做什么** | 本任务不实现完整 DB/Kafka GUI |
+| **依赖** | ML-1-01 已完成；可与 ML-1-07 并行 |
+
+### [ ] ML-1-07 — Jump / proxy chain（OpsKat：跳板链）
+
+| 字段 | 内容 |
+|------|------|
+| **来源** | OpsKat `proxy_chain` / sshpool Dialer；见 `opskat-learning.md` §2 P2 |
+| **实现** | 资产或 SSH 凭证配置有序跳板：`SSH` 跳板资产引用（可多跳）；可选后续 SOCKS5。拨号逻辑进入统一 `ssh` 拨号层，**终端 WebSSH 与 `ssh_exec` 共用** |
+| **API/UI** | 凭证表单可编辑跳板链；详情只读展示 |
+| **完成标准** | 经跳板仍能 warm 池 + 终端 + Agent exec；失败有明确错误；审计含最终 assetId |
+| **不做什么** | 不把跳板拓扑写进 Architecture SSOT（连接拓扑 ≠ 架构事实，除非用户经 Proposal 声明） |
+| **依赖** | 现有 SSH 池；建议 ML-1-06 类型 SPI 中 SSH 类型声明可挂 chain |
 
 ---
 
@@ -249,6 +275,17 @@
 | **实现** | 监听 `ArchitectureMerged` → 仅该分区 reindex（非全库） |
 | **依赖** | ML-3-03；对接 ML-6 |
 
+### [ ] ML-3-07 — 执行 Grant + decision_source（OpsKat：权限记忆）
+
+| 字段 | 内容 |
+|------|------|
+| **来源** | OpsKat `internal/ai/permission` + grant_sessions；见 `opskat-learning.md` §2 P1 工具治理 |
+| **问题** | 同类低风险命令反复审批，体验差；审计缺少「为何放行」 |
+| **实现** | 1) 审批通过时可勾选「本会话记住」→ 写入 `execution_grant`（userId、assetId/scope、pattern、TTL、conversationId）；2) `ToolExecutor` / ApprovalGate 先匹配 grant 再走完整审批；3) 审计字段 `decision_source` = `AUTO_POLICY` \| `USER_APPROVAL` \| `GRANT` \| `DENY`；4) grant **不得**绕过知识 Proposal 门（只覆盖执行类工具） |
+| **安全** | HIGH 风险默认不可 grant；grant 绑定用户与资产范围；过期即失效 |
+| **完成标准** | 集成测试：同会话二次同类命令走 GRANT；跨用户/跨资产不命中；审计可查询 source |
+| **依赖** | 现有 Approval 流水线；与 ML-7 权限模型兼容 |
+
 ---
 
 ## ML-4 — Agent 写回与 L0/L1/L2
@@ -299,6 +336,17 @@
 |------|------|
 | **实现** | WS 推送 `architecture_proposal_created`；聊天区可展示「待审架构更新」卡片，链到提案详情 |
 | **依赖** | ML-3-02、ML-8-02（可先后端事件） |
+
+### [ ] ML-4-07 — Prompt 槽位组装（OpsKat：PromptBuilder 模式）
+
+| 字段 | 内容 |
+|------|------|
+| **来源** | OpsKat `PromptBuilder` / openTabs / mention；见 `opskat-learning.md` §2 P1 上下文 |
+| **原则** | **学槽位，换内容** — 禁止把资产 Description 当架构 SSOT |
+| **实现** | `AgentContextAssembler`（或扩展 `KnowledgeContextService`）按固定槽位拼接：① 身份与安全规则；② 对话目标（资产/组）；③ 范围化 RAG Top-K；④ 活跃 Architecture facts；⑤ 相关 Work Log 摘要；⑥（可选）前端上报的 openSurface（当前页：terminal/architecture/approvals）；⑦ 密钥/越权警示 |
+| **前端** | 聊天/布局可上报 `uiContext`（当前路由、选中资产）；仅作提示，权威仍以服务端目标与 ACL 为准 |
+| **完成标准** | 单测：给定目标和假 RAG/facts，输出槽位齐全且无整本 Architecture dump；token 上限可配置 |
+| **依赖** | ML-2-04、ML-6-02 已完成 |
 
 ---
 
@@ -445,6 +493,40 @@
 | **指标例** | `archops_architecture_proposals_pending`、`merged_total`、`rag_hits_per_chat`、`auto_merge_total`、`rollback_total` |
 | **依赖** | 各后端埋点 |
 
+### [ ] ML-8-06 — 布局：资产树 + 主区 + AI 侧轨（OpsKat：工作台壳）
+
+| 字段 | 内容 |
+|------|------|
+| **来源** | OpsKat App shell（Sidebar / LeftPanel / MainPanel / SideAssistantPanel）；见 `opskat-learning.md` §2 P2 |
+| **实现** | 1) 资产树（组→成员）可导航；2) 主区保留现有路由页；3) **可钉住的 AI 助手侧轨**：在 Terminal / Assets / Architecture 页旁打开同一会话 Agent，不必只能进独立 `/ai` 全页；4) 侧轨支持缩小/展开，状态可持久到 localStorage（仅 UI） |
+| **完成标准** | 终端操作时侧轨可同时对话；侧轨复用现有 AI WS/API；移动端降级为抽屉或全页 |
+| **不做什么** | 不移植 Wails Tab 体系；不做 RDP/VNC |
+| **依赖** | ML-1 分组 UI；现有 AiChat；建议与 ML-4-07 uiContext 联动 |
+
+### [ ] ML-8-07 — AI Provider 首次向导 / 测连通（OpsKat：Setup UX）
+
+| 字段 | 内容 |
+|------|------|
+| **来源** | OpsKat `AISetupWizard` / Provider 表单；见 `opskat-learning.md` §2 P2 |
+| **实现** | 无可用 Provider 时引导向导：选类型 → 填 Base URL/Key → **Test connection** → 拉模型列表 → 设默认；失败展示可读错误；密钥始终脱敏 |
+| **完成标准** | 新部署 5 分钟内可完成首 Provider；与现有 AI Settings 页共存不重复存两套配置 |
+| **依赖** | 现有 AiProvider API |
+
+---
+
+## ML-OpsKat 第二波：待办汇总
+
+| ID | 标题 | 状态 |
+|----|------|------|
+| ML-1-06 | 资产类型 SPI | [ ] |
+| ML-1-07 | Jump / proxy chain | [ ] |
+| ML-3-07 | 执行 Grant + decision_source | [ ] |
+| ML-4-07 | Prompt 槽位组装 | [ ] |
+| ML-8-06 | AI 侧轨工作台壳 | [ ] |
+| ML-8-07 | Provider 首次向导 | [ ] |
+
+推荐实施顺序：`ML-1-06` →（`ML-1-07` ∥ `ML-8-07`）→ `ML-4-07` → `ML-3-07` → `ML-8-06`。
+
 ---
 
 ## 推荐依赖图
@@ -467,6 +549,14 @@ flowchart TD
   ML3 --> ML8
   ML4 --> ML8
   ML6 --> ML8
+  ML1 --> ML106[ML-1-06 类型 SPI]
+  ML106 --> ML107[ML-1-07 跳板链]
+  ML3 --> ML307[ML-3-07 Grant]
+  ML4 --> ML407[ML-4-07 Prompt 槽位]
+  ML6 --> ML407
+  ML8 --> ML806[ML-8-06 AI 侧轨]
+  ML407 --> ML806
+  ML8 --> ML807[ML-8-07 Provider 向导]
 ```
 
 ## 明确不在本主线清单
@@ -474,7 +564,8 @@ flowchart TD
 - 拆微服务 / 多租户 SaaS  
 - 标准 MCP 协议服务器（内置 tools 足够支撑主线）  
 - 纯 UI redesign（不阻塞主线可后置）  
-- 将 ARCH 包搬迁与本清单绑死（可并行，但 ML 功能优先可编译交付）
+- 将 ARCH 包搬迁与本清单绑死（可并行，但 ML 功能优先可编译交付）  
+- **照搬 OpsKat：** Description 当架构记忆、桌面 Unix socket 审批、三套 SSH 连接路径、一次性做齐 DB/RDP/Kafka GUI（详见 `opskat-learning.md` §3）
 
 ## 与现有清单的协作规则
 
@@ -484,6 +575,7 @@ flowchart TD
 | RAG 向量索引缺失 | 并入 ML-6-04 或先做 OPT-P0-01 |
 | `mcp`→`tools` 已完成 | 新工具加在 `com.archops.tools` |
 | 产品愿景变更 | 先改 `product-vision.md`，再改本计划 |
+| OpsKat 启发项 | 以本清单 `ML-*-06/07` 为准；实现前重读 `opskat-learning.md`「不要照搬」 |
 
 ---
 
@@ -495,3 +587,4 @@ flowchart TD
 | 2026-07-23 | ML-0 完成：愿景互链 + 领域/API/验收文档 |
 | 2026-07-23 | ML-1 完成：AssetGroup、对话目标组、工具范围、分区键约定 |
 | 2026-07-23 | ML-2…ML-8：SSOT/Proposal/Agent 写回/WorkLog/RAG/ACL/前端与指标 |
+| 2026-07-23 | OpsKat 第二波：正式纳入 ML-1-06/07、ML-3-07、ML-4-07、ML-8-06/07 |
