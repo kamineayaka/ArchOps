@@ -28,6 +28,8 @@ interface DisplayMessage extends ChatMessage {
   streaming?: boolean
   tools?: ToolBlock[]
   pendingApproval?: { approvalId: number; risk: string; message: string }
+  architectureProposal?: { proposalId: number; status: string; message: string }
+  workLogHint?: { level: string; message: string }
 }
 
 const { t } = useI18n()
@@ -105,6 +107,16 @@ function ensureStreamingMessage(): number {
   return idx
 }
 
+function parseProposalId(content: string | null | undefined): number | null {
+  if (!content) return null
+  try {
+    const parsed = JSON.parse(content) as { proposalId?: number }
+    return typeof parsed.proposalId === 'number' ? parsed.proposalId : null
+  } catch {
+    return null
+  }
+}
+
 function handleStreamEvent(event: AiStreamEvent) {
   if (event.type === 'conversation' && event.conversationId) {
     conversationId.value = event.conversationId
@@ -166,6 +178,28 @@ function handleStreamEvent(event: AiStreamEvent) {
     }
     if (event.content) {
       messages.value[idx].content = event.content
+    }
+    return
+  }
+
+  if (event.type === 'architecture_proposal_created') {
+    const idx = ensureStreamingMessage()
+    const proposalId = event.proposalId ?? parseProposalId(event.content)
+    if (proposalId != null) {
+      messages.value[idx].architectureProposal = {
+        proposalId,
+        status: event.status ?? 'PENDING_REVIEW',
+        message: event.content ?? '',
+      }
+    }
+    return
+  }
+
+  if (event.type === 'work_log_appended') {
+    const idx = ensureStreamingMessage()
+    messages.value[idx].workLogHint = {
+      level: event.status ?? 'INFO',
+      message: event.content ?? '',
     }
     return
   }
@@ -432,6 +466,33 @@ onBeforeUnmount(() => {
               {{ msg.pendingApproval.message }}
               <div class="approval-hint">{{ t('ai.approvalResume') }}</div>
             </NAlert>
+            <NAlert
+              v-if="msg.architectureProposal"
+              type="info"
+              class="approval-alert"
+            >
+              <template #header>
+                {{ t('ai.proposalCreated') }} #{{ msg.architectureProposal.proposalId }}
+                ({{ msg.architectureProposal.status }})
+              </template>
+              <div>{{ t('ai.proposalCreatedHint') }}</div>
+              <RouterLink class="hint-link" :to="{ name: 'architecture-proposals' }">
+                {{ t('ai.openProposals') }}
+              </RouterLink>
+            </NAlert>
+            <NAlert
+              v-if="msg.workLogHint"
+              type="success"
+              class="approval-alert"
+            >
+              <template #header>
+                {{ t('ai.workLogAppended') }}
+                <span v-if="msg.workLogHint.level">({{ msg.workLogHint.level }})</span>
+              </template>
+              <RouterLink class="hint-link" :to="{ name: 'architecture-proposals' }">
+                {{ t('ai.openProposals') }}
+              </RouterLink>
+            </NAlert>
             <!-- eslint-disable-next-line vue/no-v-html -->
             <div
               v-if="msg.content"
@@ -589,6 +650,14 @@ onBeforeUnmount(() => {
   margin-top: var(--co-space-2);
   font-size: 0.75rem;
   color: var(--co-text-muted);
+}
+
+.hint-link {
+  display: inline-block;
+  margin-top: var(--co-space-2);
+  font-size: 0.8125rem;
+  color: var(--co-primary);
+  text-decoration: underline;
 }
 
 .chat-loading {

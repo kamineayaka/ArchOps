@@ -6,6 +6,8 @@ export type AiStreamEventType =
   | 'tool_result'
   | 'approval_required'
   | 'resume_start'
+  | 'architecture_proposal_created'
+  | 'work_log_appended'
   | 'done'
   | 'error'
 
@@ -17,6 +19,7 @@ export interface AiStreamEvent {
   approvalId?: number | null
   risk?: string | null
   conversationId?: number | null
+  proposalId?: number | null
 }
 
 export interface AiStreamClient {

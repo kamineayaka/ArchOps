@@ -45,6 +45,8 @@ public class InspectionScheduler {
         WorkLog entry = new WorkLog();
         entry.setLogType("INSPECTION");
         entry.setActorName("scheduler");
+        entry.setSource("scheduler");
+        entry.setLevel("L0");
         entry.setSummary("Hourly inspection summary: " + servers + " server assets registered");
         workLogWriter.save(entry);
     }

@@ -20,9 +20,9 @@ Spring Boot Backend (stateless)
       ├── asset/      Inventory, encrypted SSH credentials, asset groups
       ├── terminal/   Web SSH proxy (MINA SSHD)
       ├── ai/         Agent loop, LLM providers, streaming WS
-      ├── tools/      In-process agent tool registry (ssh_exec, list_assets, ...)
+      ├── tools/      In-process agent tool registry (ssh_exec, list_assets, propose_architecture_update, ...)
       ├── approval/   RiskClassifier + ApprovalGate + workflow
-      ├── knowledge/  Architecture snapshot + work logs → AI context
+      ├── knowledge/  Partitioned Architecture SSOT + proposals + work logs + scoped RAG
       ├── audit/      Append-only hash-chain log
       └── scheduler/  Periodic fleet inspection
       │
@@ -32,9 +32,9 @@ Spring Boot Backend (stateless)
 ```
 
 Conversation targets may bind **assets and/or asset groups**; tools default to the resolved asset union
-(`target assets ∪ group members`). See `docs/mainline-domain-model.md` for Architecture partition keys
-(`global` / `group:{id}` / `asset:{id}`).
-## Module Boundaries
+(`target assets ∪ group members`). Architecture is partitioned (`global` / `group:{id}` / `asset:{id}`)
+with Proposal → review → merge (default no silent overwrite). See `docs/product-vision.md` and
+`docs/mainline-domain-model.md`.## Module Boundaries
 
 Each package under `com.archops.*` is a self-contained module:
 

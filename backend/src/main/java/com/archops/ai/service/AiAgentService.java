@@ -15,12 +15,24 @@ import com.archops.approval.service.ApprovalService;
 import com.archops.asset.dto.AssetResponse;
 import com.archops.asset.service.AssetService;
 import com.archops.common.exception.BusinessException;
+import com.archops.knowledge.architecture.PartitionKeys;
+import com.archops.knowledge.architecture.domain.ArchitectureProposal;
+import com.archops.knowledge.architecture.domain.ProposalStatus;
+import com.archops.knowledge.architecture.service.ArchitectureProposalService;
+import com.archops.knowledge.architecture.service.ToolExecutionEventService;
+import com.archops.knowledge.classifier.ChangeClassifier;
+import com.archops.knowledge.classifier.ChangeLevel;
+import com.archops.knowledge.classifier.Classification;
+import com.archops.knowledge.domain.WorkLog;
+import com.archops.knowledge.retrieval.RagScope;
 import com.archops.knowledge.service.KnowledgeContextService;
+import com.archops.knowledge.service.WorkLogWriter;
 import com.archops.tools.AgentTool;
 import com.archops.tools.ToolRegistry;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -39,13 +51,22 @@ public class AiAgentService {
 
     private static final Logger log = LoggerFactory.getLogger(AiAgentService.class);
     private static final int MAX_ITERATIONS = 5;
+    private static final String PROPOSE_TOOL = "propose_architecture_update";
 
     private static final String SYSTEM_PROMPT = """
             You are ArchOps AI, an expert SRE assistant for a cloud-native operations platform.
             You help operators inspect and manage Linux server clusters, Kubernetes, Docker,
-            and big-data stacks (Spark, Kafka, MinIO, Prometheus).
-            Always prefer safe read-only diagnostics first. When you need to run commands,
-            use the provided tools. Respond in the same language the user writes in.
+            and big-data stacks (Spark, Kafka, MinIO, Prometheus, Hadoop/HDFS/Hive).
+
+            Knowledge policy:
+            1. Prefer retrieve known architecture from the context snippet before probing hosts.
+            2. L0 read-only diagnostics (df/free/uptime/ps/ls/…): do NOT write architecture.
+            3. When you discover durable facts (roles like namenode/datanode/hive/spark, topology),
+               you MUST call propose_architecture_update — never claim SSOT was updated directly.
+            4. partitionKey rules: global | group:{id} | asset:{id}. Prefer asset:{id} or group:{id}
+               when discoveries are scoped to conversation targets; use global only for fleet-wide facts.
+
+            Always prefer safe read-only diagnostics first. Respond in the same language the user writes in.
             """;
 
     private final LlmRuntimeResolver llmRuntimeResolver;
@@ -56,6 +77,10 @@ public class AiAgentService {
     private final AiMessageRepository messageRepository;
     private final AssetService assetService;
     private final ApprovalService approvalService;
+    private final ChangeClassifier changeClassifier;
+    private final ToolExecutionEventService toolExecutionEventService;
+    private final WorkLogWriter workLogWriter;
+    private final ArchitectureProposalService proposalService;
     private final ObjectMapper objectMapper;
 
     public AiAgentService(
@@ -67,6 +92,10 @@ public class AiAgentService {
             AiMessageRepository messageRepository,
             AssetService assetService,
             ApprovalService approvalService,
+            ChangeClassifier changeClassifier,
+            ToolExecutionEventService toolExecutionEventService,
+            WorkLogWriter workLogWriter,
+            ArchitectureProposalService proposalService,
             ObjectMapper objectMapper) {
         this.llmRuntimeResolver = llmRuntimeResolver;
         this.toolRegistry = toolRegistry;
@@ -76,6 +105,10 @@ public class AiAgentService {
         this.messageRepository = messageRepository;
         this.assetService = assetService;
         this.approvalService = approvalService;
+        this.changeClassifier = changeClassifier;
+        this.toolExecutionEventService = toolExecutionEventService;
+        this.workLogWriter = workLogWriter;
+        this.proposalService = proposalService;
         this.objectMapper = objectMapper;
     }
 
@@ -169,6 +202,8 @@ public class AiAgentService {
             onEvent.accept(AgentEvent.toolResult(toolCall.name(), exec.status(), exec.output()));
         }
         messages.add(ChatMessage.tool(toolResult));
+        postProcessToolResult(
+                toolCall, exec, userId, conversationId, conversation, toolSummaries, messages, onEvent, false);
 
         return runAgentLoop(llm, messages, userId, conversationId, conversation, providerId, toolContext, toolSummaries, onEvent);
     }
@@ -196,6 +231,10 @@ public class AiAgentService {
 
             String assistantNote = result.content() != null ? result.content() : "";
             messages.add(new ChatMessage("assistant", assistantNote, result.toolCalls()));
+
+            boolean proposedInTurn = result.toolCalls().stream()
+                    .anyMatch(tc -> PROPOSE_TOOL.equals(tc.name()));
+            ChangeLevel highestLevel = ChangeLevel.L0;
 
             for (ToolCall toolCall : result.toolCalls()) {
                 if (onEvent != null) {
@@ -225,6 +264,30 @@ public class AiAgentService {
                     onEvent.accept(AgentEvent.toolResult(toolCall.name(), exec.status(), exec.output()));
                 }
                 messages.add(ChatMessage.tool(toolResult));
+
+                if ("SUCCESS".equals(exec.status()) || exec.status() == null || "OK".equals(exec.status())) {
+                    ChangeLevel level = postProcessToolResult(
+                            toolCall, exec, userId, conversationId, conversation, toolSummaries, messages, onEvent, true);
+                    if (level.ordinal() > highestLevel.ordinal()) {
+                        highestLevel = level;
+                    }
+                    if (PROPOSE_TOOL.equals(toolCall.name())) {
+                        proposedInTurn = true;
+                        emitProposalCreatedEvent(exec.output(), onEvent);
+                    }
+                }
+            }
+
+            if ((highestLevel == ChangeLevel.L1 || highestLevel == ChangeLevel.L2)
+                    && !proposedInTurn) {
+                String nudge = "System: Classification indicates "
+                        + highestLevel
+                        + ". Call propose_architecture_update with partitionKey/facts/evidence before concluding.";
+                messages.add(ChatMessage.system(nudge));
+            }
+
+            if (highestLevel == ChangeLevel.L2 && !proposedInTurn) {
+                autoCreateDraftProposal(userId, conversationId, conversation, toolSummaries, onEvent);
             }
         }
 
@@ -237,6 +300,123 @@ public class AiAgentService {
             onEvent.accept(AgentEvent.done(finalAnswer));
         }
         return new AgentResult(finalAnswer, toolSummaries);
+    }
+
+    private ChangeLevel postProcessToolResult(
+            ToolCall toolCall,
+            ToolExecutorService.ToolExecutionResult exec,
+            Long userId,
+            Long conversationId,
+            AiConversation conversation,
+            List<ToolExecutionSummary> toolSummaries,
+            List<ChatMessage> messages,
+            Consumer<AgentEvent> onEvent,
+            boolean mayNudgeInline) {
+        Classification classification = changeClassifier.classify(
+                toolCall.name(), toolCall.arguments(), exec.output());
+        List<Long> assetIds = extractAssetIds(toolCall.arguments(), conversation);
+        List<Long> groupIds = conversation.getTargetGroupIds() != null
+                ? new ArrayList<>(conversation.getTargetGroupIds())
+                : List.of();
+
+        try {
+            toolExecutionEventService.record(
+                    conversationId,
+                    userId,
+                    toolCall.name(),
+                    toolCall.arguments(),
+                    exec.output(),
+                    null,
+                    null,
+                    assetIds,
+                    classification.level());
+        } catch (Exception ex) {
+            log.warn("Failed to persist tool execution event: {}", ex.getMessage());
+        }
+
+        WorkLog workLog = null;
+        try {
+            workLog = workLogWriter.appendAgentToolLog(
+                    conversationId,
+                    userId,
+                    toolCall.name(),
+                    "[" + classification.level() + "] " + toolCall.name() + ": " + truncate(exec.output(), 500),
+                    classification.level(),
+                    assetIds,
+                    groupIds,
+                    "{\"tool\":\"" + toolCall.name() + "\",\"rationale\":"
+                            + quote(classification.rationale()) + "}");
+            if (onEvent != null && workLog != null) {
+                onEvent.accept(AgentEvent.workLogAppended(
+                        workLog.getId(), conversationId, classification.level().name()));
+            }
+        } catch (Exception ex) {
+            log.warn("Failed to append work log: {}", ex.getMessage());
+        }
+
+        if (mayNudgeInline
+                && (classification.level() == ChangeLevel.L1 || classification.level() == ChangeLevel.L2)
+                && !PROPOSE_TOOL.equals(toolCall.name())) {
+            messages.add(ChatMessage.system(
+                    "System nudge (" + classification.level() + "): "
+                            + classification.rationale()
+                            + ". Call propose_architecture_update."));
+        }
+
+        return classification.level();
+    }
+
+    private void autoCreateDraftProposal(
+            Long userId,
+            Long conversationId,
+            AiConversation conversation,
+            List<ToolExecutionSummary> toolSummaries,
+            Consumer<AgentEvent> onEvent) {
+        try {
+            List<Long> targets = conversationService.resolveEffectiveTargetAssetIds(conversation);
+            String partitionKey = !targets.isEmpty()
+                    ? PartitionKeys.asset(targets.getFirst())
+                    : PartitionKeys.GLOBAL;
+            String summary = "Auto-draft L2 proposal from agent turn (model did not call "
+                    + PROPOSE_TOOL + ")";
+            Map<String, Object> evidence = new LinkedHashMap<>();
+            evidence.put("conversationId", conversationId);
+            evidence.put("tools", toolSummaries.stream().map(ToolExecutionSummary::tool).toList());
+            String evidenceJson = objectMapper.writeValueAsString(List.of(evidence));
+
+            ArchitectureProposal proposal = proposalService.createFromTool(
+                    partitionKey,
+                    summary,
+                    List.of(),
+                    evidenceJson,
+                    userId,
+                    conversationId,
+                    ProposalStatus.DRAFT,
+                    "HIGH",
+                    0.3);
+            if (onEvent != null) {
+                onEvent.accept(AgentEvent.architectureProposalCreated(
+                        proposal.getId(),
+                        proposal.getPartitionKey(),
+                        proposal.getSummary(),
+                        proposal.getStatus().name()));
+            }
+        } catch (Exception ex) {
+            log.warn("Failed to auto-create L2 draft proposal: {}", ex.getMessage());
+        }
+    }
+
+    private void emitProposalCreatedEvent(String toolOutput, Consumer<AgentEvent> onEvent) {
+        if (onEvent == null || toolOutput == null) {
+            return;
+        }
+        Long proposalId = extractLongAfter(toolOutput, "id=");
+        String partitionKey = extractAfter(toolOutput, "partitionKey=");
+        String status = extractAfter(toolOutput, "status=");
+        if (proposalId != null) {
+            onEvent.accept(AgentEvent.architectureProposalCreated(
+                    proposalId, partitionKey, toolOutput, status != null ? status : "PENDING_REVIEW"));
+        }
     }
 
     private CompletionResult completeLlm(
@@ -252,7 +432,8 @@ public class AiAgentService {
 
     private List<ChatMessage> buildContext(AiConversation conversation, Long conversationId, String latestUserMessage) {
         List<ChatMessage> messages = new ArrayList<>();
-        String knowledge = knowledgeContextService.buildContextSnippet(latestUserMessage);
+        RagScope scope = scopeFromConversation(conversation);
+        String knowledge = knowledgeContextService.buildContextSnippet(latestUserMessage, scope);
         String targets = formatTargetAssets(conversationService.resolveEffectiveTargetAssetIds(conversation));
         messages.add(ChatMessage.system(SYSTEM_PROMPT + "\n\n" + targets + "\n\n" + knowledge));
 
@@ -270,13 +451,44 @@ public class AiAgentService {
                 .map(AiMessage::getContent)
                 .reduce((first, second) -> second)
                 .orElse("");
-        String knowledge = knowledgeContextService.buildContextSnippet(lastUser);
+        RagScope scope = scopeFromConversation(conversation);
+        String knowledge = knowledgeContextService.buildContextSnippet(lastUser, scope);
         String targets = formatTargetAssets(conversationService.resolveEffectiveTargetAssetIds(conversation));
         messages.add(ChatMessage.system(SYSTEM_PROMPT + "\n\n" + targets + "\n\n" + knowledge));
 
         messageRepository.findByConversationIdOrderByCreatedAtAsc(conversationId).stream()
                 .forEach(m -> messages.add(toChatMessage(m)));
         return messages;
+    }
+
+    private RagScope scopeFromConversation(AiConversation conversation) {
+        List<Long> assetIds = conversationService.resolveEffectiveTargetAssetIds(conversation);
+        List<Long> groupIds = conversation.getTargetGroupIds() != null
+                ? conversation.getTargetGroupIds()
+                : List.of();
+        List<String> partitionKeys = new ArrayList<>();
+        partitionKeys.add(PartitionKeys.GLOBAL);
+        for (Long assetId : assetIds) {
+            partitionKeys.add(PartitionKeys.asset(assetId));
+        }
+        for (Long groupId : groupIds) {
+            partitionKeys.add(PartitionKeys.group(groupId));
+        }
+        return new RagScope(assetIds, groupIds, partitionKeys);
+    }
+
+    private List<Long> extractAssetIds(String argumentsJson, AiConversation conversation) {
+        try {
+            Map<String, Object> args = objectMapper.readValue(
+                    argumentsJson != null ? argumentsJson : "{}", new TypeReference<>() {});
+            Object raw = args.get("assetId");
+            if (raw instanceof Number number) {
+                return List.of(number.longValue());
+            }
+        } catch (Exception ignored) {
+            // fall through
+        }
+        return conversationService.resolveEffectiveTargetAssetIds(conversation);
     }
 
     private ChatMessage toChatMessage(AiMessage message) {
@@ -347,6 +559,44 @@ public class AiAgentService {
         }
     }
 
+    private static String truncate(String value, int max) {
+        if (value == null) {
+            return "";
+        }
+        return value.length() <= max ? value : value.substring(0, max) + "…";
+    }
+
+    private String quote(String value) {
+        try {
+            return objectMapper.writeValueAsString(value != null ? value : "");
+        } catch (Exception ex) {
+            return "\"\"";
+        }
+    }
+
+    private static Long extractLongAfter(String text, String marker) {
+        String part = extractAfter(text, marker);
+        if (part == null) {
+            return null;
+        }
+        try {
+            String digits = part.split("[^0-9]")[0];
+            return Long.parseLong(digits);
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
+    private static String extractAfter(String text, String marker) {
+        int idx = text.indexOf(marker);
+        if (idx < 0) {
+            return null;
+        }
+        String rest = text.substring(idx + marker.length()).trim();
+        int end = rest.indexOf(' ');
+        return end > 0 ? rest.substring(0, end) : rest;
+    }
+
     public record AgentResult(String answer, List<ToolExecutionSummary> tools) {}
 
     public record ToolExecutionSummary(String tool, String status, String output) {}
@@ -358,34 +608,68 @@ public class AiAgentService {
             String status,
             Long approvalId,
             String risk,
-            Long conversationId) {
+            Long conversationId,
+            Long proposalId) {
 
         public static AgentEvent userMessage(String content) {
-            return new AgentEvent("user", content, null, null, null, null, null);
+            return new AgentEvent("user", content, null, null, null, null, null, null);
         }
 
         public static AgentEvent token(String content) {
-            return new AgentEvent("token", content, null, null, null, null, null);
+            return new AgentEvent("token", content, null, null, null, null, null, null);
         }
 
         public static AgentEvent toolStart(String tool, String args) {
-            return new AgentEvent("tool_start", args, tool, null, null, null, null);
+            return new AgentEvent("tool_start", args, tool, null, null, null, null, null);
         }
 
         public static AgentEvent toolResult(String tool, String status, String output) {
-            return new AgentEvent("tool_result", output, tool, status, null, null, null);
+            return new AgentEvent("tool_result", output, tool, status, null, null, null, null);
         }
 
         public static AgentEvent approvalRequired(Long id, String risk, String msg) {
-            return new AgentEvent("approval_required", msg, null, null, id, risk, null);
+            return new AgentEvent("approval_required", msg, null, null, id, risk, null, null);
         }
 
         public static AgentEvent resumeStart(Long conversationId, Long approvalId) {
-            return new AgentEvent("resume_start", null, null, null, approvalId, null, conversationId);
+            return new AgentEvent("resume_start", null, null, null, approvalId, null, conversationId, null);
         }
 
         public static AgentEvent done(String content) {
-            return new AgentEvent("done", content, null, null, null, null, null);
+            return new AgentEvent("done", content, null, null, null, null, null, null);
+        }
+
+        public static AgentEvent architectureProposalCreated(
+                Long proposalId, String partitionKey, String summary, String status) {
+            String content = "{\"proposalId\":"
+                    + proposalId
+                    + ",\"partitionKey\":\""
+                    + (partitionKey != null ? partitionKey : "")
+                    + "\",\"summary\":"
+                    + jsonString(summary)
+                    + ",\"status\":\""
+                    + (status != null ? status : "")
+                    + "\"}";
+            return new AgentEvent(
+                    "architecture_proposal_created", content, null, status, null, null, null, proposalId);
+        }
+
+        public static AgentEvent workLogAppended(Long workLogId, Long conversationId, String level) {
+            String content = "{\"workLogId\":"
+                    + workLogId
+                    + ",\"conversationId\":"
+                    + conversationId
+                    + ",\"level\":\""
+                    + (level != null ? level : "")
+                    + "\"}";
+            return new AgentEvent("work_log_appended", content, null, level, null, null, conversationId, null);
+        }
+
+        private static String jsonString(String value) {
+            if (value == null) {
+                return "\"\"";
+            }
+            return "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
         }
     }
 }
