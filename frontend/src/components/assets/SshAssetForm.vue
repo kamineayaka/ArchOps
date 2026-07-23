@@ -142,7 +142,7 @@ function toPayload(): AssetRequest {
   const payload: AssetRequest = {
     name: form.value.name.trim(),
     kind: form.value.kind,
-    host: form.value.host || undefined,
+    host: form.value.host.trim() || undefined,
     port: form.value.port ?? undefined,
     description: form.value.description.trim() || undefined,
     groupId: form.value.groupId ?? undefined,

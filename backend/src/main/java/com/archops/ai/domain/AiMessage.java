@@ -7,6 +7,8 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "ai_messages")
@@ -25,6 +27,7 @@ public class AiMessage {
     @Column(nullable = false, columnDefinition = "text")
     private String content;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "tool_calls", columnDefinition = "jsonb")
     private String toolCalls = "[]";
 

@@ -39,7 +39,7 @@ public class AuditService {
         log.setResource(entry.resource());
         log.setRiskLevel(entry.riskLevel());
         log.setStatus(entry.status());
-        log.setDetail(entry.detail());
+        log.setDetail(entry.detail() == null || entry.detail().isBlank() ? "{}" : entry.detail());
         log.setIpAddress(entry.ipAddress());
         log.setUserAgent(entry.userAgent());
         log.setPrevHash(prevHash);
