@@ -114,6 +114,7 @@ ArchOps/
 
 产品愿景与整体思想见 [docs/product-vision.md](docs/product-vision.md)。  
 主线实施计划（Living Architecture）见 [docs/mainline-implementation-plan.md](docs/mainline-implementation-plan.md)，Agent Prompt 见 [docs/mainline-implementation-prompt.md](docs/mainline-implementation-prompt.md)。  
+领域 / API / 验收见 [mainline-domain-model.md](docs/mainline-domain-model.md) · [mainline-api-contracts.md](docs/mainline-api-contracts.md) · [mainline-acceptance.md](docs/mainline-acceptance.md)。  
 更多工程架构说明见 [docs/architecture.md](docs/architecture.md)。
 
 ## 安全

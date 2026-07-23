@@ -17,7 +17,7 @@ Nginx (frontend container)
       ▼
 Spring Boot Backend (stateless)
       ├── user/       Auth, RBAC, JWT, single-session
-      ├── asset/      Inventory, encrypted SSH credentials
+      ├── asset/      Inventory, encrypted SSH credentials, asset groups
       ├── terminal/   Web SSH proxy (MINA SSHD)
       ├── ai/         Agent loop, LLM providers, streaming WS
       ├── tools/      In-process agent tool registry (ssh_exec, list_assets, ...)
@@ -31,6 +31,9 @@ Spring Boot Backend (stateless)
       └── MinIO         (attachments)
 ```
 
+Conversation targets may bind **assets and/or asset groups**; tools default to the resolved asset union
+(`target assets ∪ group members`). See `docs/mainline-domain-model.md` for Architecture partition keys
+(`global` / `group:{id}` / `asset:{id}`).
 ## Module Boundaries
 
 Each package under `com.archops.*` is a self-contained module:
