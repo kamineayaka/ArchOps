@@ -33,6 +33,18 @@ const router = createRouter({
           meta: { titleKey: 'nav.assetGroups', descKey: 'assetGroups.subtitle' },
         },
         {
+          path: 'architecture',
+          name: 'architecture',
+          component: () => import('@/views/ArchitectureView.vue'),
+          meta: { titleKey: 'nav.architecture', descKey: 'architecture.subtitle' },
+        },
+        {
+          path: 'architecture-proposals',
+          name: 'architecture-proposals',
+          component: () => import('@/views/ArchitectureProposalsView.vue'),
+          meta: { titleKey: 'nav.proposals', descKey: 'proposals.subtitle' },
+        },
+        {
           path: 'ai',
           name: 'ai',
           component: () => import('@/views/AiChatView.vue'),
