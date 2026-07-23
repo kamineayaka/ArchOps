@@ -3,6 +3,7 @@ package com.archops.knowledge.architecture.service;
 import com.archops.audit.service.AuditService;
 import com.archops.common.exception.BusinessException;
 import com.archops.knowledge.acl.AssetAclService;
+import com.archops.knowledge.architecture.ArchitectureMetrics;
 import com.archops.knowledge.architecture.PartitionKeys;
 import com.archops.knowledge.architecture.domain.ArchitectureFact;
 import com.archops.knowledge.architecture.domain.ArchitecturePartition;
@@ -32,6 +33,7 @@ public class ArchitecturePartitionService {
     private final AssetAclService assetAclService;
     private final AuditService auditService;
     private final ObjectMapper objectMapper;
+    private final ArchitectureMetrics architectureMetrics;
 
     public ArchitecturePartitionService(
             ArchitecturePartitionRepository partitionRepository,
@@ -39,13 +41,15 @@ public class ArchitecturePartitionService {
             ArchitectureFactRepository factRepository,
             AssetAclService assetAclService,
             AuditService auditService,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            ArchitectureMetrics architectureMetrics) {
         this.partitionRepository = partitionRepository;
         this.revisionRepository = revisionRepository;
         this.factRepository = factRepository;
         this.assetAclService = assetAclService;
         this.auditService = auditService;
         this.objectMapper = objectMapper;
+        this.architectureMetrics = architectureMetrics;
     }
 
     @Transactional(readOnly = true)
@@ -202,6 +206,8 @@ public class ArchitecturePartitionService {
                         + ",\"newVersion\":" + newRevision.getVersion() + "}",
                 null,
                 null));
+
+        architectureMetrics.incrementRollback();
 
         return toDetail(partition);
     }

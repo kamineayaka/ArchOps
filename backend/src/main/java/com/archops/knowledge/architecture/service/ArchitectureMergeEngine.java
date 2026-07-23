@@ -2,6 +2,7 @@ package com.archops.knowledge.architecture.service;
 
 import com.archops.audit.service.AuditService;
 import com.archops.common.exception.BusinessException;
+import com.archops.knowledge.architecture.ArchitectureMetrics;
 import com.archops.knowledge.architecture.PartitionKeys;
 import com.archops.knowledge.architecture.domain.ArchitectureFact;
 import com.archops.knowledge.architecture.domain.ArchitecturePartition;
@@ -36,6 +37,7 @@ public class ArchitectureMergeEngine {
     private final AuditService auditService;
     private final ObjectMapper objectMapper;
     private final ApplicationEventPublisher eventPublisher;
+    private final ArchitectureMetrics architectureMetrics;
 
     public ArchitectureMergeEngine(
             ArchitecturePartitionService partitionService,
@@ -44,7 +46,8 @@ public class ArchitectureMergeEngine {
             ArchitectureProposalRepository proposalRepository,
             AuditService auditService,
             ObjectMapper objectMapper,
-            ApplicationEventPublisher eventPublisher) {
+            ApplicationEventPublisher eventPublisher,
+            ArchitectureMetrics architectureMetrics) {
         this.partitionService = partitionService;
         this.revisionRepository = revisionRepository;
         this.factRepository = factRepository;
@@ -52,6 +55,7 @@ public class ArchitectureMergeEngine {
         this.auditService = auditService;
         this.objectMapper = objectMapper;
         this.eventPublisher = eventPublisher;
+        this.architectureMetrics = architectureMetrics;
     }
 
     @Transactional
@@ -113,6 +117,8 @@ public class ArchitectureMergeEngine {
 
         eventPublisher.publishEvent(new ArchitectureMergedEvent(
                 proposal.getPartitionKey(), revision.getVersion(), proposal.getId()));
+
+        architectureMetrics.incrementMerged();
 
         return partitionService.toDetail(partition);
     }

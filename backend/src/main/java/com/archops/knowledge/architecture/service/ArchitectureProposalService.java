@@ -3,6 +3,7 @@ package com.archops.knowledge.architecture.service;
 import com.archops.audit.service.AuditService;
 import com.archops.common.exception.BusinessException;
 import com.archops.knowledge.acl.AssetAclService;
+import com.archops.knowledge.architecture.ArchitectureMetrics;
 import com.archops.knowledge.architecture.ArchitectureProperties;
 import com.archops.knowledge.architecture.PartitionKeys;
 import com.archops.knowledge.architecture.domain.ArchitecturePartition;
@@ -44,6 +45,7 @@ public class ArchitectureProposalService {
     private final AssetAclService assetAclService;
     private final AuditService auditService;
     private final ObjectMapper objectMapper;
+    private final ArchitectureMetrics architectureMetrics;
 
     public ArchitectureProposalService(
             ArchitectureProposalRepository proposalRepository,
@@ -54,7 +56,8 @@ public class ArchitectureProposalService {
             UserRepository userRepository,
             AssetAclService assetAclService,
             AuditService auditService,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            ArchitectureMetrics architectureMetrics) {
         this.proposalRepository = proposalRepository;
         this.partitionRepository = partitionRepository;
         this.partitionService = partitionService;
@@ -64,6 +67,7 @@ public class ArchitectureProposalService {
         this.assetAclService = assetAclService;
         this.auditService = auditService;
         this.objectMapper = objectMapper;
+        this.architectureMetrics = architectureMetrics;
     }
 
     @Transactional
@@ -102,6 +106,7 @@ public class ArchitectureProposalService {
             mergeEngine.mergeApprovedProposal(proposal, requesterId);
             // merge sets MERGED; restore AUTO_MERGED semantics if desired — keep MERGED as final SSOT state
             autoMerged = true;
+            architectureMetrics.incrementAutoMerge();
             proposal = proposalRepository.findById(proposal.getId()).orElse(proposal);
             if (proposal.getStatus() == ProposalStatus.MERGED) {
                 proposal.setStatus(ProposalStatus.AUTO_MERGED);

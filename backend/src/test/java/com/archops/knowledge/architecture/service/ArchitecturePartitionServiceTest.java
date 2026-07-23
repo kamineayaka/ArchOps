@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 import com.archops.audit.service.AuditService;
 import com.archops.common.exception.BusinessException;
 import com.archops.knowledge.acl.AssetAclService;
+import com.archops.knowledge.architecture.ArchitectureMetrics;
 import com.archops.knowledge.architecture.domain.ArchitecturePartition;
 import com.archops.knowledge.architecture.domain.ArchitectureRevision;
 import com.archops.knowledge.architecture.dto.FactCreateRequest;
@@ -38,6 +39,8 @@ class ArchitecturePartitionServiceTest {
     private AssetAclService assetAclService;
     @Mock
     private AuditService auditService;
+    @Mock
+    private ArchitectureMetrics architectureMetrics;
 
     private ArchitecturePartitionService service;
 
@@ -49,7 +52,8 @@ class ArchitecturePartitionServiceTest {
                 factRepository,
                 assetAclService,
                 auditService,
-                new ObjectMapper());
+                new ObjectMapper(),
+                architectureMetrics);
     }
 
     @Test
