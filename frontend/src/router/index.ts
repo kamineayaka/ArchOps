@@ -27,6 +27,12 @@ const router = createRouter({
           meta: { titleKey: 'nav.assets', descKey: 'assets.subtitle' },
         },
         {
+          path: 'asset-groups',
+          name: 'asset-groups',
+          component: () => import('@/views/AssetGroupsView.vue'),
+          meta: { titleKey: 'nav.assetGroups', descKey: 'assetGroups.subtitle' },
+        },
+        {
           path: 'ai',
           name: 'ai',
           component: () => import('@/views/AiChatView.vue'),

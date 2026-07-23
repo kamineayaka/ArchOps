@@ -20,6 +20,7 @@ import {
   ChatbubbleEllipsesOutline,
   DesktopOutline,
   DocumentTextOutline,
+  FolderOutline,
   GridOutline,
   LogOutOutline,
   MoonOutline,
@@ -64,6 +65,7 @@ const menuOptions = computed(() => {
   const items = [
     { label: t('nav.dashboard'), key: 'dashboard', icon: () => h(NIcon, null, { default: () => h(GridOutline) }) },
     { label: t('nav.assets'), key: 'assets', icon: () => h(NIcon, null, { default: () => h(ServerOutline) }) },
+    { label: t('nav.assetGroups'), key: 'asset-groups', icon: () => h(NIcon, null, { default: () => h(FolderOutline) }) },
     { label: t('nav.ai'), key: 'ai', icon: () => h(NIcon, null, { default: () => h(ChatbubbleEllipsesOutline) }) },
     { label: t('nav.terminal'), key: 'terminal', icon: () => h(NIcon, null, { default: () => h(DesktopOutline) }) },
     { label: t('nav.approvals'), key: 'approvals', icon: () => h(NIcon, null, { default: () => h(ShieldCheckmarkOutline) }) },
