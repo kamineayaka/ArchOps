@@ -54,3 +54,8 @@ export async function replaceAssetGroupMembers(id: number, assetIds: number[]) {
   const { data } = await client.put<ApiResponse<AssetGroup>>(`/api/asset-groups/${id}/members`, { assetIds })
   return data
 }
+
+export async function addAssetGroupMembers(id: number, assetIds: number[]) {
+  const { data } = await client.post<ApiResponse<AssetGroup>>(`/api/asset-groups/${id}/members`, { assetIds })
+  return data
+}

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, h, onMounted, ref, watch } from 'vue'
+import { computed, h, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   NButton,
@@ -8,7 +8,6 @@ import {
   NForm,
   NFormItem,
   NInput,
-  NInputNumber,
   NModal,
   NPopconfirm,
   NSelect,
@@ -16,9 +15,14 @@ import {
   NTag,
   useMessage,
 } from 'naive-ui'
-import { createAsset, deleteAsset, listAssets, saveSshCredential, type Asset } from '@/api/assets'
-import '@/assetTypes'
-import { defaultPortFor, getAssetType, listAssetTypes } from '@/assetTypes/registry'
+import {
+  deleteAsset,
+  listAssets,
+  saveSshCredential,
+  testSavedAssetConnection,
+  type Asset,
+} from '@/api/assets'
+import SshAssetForm from '@/components/assets/SshAssetForm.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import { apiErrorMessage } from '@/utils/apiError'
@@ -31,28 +35,14 @@ const loading = ref(false)
 const showCreate = ref(false)
 const showCredential = ref(false)
 const selectedAssetId = ref<number | null>(null)
+const testingId = ref<number | null>(null)
 
-const form = ref<{ name: string; kind: string; host: string; port: number | null }>({
-  name: '',
-  kind: 'SERVER',
-  host: '',
-  port: 22,
-})
 const credForm = ref({
   username: 'root',
   authType: 'PASSWORD',
   secret: '',
   jumpAssetIds: [] as number[],
 })
-
-const kindOptions = computed(() =>
-  listAssetTypes().map((def) => ({
-    label: t(def.labelKey),
-    value: def.kind,
-  })),
-)
-
-const selectedType = computed(() => getAssetType(form.value.kind))
 
 const jumpAssetOptions = computed(() =>
   assets.value
@@ -63,36 +53,43 @@ const jumpAssetOptions = computed(() =>
     })),
 )
 
-watch(
-  () => form.value.kind,
-  (kind) => {
-    form.value.port = defaultPortFor(kind)
-  },
-)
-
 const columns = computed(() => [
   { title: t('common.id'), key: 'id', width: 60 },
   { title: t('assets.name'), key: 'name' },
-  { title: t('assets.kind'), key: 'kind' },
+  { title: t('assets.kind'), key: 'kind', width: 110 },
   { title: t('assets.host'), key: 'host' },
   { title: t('assets.port'), key: 'port', width: 80 },
   {
     title: t('assets.credential'),
     key: 'hasSshCredential',
+    width: 110,
     render: (row: Asset) =>
       h(
         NTag,
         { size: 'small', round: true, type: row.hasSshCredential ? 'success' : 'warning' },
-        { default: () => (row.hasSshCredential ? t('common.configured') : t('common.notConfigured')) },
+        {
+          default: () =>
+            row.hasSshCredential ? t('assets.connectable') : t('common.notConfigured'),
+        },
       ),
   },
   {
     title: t('common.actions'),
     key: 'actions',
-    width: 200,
+    width: 280,
     render: (row: Asset) =>
       h(NSpace, { size: 8 }, {
         default: () => [
+          h(
+            NButton,
+            {
+              size: 'small',
+              loading: testingId.value === row.id,
+              disabled: !row.hasSshCredential,
+              onClick: () => void handleTestSaved(row.id),
+            },
+            { default: () => t('assets.testConnection') },
+          ),
           h(NButton, { size: 'small', onClick: () => openCredential(row.id) }, { default: () => t('assets.credential') }),
           h(
             NPopconfirm,
@@ -107,10 +104,6 @@ const columns = computed(() => [
   },
 ])
 
-function resetForm() {
-  form.value = { name: '', kind: 'SERVER', host: '', port: defaultPortFor('SERVER') }
-}
-
 async function load() {
   loading.value = true
   try {
@@ -121,35 +114,9 @@ async function load() {
   }
 }
 
-async function handleCreate() {
-  if (!form.value.name.trim()) {
-    message.warning(t('assets.nameRequired'))
-    return
-  }
-  const def = getAssetType(form.value.kind)
-  if (def?.showHost && !form.value.host.trim()) {
-    message.warning(t('assets.hostRequired'))
-    return
-  }
-  try {
-    const payload = {
-      name: form.value.name.trim(),
-      kind: form.value.kind,
-      host: form.value.host || undefined,
-      port: form.value.port ?? undefined,
-    }
-    const res = await createAsset(payload)
-    if (res.success) {
-      message.success(t('assets.created'))
-      showCreate.value = false
-      resetForm()
-      await load()
-    } else {
-      message.error(res.message || t('common.failed'))
-    }
-  } catch (err) {
-    message.error(apiErrorMessage(err, t('common.failed')))
-  }
+function onCreated() {
+  showCreate.value = false
+  void load()
 }
 
 function openCredential(assetId: number) {
@@ -166,6 +133,10 @@ function openCredential(assetId: number) {
 
 async function handleSaveCredential() {
   if (!selectedAssetId.value) return
+  if (!credForm.value.username.trim() || !credForm.value.secret.trim()) {
+    message.warning(t('assets.secretRequired'))
+    return
+  }
   try {
     const res = await saveSshCredential(selectedAssetId.value, credForm.value)
     if (res.success) {
@@ -180,11 +151,33 @@ async function handleSaveCredential() {
   }
 }
 
+async function handleTestSaved(id: number) {
+  testingId.value = id
+  try {
+    const res = await testSavedAssetConnection(id)
+    if (res.success && res.data?.ok) {
+      message.success(`${res.data.message} (${res.data.latencyMs}ms)`)
+    } else {
+      message.error(res.data?.message || res.message || t('assets.testFailed'))
+    }
+  } catch (err) {
+    message.error(apiErrorMessage(err, t('assets.testFailed')))
+  } finally {
+    testingId.value = null
+  }
+}
+
 async function handleDelete(id: number) {
-  const res = await deleteAsset(id)
-  if (res.success) {
-    message.success(t('assets.deleted'))
-    await load()
+  try {
+    const res = await deleteAsset(id)
+    if (res.success) {
+      message.success(t('assets.deleted'))
+      await load()
+    } else {
+      message.error(res.message || t('common.failed'))
+    }
+  } catch (err) {
+    message.error(apiErrorMessage(err, t('common.failed')))
   }
 }
 
@@ -197,7 +190,7 @@ onMounted(load)
       <template #extra>
         <NSpace>
           <NButton @click="load">{{ t('common.refresh') }}</NButton>
-          <NButton type="primary" @click="showCreate = true">{{ t('assets.addAsset') }}</NButton>
+          <NButton type="primary" @click="showCreate = true">{{ t('assets.addSsh') }}</NButton>
         </NSpace>
       </template>
     </PageHeader>
@@ -208,21 +201,12 @@ onMounted(load)
     </NCard>
   </NSpace>
 
-  <NModal v-model:show="showCreate" preset="card" class="modal-md" :title="t('assets.addAsset')">
-    <NForm :model="form" label-placement="top">
-      <NFormItem :label="t('assets.name')"><NInput v-model:value="form.name" /></NFormItem>
-      <NFormItem :label="t('assets.kind')"><NSelect v-model:value="form.kind" :options="kindOptions" /></NFormItem>
-      <NFormItem v-if="selectedType?.showHost !== false" :label="t('assets.host')">
-        <NInput v-model:value="form.host" :placeholder="t('assets.hostPlaceholder')" />
-      </NFormItem>
-      <NFormItem v-if="selectedType?.showPort !== false" :label="t('assets.port')">
-        <NInputNumber v-model:value="form.port" :min="1" :max="65535" class="full-width" />
-      </NFormItem>
-      <NSpace justify="end">
-        <NButton @click="showCreate = false">{{ t('common.cancel') }}</NButton>
-        <NButton type="primary" @click="handleCreate">{{ t('common.create') }}</NButton>
-      </NSpace>
-    </NForm>
+  <NModal v-model:show="showCreate" preset="card" class="modal-lg" :title="t('assets.addSsh')">
+    <SshAssetForm
+      :assets="assets"
+      @created="onCreated"
+      @cancel="showCreate = false"
+    />
   </NModal>
 
   <NModal v-model:show="showCredential" preset="card" class="modal-md" :title="t('assets.credential')">

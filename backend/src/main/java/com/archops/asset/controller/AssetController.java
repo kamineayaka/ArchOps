@@ -3,6 +3,9 @@ package com.archops.asset.controller;
 import com.archops.asset.dto.AssetRequest;
 import com.archops.asset.dto.AssetResponse;
 import com.archops.asset.dto.SshCredentialRequest;
+import com.archops.asset.dto.TestConnectionRequest;
+import com.archops.asset.dto.TestConnectionResponse;
+import com.archops.asset.service.AssetConnectionTestService;
 import com.archops.asset.service.AssetService;
 import com.archops.common.dto.ApiResponse;
 import com.archops.common.security.AuthUserPrincipal;
@@ -24,9 +27,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class AssetController {
 
     private final AssetService assetService;
+    private final AssetConnectionTestService connectionTestService;
 
-    public AssetController(AssetService assetService) {
+    public AssetController(AssetService assetService, AssetConnectionTestService connectionTestService) {
         this.assetService = assetService;
+        this.connectionTestService = connectionTestService;
     }
 
     @PostMapping
@@ -35,6 +40,12 @@ public class AssetController {
             @Valid @RequestBody AssetRequest request,
             @AuthenticationPrincipal AuthUserPrincipal principal) {
         return ApiResponse.ok(assetService.create(request, principal.getUserId(), principal.getUsername()));
+    }
+
+    @PostMapping("/test-connection")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_OPERATOR')")
+    public ApiResponse<TestConnectionResponse> testConnection(@RequestBody TestConnectionRequest request) {
+        return ApiResponse.ok(connectionTestService.test(request));
     }
 
     @GetMapping
@@ -75,5 +86,12 @@ public class AssetController {
             @AuthenticationPrincipal AuthUserPrincipal principal) {
         assetService.saveSshCredential(id, request, principal.getUserId(), principal.getUsername());
         return ApiResponse.ok("SSH 凭证已保存", null);
+    }
+
+    @PostMapping("/{id}/test-connection")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_OPERATOR')")
+    public ApiResponse<TestConnectionResponse> testSavedConnection(@PathVariable Long id) {
+        return ApiResponse.ok(connectionTestService.test(new TestConnectionRequest(
+                id, null, null, null, null, null, null)));
     }
 }

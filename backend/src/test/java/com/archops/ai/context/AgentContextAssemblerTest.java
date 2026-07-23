@@ -68,7 +68,7 @@ class AgentContextAssemblerTest {
         when(settingsService.getSettings()).thenReturn(settings);
 
         when(assetService.get(1L)).thenReturn(new AssetResponse(
-                1L, "nn-1", AssetKind.SERVER, "10.0.0.1", 22, "{}", null, true, true, List.of(),
+                1L, "nn-1", AssetKind.SERVER, "10.0.0.1", 22, "{}", null, null, true, true, List.of(),
                 Instant.now(), Instant.now()));
 
         when(workLogRepository.findByConversationIdOrderByCreatedAtDesc(10L)).thenReturn(List.of());

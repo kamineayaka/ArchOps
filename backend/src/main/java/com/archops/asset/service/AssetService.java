@@ -1,6 +1,7 @@
 package com.archops.asset.service;
 
 import com.archops.asset.domain.Asset;
+import com.archops.asset.domain.SshAuthType;
 import com.archops.asset.domain.SshCredential;
 import com.archops.asset.dto.AssetRequest;
 import com.archops.asset.dto.AssetResponse;
@@ -12,6 +13,9 @@ import com.archops.audit.service.AuditService;
 import com.archops.common.exception.BusinessException;
 import com.archops.common.security.CredentialCipher;
 import com.archops.common.security.CredentialCipher.EncryptedSecret;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -25,32 +29,40 @@ public class AssetService {
     private final CredentialCipher credentialCipher;
     private final AuditService auditService;
     private final AssetTypeRegistry assetTypeRegistry;
+    private final AssetGroupService assetGroupService;
+    private final ObjectMapper objectMapper;
 
     public AssetService(
             AssetRepository assetRepository,
             SshCredentialRepository sshCredentialRepository,
             CredentialCipher credentialCipher,
             AuditService auditService,
-            AssetTypeRegistry assetTypeRegistry) {
+            AssetTypeRegistry assetTypeRegistry,
+            AssetGroupService assetGroupService,
+            ObjectMapper objectMapper) {
         this.assetRepository = assetRepository;
         this.sshCredentialRepository = sshCredentialRepository;
         this.credentialCipher = credentialCipher;
         this.auditService = auditService;
         this.assetTypeRegistry = assetTypeRegistry;
+        this.assetGroupService = assetGroupService;
+        this.objectMapper = objectMapper;
     }
 
     @Transactional
     public AssetResponse create(AssetRequest request, Long actorId, String actorName) {
         assetTypeRegistry.findRequired(request.kind().name()).validateCreate(request);
         Asset asset = new Asset();
-        asset.setName(request.name());
-        asset.setKind(request.kind());
-        asset.setHost(request.host());
-        asset.setPort(request.port());
-        asset.setMetadata(request.metadata() != null ? request.metadata() : "{}");
-        asset.setParentId(request.parentId());
-        asset.setEnabled(request.enabled() == null || request.enabled());
+        applyRequest(asset, request);
         asset = assetRepository.save(asset);
+
+        if (hasSshPayload(request)) {
+            saveSshCredential(asset.getId(), toCredentialRequest(request), actorId, actorName);
+        }
+        if (request.groupId() != null) {
+            assetGroupService.addMembers(request.groupId(), List.of(asset.getId()), actorId, actorName);
+        }
+
         auditService.record(new AuditService.AuditEntry(
                 actorId, actorName, "asset.create", "asset:" + asset.getId(),
                 "LOW", "SUCCESS", "{\"name\":\"" + asset.getName() + "\"}", null, null));
@@ -71,16 +83,16 @@ public class AssetService {
     public AssetResponse update(Long id, AssetRequest request, Long actorId, String actorName) {
         assetTypeRegistry.findRequired(request.kind().name()).validateUpdate(request);
         Asset asset = findAssetOrThrow(id);
-        asset.setName(request.name());
-        asset.setKind(request.kind());
-        asset.setHost(request.host());
-        asset.setPort(request.port());
-        asset.setMetadata(request.metadata() != null ? request.metadata() : "{}");
-        asset.setParentId(request.parentId());
-        if (request.enabled() != null) {
-            asset.setEnabled(request.enabled());
-        }
+        applyRequest(asset, request);
         asset = assetRepository.save(asset);
+
+        if (hasSshPayload(request)) {
+            saveSshCredential(id, toCredentialRequest(request), actorId, actorName);
+        }
+        if (request.groupId() != null) {
+            assetGroupService.addMembers(request.groupId(), List.of(id), actorId, actorName);
+        }
+
         auditService.record(new AuditService.AuditEntry(
                 actorId, actorName, "asset.update", "asset:" + asset.getId(),
                 "LOW", "SUCCESS", null, null, null));
@@ -125,6 +137,74 @@ public class AssetService {
         return credentialCipher.decrypt(credential.getSecretCipher(), credential.getSecretIv());
     }
 
+    private void applyRequest(Asset asset, AssetRequest request) {
+        asset.setName(request.name());
+        asset.setKind(request.kind());
+        asset.setHost(request.host());
+        asset.setPort(request.port());
+        asset.setMetadata(mergeMetadata(request.metadata(), request.description()));
+        asset.setParentId(request.parentId());
+        if (request.enabled() != null) {
+            asset.setEnabled(request.enabled());
+        } else if (asset.getId() == null) {
+            asset.setEnabled(true);
+        }
+    }
+
+    private String mergeMetadata(String metadata, String description) {
+        try {
+            ObjectNode node;
+            if (metadata != null && !metadata.isBlank()) {
+                JsonNode parsed = objectMapper.readTree(metadata);
+                node = parsed.isObject() ? (ObjectNode) parsed : objectMapper.createObjectNode();
+            } else {
+                node = objectMapper.createObjectNode();
+            }
+            if (description != null) {
+                String trimmed = description.trim();
+                if (trimmed.isEmpty()) {
+                    node.remove("description");
+                } else {
+                    // Notes only — never Architecture SSOT.
+                    node.put("description", trimmed);
+                }
+            }
+            return objectMapper.writeValueAsString(node);
+        } catch (Exception e) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "ASSET_METADATA_INVALID", "资产 metadata 无效");
+        }
+    }
+
+    private String readDescription(String metadata) {
+        if (metadata == null || metadata.isBlank()) {
+            return null;
+        }
+        try {
+            JsonNode node = objectMapper.readTree(metadata);
+            JsonNode description = node.get("description");
+            return description != null && !description.isNull() ? description.asText(null) : null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static boolean hasSshPayload(AssetRequest request) {
+        return request.secret() != null
+                && !request.secret().isBlank()
+                && request.username() != null
+                && !request.username().isBlank()
+                && request.authType() != null;
+    }
+
+    private static SshCredentialRequest toCredentialRequest(AssetRequest request) {
+        SshAuthType authType = request.authType();
+        return new SshCredentialRequest(
+                request.username().trim(),
+                authType,
+                request.secret(),
+                request.jumpAssetIds() != null ? request.jumpAssetIds() : List.of());
+    }
+
     private Asset findAssetOrThrow(Long id) {
         return assetRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(
@@ -144,6 +224,7 @@ public class AssetService {
                 asset.getHost(),
                 asset.getPort(),
                 asset.getMetadata(),
+                readDescription(asset.getMetadata()),
                 asset.getParentId(),
                 asset.isEnabled(),
                 hasCred,

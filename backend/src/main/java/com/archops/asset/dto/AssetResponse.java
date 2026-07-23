@@ -11,6 +11,7 @@ public record AssetResponse(
         String host,
         Integer port,
         String metadata,
+        String description,
         Long parentId,
         boolean enabled,
         boolean hasSshCredential,

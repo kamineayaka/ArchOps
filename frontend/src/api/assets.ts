@@ -8,6 +8,7 @@ export interface Asset {
   host: string | null
   port: number | null
   metadata: string | null
+  description: string | null
   parentId: number | null
   enabled: boolean
   hasSshCredential: boolean
@@ -24,6 +25,28 @@ export interface AssetRequest {
   metadata?: string
   parentId?: number
   enabled?: boolean
+  description?: string
+  groupId?: number
+  username?: string
+  authType?: string
+  secret?: string
+  jumpAssetIds?: number[]
+}
+
+export interface TestConnectionRequest {
+  assetId?: number
+  host?: string
+  port?: number
+  username?: string
+  authType?: string
+  secret?: string
+  jumpAssetIds?: number[]
+}
+
+export interface TestConnectionResponse {
+  ok: boolean
+  latencyMs: number
+  message: string
 }
 
 export async function listAssets() {
@@ -46,5 +69,17 @@ export async function saveSshCredential(
   payload: { username: string; authType: string; secret: string; jumpAssetIds?: number[] },
 ) {
   const { data } = await client.post<ApiResponse<null>>(`/api/assets/${assetId}/ssh-credential`, payload)
+  return data
+}
+
+export async function testAssetConnection(payload: TestConnectionRequest) {
+  const { data } = await client.post<ApiResponse<TestConnectionResponse>>('/api/assets/test-connection', payload)
+  return data
+}
+
+export async function testSavedAssetConnection(assetId: number) {
+  const { data } = await client.post<ApiResponse<TestConnectionResponse>>(
+    `/api/assets/${assetId}/test-connection`,
+  )
   return data
 }

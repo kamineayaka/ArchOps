@@ -161,23 +161,23 @@ ArchOps 已有 kind：`SERVER, CLUSTER, SERVICE, NETWORK, DATABASE`（SPI 方向
 
 ### Wave W0 — 修 Bug（立刻）
 
-1. BUG-01/07 错误提示  
-2. BUG-02 nginx `try_files`  
-3. BUG-03 角色字符串  
-4. 回归：admin 可见 AI 设置；创建失败有中文/英文 toast；刷新 `/assets` 正常
+1. BUG-01/07 错误提示 — **已在 main（#18）**；本波补 `roles`/`apiError` 与 nginx SPA 回归脚本  
+2. BUG-02 nginx `try_files` — **已在 main**；线上需 redeploy（勿用 `$uri/`）  
+3. BUG-03 角色字符串 — **已在 main**（`utils/roles.ts`）  
+4. 回归：`npm test` + `npm run check:nginx`；admin 可见 AI 设置；创建失败有 toast；刷新 `/assets` → 200
 
-### Wave W1 — SSH 可连（对齐图 1）
+### Wave W1 — SSH 可连（对齐图 1） — **本分支交付**
 
-1. 创建/编辑 SERVER：主机、端口、用户、认证、密钥/密码、分组、描述、跳板  
-2. `POST /api/assets/{id}/test-connection` 或统一 test API  
-3. 保存后自动写凭证；列表展示「可连接」
+1. 创建/编辑 SERVER：主机、端口、用户、认证、密钥/密码、分组、描述、跳板（`SshAssetForm`）  
+2. `POST /api/assets/test-connection` + `POST /api/assets/{id}/test-connection`（共用 `AssetSshDialer`）  
+3. 保存时一次写入凭证；列表展示「可连接」
 
-### Wave W2 — 终端 IDE + Agent（对齐图 2）
+### Wave W2 — 终端 IDE + Agent（对齐图 2） — **本分支交付**
 
-1. 多 Tab 终端会话  
-2. 左树点击打开/聚焦 Tab  
-3. Agent 侧轨从终端一键打开（ML-8-06 升级为 P0）  
-4. 路由与会话状态同步
+1. 多 Tab 终端会话（`useTerminalSessions`）  
+2. 左树点击打开/聚焦 Tab（路由 `terminal/:assetId` watch）  
+3. 终端内「打开 Agent」侧轨；进入终端默认展开资产树  
+4. 状态条：连接状态 · user@host · 时长 · 重连
 
 ### Wave W3 — AI 配置对齐图 3
 
@@ -211,3 +211,4 @@ ArchOps 已有 kind：`SERVER, CLUSTER, SERVICE, NETWORK, DATABASE`（SPI 方向
 | 日期 | 说明 |
 |------|------|
 | 2026-07-23 | 初版：用户三图反馈 + OpsKat 重读 + ArchOps Bug 审计 + W0–W4 波次 |
+| 2026-07-23 | W0 确认已合入 main（#18）并补回归；W1 SSH 表单+测试连接；W2 终端 IDE 多 Tab |
