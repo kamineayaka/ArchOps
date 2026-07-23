@@ -32,8 +32,10 @@ import {
   type ProviderType,
 } from '@/api/ai-providers'
 import { getIndexStats, type IndexStats } from '@/api/knowledge'
+import AiProviderSetupWizard from '@/components/ai/AiProviderSetupWizard.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import PageHeader from '@/components/PageHeader.vue'
+import { apiErrorMessage, isProviderTestFailed } from '@/utils/apiError'
 
 const { t } = useI18n()
 const message = useMessage()
@@ -41,6 +43,7 @@ const message = useMessage()
 const providers = ref<AiProvider[]>([])
 const loading = ref(false)
 const showModal = ref(false)
+const showWizard = ref(false)
 const editingId = ref<number | null>(null)
 const modelOptions = ref<{ label: string; value: string }[]>([])
 const fetchingModels = ref(false)
@@ -74,6 +77,13 @@ const typeOptions = computed(() => [
   { label: t('aiSettings.anthropic'), value: 'ANTHROPIC' },
 ])
 
+const chatProviders = computed(() => providers.value.filter((p) => p.supportsChat && p.enabled))
+const needsFirstRun = computed(() => providers.value.length === 0)
+const needsDefault = computed(
+  () => providers.value.length > 0 && !settings.value.defaultChatProviderId && chatProviders.value.length > 0,
+)
+const showSetupPrompt = computed(() => needsFirstRun.value || needsDefault.value)
+
 const showReindexAlert = computed(() => {
   if (settings.value.defaultEmbeddingProviderId !== initialEmbeddingProviderId.value) {
     return true
@@ -105,6 +115,12 @@ const columns = computed(() => [
     key: 'providerType',
     render: (row: AiProvider) =>
       row.providerType === 'ANTHROPIC' ? t('aiSettings.anthropic') : t('aiSettings.openAiCompat'),
+  },
+  {
+    title: t('aiSettings.apiKeyMasked'),
+    key: 'apiKeyMasked',
+    ellipsis: { tooltip: true },
+    render: (row: AiProvider) => row.apiKeyMasked || '—',
   },
   { title: t('aiSettings.chatModel'), key: 'chatModel', ellipsis: { tooltip: true } },
   {
@@ -228,6 +244,8 @@ async function handleSaveProvider() {
     message.success(t('aiSettings.saved'))
     showModal.value = false
     await load()
+  } else {
+    message.error(res.message || t('aiSettings.wizard.saveFailed'))
   }
 }
 
@@ -240,9 +258,23 @@ async function handleDelete(id: number) {
 }
 
 async function handleTest(id: number) {
-  const res = await testProvider(id)
-  if (res.success && res.data) {
-    message.info(res.data.status)
+  try {
+    const res = await testProvider(id)
+    if (!res.success) {
+      message.error(res.message || t('aiSettings.wizard.testFailed'))
+      return
+    }
+    const status = res.data?.status ?? ''
+    if (isProviderTestFailed(status)) {
+      const detail = status.startsWith('failed:')
+        ? status.slice('failed:'.length).trim()
+        : status
+      message.error(detail || t('aiSettings.wizard.testFailed'))
+    } else {
+      message.success(t('aiSettings.wizard.testOk'))
+    }
+  } catch (err) {
+    message.error(apiErrorMessage(err, t('aiSettings.wizard.testFailed')))
   }
 }
 
@@ -256,7 +288,10 @@ async function handleFetchModels() {
     let id = editingId.value
     if (!id) {
       const created = await createProvider({ ...form.value })
-      if (!created.success || !created.data) return
+      if (!created.success || !created.data) {
+        message.error(created.message || t('aiSettings.wizard.saveFailed'))
+        return
+      }
       id = created.data.id
       editingId.value = id
       await load()
@@ -265,7 +300,11 @@ async function handleFetchModels() {
     if (res.success && res.data) {
       modelOptions.value = res.data.map((m) => ({ label: m, value: m }))
       message.success(t('aiSettings.modelsLoaded', { count: res.data.length }))
+    } else {
+      message.error(res.message || t('aiSettings.wizard.modelsFailed'))
     }
+  } catch (err) {
+    message.error(apiErrorMessage(err, t('aiSettings.wizard.modelsFailed')))
   } finally {
     fetchingModels.value = false
   }
@@ -280,7 +319,17 @@ async function handleSaveSettings() {
   }
 }
 
-onMounted(load)
+async function onWizardCompleted() {
+  showWizard.value = false
+  await load()
+}
+
+onMounted(async () => {
+  await load()
+  if (providers.value.length === 0) {
+    showWizard.value = true
+  }
+})
 </script>
 
 <template>
@@ -291,12 +340,38 @@ onMounted(load)
       {{ reindexAlertText }}
     </NAlert>
 
+    <NCard v-if="!loading && showSetupPrompt" class="page-card setup-prompt" :bordered="false">
+      <NSpace vertical :size="12">
+        <div>
+          <h3 class="setup-prompt__title">
+            {{ needsFirstRun ? t('aiSettings.needsSetupTitle') : t('aiSettings.needsDefaultTitle') }}
+          </h3>
+          <p class="setup-prompt__desc">
+            {{ needsFirstRun ? t('aiSettings.needsSetupDesc') : t('aiSettings.needsDefaultDesc') }}
+          </p>
+        </div>
+        <NSpace>
+          <NButton type="primary" @click="showWizard = true">{{ t('aiSettings.startWizard') }}</NButton>
+          <NButton v-if="needsFirstRun" quaternary @click="openCreate">{{ t('aiSettings.addProvider') }}</NButton>
+        </NSpace>
+      </NSpace>
+    </NCard>
+
     <NCard class="page-card" :title="t('aiSettings.providersTitle')" :bordered="false">
       <template #header-extra>
-        <NButton type="primary" @click="openCreate">{{ t('aiSettings.addProvider') }}</NButton>
+        <NSpace>
+          <NButton v-if="needsFirstRun || needsDefault" @click="showWizard = true">
+            {{ t('aiSettings.startWizard') }}
+          </NButton>
+          <NButton type="primary" @click="openCreate">{{ t('aiSettings.addProvider') }}</NButton>
+        </NSpace>
       </template>
       <NDataTable :loading="loading" :columns="columns" :data="providers" :bordered="false" />
-      <EmptyState v-if="!loading && providers.length === 0" :message="t('aiSettings.empty')" />
+      <EmptyState v-if="!loading && providers.length === 0" :message="t('aiSettings.empty')">
+        <template #action>
+          <NButton type="primary" @click="showWizard = true">{{ t('aiSettings.startWizard') }}</NButton>
+        </template>
+      </EmptyState>
     </NCard>
 
     <NCard class="page-card" :title="t('aiSettings.platformTitle')" :bordered="false">
@@ -323,6 +398,12 @@ onMounted(load)
       </NForm>
     </NCard>
   </NSpace>
+
+  <AiProviderSetupWizard
+    v-model:show="showWizard"
+    @completed="onWizardCompleted"
+    @changed="load"
+  />
 
   <NModal
     v-model:show="showModal"
@@ -377,5 +458,18 @@ onMounted(load)
 
 .full-width {
   width: 100%;
+}
+
+.setup-prompt__title {
+  margin: 0 0 var(--co-space-2);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.setup-prompt__desc {
+  margin: 0;
+  color: var(--co-text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.5;
 }
 </style>

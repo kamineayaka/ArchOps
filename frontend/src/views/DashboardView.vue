@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
@@ -9,7 +9,19 @@ import {
   ServerOutline,
   ShieldCheckmarkOutline,
 } from '@vicons/ionicons5'
-import { NCard, NDescriptions, NDescriptionsItem, NGrid, NGridItem, NIcon, NSpace, NTag } from 'naive-ui'
+import {
+  NAlert,
+  NButton,
+  NCard,
+  NDescriptions,
+  NDescriptionsItem,
+  NGrid,
+  NGridItem,
+  NIcon,
+  NSpace,
+  NTag,
+} from 'naive-ui'
+import { listAllProviders } from '@/api/ai-providers'
 import PageHeader from '@/components/PageHeader.vue'
 import { useAuthStore } from '@/stores/auth'
 import { formatRole } from '@/utils/format'
@@ -18,6 +30,8 @@ const { t } = useI18n()
 const router = useRouter()
 const authStore = useAuthStore()
 const user = computed(() => authStore.user)
+const isAdmin = computed(() => authStore.user?.roles?.includes('ROLE_ADMIN') ?? false)
+const showNoProviderBanner = ref(false)
 
 const modules = computed(() => [
   { key: 'assets', label: t('dashboard.modules.assets'), icon: ServerOutline, route: 'assets' },
@@ -30,11 +44,38 @@ const modules = computed(() => [
 function goTo(name: string) {
   router.push({ name })
 }
+
+onMounted(async () => {
+  if (!isAdmin.value) return
+  try {
+    const res = await listAllProviders()
+    if (res.success && Array.isArray(res.data) && res.data.length === 0) {
+      showNoProviderBanner.value = true
+    }
+  } catch {
+    // Banner is optional; ignore probe failures
+  }
+})
 </script>
 
 <template>
   <NSpace vertical :size="24">
     <PageHeader :title="t('dashboard.title')" :description="t('dashboard.description')" />
+
+    <NAlert
+      v-if="showNoProviderBanner"
+      type="info"
+      :title="t('dashboard.noAiProviderTitle')"
+    >
+      <NSpace vertical :size="8">
+        <span>{{ t('dashboard.noAiProviderDesc') }}</span>
+        <div>
+          <NButton size="small" type="primary" @click="goTo('ai-settings')">
+            {{ t('dashboard.goAiSettings') }}
+          </NButton>
+        </div>
+      </NSpace>
+    </NAlert>
 
     <NGrid cols="1 s:2" :x-gap="16" :y-gap="16" responsive="screen">
       <NGridItem>
