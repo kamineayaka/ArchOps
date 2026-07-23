@@ -87,3 +87,12 @@ archops:
   ssh-pool:
     idle-timeout: ${SSH_POOL_IDLE_TIMEOUT:5m}
     connect-timeout: ${SSH_POOL_CONNECT_TIMEOUT:15s}
+  architecture:
+    auto-merge:
+      enabled: ${ARCH_AUTO_MERGE_ENABLED:false}
+      min-confidence: 0.9
+      allowed-fact-types: ROLE,LABEL
+      require-command: true
+      require-stdout-hash: true
+      require-asset-id: true
+    context-max-chars: ${ARCH_CONTEXT_MAX_CHARS:4000}

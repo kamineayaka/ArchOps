@@ -46,8 +46,10 @@ public class KnowledgeService {
         log.setLogType("ARCHITECTURE_UPDATE");
         log.setActorId(actorId);
         log.setActorName(actorName);
+        log.setUserId(actorId);
         log.setSummary(request.summary() != null ? request.summary() : "Architecture updated to v" + nextVersion);
         log.setDiff(request.content());
+        log.setSource("manual");
         workLogWriter.save(log);
 
         ragIndexTrigger.indexArchitectureAfterCommit(snapshot.getId());
@@ -62,7 +64,33 @@ public class KnowledgeService {
     @Transactional(readOnly = true)
     public List<WorkLogResponse> recentLogs() {
         return workLogRepository.findTop20ByOrderByCreatedAtDesc().stream()
-                .map(l -> new WorkLogResponse(l.getId(), l.getLogType(), l.getActorName(), l.getSummary(), l.getCreatedAt()))
+                .map(this::toResponse)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<WorkLogResponse> findWorkLogs(Long conversationId, Long assetId, Long groupId) {
+        if (conversationId == null && assetId == null && groupId == null) {
+            return recentLogs();
+        }
+        return workLogRepository.findFiltered(conversationId, assetId, groupId).stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    private WorkLogResponse toResponse(WorkLog l) {
+        return new WorkLogResponse(
+                l.getId(),
+                l.getLogType(),
+                l.getActorName(),
+                l.getSummary(),
+                l.getCreatedAt(),
+                l.getConversationId(),
+                l.getUserId(),
+                l.getAssetIds(),
+                l.getGroupIds(),
+                l.getLevel(),
+                l.isHypothesis(),
+                l.getSource());
     }
 }
