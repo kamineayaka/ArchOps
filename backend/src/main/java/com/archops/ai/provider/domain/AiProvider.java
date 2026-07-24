@@ -55,6 +55,21 @@ public class AiProvider {
     @Column(name = "timeout_ms", nullable = false)
     private long timeoutMs = 60_000;
 
+    /** 0 = use runtime default max tokens. */
+    @Column(name = "max_output_tokens", nullable = false)
+    private int maxOutputTokens = 0;
+
+    /** 0 = no explicit context budget. */
+    @Column(name = "context_window", nullable = false)
+    private int contextWindow = 0;
+
+    @Column(name = "reasoning_enabled", nullable = false)
+    private boolean reasoningEnabled;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "reasoning_effort", nullable = false, length = 16)
+    private ReasoningEffort reasoningEffort = ReasoningEffort.NONE;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 
@@ -86,6 +101,14 @@ public class AiProvider {
     public void setEnabled(boolean enabled) { this.enabled = enabled; }
     public long getTimeoutMs() { return timeoutMs; }
     public void setTimeoutMs(long timeoutMs) { this.timeoutMs = timeoutMs; }
+    public int getMaxOutputTokens() { return maxOutputTokens; }
+    public void setMaxOutputTokens(int maxOutputTokens) { this.maxOutputTokens = maxOutputTokens; }
+    public int getContextWindow() { return contextWindow; }
+    public void setContextWindow(int contextWindow) { this.contextWindow = contextWindow; }
+    public boolean isReasoningEnabled() { return reasoningEnabled; }
+    public void setReasoningEnabled(boolean reasoningEnabled) { this.reasoningEnabled = reasoningEnabled; }
+    public ReasoningEffort getReasoningEffort() { return reasoningEffort; }
+    public void setReasoningEffort(ReasoningEffort reasoningEffort) { this.reasoningEffort = reasoningEffort; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }

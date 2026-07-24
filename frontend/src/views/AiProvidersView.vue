@@ -30,6 +30,7 @@ import {
   type AiProvider,
   type AiProviderRequest,
   type ProviderType,
+  type ReasoningEffort,
 } from '@/api/ai-providers'
 import { getIndexStats, type IndexStats } from '@/api/knowledge'
 import AiProviderSetupWizard from '@/components/ai/AiProviderSetupWizard.vue'
@@ -70,12 +71,36 @@ const form = ref<AiProviderRequest>({
   supportsEmbedding: true,
   enabled: true,
   timeoutMs: 60000,
+  maxOutputTokens: 0,
+  contextWindow: 0,
+  reasoningEnabled: false,
+  reasoningEffort: 'NONE',
 })
 
 const typeOptions = computed(() => [
   { label: t('aiSettings.openAiCompat'), value: 'OPENAI_COMPAT' },
   { label: t('aiSettings.anthropic'), value: 'ANTHROPIC' },
 ])
+
+const reasoningOptions = computed(() => {
+  const base = [
+    { label: t('aiSettings.reasoningNone'), value: 'NONE' },
+    { label: t('aiSettings.reasoningLow'), value: 'LOW' },
+    { label: t('aiSettings.reasoningMedium'), value: 'MEDIUM' },
+    { label: t('aiSettings.reasoningHigh'), value: 'HIGH' },
+    { label: t('aiSettings.reasoningXhigh'), value: 'XHIGH' },
+  ]
+  if (form.value.providerType === 'ANTHROPIC') {
+    return [...base, { label: t('aiSettings.reasoningMax'), value: 'MAX' }]
+  }
+  return base
+})
+
+const baseUrlHint = computed(() =>
+  form.value.providerType === 'ANTHROPIC'
+    ? t('aiSettings.baseUrlHintAnthropic')
+    : t('aiSettings.baseUrlHintOpenAi'),
+)
 
 const chatProviders = computed(() => providers.value.filter((p) => p.supportsChat && p.enabled))
 const needsFirstRun = computed(() => providers.value.length === 0)
@@ -173,6 +198,10 @@ function resetForm() {
     supportsEmbedding: true,
     enabled: true,
     timeoutMs: 60000,
+    maxOutputTokens: 0,
+    contextWindow: 0,
+    reasoningEnabled: false,
+    reasoningEffort: 'NONE',
   }
   modelOptions.value = []
 }
@@ -197,7 +226,12 @@ function openEdit(row: AiProvider) {
     supportsEmbedding: row.supportsEmbedding,
     enabled: row.enabled,
     timeoutMs: row.timeoutMs,
+    maxOutputTokens: row.maxOutputTokens ?? 0,
+    contextWindow: row.contextWindow ?? 0,
+    reasoningEnabled: row.reasoningEnabled ?? false,
+    reasoningEffort: (row.reasoningEffort ?? 'NONE') as ReasoningEffort,
   }
+  modelOptions.value = row.chatModel ? [{ label: row.chatModel, value: row.chatModel }] : []
   showModal.value = true
 }
 
@@ -210,7 +244,15 @@ function onTypeChange(type: ProviderType) {
     form.value.baseUrl = 'https://api.openai.com/v1'
     form.value.supportsEmbedding = true
     form.value.chatModel = 'gpt-4o-mini'
+    if (form.value.reasoningEffort === 'MAX') {
+      form.value.reasoningEffort = 'HIGH'
+    }
   }
+}
+
+function onReasoningChange(effort: ReasoningEffort) {
+  form.value.reasoningEffort = effort
+  form.value.reasoningEnabled = effort !== 'NONE'
 }
 
 async function load() {
@@ -233,19 +275,26 @@ async function load() {
 }
 
 async function handleSaveProvider() {
-  const payload = { ...form.value }
+  const payload: AiProviderRequest = {
+    ...form.value,
+    reasoningEnabled: (form.value.reasoningEffort ?? 'NONE') !== 'NONE',
+  }
   if (editingId.value && !payload.apiKey) {
     delete payload.apiKey
   }
-  const res = editingId.value
-    ? await updateProvider(editingId.value, payload)
-    : await createProvider(payload)
-  if (res.success) {
-    message.success(t('aiSettings.saved'))
-    showModal.value = false
-    await load()
-  } else {
-    message.error(res.message || t('aiSettings.wizard.saveFailed'))
+  try {
+    const res = editingId.value
+      ? await updateProvider(editingId.value, payload)
+      : await createProvider(payload)
+    if (res.success) {
+      message.success(t('aiSettings.saved'))
+      showModal.value = false
+      await load()
+    } else {
+      message.error(res.message || t('aiSettings.wizard.saveFailed'))
+    }
+  } catch (err) {
+    message.error(apiErrorMessage(err, t('aiSettings.wizard.saveFailed')))
   }
 }
 
@@ -419,14 +468,31 @@ onMounted(async () => {
         <NInput v-model:value="form.name" />
       </NFormItem>
       <NFormItem :label="t('aiSettings.baseUrl')">
-        <NInput v-model:value="form.baseUrl" />
+        <NInput v-model:value="form.baseUrl" :placeholder="baseUrlHint" />
       </NFormItem>
+      <p class="field-hint">{{ baseUrlHint }}</p>
       <NFormItem :label="t('aiSettings.apiKey')">
         <NInput v-model:value="form.apiKey" type="password" :placeholder="editingId ? t('aiSettings.apiKeyKeep') : ''" />
       </NFormItem>
       <NFormItem :label="t('aiSettings.chatModel')">
         <NSelect v-model:value="form.chatModel" :options="modelOptions" filterable tag />
       </NFormItem>
+      <NFormItem :label="t('aiSettings.maxOutputTokens')">
+        <NInputNumber v-model:value="form.maxOutputTokens" :min="0" :step="256" class="full-width" />
+      </NFormItem>
+      <p class="field-hint">{{ t('aiSettings.maxOutputTokensHint') }}</p>
+      <NFormItem :label="t('aiSettings.contextWindow')">
+        <NInputNumber v-model:value="form.contextWindow" :min="0" :step="1024" class="full-width" />
+      </NFormItem>
+      <p class="field-hint">{{ t('aiSettings.contextWindowHint') }}</p>
+      <NFormItem :label="t('aiSettings.reasoningEffort')">
+        <NSelect
+          :value="form.reasoningEffort"
+          :options="reasoningOptions"
+          @update:value="onReasoningChange"
+        />
+      </NFormItem>
+      <p class="field-hint">{{ t('aiSettings.reasoningEffortHint') }}</p>
       <NFormItem v-if="form.providerType === 'OPENAI_COMPAT'" :label="t('aiSettings.embeddingModel')">
         <NInput v-model:value="form.embeddingModel" />
       </NFormItem>
@@ -458,6 +524,13 @@ onMounted(async () => {
 
 .full-width {
   width: 100%;
+}
+
+.field-hint {
+  margin: -0.5rem 0 var(--co-space-3);
+  color: var(--co-text-muted);
+  font-size: 0.75rem;
+  line-height: 1.4;
 }
 
 .setup-prompt__title {

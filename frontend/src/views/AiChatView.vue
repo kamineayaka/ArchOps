@@ -12,6 +12,7 @@ import {
 } from '@/api/ai'
 import { createAiStreamClient, type AiStreamEvent, type UiContext } from '@/api/aiStream'
 import { listChatProviders, type AiProvider } from '@/api/ai-providers'
+import AiProviderSetupWizard from '@/components/ai/AiProviderSetupWizard.vue'
 import { listAssets, type Asset } from '@/api/assets'
 import { listAssetGroups, type AssetGroup } from '@/api/assetGroups'
 import { listSshPool, type SshPoolEntry } from '@/api/sshPool'
@@ -62,6 +63,9 @@ const targetGroupIds = ref<number[]>([])
 const resolvedAssetIds = ref<number[]>([])
 const chatBottomRef = ref<HTMLDivElement | null>(null)
 const streamingIndex = ref<number | null>(null)
+const showWizard = ref(false)
+
+const needsProvider = computed(() => providers.value.length === 0)
 
 const providerOptions = computed(() =>
   providers.value.map((p) => ({
@@ -243,7 +247,19 @@ async function loadProviders() {
   const res = await listChatProviders()
   if (res.success && res.data) {
     providers.value = res.data
+    if (!selectedProviderId.value) {
+      const def = res.data.find((p) => p.defaultChat) ?? res.data[0]
+      selectedProviderId.value = def?.id
+    }
+    if (res.data.length === 0) {
+      showWizard.value = true
+    }
   }
+}
+
+async function onWizardCompleted() {
+  showWizard.value = false
+  await loadProviders()
 }
 
 async function loadAssets() {
@@ -394,6 +410,9 @@ onBeforeUnmount(() => {
     <PageHeader :title="t('ai.title')" :description="t('ai.subtitle')">
       <template #extra>
         <NSpace align="center" :size="12">
+          <NButton v-if="needsProvider" type="warning" @click="showWizard = true">
+            {{ t('aiSettings.startWizard') }}
+          </NButton>
           <NSelect
             v-model:value="targetGroupIds"
             class="select-lg"
@@ -532,12 +551,18 @@ onBeforeUnmount(() => {
         />
         <div class="chat-input__actions">
           <span class="chat-input__hint">{{ t('ai.sendHint') }}</span>
-          <NButton type="primary" :loading="loading" :disabled="!input.trim()" @click="handleSend">
+          <NButton type="primary" :loading="loading" :disabled="!input.trim() || needsProvider" @click="handleSend">
             {{ t('ai.send') }}
           </NButton>
         </div>
       </div>
     </NCard>
+
+    <AiProviderSetupWizard
+      v-model:show="showWizard"
+      @completed="onWizardCompleted"
+      @changed="loadProviders"
+    />
   </div>
 </template>
 

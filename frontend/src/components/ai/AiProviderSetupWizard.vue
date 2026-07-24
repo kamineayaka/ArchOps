@@ -7,6 +7,7 @@ import {
   NForm,
   NFormItem,
   NInput,
+  NInputNumber,
   NModal,
   NRadio,
   NRadioGroup,
@@ -24,6 +25,7 @@ import {
   updateProvider,
   type AiProvider,
   type ProviderType,
+  type ReasoningEffort,
 } from '@/api/ai-providers'
 import { apiErrorMessage, isProviderTestFailed } from '@/utils/apiError'
 
@@ -57,6 +59,23 @@ const form = ref({
   baseUrl: 'https://api.openai.com/v1',
   apiKey: '',
   chatModel: 'gpt-4o-mini',
+  maxOutputTokens: 0,
+  contextWindow: 0,
+  reasoningEffort: 'NONE' as ReasoningEffort,
+})
+
+const reasoningOptions = computed(() => {
+  const base = [
+    { label: t('aiSettings.reasoningNone'), value: 'NONE' },
+    { label: t('aiSettings.reasoningLow'), value: 'LOW' },
+    { label: t('aiSettings.reasoningMedium'), value: 'MEDIUM' },
+    { label: t('aiSettings.reasoningHigh'), value: 'HIGH' },
+    { label: t('aiSettings.reasoningXhigh'), value: 'XHIGH' },
+  ]
+  if (form.value.providerType === 'ANTHROPIC') {
+    return [...base, { label: t('aiSettings.reasoningMax'), value: 'MAX' }]
+  }
+  return base
 })
 
 const stepTitles = computed(() => [
@@ -83,6 +102,9 @@ function reset() {
     baseUrl: 'https://api.openai.com/v1',
     apiKey: '',
     chatModel: 'gpt-4o-mini',
+    maxOutputTokens: 0,
+    contextWindow: 0,
+    reasoningEffort: 'NONE',
   }
 }
 
@@ -119,6 +141,28 @@ function onTypeChange(type: ProviderType) {
     if (!form.value.name.trim() || form.value.name === 'Anthropic') {
       form.value.name = 'OpenAI'
     }
+    if (form.value.reasoningEffort === 'MAX') {
+      form.value.reasoningEffort = 'HIGH'
+    }
+  }
+}
+
+function providerPayload(includeApiKey: boolean) {
+  return {
+    name: form.value.name.trim(),
+    providerType: form.value.providerType,
+    baseUrl: form.value.baseUrl.trim(),
+    ...(includeApiKey ? { apiKey: form.value.apiKey } : {}),
+    chatModel: form.value.chatModel,
+    supportsChat: true,
+    supportsEmbedding: form.value.providerType === 'OPENAI_COMPAT',
+    embeddingModel: form.value.providerType === 'OPENAI_COMPAT' ? 'text-embedding-3-small' : undefined,
+    embeddingDims: form.value.providerType === 'OPENAI_COMPAT' ? 1536 : undefined,
+    enabled: true,
+    maxOutputTokens: form.value.maxOutputTokens ?? 0,
+    contextWindow: form.value.contextWindow ?? 0,
+    reasoningEffort: form.value.reasoningEffort,
+    reasoningEnabled: form.value.reasoningEffort !== 'NONE',
   }
 }
 
@@ -130,23 +174,13 @@ async function handleSave() {
   saving.value = true
   stepError.value = null
   try {
-    const payload = {
-      name: form.value.name.trim(),
-      providerType: form.value.providerType,
-      baseUrl: form.value.baseUrl.trim(),
-      apiKey: form.value.apiKey,
-      chatModel: form.value.chatModel,
-      supportsChat: true,
-      supportsEmbedding: form.value.providerType === 'OPENAI_COMPAT',
-      embeddingModel: form.value.providerType === 'OPENAI_COMPAT' ? 'text-embedding-3-small' : undefined,
-      embeddingDims: form.value.providerType === 'OPENAI_COMPAT' ? 1536 : undefined,
-      enabled: true,
-    }
+    const payload = providerPayload(true)
     const res = createdId.value
       ? await updateProvider(createdId.value, payload)
       : await createProvider(payload)
     if (!res.success || !res.data) {
       stepError.value = res.message || t('aiSettings.wizard.saveFailed')
+      message.error(stepError.value)
       return
     }
     createdId.value = res.data.id
@@ -156,6 +190,7 @@ async function handleSave() {
     step.value = 2
   } catch (err) {
     stepError.value = apiErrorMessage(err, t('aiSettings.wizard.saveFailed'))
+    message.error(stepError.value)
   } finally {
     saving.value = false
   }
@@ -170,6 +205,7 @@ async function handleTest() {
     const res = await testProvider(createdId.value)
     if (!res.success) {
       testError.value = res.message || t('aiSettings.wizard.testFailed')
+      message.error(testError.value)
       return
     }
     const status = res.data?.status ?? ''
@@ -178,11 +214,13 @@ async function handleTest() {
       testError.value = status.startsWith('failed:')
         ? status.slice('failed:'.length).trim() || t('aiSettings.wizard.testFailed')
         : status || t('aiSettings.wizard.testFailed')
+      message.error(testError.value)
     } else {
       message.success(t('aiSettings.wizard.testOk'))
     }
   } catch (err) {
     testError.value = apiErrorMessage(err, t('aiSettings.wizard.testFailed'))
+    message.error(testError.value)
   } finally {
     testing.value = false
   }
@@ -196,6 +234,7 @@ async function handleFetchModels() {
     const res = await fetchProviderModels(createdId.value)
     if (!res.success || !res.data) {
       stepError.value = res.message || t('aiSettings.wizard.modelsFailed')
+      message.error(stepError.value)
       return
     }
     modelOptions.value = res.data.map((m) => ({ label: m, value: m }))
@@ -205,6 +244,7 @@ async function handleFetchModels() {
     message.success(t('aiSettings.modelsLoaded', { count: res.data.length }))
   } catch (err) {
     stepError.value = apiErrorMessage(err, t('aiSettings.wizard.modelsFailed'))
+    message.error(stepError.value)
   } finally {
     fetchingModels.value = false
   }
@@ -215,17 +255,10 @@ async function handleFinish() {
   finishing.value = true
   stepError.value = null
   try {
-    const updateRes = await updateProvider(createdId.value, {
-      name: form.value.name.trim(),
-      providerType: form.value.providerType,
-      baseUrl: form.value.baseUrl.trim(),
-      chatModel: form.value.chatModel,
-      supportsChat: true,
-      supportsEmbedding: form.value.providerType === 'OPENAI_COMPAT',
-      enabled: true,
-    })
+    const updateRes = await updateProvider(createdId.value, providerPayload(false))
     if (!updateRes.success || !updateRes.data) {
       stepError.value = updateRes.message || t('aiSettings.wizard.finishFailed')
+      message.error(stepError.value)
       return
     }
     const settingsRes = await updateAiSettings({
@@ -297,6 +330,18 @@ async function handleFinish() {
         <NFormItem :label="t('aiSettings.apiKey')" required>
           <NInput v-model:value="form.apiKey" type="password" show-password-on="click" />
         </NFormItem>
+        <NFormItem :label="t('aiSettings.maxOutputTokens')">
+          <NInputNumber v-model:value="form.maxOutputTokens" :min="0" :step="256" class="full-width" />
+        </NFormItem>
+        <p class="field-hint">{{ t('aiSettings.maxOutputTokensHint') }}</p>
+        <NFormItem :label="t('aiSettings.contextWindow')">
+          <NInputNumber v-model:value="form.contextWindow" :min="0" :step="1024" class="full-width" />
+        </NFormItem>
+        <p class="field-hint">{{ t('aiSettings.contextWindowHint') }}</p>
+        <NFormItem :label="t('aiSettings.reasoningEffort')">
+          <NSelect v-model:value="form.reasoningEffort" :options="reasoningOptions" />
+        </NFormItem>
+        <p class="field-hint">{{ t('aiSettings.reasoningEffortHint') }}</p>
       </NForm>
       <NSpace justify="space-between" class="wizard-actions">
         <NButton @click="step = 0">{{ t('aiSettings.wizard.back') }}</NButton>
@@ -410,5 +455,16 @@ async function handleFinish() {
 .type-hint {
   color: var(--co-text-muted);
   font-size: 0.8125rem;
+}
+
+.field-hint {
+  margin: -0.5rem 0 var(--co-space-3);
+  color: var(--co-text-muted);
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.full-width {
+  width: 100%;
 }
 </style>

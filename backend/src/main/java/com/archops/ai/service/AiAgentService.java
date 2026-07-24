@@ -8,8 +8,10 @@ import com.archops.ai.llm.LlmProvider.ChatMessage;
 import com.archops.ai.llm.LlmProvider.CompletionResult;
 import com.archops.ai.llm.LlmProvider.ToolCall;
 import com.archops.ai.llm.LlmProvider.ToolDefinition;
+import com.archops.ai.runtime.LlmGenerationConfig;
 import com.archops.ai.runtime.LlmRuntime;
 import com.archops.ai.runtime.LlmRuntimeResolver;
+import com.archops.ai.provider.domain.AiProvider;
 import com.archops.ai.repository.AiMessageRepository;
 import com.archops.approval.domain.Approval;
 import com.archops.approval.domain.ApprovalStatus;
@@ -115,14 +117,9 @@ public class AiAgentService {
             onEvent.accept(AgentEvent.userMessage(userMessage));
         }
 
-        List<ChatMessage> messages = buildContext(conversation, conversationId, userMessage, uiContext);
-        List<Long> effectiveTargets = conversationService.resolveEffectiveTargetAssetIds(conversation);
-        AgentTool.ExecutionContext toolContext = new AgentTool.ExecutionContext(
-                userId, null, conversationId, effectiveTargets, providerId);
-
-        LlmRuntime llm;
+        LlmRuntimeResolver.ResolvedRuntime resolved;
         try {
-            llm = llmRuntimeResolver.resolve(providerId).runtime();
+            resolved = llmRuntimeResolver.resolve(providerId);
         } catch (Exception ex) {
             String err = ex.getMessage() != null ? ex.getMessage() : "未配置可用的 AI Provider，请在系统设置中添加";
             conversationService.appendMessage(conversationId, "assistant", err, "[]");
@@ -132,7 +129,22 @@ public class AiAgentService {
             return new AgentResult(err, List.of());
         }
 
-        return runAgentLoop(llm, messages, userId, conversationId, conversation, providerId, toolContext, new ArrayList<>(), onEvent);
+        List<ChatMessage> messages =
+                buildContext(conversation, conversationId, userMessage, uiContext, resolved.providerId());
+        List<Long> effectiveTargets = conversationService.resolveEffectiveTargetAssetIds(conversation);
+        AgentTool.ExecutionContext toolContext = new AgentTool.ExecutionContext(
+                userId, null, conversationId, effectiveTargets, resolved.providerId());
+
+        return runAgentLoop(
+                resolved.runtime(),
+                messages,
+                userId,
+                conversationId,
+                conversation,
+                resolved.providerId(),
+                toolContext,
+                new ArrayList<>(),
+                onEvent);
     }
 
     @Transactional
@@ -158,15 +170,18 @@ public class AiAgentService {
                 userId, null, conversationId, effectiveTargets, providerId);
         ToolCall toolCall = new ToolCall("approval-" + approvalId, toolName, toolArgs);
 
-        LlmRuntime llm;
+        LlmRuntimeResolver.ResolvedRuntime resolved;
         try {
-            llm = llmRuntimeResolver.resolve(providerId).runtime();
+            resolved = llmRuntimeResolver.resolve(providerId);
         } catch (Exception ex) {
             String err = ex.getMessage() != null ? ex.getMessage() : "未配置可用的 AI Provider";
             throw new BusinessException(HttpStatus.BAD_REQUEST, "LLM_UNAVAILABLE", err);
         }
+        Long effectiveProviderId = resolved.providerId();
+        toolContext = new AgentTool.ExecutionContext(
+                userId, null, conversationId, effectiveTargets, effectiveProviderId);
 
-        List<ChatMessage> messages = buildResumeContext(conversation, conversationId, null);
+        List<ChatMessage> messages = buildResumeContext(conversation, conversationId, null, effectiveProviderId);
         List<ToolExecutionSummary> toolSummaries = new ArrayList<>();
 
         if (onEvent != null) {
@@ -200,7 +215,16 @@ public class AiAgentService {
         postProcessToolResult(
                 toolCall, exec, userId, conversationId, conversation, toolSummaries, messages, onEvent, false);
 
-        return runAgentLoop(llm, messages, userId, conversationId, conversation, providerId, toolContext, toolSummaries, onEvent);
+        return runAgentLoop(
+                resolved.runtime(),
+                messages,
+                userId,
+                conversationId,
+                conversation,
+                effectiveProviderId,
+                toolContext,
+                toolSummaries,
+                onEvent);
     }
 
     private AgentResult runAgentLoop(
@@ -426,9 +450,14 @@ public class AiAgentService {
     }
 
     private List<ChatMessage> buildContext(
-            AiConversation conversation, Long conversationId, String latestUserMessage, UiContext uiContext) {
+            AiConversation conversation,
+            Long conversationId,
+            String latestUserMessage,
+            UiContext uiContext,
+            Long providerId) {
         List<ChatMessage> messages = new ArrayList<>();
-        messages.add(ChatMessage.system(assembleSystemContext(conversation, conversationId, latestUserMessage, uiContext)));
+        messages.add(ChatMessage.system(
+                assembleSystemContext(conversation, conversationId, latestUserMessage, uiContext, providerId)));
 
         messageRepository.findByConversationIdOrderByCreatedAtAsc(conversationId).stream()
                 .filter(m -> !"user".equals(m.getRole()) || !m.getContent().equals(latestUserMessage))
@@ -438,14 +467,15 @@ public class AiAgentService {
     }
 
     private List<ChatMessage> buildResumeContext(
-            AiConversation conversation, Long conversationId, UiContext uiContext) {
+            AiConversation conversation, Long conversationId, UiContext uiContext, Long providerId) {
         List<ChatMessage> messages = new ArrayList<>();
         String lastUser = messageRepository.findByConversationIdOrderByCreatedAtAsc(conversationId).stream()
                 .filter(m -> "user".equals(m.getRole()))
                 .map(AiMessage::getContent)
                 .reduce((first, second) -> second)
                 .orElse("");
-        messages.add(ChatMessage.system(assembleSystemContext(conversation, conversationId, lastUser, uiContext)));
+        messages.add(ChatMessage.system(
+                assembleSystemContext(conversation, conversationId, lastUser, uiContext, providerId)));
 
         messageRepository.findByConversationIdOrderByCreatedAtAsc(conversationId).stream()
                 .forEach(m -> messages.add(toChatMessage(m)));
@@ -453,13 +483,33 @@ public class AiAgentService {
     }
 
     private String assembleSystemContext(
-            AiConversation conversation, Long conversationId, String userQuery, UiContext uiContext) {
+            AiConversation conversation,
+            Long conversationId,
+            String userQuery,
+            UiContext uiContext,
+            Long providerId) {
         List<Long> assetIds = conversationService.resolveEffectiveTargetAssetIds(conversation);
         List<Long> groupIds = conversation.getTargetGroupIds() != null
                 ? conversation.getTargetGroupIds()
                 : List.of();
+        Integer contextBudget = null;
+        try {
+            AiProvider provider = llmRuntimeResolver.resolveProvider(providerId);
+            int budget = LlmGenerationConfig.from(provider).contextCharBudget();
+            if (budget > 0) {
+                contextBudget = budget;
+            }
+        } catch (Exception ignored) {
+            // Fall back to platform default context budget.
+        }
         return agentContextAssembler.assemble(
-                conversation.getUserId(), assetIds, groupIds, userQuery, conversationId, uiContext);
+                conversation.getUserId(),
+                assetIds,
+                groupIds,
+                userQuery,
+                conversationId,
+                uiContext,
+                contextBudget);
     }
 
     private List<Long> extractAssetIds(String argumentsJson, AiConversation conversation) {

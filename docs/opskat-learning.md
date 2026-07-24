@@ -92,7 +92,8 @@
 
 **他们怎么做：** Setup Wizard、拉模型列表、reasoning 开关、密钥加密存储、表单清晰。
 
-**ArchOps 建议：** 我们已有 Provider CRUD；补齐 **向导式首次配置、测连通、模型下拉刷新、失败可读错误**；密钥脱敏与轮换文案对齐部署文档。
+**ArchOps 建议：** 我们已有 Provider CRUD；补齐 **向导式首次配置、测连通、模型下拉刷新、失败可读错误**；密钥脱敏与轮换文案对齐部署文档。  
+**2026-07-24：** W3 已字段级对齐 OpsKat（`maxOutputTokens` / `contextWindow` / `reasoningEffort` none→max，运行时生效；Dashboard/AI/侧轨共用向导 API）。见 [`workbench-gap-audit.md`](workbench-gap-audit.md) Wave W3。
 
 ### P2 — 前端信息架构
 

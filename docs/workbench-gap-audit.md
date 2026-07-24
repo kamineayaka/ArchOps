@@ -186,15 +186,15 @@ ArchOps 已有 kind：`SERVER, CLUSTER, SERVICE, NETWORK, DATABASE`（SPI 方向
 **依赖：** W0 BUG-03（角色可见性）已修复；现有 `AiProvider` CRUD。  
 **对照：** OpsKat `AIProviderForm.tsx` / `AISetupWizard.tsx` / `ai_provider_entity`。
 
-| ID | 任务 | 实现要点 | 完成标准 |
-|----|------|----------|----------|
-| **W3-01** | Provider 表单字段对齐 | 类型（OpenAI 兼容 / Anthropic）、名称、模型、API 地址（默认 URL + 帮助文案）、API Key（脱敏）、**最大输出 Token**（0=默认）、**上下文窗口**（0=默认）、**思考深度 reasoning**（`none/low/medium/high/xhigh/max`，max 仅 Anthropic） | 与图 3 字段一一对应；i18n zh/en；保存进 DB |
-| **W3-02** | 后端 DTO / 实体补齐 | `AiProvider` + Request/Response 含 `maxOutputTokens`、`contextWindow`、`reasoningEnabled`、`reasoningEffort`；Flyway 如缺列则新增；运行时传给 `LlmRuntime` | 单测：序列化/校验；Anthropic+max 归一化规则（可参考 OpsKat） |
-| **W3-03** | 获取模型 | 「获取模型」调用 Provider `/models`（或已有 fetch API）；下拉可选 + 可手输；失败可读错误 | 填 Key+Base URL 后一点击即可列出模型 |
-| **W3-04** | 测试连通 | 「测试连接」或向导内 Test：最小 chat/models 探活；超时与错误文案 | 错误 Key / 错误 URL 有明确 toast，不静默 |
-| **W3-05** | 首次向导（合并 ML-8-07） | 无 active Provider 时：Dashboard / AI 页 / 侧轨弹出向导：类型→地址/Key→Test→拉模型→设默认→完成 | 新部署可走完；与 Settings 页共用同一 API，不双写 |
-| **W3-06** | Agent 使用配置 | Chat / 侧轨可选 Provider；`maxOutputTokens` / `contextWindow` / reasoning 实际作用于请求 | 改 Provider 后新消息生效；有集成或手工验收清单 |
-| **W3-07** | 文档与验收 | 更新 API 契约（若有 Provider 段）；本文件勾选 W3 | 对照图 3 字段清单全部打勾 |
+| ID | 任务 | 实现要点 | 完成标准 | 状态 |
+|----|------|----------|----------|------|
+| **W3-01** | Provider 表单字段对齐 | 类型（OpenAI 兼容 / Anthropic）、名称、模型、API 地址（默认 URL + 帮助文案）、API Key（脱敏）、**最大输出 Token**（0=默认）、**上下文窗口**（0=默认）、**思考深度 reasoning**（`none/low/medium/high/xhigh/max`，max 仅 Anthropic） | 与图 3 字段一一对应；i18n zh/en；保存进 DB | [x] |
+| **W3-02** | 后端 DTO / 实体补齐 | `AiProvider` + Request/Response 含 `maxOutputTokens`、`contextWindow`、`reasoningEnabled`、`reasoningEffort`；Flyway 如缺列则新增；运行时传给 `LlmRuntime` | 单测：序列化/校验；Anthropic+max 归一化规则（可参考 OpsKat） | [x] |
+| **W3-03** | 获取模型 | 「获取模型」调用 Provider `/models`（或已有 fetch API）；下拉可选 + 可手输；失败可读错误 | 填 Key+Base URL 后一点击即可列出模型 | [x] |
+| **W3-04** | 测试连通 | 「测试连接」或向导内 Test：最小 chat/models 探活；超时与错误文案 | 错误 Key / 错误 URL 有明确 toast，不静默 | [x] |
+| **W3-05** | 首次向导（合并 ML-8-07） | 无 active Provider 时：Dashboard / AI 页 / 侧轨弹出向导：类型→地址/Key→Test→拉模型→设默认→完成 | 新部署可走完；与 Settings 页共用同一 API，不双写 | [x] |
+| **W3-06** | Agent 使用配置 | Chat / 侧轨可选 Provider；`maxOutputTokens` / `contextWindow` / reasoning 实际作用于请求 | 改 Provider 后新消息生效；有集成或手工验收清单 | [x] |
+| **W3-07** | 文档与验收 | 更新 API 契约（若有 Provider 段）；本文件勾选 W3 | 对照图 3 字段清单全部打勾 | [x] |
 
 **W3 不做：** API Key 明文进前端日志；多租户密钥隔离；改 Architecture SSOT 语义。
 
@@ -239,7 +239,7 @@ ArchOps 已有 kind：`SERVER, CLUSTER, SERVICE, NETWORK, DATABASE`（SPI 方向
 | W0 | P0 Bug | 已合入 main（#18）；回归 |
 | W1 | SSH 表单 + 测试连接 | 对齐图 1（本分支/后续 PR） |
 | W2 | 多 Tab 终端 + Agent 侧栏 | 对齐图 2 |
-| **W3** | **AI Provider 表单 / 向导 / reasoning** | **对齐图 3；W3-01…07** |
+| **W3** | **AI Provider 表单 / 向导 / reasoning** | **已交付（本波次）；对齐图 3；W3-01…07** |
 | **W4** | **多资产类型 SPI 落地** | **DB→K8s→Kafka…；W4-01…08 / W4a–d** |
 
 **建议顺序：** W0 → W1 → W2 → **W3**（可与 **W4a** 并行）→ W4b→W4d。
@@ -266,3 +266,4 @@ ArchOps 已有 kind：`SERVER, CLUSTER, SERVICE, NETWORK, DATABASE`（SPI 方向
 | 2026-07-23 | 初版：用户三图反馈 + OpsKat 重读 + ArchOps Bug 审计 + W0–W4 波次 |
 | 2026-07-23 | 正式展开 W3（W3-01…07）与 W4（W4-01…08 / W4a–d）可派工计划 |
 | 2026-07-23 | W0 确认已合入 main（#18）并补回归；W1 SSH 表单+测试连接；W2 终端 IDE 多 Tab |
+| 2026-07-24 | W3 交付：Provider 字段/Flyway/runtime、拉模型+测连通 toast、首次向导（Dashboard/AI/侧轨）、Agent 生效、契约勾选 |

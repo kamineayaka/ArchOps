@@ -181,6 +181,10 @@ class AiProviderCrudIntegrationTest {
                 true,
                 false,
                 true,
+                null,
+                null,
+                null,
+                null,
                 null);
         String response = mockMvc.perform(post("/api/ai/providers")
                         .header("Authorization", bearer())
@@ -205,6 +209,10 @@ class AiProviderCrudIntegrationTest {
                 true,
                 false,
                 true,
+                null,
+                null,
+                null,
+                null,
                 null);
         String response = mockMvc.perform(put("/api/ai/providers/{id}", id)
                         .header("Authorization", bearer())

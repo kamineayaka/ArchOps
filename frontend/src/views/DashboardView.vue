@@ -22,6 +22,7 @@ import {
   NTag,
 } from 'naive-ui'
 import { listAllProviders } from '@/api/ai-providers'
+import AiProviderSetupWizard from '@/components/ai/AiProviderSetupWizard.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import { useAuthStore } from '@/stores/auth'
 import { formatRole } from '@/utils/format'
@@ -33,6 +34,7 @@ const authStore = useAuthStore()
 const user = computed(() => authStore.user)
 const isAdmin = computed(() => roleIsAdmin(authStore.user?.roles))
 const showNoProviderBanner = ref(false)
+const showWizard = ref(false)
 
 const modules = computed(() => [
   { key: 'assets', label: t('dashboard.modules.assets'), icon: ServerOutline, route: 'assets' },
@@ -46,15 +48,28 @@ function goTo(name: string) {
   router.push({ name })
 }
 
-onMounted(async () => {
-  if (!isAdmin.value) return
+async function refreshProviderBanner() {
+  if (!isAdmin.value) {
+    showNoProviderBanner.value = false
+    return
+  }
   try {
     const res = await listAllProviders()
-    if (res.success && Array.isArray(res.data) && res.data.length === 0) {
-      showNoProviderBanner.value = true
-    }
+    showNoProviderBanner.value = Boolean(res.success && Array.isArray(res.data) && res.data.length === 0)
   } catch {
     // Banner is optional; ignore probe failures
+  }
+}
+
+async function onWizardCompleted() {
+  showWizard.value = false
+  await refreshProviderBanner()
+}
+
+onMounted(async () => {
+  await refreshProviderBanner()
+  if (showNoProviderBanner.value) {
+    showWizard.value = true
   }
 })
 </script>
@@ -71,12 +86,21 @@ onMounted(async () => {
       <NSpace vertical :size="8">
         <span>{{ t('dashboard.noAiProviderDesc') }}</span>
         <div>
-          <NButton size="small" type="primary" @click="goTo('ai-settings')">
+          <NButton size="small" type="primary" @click="showWizard = true">
+            {{ t('aiSettings.startWizard') }}
+          </NButton>
+          <NButton size="small" quaternary @click="goTo('ai-settings')">
             {{ t('dashboard.goAiSettings') }}
           </NButton>
         </div>
       </NSpace>
     </NAlert>
+
+    <AiProviderSetupWizard
+      v-model:show="showWizard"
+      @completed="onWizardCompleted"
+      @changed="refreshProviderBanner"
+    />
 
     <NGrid cols="1 s:2" :x-gap="16" :y-gap="16" responsive="screen">
       <NGridItem>

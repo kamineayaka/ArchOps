@@ -23,16 +23,31 @@ public class OpenAiCompatRuntime implements LlmRuntime {
     private final String apiKey;
     private final String model;
     private final long timeoutMs;
+    private final LlmGenerationConfig generation;
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
 
-    public OpenAiCompatRuntime(String baseUrl, String apiKey, String model, long timeoutMs, ObjectMapper objectMapper) {
+    public OpenAiCompatRuntime(
+            String baseUrl,
+            String apiKey,
+            String model,
+            long timeoutMs,
+            LlmGenerationConfig generation,
+            ObjectMapper objectMapper) {
         this.baseUrl = normalizeBaseUrl(baseUrl);
         this.apiKey = apiKey;
         this.model = model;
         this.timeoutMs = timeoutMs;
+        this.generation = generation != null
+                ? generation
+                : new LlmGenerationConfig(0, 0, false, com.archops.ai.provider.domain.ReasoningEffort.NONE);
         this.objectMapper = objectMapper;
         this.httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
+    }
+
+    /** Backward-compatible constructor used by older tests. */
+    public OpenAiCompatRuntime(String baseUrl, String apiKey, String model, long timeoutMs, ObjectMapper objectMapper) {
+        this(baseUrl, apiKey, model, timeoutMs, null, objectMapper);
     }
 
     @Override
@@ -141,18 +156,23 @@ public class OpenAiCompatRuntime implements LlmRuntime {
                             .build(),
                     HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() >= 400) {
-                return List.of();
+                throw new IllegalStateException("HTTP " + response.statusCode() + " from /models");
             }
             JsonNode data = objectMapper.readTree(response.body()).path("data");
             List<String> models = new ArrayList<>();
             if (data.isArray()) {
                 for (JsonNode item : data) {
-                    models.add(item.path("id").asText());
+                    String id = item.path("id").asText();
+                    if (id != null && !id.isBlank()) {
+                        models.add(id);
+                    }
                 }
             }
             return models;
+        } catch (IllegalStateException ex) {
+            throw ex;
         } catch (Exception ex) {
-            return List.of();
+            throw new IllegalStateException(ex.getMessage() != null ? ex.getMessage() : "models request failed", ex);
         }
     }
 
@@ -203,6 +223,16 @@ public class OpenAiCompatRuntime implements LlmRuntime {
         var root = objectMapper.createObjectNode();
         root.put("model", model);
         root.put("stream", stream);
+        int maxTokens = generation.effectiveMaxTokens(0);
+        if (maxTokens > 0) {
+            root.put("max_tokens", maxTokens);
+        }
+        if (generation.reasoningEnabled()) {
+            String effort = generation.reasoningEffort().toOpenAiValue();
+            if (effort != null) {
+                root.put("reasoning_effort", effort);
+            }
+        }
         var msgs = root.putArray("messages");
         for (ChatMessage msg : messages) {
             var m = msgs.addObject();

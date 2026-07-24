@@ -158,8 +158,36 @@
 
 ---
 
+## 9. AI Provider（W3 / OpsKat 对齐）— `/api/ai/providers`
+
+| Method | Path | 角色 | 说明 |
+|--------|------|------|------|
+| GET | `/api/ai/providers` | 已登录 | 启用且支持 Chat 的 Provider 列表 |
+| GET | `/api/ai/providers/all` | ADMIN | 全部 Provider（含禁用） |
+| POST | `/api/ai/providers` | ADMIN | 创建 |
+| PUT | `/api/ai/providers/{id}` | ADMIN | 更新（`apiKey` 空=不改） |
+| DELETE | `/api/ai/providers/{id}` | ADMIN | 删除（不可删默认） |
+| POST | `/api/ai/providers/{id}/test` | ADMIN | 最小 chat 探活；`data.status`=`ok` 或 `failed: …`（脱敏） |
+| GET | `/api/ai/providers/{id}/models` | ADMIN | 拉取模型列表；失败 `FETCH_MODELS_FAILED` |
+
+### DTO 字段（相对既有 CRUD 新增 / 对齐图 3）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `maxOutputTokens` | int | `0`=运行时默认；写入请求体时可选 |
+| `contextWindow` | int | `0`=平台默认上下文预算；>0 时按 ≈3 chars/token 截断 Agent 系统上下文 |
+| `reasoningEnabled` | bool | 与 `reasoningEffort` 联动；`NONE` 时为 false |
+| `reasoningEffort` | enum | `NONE\|LOW\|MEDIUM\|HIGH\|XHIGH\|MAX`；**MAX 仅 Anthropic**，OpenAI 兼容归一为 `HIGH` |
+
+运行时：`LlmGenerationConfig` 注入 `OpenAiCompatRuntime` / `AnthropicRuntime`（`max_tokens`、`reasoning_effort` / Anthropic `thinking.budget_tokens`）。
+
+**不做：** API Key 明文日志；改 Architecture SSOT 语义。
+
+---
+
 ## 变更记录
 
 | 日期 | 说明 |
 |------|------|
 | 2026-07-23 | ML-0-03：初版；含 ML-1 已定契约与后续阶段草案 |
+| 2026-07-24 | W3：补充 AI Provider 高级字段与 test/models 契约 |

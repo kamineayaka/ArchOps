@@ -31,16 +31,30 @@ public class AnthropicRuntime implements LlmRuntime {
     private final String apiKey;
     private final String model;
     private final long timeoutMs;
+    private final LlmGenerationConfig generation;
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
 
-    public AnthropicRuntime(String baseUrl, String apiKey, String model, long timeoutMs, ObjectMapper objectMapper) {
+    public AnthropicRuntime(
+            String baseUrl,
+            String apiKey,
+            String model,
+            long timeoutMs,
+            LlmGenerationConfig generation,
+            ObjectMapper objectMapper) {
         this.baseUrl = normalizeBaseUrl(baseUrl);
         this.apiKey = apiKey;
         this.model = model;
         this.timeoutMs = timeoutMs;
+        this.generation = generation != null
+                ? generation
+                : new LlmGenerationConfig(0, 0, false, com.archops.ai.provider.domain.ReasoningEffort.NONE);
         this.objectMapper = objectMapper;
         this.httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
+    }
+
+    public AnthropicRuntime(String baseUrl, String apiKey, String model, long timeoutMs, ObjectMapper objectMapper) {
+        this(baseUrl, apiKey, model, timeoutMs, null, objectMapper);
     }
 
     @Override
@@ -118,8 +132,16 @@ public class AnthropicRuntime implements LlmRuntime {
     private String buildRequestBody(List<ChatMessage> messages, List<ToolDefinition> tools, boolean stream) throws Exception {
         ObjectNode root = objectMapper.createObjectNode();
         root.put("model", model);
-        root.put("max_tokens", 4096);
+        root.put("max_tokens", generation.effectiveMaxTokens(4096));
         root.put("stream", stream);
+        if (generation.reasoningEnabled()) {
+            int budget = generation.reasoningEffort().anthropicBudgetTokens();
+            if (budget > 0) {
+                ObjectNode thinking = root.putObject("thinking");
+                thinking.put("type", "enabled");
+                thinking.put("budget_tokens", budget);
+            }
+        }
 
         String system = "";
         ArrayNode anthropicMessages = objectMapper.createArrayNode();

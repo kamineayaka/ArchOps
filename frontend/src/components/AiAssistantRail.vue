@@ -2,7 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { NButton, NIcon, NInput, NSpin, NTooltip, useMessage } from 'naive-ui'
+import { NButton, NIcon, NInput, NSelect, NSpin, NTooltip, useMessage } from 'naive-ui'
 import {
   CloseOutline,
   OpenOutline,
@@ -11,8 +11,12 @@ import {
 } from '@vicons/ionicons5'
 import { createConversation, getMessages, type ChatMessage } from '@/api/ai'
 import { createAiStreamClient, type AiStreamEvent, type UiContext } from '@/api/aiStream'
+import { listChatProviders, type AiProvider } from '@/api/ai-providers'
+import AiProviderSetupWizard from '@/components/ai/AiProviderSetupWizard.vue'
 import { useAiWorkbenchShell } from '@/composables/useAiWorkbenchShell'
 import { renderChatContent } from '@/utils/format'
+import { useAuthStore } from '@/stores/auth'
+import { isAdmin as roleIsAdmin } from '@/utils/roles'
 
 interface DisplayMessage extends ChatMessage {
   streaming?: boolean
@@ -30,6 +34,8 @@ const { t } = useI18n()
 const message = useMessage()
 const route = useRoute()
 const router = useRouter()
+const authStore = useAuthStore()
+const isAdmin = computed(() => roleIsAdmin(authStore.user?.roles))
 const {
   pinned,
   surface,
@@ -45,8 +51,18 @@ const loading = ref(false)
 const messages = ref<DisplayMessage[]>([])
 const streamingIndex = ref<number | null>(null)
 const chatBottomRef = ref<HTMLDivElement | null>(null)
+const providers = ref<AiProvider[]>([])
+const selectedProviderId = ref<number | undefined>(undefined)
+const showWizard = ref(false)
 
 const title = computed(() => t('workbench.aiRailTitle'))
+const needsProvider = computed(() => providers.value.length === 0)
+const providerOptions = computed(() =>
+  providers.value.map((p) => ({
+    label: p.defaultChat ? `${p.name} (${t('ai.providerDefault')})` : p.name,
+    value: p.id,
+  })),
+)
 
 function buildUiContext(): UiContext {
   const assetParam = route.params.assetId
@@ -135,8 +151,31 @@ async function ensureConversation() {
   }
 }
 
+async function loadProviders() {
+  try {
+    const res = await listChatProviders()
+    if (res.success && res.data) {
+      providers.value = res.data
+      if (!selectedProviderId.value) {
+        const def = res.data.find((p) => p.defaultChat) ?? res.data[0]
+        selectedProviderId.value = def?.id
+      }
+      if (isAdmin.value && res.data.length === 0) {
+        showWizard.value = true
+      }
+    }
+  } catch {
+    // Optional probe
+  }
+}
+
 async function handleSend() {
   if (!input.value.trim() || loading.value) return
+  if (needsProvider.value) {
+    message.warning(t('workbench.aiRailNoProvider'))
+    if (isAdmin.value) showWizard.value = true
+    return
+  }
   loading.value = true
   streamingIndex.value = null
   const userMsg = input.value
@@ -149,13 +188,18 @@ async function handleSend() {
     streamClient.sendChat(
       userMsg,
       conversationId.value ?? undefined,
-      undefined,
+      selectedProviderId.value,
       buildUiContext(),
     )
   } catch {
     message.error(t('ai.requestFailed'))
     loading.value = false
   }
+}
+
+async function onWizardCompleted() {
+  showWizard.value = false
+  await loadProviders()
 }
 
 async function handleNewChat() {
@@ -180,6 +224,7 @@ function handlePinToggle() {
 watch(messages, () => scrollToBottom(), { deep: true })
 
 onMounted(async () => {
+  await loadProviders()
   if (conversationId.value) {
     await loadMessages()
   }
@@ -254,6 +299,25 @@ onBeforeUnmount(() => {
       </div>
     </header>
 
+    <div v-if="needsProvider" class="ai-rail__setup">
+      <p>{{ t('workbench.aiRailNoProvider') }}</p>
+      <NButton v-if="isAdmin" size="tiny" type="primary" @click="showWizard = true">
+        {{ t('workbench.aiRailOpenWizard') }}
+      </NButton>
+      <NButton v-else size="tiny" @click="router.push({ name: 'ai-settings' })">
+        {{ t('dashboard.goAiSettings') }}
+      </NButton>
+    </div>
+    <div v-else class="ai-rail__provider">
+      <NSelect
+        v-model:value="selectedProviderId"
+        size="tiny"
+        :options="providerOptions"
+        :placeholder="t('workbench.provider')"
+        clearable
+      />
+    </div>
+
     <div class="ai-rail__messages" aria-live="polite">
       <p v-if="!loading && !messages.length" class="ai-rail__empty">
         {{ t('workbench.aiRailEmpty') }}
@@ -297,12 +361,18 @@ onBeforeUnmount(() => {
         size="small"
         block
         :loading="loading"
-        :disabled="!input.trim()"
+        :disabled="!input.trim() || needsProvider"
         @click="handleSend"
       >
         {{ t('ai.send') }}
       </NButton>
     </div>
+
+    <AiProviderSetupWizard
+      v-model:show="showWizard"
+      @completed="onWizardCompleted"
+      @changed="loadProviders"
+    />
   </div>
 </template>
 
@@ -323,6 +393,20 @@ onBeforeUnmount(() => {
   padding: var(--co-space-3) var(--co-space-3) var(--co-space-3) var(--co-space-4);
   border-bottom: 1px solid var(--co-border);
   flex-shrink: 0;
+}
+
+.ai-rail__setup,
+.ai-rail__provider {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--co-border);
+  flex-shrink: 0;
+}
+
+.ai-rail__setup p {
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
+  color: var(--co-text-secondary);
+  line-height: 1.4;
 }
 
 .ai-rail__title {

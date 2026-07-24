@@ -3,6 +3,9 @@ import type { ApiResponse } from './types'
 
 export type ProviderType = 'OPENAI_COMPAT' | 'ANTHROPIC'
 
+/** OpsKat-aligned reasoning depth. MAX is Anthropic-only (OpenAI-compat normalizes to HIGH). */
+export type ReasoningEffort = 'NONE' | 'LOW' | 'MEDIUM' | 'HIGH' | 'XHIGH' | 'MAX'
+
 export interface AiProvider {
   id: number
   name: string
@@ -16,6 +19,10 @@ export interface AiProvider {
   supportsEmbedding: boolean
   enabled: boolean
   timeoutMs: number
+  maxOutputTokens: number
+  contextWindow: number
+  reasoningEnabled: boolean
+  reasoningEffort: ReasoningEffort
   defaultChat: boolean
   defaultEmbedding: boolean
   createdAt: string
@@ -34,6 +41,12 @@ export interface AiProviderRequest {
   supportsEmbedding?: boolean
   enabled?: boolean
   timeoutMs?: number
+  /** 0 = provider default */
+  maxOutputTokens?: number
+  /** 0 = unlimited / platform default */
+  contextWindow?: number
+  reasoningEnabled?: boolean
+  reasoningEffort?: ReasoningEffort
 }
 
 export interface PlatformAiSettings {

@@ -24,12 +24,14 @@ public class LlmRuntimeFactory {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "PROVIDER_NOT_CHAT", "Provider does not support chat");
         }
         String apiKey = decryptApiKey(provider);
-        String baseUrl = provider.getBaseUrl();
-        long timeout = provider.getTimeoutMs();
-        String model = provider.getChatModel();
+        LlmGenerationConfig config = LlmGenerationConfig.from(provider);
         return switch (provider.getProviderType()) {
-            case OPENAI_COMPAT -> new OpenAiCompatRuntime(baseUrl, apiKey, model, timeout, objectMapper);
-            case ANTHROPIC -> new AnthropicRuntime(baseUrl, apiKey, model, timeout, objectMapper);
+            case OPENAI_COMPAT -> new OpenAiCompatRuntime(
+                    provider.getBaseUrl(), apiKey, provider.getChatModel(), provider.getTimeoutMs(),
+                    config, objectMapper);
+            case ANTHROPIC -> new AnthropicRuntime(
+                    provider.getBaseUrl(), apiKey, provider.getChatModel(), provider.getTimeoutMs(),
+                    config, objectMapper);
         };
     }
 
@@ -45,6 +47,7 @@ public class LlmRuntimeFactory {
                 decryptApiKey(provider),
                 provider.getEmbeddingModel(),
                 provider.getTimeoutMs(),
+                LlmGenerationConfig.from(provider),
                 objectMapper);
     }
 

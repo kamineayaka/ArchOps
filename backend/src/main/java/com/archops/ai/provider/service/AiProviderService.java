@@ -2,10 +2,12 @@ package com.archops.ai.provider.service;
 
 import com.archops.ai.provider.domain.AiProvider;
 import com.archops.ai.provider.domain.ProviderType;
+import com.archops.ai.provider.domain.ReasoningEffort;
 import com.archops.ai.provider.dto.AiProviderRequest;
 import com.archops.ai.provider.dto.AiProviderResponse;
 import com.archops.ai.provider.repository.AiProviderRepository;
 import com.archops.ai.runtime.AnthropicRuntime;
+import com.archops.ai.runtime.LlmGenerationConfig;
 import com.archops.ai.runtime.LlmRuntimeFactory;
 import com.archops.ai.runtime.OpenAiCompatRuntime;
 import com.archops.audit.service.AuditService;
@@ -100,7 +102,9 @@ public class AiProviderService {
                     List.of());
             return "ok";
         } catch (Exception ex) {
-            return "failed: " + ex.getMessage();
+            String msg = ex.getMessage() != null ? ex.getMessage() : ex.getClass().getSimpleName();
+            // Never log or echo API keys.
+            return "failed: " + sanitizeError(msg);
         }
     }
 
@@ -108,14 +112,24 @@ public class AiProviderService {
     public List<String> listModels(Long id) {
         AiProvider provider = findOrThrow(id);
         String apiKey = runtimeFactory.decryptApiKey(provider);
-        return switch (provider.getProviderType()) {
-            case OPENAI_COMPAT -> new OpenAiCompatRuntime(
-                    provider.getBaseUrl(), apiKey, provider.getChatModel(), provider.getTimeoutMs(),
-                    objectMapper).listModels();
-            case ANTHROPIC -> new AnthropicRuntime(
-                    provider.getBaseUrl(), apiKey, provider.getChatModel(), provider.getTimeoutMs(),
-                    objectMapper).listModels();
-        };
+        LlmGenerationConfig config = LlmGenerationConfig.from(provider);
+        try {
+            return switch (provider.getProviderType()) {
+                case OPENAI_COMPAT -> new OpenAiCompatRuntime(
+                        provider.getBaseUrl(), apiKey, provider.getChatModel(), provider.getTimeoutMs(),
+                        config, objectMapper).listModels();
+                case ANTHROPIC -> new AnthropicRuntime(
+                        provider.getBaseUrl(), apiKey, provider.getChatModel(), provider.getTimeoutMs(),
+                        config, objectMapper).listModels();
+            };
+        } catch (BusinessException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            throw new BusinessException(
+                    HttpStatus.BAD_GATEWAY,
+                    "FETCH_MODELS_FAILED",
+                    "获取模型失败: " + sanitizeError(ex.getMessage()));
+        }
     }
 
     @Transactional(readOnly = true)
@@ -147,6 +161,28 @@ public class AiProviderService {
         if (request.timeoutMs() != null) {
             provider.setTimeoutMs(request.timeoutMs());
         }
+        if (request.maxOutputTokens() != null) {
+            provider.setMaxOutputTokens(Math.max(0, request.maxOutputTokens()));
+        } else if (isCreate) {
+            provider.setMaxOutputTokens(0);
+        }
+        if (request.contextWindow() != null) {
+            provider.setContextWindow(Math.max(0, request.contextWindow()));
+        } else if (isCreate) {
+            provider.setContextWindow(0);
+        }
+
+        if (isCreate || request.reasoningEffort() != null || request.reasoningEnabled() != null) {
+            ReasoningEffort effort = normalizeReasoningEffort(request.providerType(), request.reasoningEffort());
+            boolean reasoningOn = request.reasoningEnabled() != null
+                    ? request.reasoningEnabled() && effort.isEnabled()
+                    : effort.isEnabled();
+            if (!reasoningOn) {
+                effort = ReasoningEffort.NONE;
+            }
+            provider.setReasoningEffort(effort);
+            provider.setReasoningEnabled(reasoningOn);
+        }
     }
 
     private void validateRequest(AiProviderRequest request, boolean isCreate) {
@@ -160,6 +196,22 @@ public class AiProviderService {
                 && (request.supportsChat() == null || request.supportsChat())) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "CHAT_MODEL_REQUIRED", "需指定对话模型");
         }
+        if (request.maxOutputTokens() != null && request.maxOutputTokens() < 0) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "INVALID_MAX_TOKENS", "最大输出 Token 不能为负");
+        }
+        if (request.contextWindow() != null && request.contextWindow() < 0) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "INVALID_CONTEXT_WINDOW", "上下文窗口不能为负");
+        }
+        // Normalize happens in applyRequest; reject only if caller insists on MAX for OpenAI without auto-normalize desire.
+        // We auto-normalize MAX → HIGH for OpenAI-compat (OpsKat rule).
+    }
+
+    static ReasoningEffort normalizeReasoningEffort(ProviderType type, ReasoningEffort requested) {
+        ReasoningEffort effort = requested != null ? requested : ReasoningEffort.NONE;
+        if (type == ProviderType.OPENAI_COMPAT && effort == ReasoningEffort.MAX) {
+            return ReasoningEffort.HIGH;
+        }
+        return effort;
     }
 
     private AiProviderResponse toResponse(AiProvider provider) {
@@ -181,6 +233,10 @@ public class AiProviderService {
                 provider.isSupportsEmbedding(),
                 provider.isEnabled(),
                 provider.getTimeoutMs(),
+                provider.getMaxOutputTokens(),
+                provider.getContextWindow(),
+                provider.isReasoningEnabled(),
+                provider.getReasoningEffort() != null ? provider.getReasoningEffort() : ReasoningEffort.NONE,
                 provider.getId().equals(defaultChatId),
                 provider.getId().equals(defaultEmbeddingId),
                 provider.getCreatedAt(),
@@ -207,6 +263,13 @@ public class AiProviderService {
             return baseUrl;
         }
         return type == ProviderType.ANTHROPIC ? "https://api.anthropic.com" : "https://api.openai.com/v1";
+    }
+
+    private static String sanitizeError(String message) {
+        if (message == null || message.isBlank()) {
+            return "unknown error";
+        }
+        return message.replaceAll("(?i)(sk-|Bearer\\s+)\\S+", "$1***");
     }
 
     private void audit(Long actorId, String actorName, String action, Long providerId) {

@@ -92,6 +92,23 @@ public class AgentContextAssembler {
             String userQuery,
             Long conversationId,
             UiContext uiContext) {
+        return assemble(userId, assetIds, groupIds, userQuery, conversationId, uiContext, null);
+    }
+
+    /**
+     * Assembles the agent system prompt. When {@code contextCharBudgetOverride} is positive,
+     * it caps the assembled prompt (e.g. from Provider {@code contextWindow}); otherwise the
+     * platform {@code architecture.context-max-chars} default is used.
+     */
+    @Transactional(readOnly = true)
+    public String assemble(
+            Long userId,
+            List<Long> assetIds,
+            List<Long> groupIds,
+            String userQuery,
+            Long conversationId,
+            UiContext uiContext,
+            Integer contextCharBudgetOverride) {
         List<Long> assets = assetIds != null ? assetIds : List.of();
         List<Long> groups = groupIds != null ? groupIds : List.of();
 
@@ -107,11 +124,19 @@ public class AgentContextAssembler {
         }
         appendSection(sb, HEADER_SECRETS, SECRETS_WARNINGS.trim());
 
-        String result = sb.toString().trim();
-        int maxChars = architectureProperties.stream()
-                .findFirst()
-                .map(ArchitectureProperties::getContextMaxChars)
-                .orElse(4000);
+        return truncate(sb.toString().trim(), contextCharBudgetOverride);
+    }
+
+    private String truncate(String result, Integer contextCharBudgetOverride) {
+        int maxChars;
+        if (contextCharBudgetOverride != null && contextCharBudgetOverride > 0) {
+            maxChars = contextCharBudgetOverride;
+        } else {
+            maxChars = architectureProperties.stream()
+                    .findFirst()
+                    .map(ArchitectureProperties::getContextMaxChars)
+                    .orElse(4000);
+        }
         if (maxChars > 0 && result.length() > maxChars) {
             return result.substring(0, maxChars) + "…";
         }
