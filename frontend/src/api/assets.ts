@@ -31,16 +31,19 @@ export interface AssetRequest {
   authType?: string
   secret?: string
   jumpAssetIds?: number[]
+  database?: string
 }
 
 export interface TestConnectionRequest {
   assetId?: number
+  kind?: string
   host?: string
   port?: number
   username?: string
   authType?: string
   secret?: string
   jumpAssetIds?: number[]
+  database?: string
 }
 
 export interface TestConnectionResponse {

@@ -1,85 +1,128 @@
 package com.archops.asset.service;
 
+import com.archops.asset.domain.Asset;
+import com.archops.asset.domain.AssetKind;
 import com.archops.asset.domain.SshAuthType;
+import com.archops.asset.domain.SshCredential;
 import com.archops.asset.dto.TestConnectionRequest;
 import com.archops.asset.dto.TestConnectionResponse;
+import com.archops.asset.repository.AssetRepository;
+import com.archops.asset.repository.SshCredentialRepository;
+import com.archops.asset.type.AssetTypeHandler;
+import com.archops.asset.type.AssetTypeRegistry;
+import com.archops.asset.type.ConnectivityContext;
 import com.archops.common.exception.BusinessException;
-import com.archops.terminal.pool.AssetSshDialer;
+import com.archops.common.security.CredentialCipher;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
-import org.apache.sshd.client.session.ClientSession;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
+/**
+ * Dispatches connectivity probes to the registered {@link AssetTypeHandler} for the asset kind.
+ * No shared {@code switch(kind)}.
+ */
 @Service
 public class AssetConnectionTestService {
 
-    private static final long TEST_TIMEOUT_MS = 10_000L;
+    private final AssetTypeRegistry assetTypeRegistry;
+    private final AssetRepository assetRepository;
+    private final SshCredentialRepository sshCredentialRepository;
+    private final CredentialCipher credentialCipher;
+    private final ObjectMapper objectMapper;
 
-    private final AssetSshDialer assetSshDialer;
-
-    public AssetConnectionTestService(AssetSshDialer assetSshDialer) {
-        this.assetSshDialer = assetSshDialer;
+    public AssetConnectionTestService(
+            AssetTypeRegistry assetTypeRegistry,
+            AssetRepository assetRepository,
+            SshCredentialRepository sshCredentialRepository,
+            CredentialCipher credentialCipher,
+            ObjectMapper objectMapper) {
+        this.assetTypeRegistry = assetTypeRegistry;
+        this.assetRepository = assetRepository;
+        this.sshCredentialRepository = sshCredentialRepository;
+        this.credentialCipher = credentialCipher;
+        this.objectMapper = objectMapper;
     }
 
     public TestConnectionResponse test(TestConnectionRequest request) {
-        long started = System.nanoTime();
         try {
-            ClientSession session = openSession(request);
-            try {
-                if (!session.isAuthenticated()) {
-                    return new TestConnectionResponse(false, elapsedMs(started), "SSH 认证未完成");
-                }
-                return new TestConnectionResponse(true, elapsedMs(started), "连接成功");
-            } finally {
-                try {
-                    session.close(false);
-                } catch (Exception ignored) {
-                    // best-effort
-                }
-            }
+            ConnectivityContext ctx = buildContext(request);
+            AssetKind kind = resolveKind(request);
+            AssetTypeHandler handler = assetTypeRegistry.findRequired(kind.name());
+            return handler.testConnection(ctx);
         } catch (BusinessException e) {
-            return new TestConnectionResponse(false, elapsedMs(started), e.getMessage());
+            return new TestConnectionResponse(false, 0L, e.getMessage());
         } catch (Exception e) {
             String msg = e.getMessage() != null && !e.getMessage().isBlank()
                     ? e.getMessage()
                     : e.getClass().getSimpleName();
-            return new TestConnectionResponse(false, elapsedMs(started), "连接失败: " + msg);
+            return new TestConnectionResponse(false, 0L, "连接失败: " + msg);
         }
     }
 
-    private ClientSession openSession(TestConnectionRequest request) throws Exception {
-        if (request.assetId() != null
-                && (request.secret() == null || request.secret().isBlank())) {
-            return assetSshDialer.dial(request.assetId());
+    private AssetKind resolveKind(TestConnectionRequest request) {
+        if (request.kind() != null) {
+            return request.kind();
         }
+        if (request.assetId() != null) {
+            return assetRepository.findById(request.assetId())
+                    .map(Asset::getKind)
+                    .orElseThrow(() -> new BusinessException(
+                            HttpStatus.NOT_FOUND, "ASSET_NOT_FOUND", "资产不存在"));
+        }
+        // Legacy ephemeral SSH forms may omit kind — default SERVER.
+        return AssetKind.SERVER;
+    }
 
-        String host = request.host() != null ? request.host().trim() : "";
-        if (host.isBlank()) {
-            throw new BusinessException(HttpStatus.BAD_REQUEST, "ASSET_NO_HOST", "请填写主机地址");
+    private ConnectivityContext buildContext(TestConnectionRequest request) {
+        if (request.assetId() != null && !StringUtils.hasText(request.secret())) {
+            Asset asset = assetRepository.findById(request.assetId())
+                    .orElseThrow(() -> new BusinessException(
+                            HttpStatus.NOT_FOUND, "ASSET_NOT_FOUND", "资产不存在"));
+            SshCredential credential = sshCredentialRepository.findByAssetId(asset.getId()).orElse(null);
+            String secret = null;
+            String username = null;
+            SshAuthType authType = null;
+            List<Long> jumps = List.of();
+            if (credential != null) {
+                username = credential.getUsername();
+                authType = credential.getAuthType();
+                secret = credentialCipher.decrypt(credential.getSecretCipher(), credential.getSecretIv());
+                jumps = credential.getJumpAssetIds() != null ? credential.getJumpAssetIds() : List.of();
+            }
+            return new ConnectivityContext(
+                    asset.getId(),
+                    asset.getHost(),
+                    asset.getPort(),
+                    username,
+                    authType,
+                    secret,
+                    jumps,
+                    readDatabase(asset.getMetadata()));
         }
-        String username = request.username() != null ? request.username().trim() : "";
-        if (username.isBlank()) {
-            throw new BusinessException(HttpStatus.BAD_REQUEST, "SSH_USER_REQUIRED", "请填写 SSH 用户名");
-        }
-        if (request.authType() == null) {
-            throw new BusinessException(HttpStatus.BAD_REQUEST, "SSH_AUTH_REQUIRED", "请选择认证方式");
-        }
-        if (request.secret() == null || request.secret().isBlank()) {
-            throw new BusinessException(HttpStatus.BAD_REQUEST, "SSH_SECRET_REQUIRED", "请填写密码或私钥");
-        }
-        int port = request.port() != null && request.port() > 0 ? request.port() : 22;
-        List<Long> jumps = request.jumpAssetIds() != null ? request.jumpAssetIds() : List.of();
-        return assetSshDialer.dialEphemeral(
-                jumps,
-                host,
-                port,
-                username,
+        return new ConnectivityContext(
+                request.assetId(),
+                request.host(),
+                request.port(),
+                request.username(),
                 request.authType(),
                 request.secret(),
-                TEST_TIMEOUT_MS);
+                request.jumpAssetIds(),
+                request.database());
     }
 
-    private static long elapsedMs(long startedNanos) {
-        return Math.max(0L, (System.nanoTime() - startedNanos) / 1_000_000L);
+    private String readDatabase(String metadata) {
+        if (metadata == null || metadata.isBlank()) {
+            return null;
+        }
+        try {
+            JsonNode node = objectMapper.readTree(metadata);
+            JsonNode database = node.get("database");
+            return database != null && !database.isNull() ? database.asText(null) : null;
+        } catch (Exception e) {
+            return null;
+        }
     }
 }

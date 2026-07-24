@@ -2,13 +2,15 @@
 import { h, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { NEmpty, NIcon, NSpin, NTree, type TreeOption } from 'naive-ui'
+import { NEmpty, NIcon, NSpin, NTree, useMessage, type TreeOption } from 'naive-ui'
 import { DesktopOutline, FolderOutline, ServerOutline } from '@vicons/ionicons5'
 import { getAssetGroup, listAssetGroups, type AssetGroup } from '@/api/assetGroups'
 import { listAssets, type Asset } from '@/api/assets'
+import { openAsset } from '@/assetTypes/openAsset'
 
 const { t } = useI18n()
 const router = useRouter()
+const message = useMessage()
 
 const loading = ref(false)
 const treeData = ref<TreeOption[]>([])
@@ -105,11 +107,11 @@ function handleSelect(keys: Array<string | number>) {
     const id = Number(key.slice('asset:'.length))
     if (!Number.isFinite(id)) return
     const asset = assetsById.value.get(id)
-    if (asset?.hasSshCredential) {
-      void router.push({ name: 'terminal', params: { assetId: String(id) } })
-    } else {
+    if (!asset) {
       void router.push({ name: 'assets' })
+      return
     }
+    openAsset(asset, { router, message, t })
   }
 }
 

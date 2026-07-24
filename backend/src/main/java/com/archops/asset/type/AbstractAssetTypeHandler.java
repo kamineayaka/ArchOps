@@ -11,6 +11,11 @@ import org.springframework.util.StringUtils;
 abstract class AbstractAssetTypeHandler implements AssetTypeHandler {
 
     @Override
+    public ConnectAction connectAction() {
+        return ConnectAction.NONE;
+    }
+
+    @Override
     public Map<String, Object> safeView(Asset asset) {
         Map<String, Object> view = new LinkedHashMap<>();
         view.put("id", asset.getId());

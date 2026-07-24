@@ -2,8 +2,10 @@ package com.archops.asset.type;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
 
 import com.archops.common.exception.BusinessException;
+import com.archops.terminal.pool.AssetSshDialer;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -15,7 +17,7 @@ class AssetTypeRegistryTest {
     @BeforeEach
     void setUp() {
         registry = new AssetTypeRegistry(List.of(
-                new ServerAssetTypeHandler(),
+                new ServerAssetTypeHandler(mock(AssetSshDialer.class)),
                 new ClusterAssetTypeHandler(),
                 new ServiceAssetTypeHandler(),
                 new NetworkAssetTypeHandler(),
@@ -40,13 +42,24 @@ class AssetTypeRegistryTest {
         AssetTypeHandler server = registry.findRequired("SERVER");
         assertThat(server.defaultPort()).isEqualTo(22);
         assertThat(server.policyKind()).isEqualTo("SSH");
+        assertThat(server.connectAction()).isEqualTo(ConnectAction.TERMINAL);
     }
 
     @Test
-    void databaseStubDefaults() {
+    void databaseDefaultsAndConnectAction() {
         AssetTypeHandler database = registry.findRequired("DATABASE");
         assertThat(database.defaultPort()).isEqualTo(5432);
         assertThat(database.policyKind()).isEqualTo("GENERIC");
+        assertThat(database.connectAction()).isEqualTo(ConnectAction.QUERY);
+    }
+
+    @Test
+    void descriptorsExposeConnectAction() {
+        assertThat(registry.descriptors())
+                .anySatisfy(d -> {
+                    assertThat(d.type()).isEqualTo("DATABASE");
+                    assertThat(d.connectAction()).isEqualTo("QUERY");
+                });
     }
 
     @Test

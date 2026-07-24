@@ -24,13 +24,14 @@ import '@/assetTypes'
 import { defaultPortFor, getAssetType, listAssetTypes } from '@/assetTypes/registry'
 import { apiErrorMessage } from '@/utils/apiError'
 
-export interface SshAssetFormModel {
+export interface AssetCreateFormModel {
   name: string
   kind: string
   host: string
   port: number | null
   groupId: number | null
   description: string
+  database: string
   username: string
   authType: 'PASSWORD' | 'PRIVATE_KEY'
   secret: string
@@ -57,13 +58,14 @@ const groups = ref<AssetGroup[]>([])
 const saving = ref(false)
 const testing = ref(false)
 
-const form = ref<SshAssetFormModel>({
+const form = ref<AssetCreateFormModel>({
   name: '',
   kind: props.initialKind,
   host: '',
   port: defaultPortFor(props.initialKind),
   groupId: null,
   description: '',
+  database: '',
   username: 'root',
   authType: 'PASSWORD',
   secret: '',
@@ -78,7 +80,12 @@ const kindOptions = computed(() =>
 )
 
 const selectedType = computed(() => getAssetType(form.value.kind))
-const showSsh = computed(() => form.value.kind === 'SERVER' || selectedType.value?.connectAction === 'terminal')
+const showSsh = computed(() => selectedType.value?.authMode === 'ssh')
+const showPasswordAuth = computed(() => selectedType.value?.authMode === 'password')
+const showAuth = computed(() => showSsh.value || showPasswordAuth.value)
+const showDatabaseName = computed(() => Boolean(selectedType.value?.showDatabaseName))
+const supportsTest = computed(() => Boolean(selectedType.value?.supportsTest))
+const showJump = computed(() => showAuth.value)
 
 const groupOptions = computed(() =>
   groups.value.map((g) => ({
@@ -106,6 +113,13 @@ watch(
   () => form.value.kind,
   (kind) => {
     form.value.port = defaultPortFor(kind)
+    const def = getAssetType(kind)
+    if (def?.authMode === 'password') {
+      form.value.username = 'postgres'
+      form.value.authType = 'PASSWORD'
+    } else if (def?.authMode === 'ssh') {
+      form.value.username = 'root'
+    }
   },
 )
 
@@ -125,7 +139,7 @@ function validateBasics(): boolean {
     message.warning(t('assets.hostRequired'))
     return false
   }
-  if (showSsh.value) {
+  if (showAuth.value) {
     if (!form.value.username.trim()) {
       message.warning(t('assets.usernameRequired'))
       return false
@@ -147,9 +161,12 @@ function toPayload(): AssetRequest {
     description: form.value.description.trim() || undefined,
     groupId: form.value.groupId ?? undefined,
   }
-  if (showSsh.value) {
+  if (showDatabaseName.value && form.value.database.trim()) {
+    payload.database = form.value.database.trim()
+  }
+  if (showAuth.value) {
     payload.username = form.value.username.trim()
-    payload.authType = form.value.authType
+    payload.authType = showSsh.value ? form.value.authType : 'PASSWORD'
     payload.secret = form.value.secret
     payload.jumpAssetIds = form.value.jumpAssetIds
   }
@@ -161,12 +178,14 @@ async function handleTest() {
   testing.value = true
   try {
     const res = await testAssetConnection({
+      kind: form.value.kind,
       host: form.value.host.trim(),
-      port: form.value.port ?? 22,
-      username: form.value.username.trim(),
-      authType: form.value.authType,
-      secret: form.value.secret,
+      port: form.value.port ?? selectedType.value?.defaultPort ?? undefined,
+      username: form.value.username.trim() || undefined,
+      authType: showSsh.value ? form.value.authType : 'PASSWORD',
+      secret: form.value.secret || undefined,
       jumpAssetIds: form.value.jumpAssetIds,
+      database: form.value.database.trim() || undefined,
     })
     if (res.success && res.data?.ok) {
       message.success(`${res.data.message} (${res.data.latencyMs}ms)`)
@@ -186,7 +205,9 @@ async function handleSubmit() {
   try {
     const res = await createAsset(toPayload())
     if (res.success && res.data) {
-      message.success(t('assets.createdConnectable'))
+      message.success(
+        showAuth.value ? t('assets.createdConnectable') : t('assets.created'),
+      )
       emit('created', res.data)
     } else {
       message.error(res.message || t('common.failed'))
@@ -223,14 +244,25 @@ async function handleSubmit() {
       <NInputNumber v-model:value="form.port" :min="1" :max="65535" class="full-width" />
     </NFormItem>
 
-    <template v-if="showSsh">
-      <NFormItem :label="t('assets.connectionMode')">
+    <NFormItem v-if="showDatabaseName" :label="t('assets.databaseName')">
+      <NSpace vertical :size="4" class="full-width">
+        <NInput
+          v-model:value="form.database"
+          :placeholder="t('assets.databaseNamePlaceholder')"
+          spellcheck="false"
+        />
+        <span class="field-hint">{{ t('assets.databaseNameHint') }}</span>
+      </NSpace>
+    </NFormItem>
+
+    <template v-if="showAuth">
+      <NFormItem v-if="showJump" :label="t('assets.connectionMode')">
         <NRadioGroup v-model:value="connectionMode">
           <NRadioButton value="direct">{{ t('assets.directConnect') }}</NRadioButton>
           <NRadioButton value="jump">{{ t('assets.jumpConnect') }}</NRadioButton>
         </NRadioGroup>
       </NFormItem>
-      <NFormItem v-if="connectionMode === 'jump'" :label="t('assets.jumpChain')">
+      <NFormItem v-if="showJump && connectionMode === 'jump'" :label="t('assets.jumpChain')">
         <NSpace vertical :size="4" class="full-width">
           <NSelect
             v-model:value="form.jumpAssetIds"
@@ -240,13 +272,15 @@ async function handleSubmit() {
             clearable
             :placeholder="t('assets.jumpChainPlaceholder')"
           />
-          <span class="field-hint">{{ t('assets.jumpChainHint') }}</span>
+          <span class="field-hint">{{
+            showPasswordAuth ? t('assets.jumpChainDbHint') : t('assets.jumpChainHint')
+          }}</span>
         </NSpace>
       </NFormItem>
-      <NFormItem :label="t('assets.sshUser')" required>
+      <NFormItem :label="showPasswordAuth ? t('assets.dbUser') : t('assets.sshUser')" required>
         <NInput v-model:value="form.username" spellcheck="false" />
       </NFormItem>
-      <NFormItem :label="t('assets.authType')">
+      <NFormItem v-if="showSsh" :label="t('assets.authType')">
         <NSelect
           v-model:value="form.authType"
           :options="[
@@ -255,13 +289,22 @@ async function handleSubmit() {
           ]"
         />
       </NFormItem>
-      <NFormItem :label="form.authType === 'PRIVATE_KEY' ? t('assets.privateKey') : t('assets.password')" required>
+      <NFormItem
+        :label="
+          showSsh && form.authType === 'PRIVATE_KEY' ? t('assets.privateKey') : t('assets.password')
+        "
+        required
+      >
         <NInput
           v-model:value="form.secret"
-          :type="form.authType === 'PRIVATE_KEY' ? 'textarea' : 'password'"
-          :rows="form.authType === 'PRIVATE_KEY' ? 4 : undefined"
+          :type="showSsh && form.authType === 'PRIVATE_KEY' ? 'textarea' : 'password'"
+          :rows="showSsh && form.authType === 'PRIVATE_KEY' ? 4 : undefined"
           show-password-on="click"
-          :placeholder="form.authType === 'PRIVATE_KEY' ? t('assets.privateKeyPlaceholder') : t('assets.passwordPlaceholder')"
+          :placeholder="
+            showSsh && form.authType === 'PRIVATE_KEY'
+              ? t('assets.privateKeyPlaceholder')
+              : t('assets.passwordPlaceholder')
+          "
         />
       </NFormItem>
     </template>
@@ -279,7 +322,7 @@ async function handleSubmit() {
     </NFormItem>
 
     <NSpace justify="space-between" class="form-actions">
-      <NButton v-if="showSsh" :loading="testing" @click="handleTest">
+      <NButton v-if="supportsTest" :loading="testing" @click="handleTest">
         {{ t('assets.testConnection') }}
       </NButton>
       <span v-else />

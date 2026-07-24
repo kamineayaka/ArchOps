@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, h, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 import {
   NButton,
   NCard,
@@ -22,6 +23,9 @@ import {
   testSavedAssetConnection,
   type Asset,
 } from '@/api/assets'
+import '@/assetTypes'
+import { getAssetType } from '@/assetTypes/registry'
+import { openAsset } from '@/assetTypes/openAsset'
 import SshAssetForm from '@/components/assets/SshAssetForm.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import PageHeader from '@/components/PageHeader.vue'
@@ -29,6 +33,7 @@ import { apiErrorMessage } from '@/utils/apiError'
 
 const { t } = useI18n()
 const message = useMessage()
+const router = useRouter()
 
 const assets = ref<Asset[]>([])
 const loading = ref(false)
@@ -53,10 +58,28 @@ const jumpAssetOptions = computed(() =>
     })),
 )
 
+function kindLabel(kind: string) {
+  const def = getAssetType(kind)
+  return def ? t(def.labelKey) : kind
+}
+
+function canTest(row: Asset) {
+  const def = getAssetType(row.kind)
+  if (!def?.supportsTest) return false
+  if (def.authMode === 'none') return true
+  return row.hasSshCredential
+}
+
 const columns = computed(() => [
   { title: t('common.id'), key: 'id', width: 60 },
   { title: t('assets.name'), key: 'name' },
-  { title: t('assets.kind'), key: 'kind', width: 110 },
+  {
+    title: t('assets.kind'),
+    key: 'kind',
+    width: 120,
+    render: (row: Asset) =>
+      h(NTag, { size: 'small', round: true }, { default: () => kindLabel(row.kind) }),
+  },
   { title: t('assets.host'), key: 'host' },
   { title: t('assets.port'), key: 'port', width: 80 },
   {
@@ -76,7 +99,7 @@ const columns = computed(() => [
   {
     title: t('common.actions'),
     key: 'actions',
-    width: 280,
+    width: 340,
     render: (row: Asset) =>
       h(NSpace, { size: 8 }, {
         default: () => [
@@ -84,13 +107,21 @@ const columns = computed(() => [
             NButton,
             {
               size: 'small',
+              onClick: () => openAsset(row, { router, message, t }),
+            },
+            { default: () => t('assets.connect') },
+          ),
+          h(
+            NButton,
+            {
+              size: 'small',
               loading: testingId.value === row.id,
-              disabled: !row.hasSshCredential,
+              disabled: !canTest(row),
               onClick: () => void handleTestSaved(row.id),
             },
             { default: () => t('assets.testConnection') },
           ),
-          h(NButton, { size: 'small', onClick: () => openCredential(row.id) }, { default: () => t('assets.credential') }),
+          h(NButton, { size: 'small', onClick: () => openCredential(row) }, { default: () => t('assets.credential') }),
           h(
             NPopconfirm,
             { onPositiveClick: () => handleDelete(row.id) },
@@ -119,14 +150,14 @@ function onCreated() {
   void load()
 }
 
-function openCredential(assetId: number) {
-  const asset = assets.value.find((a) => a.id === assetId)
-  selectedAssetId.value = assetId
+function openCredential(asset: Asset) {
+  selectedAssetId.value = asset.id
+  const def = getAssetType(asset.kind)
   credForm.value = {
-    username: 'root',
+    username: def?.authMode === 'password' ? 'postgres' : 'root',
     authType: 'PASSWORD',
     secret: '',
-    jumpAssetIds: asset?.jumpAssetIds ? [...asset.jumpAssetIds] : [],
+    jumpAssetIds: asset.jumpAssetIds ? [...asset.jumpAssetIds] : [],
   }
   showCredential.value = true
 }
@@ -190,7 +221,7 @@ onMounted(load)
       <template #extra>
         <NSpace>
           <NButton @click="load">{{ t('common.refresh') }}</NButton>
-          <NButton type="primary" @click="showCreate = true">{{ t('assets.addSsh') }}</NButton>
+          <NButton type="primary" @click="showCreate = true">{{ t('assets.addAsset') }}</NButton>
         </NSpace>
       </template>
     </PageHeader>
@@ -201,7 +232,7 @@ onMounted(load)
     </NCard>
   </NSpace>
 
-  <NModal v-model:show="showCreate" preset="card" class="modal-lg" :title="t('assets.addSsh')">
+  <NModal v-model:show="showCreate" preset="card" class="modal-lg" :title="t('assets.addAsset')">
     <SshAssetForm
       :assets="assets"
       @created="onCreated"

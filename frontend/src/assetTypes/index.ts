@@ -5,8 +5,10 @@ registerAssetType({
   labelKey: 'assets.kindServer',
   defaultPort: 22,
   connectAction: 'terminal',
+  authMode: 'ssh',
   showHost: true,
   showPort: true,
+  supportsTest: true,
 })
 
 registerAssetType({
@@ -14,6 +16,7 @@ registerAssetType({
   labelKey: 'assets.kindCluster',
   defaultPort: 6443,
   connectAction: 'none',
+  authMode: 'none',
   showHost: true,
   showPort: true,
 })
@@ -23,6 +26,7 @@ registerAssetType({
   labelKey: 'assets.kindService',
   defaultPort: 80,
   connectAction: 'none',
+  authMode: 'none',
   showHost: true,
   showPort: true,
 })
@@ -32,6 +36,7 @@ registerAssetType({
   labelKey: 'assets.kindNetwork',
   defaultPort: 0,
   connectAction: 'none',
+  authMode: 'none',
   showHost: false,
   showPort: false,
 })
@@ -40,7 +45,10 @@ registerAssetType({
   kind: 'DATABASE',
   labelKey: 'assets.kindDatabase',
   defaultPort: 5432,
-  connectAction: 'none',
+  connectAction: 'query',
+  authMode: 'password',
   showHost: true,
   showPort: true,
+  showDatabaseName: true,
+  supportsTest: true,
 })

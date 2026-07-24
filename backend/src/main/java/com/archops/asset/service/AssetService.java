@@ -56,7 +56,7 @@ public class AssetService {
         applyRequest(asset, request);
         asset = assetRepository.save(asset);
 
-        if (hasSshPayload(request)) {
+        if (hasCredentialPayload(request)) {
             saveSshCredential(asset.getId(), toCredentialRequest(request), actorId, actorName);
         }
         if (request.groupId() != null) {
@@ -86,7 +86,7 @@ public class AssetService {
         applyRequest(asset, request);
         asset = assetRepository.save(asset);
 
-        if (hasSshPayload(request)) {
+        if (hasCredentialPayload(request)) {
             saveSshCredential(id, toCredentialRequest(request), actorId, actorName);
         }
         if (request.groupId() != null) {
@@ -143,7 +143,7 @@ public class AssetService {
         String host = request.host();
         asset.setHost(host != null && !host.isBlank() ? host.trim() : host);
         asset.setPort(request.port());
-        asset.setMetadata(mergeMetadata(request.metadata(), request.description()));
+        asset.setMetadata(mergeMetadata(request.metadata(), request.description(), request.database()));
         asset.setParentId(request.parentId());
         if (request.enabled() != null) {
             asset.setEnabled(request.enabled());
@@ -152,7 +152,7 @@ public class AssetService {
         }
     }
 
-    private String mergeMetadata(String metadata, String description) {
+    private String mergeMetadata(String metadata, String description, String database) {
         try {
             ObjectNode node;
             if (metadata != null && !metadata.isBlank()) {
@@ -168,6 +168,14 @@ public class AssetService {
                 } else {
                     // Notes only — never Architecture SSOT.
                     node.put("description", trimmed);
+                }
+            }
+            if (database != null) {
+                String trimmed = database.trim();
+                if (trimmed.isEmpty()) {
+                    node.remove("database");
+                } else {
+                    node.put("database", trimmed);
                 }
             }
             return objectMapper.writeValueAsString(node);
@@ -189,16 +197,15 @@ public class AssetService {
         }
     }
 
-    private static boolean hasSshPayload(AssetRequest request) {
+    private static boolean hasCredentialPayload(AssetRequest request) {
         return request.secret() != null
                 && !request.secret().isBlank()
                 && request.username() != null
-                && !request.username().isBlank()
-                && request.authType() != null;
+                && !request.username().isBlank();
     }
 
     private static SshCredentialRequest toCredentialRequest(AssetRequest request) {
-        SshAuthType authType = request.authType();
+        SshAuthType authType = request.authType() != null ? request.authType() : SshAuthType.PASSWORD;
         return new SshCredentialRequest(
                 request.username().trim(),
                 authType,

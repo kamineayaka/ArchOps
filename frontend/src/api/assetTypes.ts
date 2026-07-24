@@ -5,6 +5,7 @@ export interface AssetTypeInfo {
   type: string
   defaultPort: number
   policyKind: string
+  connectAction: string
 }
 
 export async function listAssetTypesApi() {

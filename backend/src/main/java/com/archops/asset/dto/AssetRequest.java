@@ -7,8 +7,10 @@ import jakarta.validation.constraints.NotNull;
 import java.util.List;
 
 /**
- * Create/update asset payload. Optional SSH fields allow one-shot connectable SERVER create.
+ * Create/update asset payload. Optional credential fields allow one-shot connectable create
+ * (SSH for SERVER, password for DATABASE, …).
  * {@code description} is notes only — never Architecture SSOT.
+ * {@code database} is stored in metadata for DATABASE kinds.
  */
 public record AssetRequest(
         @NotBlank String name,
@@ -23,4 +25,5 @@ public record AssetRequest(
         String username,
         SshAuthType authType,
         String secret,
-        List<Long> jumpAssetIds) {}
+        List<Long> jumpAssetIds,
+        String database) {}
