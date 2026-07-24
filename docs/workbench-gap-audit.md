@@ -206,7 +206,7 @@ ArchOps 已有 kind：`SERVER, CLUSTER, SERVICE, NETWORK, DATABASE`（SPI 方向
 2. 左树点击打开/聚焦 Tab（路由 `terminal/:assetId` watch）  
 3. 操作台内「打开 AI 对话」侧轨；进入操作台默认展开资产树  
 4. 导航并列「操作台」「Agent」；Agent 窗口无终端 DOM  
-4. 状态条：连接状态 · user@host · 时长 · 重连
+5. 状态条：连接状态 · user@host · 时长 · 重连
 
 ### Wave W3 — AI 配置对齐图 3（Provider 工作台）
 
