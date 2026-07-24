@@ -41,6 +41,7 @@
 | 分组树 + 策略继承 | 强化 **ML-1**（已有 AssetGroup 方向） |
 | 暂时不必一次做齐 DB/Kafka/RDP | 类型注册先支撑 `SERVER` / `K8S` / 未来 `DATABASE`；GUI 能力按类型渐进 |
 | **W4a（2026-07-24）** | `DATABASE` 已字段级可配 + TCP/JDBC 探活；`connectAction=query`（Query 壳见 W4c） |
+| **W4b–d（2026-07-24）** | K8S / REDIS + Query 壳；Agent 只读 `db_ping`/`k8s_get`；验收见 `workbench-w4-acceptance.md` |
 
 ### P1 — 工具调用治理闭环
 

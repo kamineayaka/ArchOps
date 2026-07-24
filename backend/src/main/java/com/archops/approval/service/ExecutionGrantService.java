@@ -26,7 +26,8 @@ public class ExecutionGrantService {
     private static final Logger log = LoggerFactory.getLogger(ExecutionGrantService.class);
 
     /** Tools eligible for session grants. Knowledge proposal tools are intentionally excluded. */
-    private static final Set<String> GRANTABLE_TOOLS = Set.of("ssh_exec", "list_assets");
+    private static final Set<String> GRANTABLE_TOOLS =
+            Set.of("ssh_exec", "list_assets", "db_ping", "k8s_get");
 
     private static final String PROPOSE_ARCHITECTURE_UPDATE = "propose_architecture_update";
 

@@ -2,6 +2,7 @@ package com.archops.approval.service;
 
 import com.archops.approval.domain.RiskLevel;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Pattern;
 import org.springframework.stereotype.Component;
 
@@ -37,7 +38,14 @@ public class RiskClassifier {
             Pattern.compile("\\bwget\\b"),
             Pattern.compile("\\bcurl\\b.*\\|\\s*sh"));
 
+    /** Explicit read-only asset probes — never escalate via argument pattern matches. */
+    private static final Set<String> READONLY_PROBE_TOOLS =
+            Set.of("list_assets", "db_ping", "k8s_get");
+
     public RiskLevel classify(String toolName, String arguments) {
+        if (toolName != null && READONLY_PROBE_TOOLS.contains(toolName)) {
+            return RiskLevel.LOW;
+        }
         String text = ((toolName != null ? toolName : "") + " " + (arguments != null ? arguments : ""))
                 .toLowerCase();
         for (Pattern pattern : HIGH) {
