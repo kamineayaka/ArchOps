@@ -262,14 +262,23 @@ public class AssetSshDialer {
         ClientSession session = sshClient.connect(username, host, port)
                 .verify(timeoutMs)
                 .getSession();
-        if (authType == SshAuthType.PASSWORD) {
-            session.addPasswordIdentity(secret);
-        } else {
-            KeyPair keyPair = SshKeyLoader.loadPrivateKey(secret);
-            session.addPublicKeyIdentity(keyPair);
+        try {
+            if (authType == SshAuthType.PASSWORD) {
+                session.addPasswordIdentity(secret);
+            } else {
+                KeyPair keyPair = SshKeyLoader.loadPrivateKey(secret);
+                session.addPublicKeyIdentity(keyPair);
+            }
+            session.auth().verify(timeoutMs);
+            return session;
+        } catch (Exception e) {
+            try {
+                session.close(false);
+            } catch (Exception ignored) {
+                // best-effort
+            }
+            throw e;
         }
-        session.auth().verify(timeoutMs);
-        return session;
     }
 
     private AssetResponse requireHost(Long assetId) {
