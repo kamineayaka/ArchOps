@@ -2,7 +2,7 @@
 # Usage:
 #   docker compose -f compose.yaml -f compose.lowmem.yaml --env-file .env up -d --build
 #
-# Expects JAVA_OPTS in .env (see .env.example). Skip observability stack on low-RAM hosts.
+# Expects JAVA_OPTS in .env (see .env.example).
 
 services:
   postgres:

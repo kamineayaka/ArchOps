@@ -56,27 +56,6 @@ curl http://localhost/actuator/health
 - [ ] Put Nginx behind TLS (reverse proxy or cloud load balancer)
 - [ ] Restrict firewall: only expose port 80/443
 
-### 6. Observability Stack (Optional)
-
-```bash
-docker compose -f deploy/compose/compose.observability.yaml up -d
-```
-
-- Grafana: http://your-server:3000 (admin / admin)
-- Prometheus: http://your-server:9090
-
-## Kubernetes (Helm)
-
-```bash
-# Edit values
-cp deploy/helm/values.yaml deploy/helm/values-prod.yaml
-# Set secrets, ingress host, storage class
-
-helm install archops deploy/helm -f deploy/helm/values-prod.yaml -n archops --create-namespace
-```
-
-See [deploy/helm/README.md](../deploy/helm/README.md) for full Helm configuration reference.
-
 ## Backup
 
 ### PostgreSQL
@@ -113,10 +92,8 @@ Auto-generated secrets (empty env + empty file) are written once to the secrets 
 1. **Plan a maintenance window** — rotation requires backend restart and user re-login.
 2. **Back up PostgreSQL** (see [Backup](#backup)) before rotating `CREDENTIALS_MASTER_KEY`.
 3. **Generate new values** (at least 32 random bytes; base64-encoded is fine), e.g. `openssl rand -base64 32`.
-4. **Update configuration:**
-   - **Compose:** set `JWT_SECRET` and/or `CREDENTIALS_MASTER_KEY` in `deploy/compose/.env`, or edit the persisted file on the `archops_secrets` volume (`jwt.secret`, `credentials.master-key`).
-   - **Kubernetes:** update the Helm Secret / external secret manager and roll the backend Deployment.
-5. **Restart the backend** (`docker compose up -d` or `kubectl rollout restart`).
+4. **Update configuration:** set `JWT_SECRET` and/or `CREDENTIALS_MASTER_KEY` in `deploy/compose/.env`, or edit the persisted file on the `archops_secrets` volume (`jwt.secret`, `credentials.master-key`).
+5. **Restart the backend** (`docker compose up -d`).
 6. **After `CREDENTIALS_MASTER_KEY` rotation:**
    - Re-enter SSH credentials for each asset under **Assets**.
    - Re-enter API keys for each AI provider under **Settings → AI Settings** (masked keys cannot be recovered).

@@ -2,12 +2,11 @@
 
 [English](README.md) | 中文文档
 
-[![CI](https://github.com/kamineayaka/ArchOps/actions/workflows/ci.yml/badge.svg)](https://github.com/kamineayaka/ArchOps/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 **ArchOps AI Platform** 是一套面向 Linux 服务器集群的云原生智能运维控制平面，采用 B/S 架构。它提供统一的 Web 管理界面，集成 AI 辅助运维、Web SSH 终端、进程内工具注册表、知识库 RAG、分级审批工作流，以及可防篡改的审计日志。
 
-适用于从单台 VPS 到生产级集群的部署场景，方便其他开发者自行搭建与二次开发。
+适用于从单台 VPS 到小规模生产主机的部署场景，方便其他开发者自行搭建与二次开发。
 
 ## 功能模块
 
@@ -22,14 +21,13 @@
 | **审批工作流** | 按 RBAC 分级风险识别（LOW / MEDIUM / HIGH）与人工门控 |
 | **知识库** | 架构快照 + 工作日志 + pgvector RAG 语义检索 |
 | **审计中心** | 追加写入日志 + SHA-256 哈希链防篡改校验 |
-| **可观测性** | Prometheus 指标、Grafana 仪表盘、Loki 日志聚合 |
 
 ## 快速开始（Docker Compose）
 
 ### 环境要求
 
 - Docker 24+ 与 Docker Compose v2
-- 最低 2 核 CPU、4 GB 内存（启用可观测性栈建议 8 GB）
+- 最低 2 核 CPU、4 GB 内存（建议 8 GB）
 - OpenAI 兼容 API Key 或 Anthropic API Key（可在控制台「AI 设置」中配置；也可通过 `OPENAI_API_KEY` 环境变量种子迁移）
 - 前端开发需 Node.js 22+
 
@@ -46,9 +44,6 @@ cp deploy/compose/.env.example deploy/compose/.env
 
 # 启动平台
 docker compose -f deploy/compose/compose.yaml --env-file deploy/compose/.env up -d --build
-
-# （可选）启动可观测性栈
-docker compose -f deploy/compose/compose.observability.yaml up -d
 ```
 
 浏览器访问 **http://你的服务器IP**，使用默认账号登录：
@@ -66,8 +61,6 @@ docker compose -f deploy/compose/compose.observability.yaml up -d
 2. 在 **AI 运维** 页为当前对话选择 **目标资产**（保存后会自动预热连接池）。
 3. 直接用自然语言提问（如「检查磁盘使用情况」），Agent 会对已选资产执行 `ssh_exec`，无需每次指定 `assetId`。
 4. **Web 终端** 复用同一连接池；也可调用 `POST /api/ssh/pool/{assetId}/warm` 手动预热。
-
-详见 [docs/ssh-connection-pool-design.md](docs/ssh-connection-pool-design.md)。
 
 ## 本地开发
 
@@ -89,11 +82,10 @@ ArchOps/
 ├── backend/           Spring Boot 3（Java 21），模块化包结构
 ├── frontend/          Vue 3 + Naive UI + TypeScript
 ├── deploy/
-│   ├── compose/       Docker Compose（单节点 + 可观测性）
-│   └── helm/          Kubernetes Helm Chart
-├── docker/            共享 Dockerfile 与基础设施配置
-├── docs/              架构与部署文档
-└── .github/workflows/ CI 流水线
+│   ├── compose/       Docker Compose（单节点）
+│   └── scripts/       远程初始化 / 部署脚本
+├── docker/            后端 Dockerfile
+└── docs/              部署文档
 ```
 
 ## 部署方式
@@ -101,7 +93,7 @@ ArchOps/
 | 方式 | 适用场景 | 文档 |
 |---|---|---|
 | Docker Compose | 单机 / MVP / 小规模生产 | [docs/deployment.md](docs/deployment.md) |
-| Kubernetes Helm | 生产高可用（Chart 脚手架） | [deploy/helm/](deploy/helm/) |
+| 远程 VPS 脚本 | 低内存主机同步 + Compose overlay | [docs/test-deploy-server.md](docs/test-deploy-server.md) |
 
 ## 技术栈
 
@@ -110,12 +102,7 @@ ArchOps/
 | 后端 | Java 21、Spring Boot 3、Flyway、PostgreSQL + pgvector、Redis |
 | 前端 | Vue 3、Naive UI、Pinia、vue-i18n |
 | AI | OpenAI 兼容 API / Ollama，进程内 Agent 工具，pgvector RAG |
-| 部署 | Docker Compose、Nginx、Prometheus / Grafana / Loki |
-
-产品愿景与整体思想见 [docs/product-vision.md](docs/product-vision.md)。  
-主线实施计划（Living Architecture）见 [docs/mainline-implementation-plan.md](docs/mainline-implementation-plan.md)，Agent Prompt 见 [docs/mainline-implementation-prompt.md](docs/mainline-implementation-prompt.md)。  
-领域 / API / 验收见 [mainline-domain-model.md](docs/mainline-domain-model.md) · [mainline-api-contracts.md](docs/mainline-api-contracts.md) · [mainline-acceptance.md](docs/mainline-acceptance.md)。  
-更多工程架构说明见 [docs/architecture.md](docs/architecture.md)。
+| 部署 | Docker Compose、Nginx |
 
 ## 安全
 
@@ -127,10 +114,6 @@ ArchOps/
 - 修改默认管理员密码
 - 仅对外暴露 80/443，并配置 TLS
 - 按需限制 `/actuator/prometheus` 等监控端点访问
-
-## 参与贡献
-
-欢迎提交 Issue 与 Pull Request，请参阅 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
 ## 许可证
 

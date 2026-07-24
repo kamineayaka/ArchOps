@@ -75,7 +75,6 @@ curl -fsS http://8.138.118.78/actuator/health
 ## Notes for 1.6–2 GiB VPS
 
 - Always use `compose.lowmem.yaml` (script default `LOWMEM=1`).
-- Do **not** start `compose.observability.yaml` on this size of host.
 - Keep at least 4 GiB swap; builds and JVM spikes will use it.
 - Prefer loading prebuilt images if Maven/`npm` builds OOM on the VPS.
 - If Docker Hub / mirrors fail (`TLS handshake timeout`), rebuild app images from any already-cached `compose-backend` / `compose-frontend` layers:

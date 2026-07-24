@@ -16,7 +16,7 @@ Only the latest release line receives security fixes.
 
 - Change the default `admin` password immediately after first boot.
 - Set a strong `JWT_SECRET` (at least 256 bits) via environment variable.
-- Put the platform behind TLS (reverse proxy or Ingress with cert-manager).
+- Put the platform behind TLS (reverse proxy in front of Docker Compose).
 - Restrict `CORS_ALLOWED_ORIGINS` to your actual frontend origin.
 - Store SSH credentials encrypted; rotate the `CREDENTIALS_MASTER_KEY` regularly.
 - Enable the audit log hash-chain integrity check on a schedule.
