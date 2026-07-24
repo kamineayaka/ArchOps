@@ -206,7 +206,7 @@ public class AiProviderService {
         // We auto-normalize MAX → HIGH for OpenAI-compat (OpsKat rule).
     }
 
-    static ReasoningEffort normalizeReasoningEffort(ProviderType type, ReasoningEffort requested) {
+    public static ReasoningEffort normalizeReasoningEffort(ProviderType type, ReasoningEffort requested) {
         ReasoningEffort effort = requested != null ? requested : ReasoningEffort.NONE;
         if (type == ProviderType.OPENAI_COMPAT && effort == ReasoningEffort.MAX) {
             return ReasoningEffort.HIGH;
