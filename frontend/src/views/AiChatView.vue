@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { NAlert, NButton, NCard, NInput, NSelect, NSpace, NSpin, NTag, useMessage } from 'naive-ui'
 import {
@@ -13,6 +13,7 @@ import {
 import { createAiStreamClient, type AiStreamEvent, type UiContext } from '@/api/aiStream'
 import { listChatProviders, type AiProvider } from '@/api/ai-providers'
 import AiProviderSetupWizard from '@/components/ai/AiProviderSetupWizard.vue'
+import AssetNavTree from '@/components/AssetNavTree.vue'
 import { listAssets, type Asset } from '@/api/assets'
 import { listAssetGroups, type AssetGroup } from '@/api/assetGroups'
 import { listSshPool, type SshPoolEntry } from '@/api/sshPool'
@@ -37,12 +38,14 @@ interface DisplayMessage extends ChatMessage {
 const { t } = useI18n()
 const message = useMessage()
 const route = useRoute()
+const router = useRouter()
 
+/** Agent window only — never mount a Web terminal here. */
 function buildUiContext(): UiContext {
   const selectedAssetIds = [...targetAssetIds.value]
   return {
     route: typeof route.name === 'string' ? route.name : String(route.name ?? ''),
-    surface: 'ai',
+    surface: 'agent',
     selectedAssetId: selectedAssetIds[0],
     selectedAssetIds,
   }
@@ -64,8 +67,11 @@ const resolvedAssetIds = ref<number[]>([])
 const chatBottomRef = ref<HTMLDivElement | null>(null)
 const streamingIndex = ref<number | null>(null)
 const showWizard = ref(false)
+const workspacesOpen = ref(true)
+const isNarrow = ref(false)
 
 const needsProvider = computed(() => providers.value.length === 0)
+const hasAssets = computed(() => assets.value.length > 0)
 
 const providerOptions = computed(() =>
   providers.value.map((p) => ({
@@ -75,9 +81,10 @@ const providerOptions = computed(() =>
 )
 
 const assetOptions = computed(() =>
-  assets.value
-    .filter((a) => a.hasSshCredential)
-    .map((a) => ({ label: `${a.name} (${a.host})`, value: a.id })),
+  assets.value.map((a) => ({
+    label: a.host ? `${a.name} (${a.host})` : a.name,
+    value: a.id,
+  })),
 )
 
 const groupOptions = computed(() =>
@@ -377,6 +384,53 @@ async function handleNewChat() {
   resolvedAssetIds.value = []
   streamingIndex.value = null
   await ensureConversation()
+  await applyQueryAsset()
+}
+
+function parseQueryAssetId(): number | null {
+  const raw = route.query.assetId
+  const value = Array.isArray(raw) ? raw[0] : raw
+  const id = Number(value)
+  return Number.isFinite(id) && id > 0 ? id : null
+}
+
+async function applyQueryAsset() {
+  const id = parseQueryAssetId()
+  if (id == null) return
+  if (!targetAssetIds.value.includes(id)) {
+    await persistTargets([...targetAssetIds.value, id], targetGroupIds.value)
+  }
+}
+
+async function onWorkspaceAsset(asset: Asset) {
+  const next = targetAssetIds.value.includes(asset.id)
+    ? targetAssetIds.value
+    : [...targetAssetIds.value, asset.id]
+  await persistTargets(next, targetGroupIds.value)
+  if (route.query.assetId !== String(asset.id)) {
+    await router.replace({
+      name: route.name ?? 'ai',
+      query: { ...route.query, assetId: String(asset.id) },
+    })
+  }
+}
+
+async function onWorkspaceGroup(groupId: number) {
+  const next = targetGroupIds.value.includes(groupId)
+    ? targetGroupIds.value
+    : [...targetGroupIds.value, groupId]
+  await persistTargets(targetAssetIds.value, next)
+}
+
+function bindNarrowMedia() {
+  if (typeof window === 'undefined') return
+  const mq = window.matchMedia('(max-width: 900px)')
+  isNarrow.value = mq.matches
+  if (mq.matches) workspacesOpen.value = false
+  mq.addEventListener('change', (event) => {
+    isNarrow.value = event.matches
+    if (event.matches) workspacesOpen.value = false
+  })
 }
 
 watch(conversationId, async (id) => {
@@ -388,10 +442,19 @@ watch(conversationId, async (id) => {
 
 watch(messages, () => scrollToBottom(), { deep: true })
 
+watch(
+  () => route.query.assetId,
+  () => {
+    void applyQueryAsset()
+  },
+)
+
 onMounted(async () => {
+  bindNarrowMedia()
   await Promise.all([loadProviders(), loadAssets(), loadGroups(), refreshPool()])
   await ensureConversation()
   await loadTargets()
+  await applyQueryAsset()
   await loadMessages()
   try {
     await streamClient.connect()
@@ -406,157 +469,182 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="chat-page">
-    <PageHeader :title="t('ai.title')" :description="t('ai.subtitle')">
-      <template #extra>
-        <NSpace align="center" :size="12">
-          <NButton v-if="needsProvider" type="warning" @click="showWizard = true">
-            {{ t('aiSettings.startWizard') }}
-          </NButton>
-          <NSelect
-            v-model:value="targetGroupIds"
-            class="select-lg"
-            :options="groupOptions"
-            :placeholder="t('ai.targetGroups')"
-            :loading="savingTargets"
-            multiple
-            :aria-label="t('ai.targetGroups')"
-            @update:value="handleGroupTargetsChange"
-          />
-          <NSelect
-            v-model:value="targetAssetIds"
-            class="select-lg"
-            :options="assetOptions"
-            :placeholder="t('ai.targetAssets')"
-            :loading="savingTargets"
-            multiple
-            :aria-label="t('ai.targetAssets')"
-            @update:value="handleTargetsChange"
-          />
-          <NSelect
-            v-model:value="selectedProviderId"
-            class="select-md"
-            :options="providerOptions"
-            :placeholder="t('ai.provider')"
-            clearable
-            :aria-label="t('ai.provider')"
-          />
-          <NButton @click="handleNewChat">{{ t('ai.newChat') }}</NButton>
-        </NSpace>
-      </template>
-    </PageHeader>
-
-    <NSpace v-if="displayTargetAssetIds.length" size="small" class="target-tags">
-      <NTag
-        v-for="id in displayTargetAssetIds"
-        :key="id"
-        size="small"
-        :type="poolStatusByAsset.get(id)?.alive ? 'success' : 'default'"
-      >
-        {{ assets.find((a) => a.id === id)?.name ?? id }}
-        · {{ poolStatusByAsset.get(id)?.alive ? t('ai.poolConnected') : t('ai.poolIdle') }}
-      </NTag>
-    </NSpace>
-
-    <NCard class="chat-card page-card" :bordered="false">
-      <div class="chat-messages" aria-live="polite">
-        <EmptyState
-          v-if="!loading && messages.length === 0"
-          :message="t('ai.emptyTitle')"
-          :hint="t('ai.emptyHint')"
+  <div class="agent-window" data-surface="agent">
+    <aside
+      class="agent-window__workspaces"
+      :class="{ 'agent-window__workspaces--collapsed': !workspacesOpen }"
+      :aria-label="t('ai.workspaces')"
+    >
+      <div v-if="workspacesOpen" class="agent-window__tree">
+        <AssetNavTree
+          select-mode
+          title-key="ai.workspaces"
+          :selected-asset-ids="targetAssetIds"
+          @select-asset="onWorkspaceAsset"
+          @select-group="onWorkspaceGroup"
         />
-        <div
-          v-for="(msg, i) in messages"
-          :key="messageKey(msg, i)"
-          class="chat-row"
-          :class="msg.role"
-        >
-          <div class="chat-bubble">
-            <span class="chat-bubble__role">{{ roleLabel(msg.role) }}</span>
-            <div
-              v-for="(tool, ti) in msg.tools"
-              :key="`${tool.tool}-${ti}`"
-              class="tool-block"
-            >
-              <div class="tool-block__header">
-                <span class="tool-block__name">{{ tool.tool }}</span>
-                <NTag size="small" :type="tool.status === 'SUCCESS' ? 'success' : tool.status === 'RUNNING' ? 'info' : 'warning'">
-                  {{ tool.status }}
-                </NTag>
-              </div>
-              <pre v-if="tool.output" class="tool-block__output">{{ tool.output }}</pre>
-            </div>
-            <NAlert
-              v-if="msg.pendingApproval"
-              type="warning"
-              class="approval-alert"
-            >
-              <template #header>
-                {{ t('ai.approvalRequired') }} #{{ msg.pendingApproval.approvalId }}
-                ({{ msg.pendingApproval.risk }})
-              </template>
-              {{ msg.pendingApproval.message }}
-              <div class="approval-hint">{{ t('ai.approvalResume') }}</div>
-            </NAlert>
-            <NAlert
-              v-if="msg.architectureProposal"
-              type="info"
-              class="approval-alert"
-            >
-              <template #header>
-                {{ t('ai.proposalCreated') }} #{{ msg.architectureProposal.proposalId }}
-                ({{ msg.architectureProposal.status }})
-              </template>
-              <div>{{ t('ai.proposalCreatedHint') }}</div>
-              <RouterLink class="hint-link" :to="{ name: 'architecture-proposals' }">
-                {{ t('ai.openProposals') }}
-              </RouterLink>
-            </NAlert>
-            <NAlert
-              v-if="msg.workLogHint"
-              type="success"
-              class="approval-alert"
-            >
-              <template #header>
-                {{ t('ai.workLogAppended') }}
-                <span v-if="msg.workLogHint.level">({{ msg.workLogHint.level }})</span>
-              </template>
-              <RouterLink class="hint-link" :to="{ name: 'architecture-proposals' }">
-                {{ t('ai.openProposals') }}
-              </RouterLink>
-            </NAlert>
-            <!-- eslint-disable-next-line vue/no-v-html -->
-            <div
-              v-if="msg.content"
-              class="chat-bubble__content"
-              v-html="renderChatContent(msg.content)"
+        <div v-if="!hasAssets && !needsProvider" class="agent-window__empty-assets">
+          <p>{{ t('ai.emptyAssets') }}</p>
+          <NButton size="small" @click="router.push({ name: 'assets' })">{{ t('ai.goAssets') }}</NButton>
+        </div>
+      </div>
+    </aside>
+
+    <div class="agent-window__main">
+      <PageHeader :title="t('ai.title')" :description="t('ai.subtitle')">
+        <template #extra>
+          <NSpace align="center" :size="12">
+            <NButton quaternary @click="workspacesOpen = !workspacesOpen">
+              {{ t('ai.toggleWorkspaces') }}
+            </NButton>
+            <NButton v-if="needsProvider" type="warning" @click="showWizard = true">
+              {{ t('aiSettings.startWizard') }}
+            </NButton>
+            <NSelect
+              v-model:value="targetGroupIds"
+              class="select-lg"
+              :options="groupOptions"
+              :placeholder="t('ai.targetGroups')"
+              :loading="savingTargets"
+              multiple
+              :aria-label="t('ai.targetGroups')"
+              @update:value="handleGroupTargetsChange"
             />
+            <NSelect
+              v-model:value="targetAssetIds"
+              class="select-lg"
+              :options="assetOptions"
+              :placeholder="t('ai.targetAssets')"
+              :loading="savingTargets"
+              multiple
+              :aria-label="t('ai.targetAssets')"
+              @update:value="handleTargetsChange"
+            />
+            <NSelect
+              v-model:value="selectedProviderId"
+              class="select-md"
+              :options="providerOptions"
+              :placeholder="t('ai.provider')"
+              clearable
+              :aria-label="t('ai.provider')"
+            />
+            <NButton @click="handleNewChat">{{ t('ai.newChat') }}</NButton>
+          </NSpace>
+        </template>
+      </PageHeader>
+
+      <NSpace v-if="displayTargetAssetIds.length" size="small" class="target-tags">
+        <NTag
+          v-for="id in displayTargetAssetIds"
+          :key="id"
+          size="small"
+          :type="poolStatusByAsset.get(id)?.alive ? 'success' : 'default'"
+        >
+          {{ assets.find((a) => a.id === id)?.name ?? id }}
+          · {{ poolStatusByAsset.get(id)?.alive ? t('ai.poolConnected') : t('ai.poolIdle') }}
+        </NTag>
+      </NSpace>
+
+      <NCard class="chat-card page-card" :bordered="false">
+        <div class="chat-messages" aria-live="polite">
+          <EmptyState
+            v-if="!loading && messages.length === 0"
+            :message="t('ai.emptyTitle')"
+            :hint="t('ai.emptyHint')"
+          />
+          <div
+            v-for="(msg, i) in messages"
+            :key="messageKey(msg, i)"
+            class="chat-row"
+            :class="msg.role"
+          >
+            <div class="chat-bubble">
+              <span class="chat-bubble__role">{{ roleLabel(msg.role) }}</span>
+              <div
+                v-for="(tool, ti) in msg.tools"
+                :key="`${tool.tool}-${ti}`"
+                class="tool-block"
+              >
+                <div class="tool-block__header">
+                  <span class="tool-block__name">{{ tool.tool }}</span>
+                  <NTag size="small" :type="tool.status === 'SUCCESS' ? 'success' : tool.status === 'RUNNING' ? 'info' : 'warning'">
+                    {{ tool.status }}
+                  </NTag>
+                </div>
+                <pre v-if="tool.output" class="tool-block__output">{{ tool.output }}</pre>
+              </div>
+              <NAlert
+                v-if="msg.pendingApproval"
+                type="warning"
+                class="approval-alert"
+              >
+                <template #header>
+                  {{ t('ai.approvalRequired') }} #{{ msg.pendingApproval.approvalId }}
+                  ({{ msg.pendingApproval.risk }})
+                </template>
+                {{ msg.pendingApproval.message }}
+                <div class="approval-hint">{{ t('ai.approvalResume') }}</div>
+              </NAlert>
+              <NAlert
+                v-if="msg.architectureProposal"
+                type="info"
+                class="approval-alert"
+              >
+                <template #header>
+                  {{ t('ai.proposalCreated') }} #{{ msg.architectureProposal.proposalId }}
+                  ({{ msg.architectureProposal.status }})
+                </template>
+                <div>{{ t('ai.proposalCreatedHint') }}</div>
+                <RouterLink class="hint-link" :to="{ name: 'architecture-proposals' }">
+                  {{ t('ai.openProposals') }}
+                </RouterLink>
+              </NAlert>
+              <NAlert
+                v-if="msg.workLogHint"
+                type="success"
+                class="approval-alert"
+              >
+                <template #header>
+                  {{ t('ai.workLogAppended') }}
+                  <span v-if="msg.workLogHint.level">({{ msg.workLogHint.level }})</span>
+                </template>
+                <RouterLink class="hint-link" :to="{ name: 'architecture-proposals' }">
+                  {{ t('ai.openProposals') }}
+                </RouterLink>
+              </NAlert>
+              <!-- eslint-disable-next-line vue/no-v-html -->
+              <div
+                v-if="msg.content"
+                class="chat-bubble__content"
+                v-html="renderChatContent(msg.content)"
+              />
+            </div>
+          </div>
+          <div v-if="loading && streamingIndex === null" class="chat-loading">
+            <NSpin size="small" />
+            <span>{{ t('ai.sending') }}</span>
+          </div>
+          <div ref="chatBottomRef" />
+        </div>
+
+        <div class="chat-input">
+          <NInput
+            v-model:value="input"
+            type="textarea"
+            :placeholder="t('ai.placeholder')"
+            :autosize="{ minRows: 2, maxRows: 5 }"
+            class="chat-input__field"
+            @keyup.ctrl.enter="handleSend"
+          />
+          <div class="chat-input__actions">
+            <span class="chat-input__hint">{{ t('ai.sendHint') }}</span>
+            <NButton type="primary" :loading="loading" :disabled="!input.trim() || needsProvider" @click="handleSend">
+              {{ t('ai.send') }}
+            </NButton>
           </div>
         </div>
-        <div v-if="loading && streamingIndex === null" class="chat-loading">
-          <NSpin size="small" />
-          <span>{{ t('ai.sending') }}</span>
-        </div>
-        <div ref="chatBottomRef" />
-      </div>
-
-      <div class="chat-input">
-        <NInput
-          v-model:value="input"
-          type="textarea"
-          :placeholder="t('ai.placeholder')"
-          :autosize="{ minRows: 2, maxRows: 5 }"
-          class="chat-input__field"
-          @keyup.ctrl.enter="handleSend"
-        />
-        <div class="chat-input__actions">
-          <span class="chat-input__hint">{{ t('ai.sendHint') }}</span>
-          <NButton type="primary" :loading="loading" :disabled="!input.trim() || needsProvider" @click="handleSend">
-            {{ t('ai.send') }}
-          </NButton>
-        </div>
-      </div>
-    </NCard>
+      </NCard>
+    </div>
 
     <AiProviderSetupWizard
       v-model:show="showWizard"
@@ -567,11 +655,58 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.chat-page {
+.agent-window {
   display: flex;
-  flex-direction: column;
+  gap: 0;
   height: calc(100vh - var(--co-header-height) - var(--co-space-6) * 2);
   min-height: 480px;
+  margin: calc(var(--co-space-6) * -1);
+  width: calc(100% + var(--co-space-6) * 2);
+}
+
+.agent-window__workspaces {
+  width: 260px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--co-border);
+  background: var(--co-bg-page);
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  transition: width 0.15s ease;
+}
+
+.agent-window__workspaces--collapsed {
+  width: 0;
+  border-right: none;
+  overflow: hidden;
+}
+
+.agent-window__tree {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.agent-window__empty-assets {
+  padding: var(--co-space-3) var(--co-space-4);
+  border-top: 1px solid var(--co-border);
+  font-size: 0.8125rem;
+  color: var(--co-text-secondary);
+  line-height: 1.45;
+}
+
+.agent-window__empty-assets p {
+  margin: 0 0 var(--co-space-2);
+}
+
+.agent-window__main {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: var(--co-space-6);
 }
 
 .target-tags {
@@ -645,6 +780,15 @@ onBeforeUnmount(() => {
   line-height: 1.6;
   color: var(--co-text);
   word-break: break-word;
+}
+
+@media (max-width: 900px) {
+  .agent-window__workspaces:not(.agent-window__workspaces--collapsed) {
+    position: absolute;
+    z-index: 5;
+    height: 100%;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  }
 }
 
 .tool-block {
@@ -728,5 +872,13 @@ onBeforeUnmount(() => {
 .chat-input__hint {
   font-size: 0.75rem;
   color: var(--co-text-muted);
+}
+
+.select-lg {
+  min-width: 160px;
+}
+
+.select-md {
+  min-width: 140px;
 }
 </style>

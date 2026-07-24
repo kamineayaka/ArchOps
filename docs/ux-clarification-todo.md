@@ -127,12 +127,12 @@
 
 | ID | 任务 | 实现要点 | 完成标准 | 状态 |
 |----|------|----------|----------|------|
-| **UX-LAYOUT-01** | 文档与文案纠偏 | 改 `workbench-gap-audit` §4、本文件、prompt、导航 i18n：操作台 / Agent 窗口；删除「侧轨=Agent Window」表述 | 文档无矛盾表述 | |
-| **UX-LAYOUT-02** | 操作台命名与引导 | `/terminal` 导航称「操作台」或副标题标明；右侧 AI 轨文案为「AI 助手 / 对话」而非「Agent 窗口」；默认策略可保留「进入终端展开轨」 | 用户能分辨「这是操作台」 | |
-| **UX-LAYOUT-03** | Agent 窗口布局壳 | 新页或改造 `/ai`：`左 AssetNavTree（Workspaces）+ 右 Chat`；**禁止**挂载 xterm；选中资产写入 Agent 上下文（已有 uiContext/target 则接上） | 无终端 DOM；左选资产右对话可用 | |
-| **UX-LAYOUT-04** | 导航与入口 | 顶栏/侧栏：「操作台」「Agent」并列；操作台内「打开 AI 轨」≠ 跳转 Agent 窗口；可选「在 Agent 中打开」带上当前资产 | 两入口可达；深链 `?assetId=` | |
-| **UX-LAYOUT-05** | 响应式与空态 | 窄屏：Agent 窗口左树可折叠；无资产/无 Provider 引导与操作台一致（向导链到设置） | 移动端可对话；空态不白屏 | |
-| **UX-LAYOUT-06** | 验收 | 剧本 + 勾选；截图或文字对照 §2 ASCII | 两人能说清两个窗口区别 | |
+| **UX-LAYOUT-01** | 文档与文案纠偏 | 改 `workbench-gap-audit` §4、本文件、prompt、导航 i18n：操作台 / Agent 窗口；删除「侧轨=Agent Window」表述 | 文档无矛盾表述 | [x] |
+| **UX-LAYOUT-02** | 操作台命名与引导 | `/terminal` 导航称「操作台」或副标题标明；右侧 AI 轨文案为「AI 助手 / 对话」而非「Agent 窗口」；默认策略可保留「进入终端展开轨」 | 用户能分辨「这是操作台」 | [x] |
+| **UX-LAYOUT-03** | Agent 窗口布局壳 | 新页或改造 `/ai`：`左 AssetNavTree（Workspaces）+ 右 Chat`；**禁止**挂载 xterm；选中资产写入 Agent 上下文（已有 uiContext/target 则接上） | 无终端 DOM；左选资产右对话可用 | [x] |
+| **UX-LAYOUT-04** | 导航与入口 | 顶栏/侧栏：「操作台」「Agent」并列；操作台内「打开 AI 轨」≠ 跳转 Agent 窗口；可选「在 Agent 中打开」带上当前资产 | 两入口可达；深链 `?assetId=` | [x] |
+| **UX-LAYOUT-05** | 响应式与空态 | 窄屏：Agent 窗口左树可折叠；无资产/无 Provider 引导与操作台一致（向导链到设置） | 移动端可对话；空态不白屏 | [x] |
+| **UX-LAYOUT-06** | 验收 | 剧本 + 勾选；截图或文字对照 §2 ASCII | 两人能说清两个窗口区别 | [x] |
 
 **UX-LAYOUT 不做：** 在 Agent 窗口加终端；重做整站 IA；SFTP/分屏。
 
@@ -175,3 +175,4 @@
 |------|------|
 | 2026-07-24 | 初版：用户澄清 AI 配置流 + 操作台/Agent 窗口隐喻；UX-AI / UX-LAYOUT 任务表 |
 | 2026-07-24 | UX-AI-01…06 交付：门控获取模型、AiModelInfo/model-defaults、选模型/blur 回填 |
+| 2026-07-24 | UX-LAYOUT-01…06 交付：操作台/Agent 并列；Agent 窗口左树右对话无终端；深链 `?assetId=` |

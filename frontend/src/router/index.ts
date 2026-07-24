@@ -52,6 +52,10 @@ const router = createRouter({
           meta: { titleKey: 'nav.ai', descKey: 'ai.subtitle' },
         },
         {
+          path: 'agent',
+          redirect: { name: 'ai' },
+        },
+        {
           path: 'settings/ai',
           name: 'ai-settings',
           component: () => import('@/views/AiProvidersView.vue'),

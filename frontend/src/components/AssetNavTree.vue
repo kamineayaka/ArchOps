@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { h, onMounted, ref } from 'vue'
+import { computed, h, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { NEmpty, NIcon, NSpin, NTree, useMessage, type TreeOption } from 'naive-ui'
@@ -7,6 +7,25 @@ import { DesktopOutline, FolderOutline, ServerOutline } from '@vicons/ionicons5'
 import { getAssetGroup, listAssetGroups, type AssetGroup } from '@/api/assetGroups'
 import { listAssets, type Asset } from '@/api/assets'
 import { openAsset } from '@/assetTypes/openAsset'
+
+const props = withDefaults(
+  defineProps<{
+    /** Agent window: emit selection instead of opening connectAction / terminal. */
+    selectMode?: boolean
+    titleKey?: string
+    selectedAssetIds?: number[]
+  }>(),
+  {
+    selectMode: false,
+    titleKey: 'workbench.assetTree',
+    selectedAssetIds: () => [],
+  },
+)
+
+const emit = defineEmits<{
+  'select-asset': [asset: Asset]
+  'select-group': [groupId: number]
+}>()
 
 const { t } = useI18n()
 const router = useRouter()
@@ -16,6 +35,10 @@ const loading = ref(false)
 const treeData = ref<TreeOption[]>([])
 const expandedKeys = ref<Array<string | number>>([])
 const assetsById = ref<Map<number, Asset>>(new Map())
+
+const selectedKeys = computed(() =>
+  (props.selectedAssetIds ?? []).map((id) => `asset:${id}`),
+)
 
 function groupKey(id: number) {
   return `group:${id}`
@@ -55,7 +78,6 @@ async function loadTree() {
       children: group.memberCount > 0 ? undefined : [],
     }))
 
-    // Prefetch members for groups so the tree is navigable without extra clicks when small
     await Promise.all(
       groups.map(async (group) => {
         if (group.memberCount === 0) return
@@ -98,9 +120,12 @@ function handleSelect(keys: Array<string | number>) {
   const key = String(keys[0] ?? '')
   if (key.startsWith('group:')) {
     const id = Number(key.slice('group:'.length))
-    if (Number.isFinite(id)) {
-      void router.push({ name: 'asset-groups', query: { groupId: String(id) } })
+    if (!Number.isFinite(id)) return
+    if (props.selectMode) {
+      emit('select-group', id)
+      return
     }
+    void router.push({ name: 'asset-groups', query: { groupId: String(id) } })
     return
   }
   if (key.startsWith('asset:')) {
@@ -108,22 +133,35 @@ function handleSelect(keys: Array<string | number>) {
     if (!Number.isFinite(id)) return
     const asset = assetsById.value.get(id)
     if (!asset) {
-      void router.push({ name: 'assets' })
+      if (!props.selectMode) void router.push({ name: 'assets' })
+      return
+    }
+    if (props.selectMode) {
+      emit('select-asset', asset)
       return
     }
     openAsset(asset, { router, message, t })
   }
 }
 
+watch(
+  () => props.selectedAssetIds,
+  () => {
+    // keep highlight in sync when Agent targets change externally
+  },
+)
+
 onMounted(() => {
   void loadTree()
 })
+
+defineExpose({ reload: loadTree })
 </script>
 
 <template>
   <div class="asset-nav-tree">
     <div class="asset-nav-tree__header">
-      <span class="asset-nav-tree__title">{{ t('workbench.assetTree') }}</span>
+      <span class="asset-nav-tree__title">{{ t(titleKey) }}</span>
     </div>
     <div class="asset-nav-tree__body">
       <NSpin v-if="loading" size="small" class="asset-nav-tree__spin" />
@@ -138,6 +176,7 @@ onMounted(() => {
         selectable
         :data="treeData"
         :expanded-keys="expandedKeys"
+        :selected-keys="selectMode ? selectedKeys : undefined"
         :render-prefix="renderPrefix"
         @update:expanded-keys="(keys) => (expandedKeys = keys)"
         @update:selected-keys="handleSelect"

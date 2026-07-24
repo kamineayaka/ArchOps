@@ -212,8 +212,17 @@ function handleCloseTab(assetId: number) {
   }
 }
 
-function openAgentRail() {
+function openAiRail() {
   setOpen(true)
+}
+
+function openInAgent() {
+  const id = activeAssetId.value
+  if (id != null) {
+    void router.push({ name: 'ai', query: { assetId: String(id) } })
+  } else {
+    void router.push({ name: 'ai' })
+  }
 }
 
 function tickElapsed() {
@@ -285,9 +294,12 @@ onBeforeUnmount(() => {
         </button>
       </button>
       <div class="terminal-ide__tab-spacer" />
-      <NButton size="small" quaternary @click="openAgentRail">
+      <NButton size="small" quaternary @click="openAiRail">
         <template #icon><NIcon :component="ChatbubbleEllipsesOutline" /></template>
-        {{ t('terminal.openAgent') }}
+        {{ t('terminal.openAiRail') }}
+      </NButton>
+      <NButton size="small" quaternary @click="openInAgent">
+        {{ t('terminal.openInAgent') }}
       </NButton>
     </div>
 

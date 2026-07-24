@@ -93,8 +93,8 @@ const menuOptions = computed(() => {
       key: 'architecture-proposals',
       icon: () => h(NIcon, null, { default: () => h(GitPullRequestOutline) }),
     },
-    { label: t('nav.ai'), key: 'ai', icon: () => h(NIcon, null, { default: () => h(ChatbubbleEllipsesOutline) }) },
     { label: t('nav.terminal'), key: 'terminal', icon: () => h(NIcon, null, { default: () => h(DesktopOutline) }) },
+    { label: t('nav.ai'), key: 'ai', icon: () => h(NIcon, null, { default: () => h(ChatbubbleEllipsesOutline) }) },
     { label: t('nav.approvals'), key: 'approvals', icon: () => h(NIcon, null, { default: () => h(ShieldCheckmarkOutline) }) },
     { label: t('nav.audit'), key: 'audit', icon: () => h(NIcon, null, { default: () => h(DocumentTextOutline) }) },
   ]
@@ -111,6 +111,7 @@ const menuOptions = computed(() => {
 const activeKey = computed(() => {
   const name = route.name as string
   if (name === 'terminal') return 'terminal'
+  if (name === 'ai' || name === 'agent') return 'ai'
   if (name === 'ai-settings') return 'ai-settings'
   return name
 })

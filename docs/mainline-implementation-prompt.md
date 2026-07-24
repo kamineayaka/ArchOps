@@ -130,7 +130,7 @@ HIGH 默认不可 grant。仅覆盖执行类工具（ssh_exec 等），不影响
 
 必读：docs/opskat-learning.md 前端信息架构；计划 ML-8-06。
 
-请实现：资产树导航 + 可钉住 AI 侧轨（Terminal/Assets/Architecture 旁可用同一 Agent 会话）。
+请实现：资产树导航 + 可钉住 AI 侧轨（操作台 Terminal/Assets/Architecture 旁可用同一对话会话；侧轨 ≠ Agent 窗口）。
 复用现有 AI API/WS；移动端降级抽屉/全页。
 不要移植 OpsKat 的 Wails Tab 或 RDP/VNC。
 

@@ -210,6 +210,17 @@ async function handleNewChat() {
   await ensureConversation()
 }
 
+/** Jump to Agent window (not the Ops Console AI rail). */
+function openAgentWindow() {
+  const raw = route.params.assetId
+  const id = Number(Array.isArray(raw) ? raw[0] : raw)
+  if (Number.isFinite(id) && id > 0) {
+    void router.push({ name: 'ai', query: { assetId: String(id) } })
+  } else {
+    void router.push({ name: 'ai' })
+  }
+}
+
 function handleClose() {
   setOpen(false)
 }
@@ -275,7 +286,7 @@ onBeforeUnmount(() => {
               circle
               size="tiny"
               :aria-label="t('workbench.openFullAi')"
-              @click="router.push({ name: 'ai' })"
+              @click="openAgentWindow"
             >
               <template #icon><NIcon :component="OpenOutline" /></template>
             </NButton>
