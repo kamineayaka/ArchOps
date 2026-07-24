@@ -100,7 +100,9 @@ public class AssetConnectionTestService {
                     authType,
                     secret,
                     jumps,
-                    readDatabase(asset.getMetadata()));
+                    readMeta(asset.getMetadata(), "database"),
+                    readMeta(asset.getMetadata(), "k8sMode"),
+                    readMeta(asset.getMetadata(), "apiServerUrl"));
         }
         return new ConnectivityContext(
                 request.assetId(),
@@ -110,17 +112,19 @@ public class AssetConnectionTestService {
                 request.authType(),
                 request.secret(),
                 request.jumpAssetIds(),
-                request.database());
+                request.database(),
+                request.k8sMode(),
+                request.apiServerUrl());
     }
 
-    private String readDatabase(String metadata) {
+    private String readMeta(String metadata, String field) {
         if (metadata == null || metadata.isBlank()) {
             return null;
         }
         try {
             JsonNode node = objectMapper.readTree(metadata);
-            JsonNode database = node.get("database");
-            return database != null && !database.isNull() ? database.asText(null) : null;
+            JsonNode value = node.get(field);
+            return value != null && !value.isNull() ? value.asText(null) : null;
         } catch (Exception e) {
             return null;
         }

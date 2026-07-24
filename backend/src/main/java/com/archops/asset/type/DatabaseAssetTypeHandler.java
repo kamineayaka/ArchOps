@@ -64,12 +64,6 @@ public class DatabaseAssetTypeHandler extends AbstractAssetTypeHandler {
             int port = ctx.port() != null && ctx.port() > 0 ? ctx.port() : defaultPort();
             String host = ctx.host().trim();
 
-            // Jump-through TCP is deferred; still allow saving jump ids for later Agent use.
-            if (!ctx.jumpsOrEmpty().isEmpty()) {
-                // Probe the jump SSH asset instead of failing hard — operator still gets signal.
-                // Direct TCP to target is attempted first when reachable; otherwise report jump note.
-            }
-
             tcpProbe(host, port);
 
             if (StringUtils.hasText(ctx.username()) && StringUtils.hasText(ctx.secret())) {
@@ -77,8 +71,11 @@ public class DatabaseAssetTypeHandler extends AbstractAssetTypeHandler {
                 return new TestConnectionResponse(
                         true, elapsedMs(started), "TCP + JDBC 探活成功");
             }
+            String jumpNote = ctx.jumpsOrEmpty().isEmpty()
+                    ? ""
+                    : "（已记录跳板，当前探活为直连）";
             return new TestConnectionResponse(
-                    true, elapsedMs(started), "TCP 可达（未提供账号，跳过 JDBC 认证）");
+                    true, elapsedMs(started), "TCP 可达（未提供账号，跳过 JDBC 认证）" + jumpNote);
         } catch (BusinessException e) {
             return new TestConnectionResponse(false, elapsedMs(started), e.getMessage());
         } catch (Exception e) {

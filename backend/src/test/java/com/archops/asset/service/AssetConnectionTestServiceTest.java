@@ -21,6 +21,7 @@ import com.archops.asset.repository.AssetRepository;
 import com.archops.asset.repository.SshCredentialRepository;
 import com.archops.asset.type.AssetTypeRegistry;
 import com.archops.asset.type.DatabaseAssetTypeHandler;
+import com.archops.asset.type.K8sAssetTypeHandler;
 import com.archops.asset.type.ServerAssetTypeHandler;
 import com.archops.common.security.CredentialCipher;
 import com.archops.terminal.pool.AssetSshDialer;
@@ -45,7 +46,8 @@ class AssetConnectionTestServiceTest {
         CredentialCipher cipher = mock(CredentialCipher.class);
         AssetTypeRegistry registry = new AssetTypeRegistry(List.of(
                 new ServerAssetTypeHandler(dialer),
-                new DatabaseAssetTypeHandler()));
+                new DatabaseAssetTypeHandler(),
+                new K8sAssetTypeHandler(dialer)));
         service = new AssetConnectionTestService(
                 registry, assetRepository, credentialRepository, cipher, new ObjectMapper());
     }
@@ -62,7 +64,7 @@ class AssetConnectionTestServiceTest {
         when(dialer.dial(9L)).thenReturn(session);
 
         TestConnectionResponse res = service.test(new TestConnectionRequest(
-                9L, null, null, null, null, null, null, null, null));
+                9L, null, null, null, null, null, null, null, null, null, null));
 
         assertTrue(res.ok());
         verify(dialer).dial(9L);
@@ -77,7 +79,7 @@ class AssetConnectionTestServiceTest {
                 .thenReturn(session);
 
         TestConnectionResponse res = service.test(new TestConnectionRequest(
-                null, AssetKind.SERVER, "10.0.0.1", 22, "root", SshAuthType.PASSWORD, "secret", List.of(), null));
+                null, AssetKind.SERVER, "10.0.0.1", 22, "root", SshAuthType.PASSWORD, "secret", List.of(), null, null, null));
 
         assertTrue(res.ok());
         verify(dialer).dialEphemeral(
@@ -88,7 +90,7 @@ class AssetConnectionTestServiceTest {
     @Test
     void returnsFailureWhenHostMissing() {
         TestConnectionResponse res = service.test(new TestConnectionRequest(
-                null, AssetKind.SERVER, "  ", 22, "root", SshAuthType.PASSWORD, "secret", null, null));
+                null, AssetKind.SERVER, "  ", 22, "root", SshAuthType.PASSWORD, "secret", null, null, null, null));
         assertFalse(res.ok());
     }
 
@@ -106,7 +108,7 @@ class AssetConnectionTestServiceTest {
             acceptor.start();
 
             TestConnectionResponse res = service.test(new TestConnectionRequest(
-                    null, AssetKind.DATABASE, "127.0.0.1", port, null, null, null, null, null));
+                    null, AssetKind.DATABASE, "127.0.0.1", port, null, null, null, null, null, null, null));
             assertTrue(res.ok(), res.message());
             assertTrue(res.message().contains("TCP"));
         }

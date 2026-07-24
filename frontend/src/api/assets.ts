@@ -32,6 +32,8 @@ export interface AssetRequest {
   secret?: string
   jumpAssetIds?: number[]
   database?: string
+  k8sMode?: string
+  apiServerUrl?: string
 }
 
 export interface TestConnectionRequest {
@@ -44,6 +46,8 @@ export interface TestConnectionRequest {
   secret?: string
   jumpAssetIds?: number[]
   database?: string
+  k8sMode?: string
+  apiServerUrl?: string
 }
 
 export interface TestConnectionResponse {

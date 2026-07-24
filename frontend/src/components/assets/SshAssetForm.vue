@@ -32,6 +32,8 @@ export interface AssetCreateFormModel {
   groupId: number | null
   description: string
   database: string
+  k8sMode: 'API_SERVER' | 'JUMP_KUBECTL'
+  apiServerUrl: string
   username: string
   authType: 'PASSWORD' | 'PRIVATE_KEY'
   secret: string
@@ -66,6 +68,8 @@ const form = ref<AssetCreateFormModel>({
   groupId: null,
   description: '',
   database: '',
+  k8sMode: 'API_SERVER',
+  apiServerUrl: '',
   username: 'root',
   authType: 'PASSWORD',
   secret: '',
@@ -82,10 +86,16 @@ const kindOptions = computed(() =>
 const selectedType = computed(() => getAssetType(form.value.kind))
 const showSsh = computed(() => selectedType.value?.authMode === 'ssh')
 const showPasswordAuth = computed(() => selectedType.value?.authMode === 'password')
-const showAuth = computed(() => showSsh.value || showPasswordAuth.value)
+const showTokenAuth = computed(
+  () => selectedType.value?.authMode === 'token' && form.value.k8sMode === 'API_SERVER',
+)
+const showAuth = computed(() => showSsh.value || showPasswordAuth.value || showTokenAuth.value)
 const showDatabaseName = computed(() => Boolean(selectedType.value?.showDatabaseName))
+const showK8sMode = computed(() => Boolean(selectedType.value?.showK8sMode))
 const supportsTest = computed(() => Boolean(selectedType.value?.supportsTest))
-const showJump = computed(() => showAuth.value)
+const showJump = computed(
+  () => showSsh.value || showPasswordAuth.value || (showK8sMode.value && form.value.k8sMode === 'JUMP_KUBECTL'),
+)
 
 const groupOptions = computed(() =>
   groups.value.map((g) => ({
@@ -119,6 +129,22 @@ watch(
       form.value.authType = 'PASSWORD'
     } else if (def?.authMode === 'ssh') {
       form.value.username = 'root'
+    } else if (def?.authMode === 'token') {
+      form.value.username = 'token'
+      form.value.authType = 'PASSWORD'
+      form.value.k8sMode = 'API_SERVER'
+    }
+  },
+)
+
+watch(
+  () => form.value.k8sMode,
+  (mode) => {
+    if (mode === 'JUMP_KUBECTL') {
+      connectionMode.value = 'jump'
+    } else if (showK8sMode.value) {
+      connectionMode.value = 'direct'
+      form.value.jumpAssetIds = []
     }
   },
 )
@@ -135,19 +161,41 @@ function validateBasics(): boolean {
     message.warning(t('assets.nameRequired'))
     return false
   }
-  if (selectedType.value?.showHost !== false && !form.value.host.trim()) {
-    message.warning(t('assets.hostRequired'))
-    return false
+  if (selectedType.value?.showHost !== false) {
+    const hostOptional =
+      showK8sMode.value &&
+      (form.value.k8sMode === 'JUMP_KUBECTL' || form.value.apiServerUrl.trim())
+    if (!hostOptional && !form.value.host.trim()) {
+      message.warning(t('assets.hostRequired'))
+      return false
+    }
   }
   if (showAuth.value) {
-    if (!form.value.username.trim()) {
-      message.warning(t('assets.usernameRequired'))
+    if (showTokenAuth.value) {
+      if (!form.value.secret.trim()) {
+        message.warning(t('assets.k8sTokenRequired'))
+        return false
+      }
+    } else {
+      if (!form.value.username.trim()) {
+        message.warning(t('assets.usernameRequired'))
+        return false
+      }
+      if (!form.value.secret.trim()) {
+        message.warning(t('assets.secretRequired'))
+        return false
+      }
+    }
+  }
+  if (showK8sMode.value && form.value.k8sMode === 'API_SERVER') {
+    if (!form.value.apiServerUrl.trim() && !form.value.host.trim()) {
+      message.warning(t('assets.k8sApiRequired'))
       return false
     }
-    if (!form.value.secret.trim()) {
-      message.warning(t('assets.secretRequired'))
-      return false
-    }
+  }
+  if (showK8sMode.value && form.value.k8sMode === 'JUMP_KUBECTL' && form.value.jumpAssetIds.length === 0) {
+    message.warning(t('assets.k8sJumpRequired'))
+    return false
   }
   return true
 }
@@ -164,10 +212,18 @@ function toPayload(): AssetRequest {
   if (showDatabaseName.value && form.value.database.trim()) {
     payload.database = form.value.database.trim()
   }
+  if (showK8sMode.value) {
+    payload.k8sMode = form.value.k8sMode
+    if (form.value.apiServerUrl.trim()) {
+      payload.apiServerUrl = form.value.apiServerUrl.trim()
+    }
+  }
   if (showAuth.value) {
-    payload.username = form.value.username.trim()
+    payload.username = form.value.username.trim() || (showTokenAuth.value ? 'token' : undefined)
     payload.authType = showSsh.value ? form.value.authType : 'PASSWORD'
     payload.secret = form.value.secret
+  }
+  if (showJump.value) {
     payload.jumpAssetIds = form.value.jumpAssetIds
   }
   return payload
@@ -179,13 +235,15 @@ async function handleTest() {
   try {
     const res = await testAssetConnection({
       kind: form.value.kind,
-      host: form.value.host.trim(),
+      host: form.value.host.trim() || undefined,
       port: form.value.port ?? selectedType.value?.defaultPort ?? undefined,
       username: form.value.username.trim() || undefined,
       authType: showSsh.value ? form.value.authType : 'PASSWORD',
       secret: form.value.secret || undefined,
       jumpAssetIds: form.value.jumpAssetIds,
       database: form.value.database.trim() || undefined,
+      k8sMode: showK8sMode.value ? form.value.k8sMode : undefined,
+      apiServerUrl: form.value.apiServerUrl.trim() || undefined,
     })
     if (res.success && res.data?.ok) {
       message.success(`${res.data.message} (${res.data.latencyMs}ms)`)
@@ -237,10 +295,17 @@ async function handleSubmit() {
         :placeholder="t('assets.groupPlaceholder')"
       />
     </NFormItem>
-    <NFormItem v-if="selectedType?.showHost !== false" :label="t('assets.host')" required>
+    <NFormItem
+      v-if="selectedType?.showHost !== false && !(showK8sMode && form.k8sMode === 'JUMP_KUBECTL')"
+      :label="t('assets.host')"
+      :required="!(showK8sMode && form.apiServerUrl)"
+    >
       <NInput v-model:value="form.host" :placeholder="t('assets.hostPlaceholder')" />
     </NFormItem>
-    <NFormItem v-if="selectedType?.showPort !== false" :label="t('assets.port')">
+    <NFormItem
+      v-if="selectedType?.showPort !== false && !(showK8sMode && form.k8sMode === 'JUMP_KUBECTL')"
+      :label="t('assets.port')"
+    >
       <NInputNumber v-model:value="form.port" :min="1" :max="65535" class="full-width" />
     </NFormItem>
 
@@ -255,14 +320,36 @@ async function handleSubmit() {
       </NSpace>
     </NFormItem>
 
-    <template v-if="showAuth">
-      <NFormItem v-if="showJump" :label="t('assets.connectionMode')">
+    <template v-if="showK8sMode">
+      <NFormItem :label="t('assets.k8sMode')">
+        <NRadioGroup v-model:value="form.k8sMode">
+          <NRadioButton value="API_SERVER">{{ t('assets.k8sModeApi') }}</NRadioButton>
+          <NRadioButton value="JUMP_KUBECTL">{{ t('assets.k8sModeJump') }}</NRadioButton>
+        </NRadioGroup>
+      </NFormItem>
+      <NFormItem v-if="form.k8sMode === 'API_SERVER'" :label="t('assets.apiServerUrl')">
+        <NSpace vertical :size="4" class="full-width">
+          <NInput
+            v-model:value="form.apiServerUrl"
+            :placeholder="t('assets.apiServerUrlPlaceholder')"
+            spellcheck="false"
+          />
+          <span class="field-hint">{{ t('assets.apiServerUrlHint') }}</span>
+        </NSpace>
+      </NFormItem>
+    </template>
+
+    <template v-if="showAuth || showJump">
+      <NFormItem v-if="showJump && !showK8sMode" :label="t('assets.connectionMode')">
         <NRadioGroup v-model:value="connectionMode">
           <NRadioButton value="direct">{{ t('assets.directConnect') }}</NRadioButton>
           <NRadioButton value="jump">{{ t('assets.jumpConnect') }}</NRadioButton>
         </NRadioGroup>
       </NFormItem>
-      <NFormItem v-if="showJump && connectionMode === 'jump'" :label="t('assets.jumpChain')">
+      <NFormItem
+        v-if="showJump && (connectionMode === 'jump' || form.k8sMode === 'JUMP_KUBECTL')"
+        :label="t('assets.jumpChain')"
+      >
         <NSpace vertical :size="4" class="full-width">
           <NSelect
             v-model:value="form.jumpAssetIds"
@@ -273,11 +360,19 @@ async function handleSubmit() {
             :placeholder="t('assets.jumpChainPlaceholder')"
           />
           <span class="field-hint">{{
-            showPasswordAuth ? t('assets.jumpChainDbHint') : t('assets.jumpChainHint')
+            showK8sMode
+              ? t('assets.jumpChainK8sHint')
+              : showPasswordAuth
+                ? t('assets.jumpChainDbHint')
+                : t('assets.jumpChainHint')
           }}</span>
         </NSpace>
       </NFormItem>
-      <NFormItem :label="showPasswordAuth ? t('assets.dbUser') : t('assets.sshUser')" required>
+      <NFormItem
+        v-if="showAuth && !showTokenAuth"
+        :label="showPasswordAuth ? t('assets.dbUser') : t('assets.sshUser')"
+        required
+      >
         <NInput v-model:value="form.username" spellcheck="false" />
       </NFormItem>
       <NFormItem v-if="showSsh" :label="t('assets.authType')">
@@ -290,8 +385,13 @@ async function handleSubmit() {
         />
       </NFormItem>
       <NFormItem
+        v-if="showAuth"
         :label="
-          showSsh && form.authType === 'PRIVATE_KEY' ? t('assets.privateKey') : t('assets.password')
+          showTokenAuth
+            ? t('assets.k8sToken')
+            : showSsh && form.authType === 'PRIVATE_KEY'
+              ? t('assets.privateKey')
+              : t('assets.password')
         "
         required
       >
@@ -301,9 +401,11 @@ async function handleSubmit() {
           :rows="showSsh && form.authType === 'PRIVATE_KEY' ? 4 : undefined"
           show-password-on="click"
           :placeholder="
-            showSsh && form.authType === 'PRIVATE_KEY'
-              ? t('assets.privateKeyPlaceholder')
-              : t('assets.passwordPlaceholder')
+            showTokenAuth
+              ? t('assets.k8sTokenPlaceholder')
+              : showSsh && form.authType === 'PRIVATE_KEY'
+                ? t('assets.privateKeyPlaceholder')
+                : t('assets.passwordPlaceholder')
           "
         />
       </NFormItem>

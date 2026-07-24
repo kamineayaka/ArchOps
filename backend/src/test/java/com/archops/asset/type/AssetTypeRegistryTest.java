@@ -21,20 +21,22 @@ class AssetTypeRegistryTest {
                 new ClusterAssetTypeHandler(),
                 new ServiceAssetTypeHandler(),
                 new NetworkAssetTypeHandler(),
-                new DatabaseAssetTypeHandler()));
+                new DatabaseAssetTypeHandler(),
+                new K8sAssetTypeHandler(mock(AssetSshDialer.class))));
     }
 
     @Test
     void discoversServerAndDatabaseHandlers() {
         assertThat(registry.findRequired("SERVER")).isInstanceOf(ServerAssetTypeHandler.class);
         assertThat(registry.findRequired("DATABASE")).isInstanceOf(DatabaseAssetTypeHandler.class);
+        assertThat(registry.findRequired("K8S")).isInstanceOf(K8sAssetTypeHandler.class);
 
         assertThat(registry.find("SERVER")).isPresent();
         assertThat(registry.find("DATABASE")).isPresent();
 
         assertThat(registry.all())
                 .extracting(AssetTypeHandler::type)
-                .contains("SERVER", "DATABASE", "CLUSTER", "SERVICE", "NETWORK");
+                .contains("SERVER", "DATABASE", "CLUSTER", "SERVICE", "NETWORK", "K8S");
     }
 
     @Test
@@ -60,6 +62,13 @@ class AssetTypeRegistryTest {
                     assertThat(d.type()).isEqualTo("DATABASE");
                     assertThat(d.connectAction()).isEqualTo("QUERY");
                 });
+    }
+
+    @Test
+    void k8sDefaultsAndConnectAction() {
+        AssetTypeHandler k8s = registry.findRequired("K8S");
+        assertThat(k8s.defaultPort()).isEqualTo(6443);
+        assertThat(k8s.connectAction()).isEqualTo(ConnectAction.PAGE);
     }
 
     @Test

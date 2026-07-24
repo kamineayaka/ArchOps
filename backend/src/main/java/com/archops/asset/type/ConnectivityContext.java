@@ -16,7 +16,11 @@ public record ConnectivityContext(
         String secret,
         List<Long> jumpAssetIds,
         /** Optional logical database / schema name (DATABASE assets). */
-        String database) {
+        String database,
+        /** K8S: API_SERVER or JUMP_KUBECTL. */
+        String k8sMode,
+        /** K8S API server URL when mode is API_SERVER. */
+        String apiServerUrl) {
 
     public List<Long> jumpsOrEmpty() {
         return jumpAssetIds != null ? jumpAssetIds : List.of();

@@ -1,7 +1,7 @@
 export type AssetConnectAction = 'terminal' | 'query' | 'page' | 'none'
 
 /** How credentials are collected for this type (registry-driven, not switch(kind) in views). */
-export type AssetAuthMode = 'ssh' | 'password' | 'none'
+export type AssetAuthMode = 'ssh' | 'password' | 'token' | 'none'
 
 export interface AssetTypeDefinition {
   kind: string
@@ -13,6 +13,8 @@ export interface AssetTypeDefinition {
   showPort: boolean
   /** Collect optional logical database / schema name. */
   showDatabaseName?: boolean
+  /** K8S: show API vs jump+kubectl mode. */
+  showK8sMode?: boolean
   /** Whether the create form / list can run type-owned test-connection. */
   supportsTest?: boolean
 }
@@ -26,6 +28,7 @@ export function registerAssetType(def: AssetTypeDefinition): void {
   registry.set(def.kind, {
     supportsTest: false,
     showDatabaseName: false,
+    showK8sMode: false,
     ...def,
   })
 }

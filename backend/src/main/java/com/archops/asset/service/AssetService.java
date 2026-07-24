@@ -143,7 +143,12 @@ public class AssetService {
         String host = request.host();
         asset.setHost(host != null && !host.isBlank() ? host.trim() : host);
         asset.setPort(request.port());
-        asset.setMetadata(mergeMetadata(request.metadata(), request.description(), request.database()));
+        asset.setMetadata(mergeMetadata(
+                request.metadata(),
+                request.description(),
+                request.database(),
+                request.k8sMode(),
+                request.apiServerUrl()));
         asset.setParentId(request.parentId());
         if (request.enabled() != null) {
             asset.setEnabled(request.enabled());
@@ -152,7 +157,12 @@ public class AssetService {
         }
     }
 
-    private String mergeMetadata(String metadata, String description, String database) {
+    private String mergeMetadata(
+            String metadata,
+            String description,
+            String database,
+            String k8sMode,
+            String apiServerUrl) {
         try {
             ObjectNode node;
             if (metadata != null && !metadata.isBlank()) {
@@ -170,17 +180,24 @@ public class AssetService {
                     node.put("description", trimmed);
                 }
             }
-            if (database != null) {
-                String trimmed = database.trim();
-                if (trimmed.isEmpty()) {
-                    node.remove("database");
-                } else {
-                    node.put("database", trimmed);
-                }
-            }
+            putOptional(node, "database", database);
+            putOptional(node, "k8sMode", k8sMode);
+            putOptional(node, "apiServerUrl", apiServerUrl);
             return objectMapper.writeValueAsString(node);
         } catch (Exception e) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "ASSET_METADATA_INVALID", "资产 metadata 无效");
+        }
+    }
+
+    private static void putOptional(ObjectNode node, String key, String value) {
+        if (value == null) {
+            return;
+        }
+        String trimmed = value.trim();
+        if (trimmed.isEmpty()) {
+            node.remove(key);
+        } else {
+            node.put(key, trimmed);
         }
     }
 

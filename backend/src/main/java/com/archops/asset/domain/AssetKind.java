@@ -5,5 +5,7 @@ public enum AssetKind {
     CLUSTER,
     SERVICE,
     NETWORK,
-    DATABASE
+    DATABASE,
+    /** Kubernetes API / jump+kubectl (W4b). */
+    K8S
 }

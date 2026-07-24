@@ -66,8 +66,8 @@ function kindLabel(kind: string) {
 function canTest(row: Asset) {
   const def = getAssetType(row.kind)
   if (!def?.supportsTest) return false
-  if (def.authMode === 'none') return true
-  return row.hasSshCredential
+  if (def.connectAction === 'terminal') return row.hasSshCredential
+  return true
 }
 
 const columns = computed(() => [

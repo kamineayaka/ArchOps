@@ -92,6 +92,6 @@ public class AssetController {
     @PreAuthorize("hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_OPERATOR')")
     public ApiResponse<TestConnectionResponse> testSavedConnection(@PathVariable Long id) {
         return ApiResponse.ok(connectionTestService.test(new TestConnectionRequest(
-                id, null, null, null, null, null, null, null, null)));
+                id, null, null, null, null, null, null, null, null, null, null)));
     }
 }

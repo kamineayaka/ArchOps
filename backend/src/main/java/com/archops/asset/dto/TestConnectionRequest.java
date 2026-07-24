@@ -18,5 +18,6 @@ public record TestConnectionRequest(
         SshAuthType authType,
         String secret,
         List<Long> jumpAssetIds,
-        /** Optional database / schema name for DATABASE probes. */
-        String database) {}
+        String database,
+        String k8sMode,
+        String apiServerUrl) {}

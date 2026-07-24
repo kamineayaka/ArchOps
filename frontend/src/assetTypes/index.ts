@@ -52,3 +52,15 @@ registerAssetType({
   showDatabaseName: true,
   supportsTest: true,
 })
+
+registerAssetType({
+  kind: 'K8S',
+  labelKey: 'assets.kindK8s',
+  defaultPort: 6443,
+  connectAction: 'page',
+  authMode: 'token',
+  showHost: true,
+  showPort: true,
+  showK8sMode: true,
+  supportsTest: true,
+})
