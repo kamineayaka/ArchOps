@@ -216,8 +216,8 @@ ArchOps 已有 kind：`SERVER, CLUSTER, SERVICE, NETWORK, DATABASE`（SPI 方向
 | **W4-04** | K8s 最小可配 | API server URL **或**「跳板 SSH + kubectl」二选一；kubeconfig/凭证加密；测试只读 `version`/`get ns` | 可保存可测；**不做**完整 K8s 控制台 | [x] W4b |
 | **W4-05** | Kafka 最小可配（可与 Redis 二选一先做） | bootstrap、可选 SASL、跳板；测试连通或 list topics | 类型可选可测；面板可后置 | [x] W4c（先做 Redis PING） |
 | **W4-06** | Query 壳（可选同期） | 通用查询页：选资产 → 简单 SQL/命令 → 结果表；先接 DATABASE 只读或 Redis PING | 至少一种非 SSH 类型能在 UI 执行一条只读操作 | [x] W4c |
-| **W4-07** | Agent 工具扩展 | `list_assets` 按 type 过滤；只读 `db_ping` / `k8s_get`（LOW）；写操作走审批 | 越权资产拒绝 | |
-| **W4-08** | 验收剧本 | `docs/workbench-w4-acceptance.md` | 创建→测试→（可选）query→Agent 只读 可打勾 | |
+| **W4-07** | Agent 工具扩展 | `list_assets` 按 type 过滤；只读 `db_ping` / `k8s_get`（LOW）；写操作走审批 | 越权资产拒绝 | [x] W4d |
+| **W4-08** | 验收剧本 | `docs/workbench-w4-acceptance.md` | 创建→测试→（可选）query→Agent 只读 可打勾 | [x] W4d |
 
 **W4 子波：**
 
@@ -240,7 +240,7 @@ ArchOps 已有 kind：`SERVER, CLUSTER, SERVICE, NETWORK, DATABASE`（SPI 方向
 | W1 | SSH 表单 + 测试连接 | 对齐图 1（本分支/后续 PR） |
 | W2 | 多 Tab 终端 + Agent 侧栏 | 对齐图 2 |
 | **W3** | **AI Provider 表单 / 向导 / reasoning** | **已交付（本波次）；对齐图 3；W3-01…07** |
-| **W4** | **多资产类型 SPI 落地** | **W4a 进行中（DATABASE）；W4b–d 后续** |
+| **W4** | **多资产类型 SPI 落地** | **W4a–d 已交付（串行 PR）；见 workbench-w4-acceptance** |
 
 **建议顺序：** W0 → W1 → W2 → **W3**（可与 **W4a** 并行）→ W4b→W4d。
 
@@ -270,3 +270,4 @@ ArchOps 已有 kind：`SERVER, CLUSTER, SERVICE, NETWORK, DATABASE`（SPI 方向
 | 2026-07-24 | W4a：SPI/文档固化、connectAction 分发、DATABASE 表单+TCP/JDBC 探活 |
 | 2026-07-24 | W4b：K8S 类型（API Server+/version 或跳板 kubectl get ns）；connectAction=page |
 | 2026-07-24 | W4c：REDIS + Query 壳（DATABASE SELECT / Redis PING） |
+| 2026-07-24 | W4d：Agent `list_assets`/`db_ping`/`k8s_get` + `workbench-w4-acceptance.md` |
