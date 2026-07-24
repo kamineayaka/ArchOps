@@ -49,6 +49,19 @@ export interface AiProviderRequest {
   reasoningEffort?: ReasoningEffort
 }
 
+/** Fetch-models item (may include catalog defaults). */
+export interface AiModelInfo {
+  id: string
+  maxOutputTokens?: number | null
+  contextWindow?: number | null
+}
+
+export interface ModelDefaults {
+  model: string
+  maxOutputTokens: number
+  contextWindow: number
+}
+
 export interface PlatformAiSettings {
   defaultChatProviderId: number | null
   defaultEmbeddingProviderId: number | null
@@ -88,7 +101,15 @@ export async function testProvider(id: number) {
 }
 
 export async function fetchProviderModels(id: number) {
-  const { data } = await client.get<ApiResponse<string[]>>(`/api/ai/providers/${id}/models`)
+  const { data } = await client.get<ApiResponse<AiModelInfo[]>>(`/api/ai/providers/${id}/models`)
+  return data
+}
+
+/** Catalog defaults for a model id; unknown → zeros. */
+export async function getModelDefaults(model: string) {
+  const { data } = await client.get<ApiResponse<ModelDefaults>>('/api/ai/model-defaults', {
+    params: { model },
+  })
   return data
 }
 

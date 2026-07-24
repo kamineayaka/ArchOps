@@ -110,12 +110,12 @@
 
 | ID | 任务 | 实现要点 | 完成标准 | 状态 |
 |----|------|----------|----------|------|
-| **UX-AI-01** | 表单字段顺序与门控 | `AiProvidersView` + `AiProviderSetupWizard`：顺序改为 名称→地址→Key→获取模型→模型→参数；`canFetchModels = name && baseUrl && apiKeySatisfied`；编辑态已存 Key 规则写清 | 未填齐三件套时「获取模型」disabled；填齐后可点 | |
-| **UX-AI-02** | 获取模型 → 列表弹出 | 成功后模型控件打开选项列表（Select/Popover）；可搜索；仍允许 tag 手输；失败 toast | 与用户流程第 3 步一致 | |
-| **UX-AI-03** | 模型默认参数 API | 后端：`POST .../models` 返回项含可选 `maxOutputTokens`/`contextWindow`；和/或 `GET/POST .../model-defaults?model=`（对照 OpsKat `GetModelDefaults`）；内置常见模型表 + 未知返回空 | 单测：已知模型有默认值；未知不 500 | |
-| **UX-AI-04** | 选模型自动填充 | `onUpdate:value` / select：写入 tokens/context；toast；reasoning **不**被默认覆盖（保留用户/分级） | 选完模型后下方参数已变；可再手改 | |
-| **UX-AI-05** | 手输模型 blur 回填 | 调用 model-defaults；无数据则静默 | 手输 `gpt-4o` 类已知 id 可回填 | |
-| **UX-AI-06** | 文档与验收 | 更新本文件勾选；契约补 model-defaults；`workbench-gap-audit` 指向本波 | 手工剧本：三件套→获取→选模型→参数变→改 reasoning→保存→发消息 | |
+| **UX-AI-01** | 表单字段顺序与门控 | `AiProvidersView` + `AiProviderSetupWizard`：顺序改为 名称→地址→Key→获取模型→模型→参数；`canFetchModels = name && baseUrl && apiKeySatisfied`；编辑态已存 Key 规则写清 | 未填齐三件套时「获取模型」disabled；填齐后可点 | [x] |
+| **UX-AI-02** | 获取模型 → 列表弹出 | 成功后模型控件打开选项列表（Select/Popover）；可搜索；仍允许 tag 手输；失败 toast | 与用户流程第 3 步一致 | [x] |
+| **UX-AI-03** | 模型默认参数 API | 后端：`POST .../models` 返回项含可选 `maxOutputTokens`/`contextWindow`；和/或 `GET/POST .../model-defaults?model=`（对照 OpsKat `GetModelDefaults`）；内置常见模型表 + 未知返回空 | 单测：已知模型有默认值；未知不 500 | [x] |
+| **UX-AI-04** | 选模型自动填充 | `onUpdate:value` / select：写入 tokens/context；toast；reasoning **不**被默认覆盖（保留用户/分级） | 选完模型后下方参数已变；可再手改 | [x] |
+| **UX-AI-05** | 手输模型 blur 回填 | 调用 model-defaults；无数据则静默 | 手输 `gpt-4o` 类已知 id 可回填 | [x] |
+| **UX-AI-06** | 文档与验收 | 更新本文件勾选；契约补 model-defaults；`workbench-gap-audit` 指向本波 | 手工剧本：三件套→获取→选模型→参数变→改 reasoning→保存→发消息 | [x] |
 
 **UX-AI 不做：** 改掉 reasoning 分级；明文日志 Key；多租户密钥；Architecture SSOT。
 
@@ -174,3 +174,4 @@
 | 日期 | 说明 |
 |------|------|
 | 2026-07-24 | 初版：用户澄清 AI 配置流 + 操作台/Agent 窗口隐喻；UX-AI / UX-LAYOUT 任务表 |
+| 2026-07-24 | UX-AI-01…06 交付：门控获取模型、AiModelInfo/model-defaults、选模型/blur 回填 |
