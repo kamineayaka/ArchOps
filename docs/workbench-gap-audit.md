@@ -179,17 +179,70 @@ ArchOps 已有 kind：`SERVER, CLUSTER, SERVICE, NETWORK, DATABASE`（SPI 方向
 3. 终端内「打开 Agent」侧轨；进入终端默认展开资产树  
 4. 状态条：连接状态 · user@host · 时长 · 重连
 
-### Wave W3 — AI 配置对齐图 3
+### Wave W3 — AI 配置对齐图 3（Provider 工作台）
 
-1. Provider 表单字段对齐 OpsKat（含 reasoning）  
-2. 获取模型 + Test  
-3. 无 Provider 向导（ML-8-07）
+**目标：** Admin 能在 5 分钟内配好可用 Provider；表单字段与 OpsKat「添加提供商」对齐，可字段级照搬结构。  
+**产品位置：** Settings → AI（`/settings/ai`）；无 Provider 时强制向导。  
+**依赖：** W0 BUG-03（角色可见性）已修复；现有 `AiProvider` CRUD。  
+**对照：** OpsKat `AIProviderForm.tsx` / `AISetupWizard.tsx` / `ai_provider_entity`。
 
-### Wave W4 — 资产种类扩展
+| ID | 任务 | 实现要点 | 完成标准 |
+|----|------|----------|----------|
+| **W3-01** | Provider 表单字段对齐 | 类型（OpenAI 兼容 / Anthropic）、名称、模型、API 地址（默认 URL + 帮助文案）、API Key（脱敏）、**最大输出 Token**（0=默认）、**上下文窗口**（0=默认）、**思考深度 reasoning**（`none/low/medium/high/xhigh/max`，max 仅 Anthropic） | 与图 3 字段一一对应；i18n zh/en；保存进 DB |
+| **W3-02** | 后端 DTO / 实体补齐 | `AiProvider` + Request/Response 含 `maxOutputTokens`、`contextWindow`、`reasoningEnabled`、`reasoningEffort`；Flyway 如缺列则新增；运行时传给 `LlmRuntime` | 单测：序列化/校验；Anthropic+max 归一化规则（可参考 OpsKat） |
+| **W3-03** | 获取模型 | 「获取模型」调用 Provider `/models`（或已有 fetch API）；下拉可选 + 可手输；失败可读错误 | 填 Key+Base URL 后一点击即可列出模型 |
+| **W3-04** | 测试连通 | 「测试连接」或向导内 Test：最小 chat/models 探活；超时与错误文案 | 错误 Key / 错误 URL 有明确 toast，不静默 |
+| **W3-05** | 首次向导（合并 ML-8-07） | 无 active Provider 时：Dashboard / AI 页 / 侧轨弹出向导：类型→地址/Key→Test→拉模型→设默认→完成 | 新部署可走完；与 Settings 页共用同一 API，不双写 |
+| **W3-06** | Agent 使用配置 | Chat / 侧轨可选 Provider；`maxOutputTokens` / `contextWindow` / reasoning 实际作用于请求 | 改 Provider 后新消息生效；有集成或手工验收清单 |
+| **W3-07** | 文档与验收 | 更新 API 契约（若有 Provider 段）；本文件勾选 W3 | 对照图 3 字段清单全部打勾 |
 
-1. 完善 SPI 文档与 DATABASE/K8s 最小可配  
-2. connectAction：terminal | query | page  
-3. 面板可后置，但类型与表单先可保存/测试
+**W3 不做：** API Key 明文进前端日志；多租户密钥隔离；改 Architecture SSOT 语义。
+
+**推荐 PR 拆分：** W3-01+02 → W3-03+04 → W3-05+06 → W3-07。
+
+---
+
+### Wave W4 — 资产种类扩展（Database / K8s / Kafka…）
+
+**目标：** 不止「服务器 / 集群」；类型靠 SPI 扩展；每种类型有**可保存配置 + 测试连接 + connectAction**，查询/管理面板可后置。  
+**依赖：** ML-1-06 类型 SPI；W1 SSH 表单模式（按类型 ConfigSection）。  
+**对照：** OpsKat `assetTypes/*` + `openAsset.ts` connect 矩阵。
+
+| ID | 任务 | 实现要点 | 完成标准 |
+|----|------|----------|----------|
+| **W4-01** | SPI 与文档固化 | `docs/adding-an-asset-type.md`：后端 Handler + 前端 `registerAssetType` + ConfigSection + Test + connectAction；禁止共享 `switch(kind)` | 按文档能加 stub 类型而不改调度核心 |
+| **W4-02** | connectAction 模型 | 统一：`terminal` \| `query` \| `page` \| `none`；资产树/列表「连接」按注册表分发 | SERVER→terminal；未实现面板的类型友好提示而非抛错 |
+| **W4-03** | DATABASE 最小可配 | host、port、username、password、database 可选、跳板可选；`test-connection`（至少 TCP，可选 JDBC 探活） | 可创建/编辑/测试；列表有类型标签 |
+| **W4-04** | K8s 最小可配 | API server URL **或**「跳板 SSH + kubectl」二选一；kubeconfig/凭证加密；测试只读 `version`/`get ns` | 可保存可测；**不做**完整 K8s 控制台 |
+| **W4-05** | Kafka 最小可配（可与 Redis 二选一先做） | bootstrap、可选 SASL、跳板；测试连通或 list topics | 类型可选可测；面板可后置 |
+| **W4-06** | Query 壳（可选同期） | 通用查询页：选资产 → 简单 SQL/命令 → 结果表；先接 DATABASE 只读或 Redis PING | 至少一种非 SSH 类型能在 UI 执行一条只读操作 |
+| **W4-07** | Agent 工具扩展 | `list_assets` 按 type 过滤；只读 `db_ping` / `k8s_get`（LOW）；写操作走审批 | 越权资产拒绝 |
+| **W4-08** | 验收剧本 | `docs/workbench-w4-acceptance.md` | 创建→测试→（可选）query→Agent 只读 可打勾 |
+
+**W4 子波：**
+
+| 子波 | 内容 |
+|------|------|
+| **W4a** | W4-01 + W4-02 + W4-03（DATABASE） |
+| **W4b** | W4-04（K8s） |
+| **W4c** | W4-05 + W4-06（Kafka/Redis + Query 壳） |
+| **W4d** | W4-07 + W4-08（Agent 工具 + 验收） |
+
+**W4 不做：** 一次做齐 RDP/VNC/SFTP/全量 Kafka 管理台；Description 当 Architecture；绕过审批的写工具。
+
+---
+
+### 波次总览（派工用）
+
+| 波次 | 主题 | 状态指引 |
+|------|------|----------|
+| W0 | P0 Bug | 已合入 main（#18）；回归 |
+| W1 | SSH 表单 + 测试连接 | 对齐图 1（本分支/后续 PR） |
+| W2 | 多 Tab 终端 + Agent 侧栏 | 对齐图 2 |
+| **W3** | **AI Provider 表单 / 向导 / reasoning** | **对齐图 3；W3-01…07** |
+| **W4** | **多资产类型 SPI 落地** | **DB→K8s→Kafka…；W4-01…08 / W4a–d** |
+
+**建议顺序：** W0 → W1 → W2 → **W3**（可与 **W4a** 并行）→ W4b→W4d。
 
 ---
 
@@ -211,4 +264,5 @@ ArchOps 已有 kind：`SERVER, CLUSTER, SERVICE, NETWORK, DATABASE`（SPI 方向
 | 日期 | 说明 |
 |------|------|
 | 2026-07-23 | 初版：用户三图反馈 + OpsKat 重读 + ArchOps Bug 审计 + W0–W4 波次 |
+| 2026-07-23 | 正式展开 W3（W3-01…07）与 W4（W4-01…08 / W4a–d）可派工计划 |
 | 2026-07-23 | W0 确认已合入 main（#18）并补回归；W1 SSH 表单+测试连接；W2 终端 IDE 多 Tab |

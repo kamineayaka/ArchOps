@@ -149,7 +149,7 @@ HIGH 默认不可 grant。仅覆盖执行类工具（ssh_exec 等），不影响
 硬约束与验证见 docs/mainline-implementation-prompt.md 一键 Prompt — OpsKat 第二波。
 ```
 
-### 阶段 W0–W2 — 工作台急救（用户三图 + Bug，优先于锦上添花）
+### 阶段 W0–W2 — 工作台急救（用户三图 + Bug）
 
 ```text
 必读 docs/workbench-gap-audit.md 全文。
@@ -164,6 +164,52 @@ W2：终端 IDE 壳 — 左资产树、多 Tab 会话、状态条、一键打开
 字段级可对照 / 照搬 OpsKat：AssetForm+SSHConfigSection、AIProviderForm（含 reasoning）。
 不要用 Description 当 Architecture SSOT；不要桌面 socket。
 验证：npm run build；手动：创建 SERVER→测试连接→多 Tab 终端→侧轨对话。
+```
+
+### 阶段 W3 — AI Provider 对齐图 3（W3-01…W3-07）
+
+```text
+仓库 ArchOps，基线 origin/main。
+必读：docs/workbench-gap-audit.md「Wave W3」表格；docs/opskat-learning.md AI 配置节。
+对照 OpsKat：AIProviderForm / AISetupWizard（reasoningEffort、fetch models、max tokens、context window）。
+
+请按 W3-01→W3-07 交付（可拆 PR）：
+1) 表单字段与图 3 对齐（含思考深度 none/low/medium/high/xhigh/max）。
+2) 后端实体/DTO/Flyway + 运行时生效。
+3) 获取模型 + 测试连通（失败有 toast）。
+4) 无 Provider 时首次向导（合并 ML-8-07）；与 /settings/ai 共用 API。
+5) Chat/侧轨实际使用这些参数；更新契约/勾选审计文档。
+
+分支：cursor/w3-ai-provider-parity-71f3（或按子任务拆分）。
+验证：./mvnw verify && npm run build；手工走完向导并成功发一条 AI 消息。
+不要：明文打日志 Key；不要改 Architecture SSOT 语义。
+```
+
+### 阶段 W4 — 多资产类型（W4-01…W4-08，建议 W4a→W4d）
+
+```text
+仓库 ArchOps，基线 origin/main。
+必读：docs/workbench-gap-audit.md「Wave W4」；docs/opskat-learning.md 资产类型/connect 矩阵。
+
+产品隐喻不变：SSH 仍是 IDE；其他类型用 query/page，Agent 可只读探活。
+
+推荐子波（多 PR）：
+W4a：W4-01 文档+SPI 固化，W4-02 connectAction，W4-03 DATABASE 最小可配+测试连接
+W4b：W4-04 K8s 最小可配（不做完整控制台）
+W4c：W4-05 Kafka 或 Redis 最小可配 + W4-06 Query 壳（至少一种只读操作）
+W4d：W4-07 Agent 只读工具 + W4-08 验收文档
+
+硬约束：扩展靠 register，禁止共享 switch(kind)；写操作走审批；面板可后置但表单+测试必须先可用。
+验证：mvn verify + npm run build；按 workbench-w4-acceptance 剧本打勾。
+分支例：cursor/w4a-database-asset-type-71f3
+```
+
+### 阶段 W3+W4 — 并行提示（两 Agent）
+
+```text
+Agent A：只做 docs/workbench-gap-audit.md Wave W3（AI Provider）。
+Agent B：在 W1/W2 与 SPI 就绪后做 W4a（DATABASE），勿与 A 改同一 Provider 文件。
+二者都必读 workbench-gap-audit.md；完成后在文档变更记录注明完成的 W3-xx / W4-xx。
 ```
 
 ---
@@ -258,3 +304,4 @@ Commit：feat(scope): {TASK_ID} 简短说明
 |------|------|
 | 2026-07-22 | 初版：主线一键 Prompt + 单任务/分阶段模板 |
 | 2026-07-23 | 增加 OpsKat 第二波一键 Prompt 与 O1–O4 / O-ALL 阶段模板 |
+| 2026-07-23 | 增加工作台 W3 / W4 分阶段 Prompt（Provider 对齐图 3、多资产类型） |

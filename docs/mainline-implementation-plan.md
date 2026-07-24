@@ -3,7 +3,7 @@
 > **北极星：** [`docs/product-vision.md`](product-vision.md)  
 > **配套 Prompt：** [`docs/mainline-implementation-prompt.md`](mainline-implementation-prompt.md)  
 > **竞品学习（OpsKat）：** [`docs/opskat-learning.md`](opskat-learning.md)  
-> **工作台缺口与 Bug 审计：** [`docs/workbench-gap-audit.md`](workbench-gap-audit.md) — SSH≈IDE / Agent≈侧栏；W0–W4 波次  
+> **工作台缺口与 Bug 审计：** [`docs/workbench-gap-audit.md`](workbench-gap-audit.md) — SSH≈IDE / Agent≈侧栏；**W0–W4**（W3=AI Provider 图3，W4=多资产类型）  
 > **相关清单（勿混用）：**  
 > - `docs/architecture-refactor-todo.md`（`ARCH-*` 包边界/依赖）  
 > - `docs/agent-optimization-todo.md`（`OPT-*` 安全质量）  
