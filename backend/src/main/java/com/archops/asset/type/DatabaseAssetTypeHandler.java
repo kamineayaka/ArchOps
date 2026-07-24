@@ -1,6 +1,7 @@
 package com.archops.asset.type;
 
 import com.archops.asset.domain.AssetKind;
+import com.archops.asset.dto.AssetQueryResponse;
 import com.archops.asset.dto.AssetRequest;
 import com.archops.asset.dto.TestConnectionResponse;
 import com.archops.common.exception.BusinessException;
@@ -8,6 +9,12 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
 import java.util.Properties;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
@@ -107,6 +114,76 @@ public class DatabaseAssetTypeHandler extends AbstractAssetTypeHandler {
                 throw new IllegalStateException("JDBC 连接无效");
             }
         }
+    }
+
+    @Override
+    public AssetQueryResponse executeReadonlyQuery(ConnectivityContext ctx, String statement) {
+        try {
+            if (!isReadonlySql(statement)) {
+                return AssetQueryResponse.failure("仅允许只读 SQL（SELECT / SHOW / EXPLAIN）");
+            }
+            if (!StringUtils.hasText(ctx.host())) {
+                return AssetQueryResponse.failure("缺少主机");
+            }
+            if (!StringUtils.hasText(ctx.username()) || !StringUtils.hasText(ctx.secret())) {
+                return AssetQueryResponse.failure("缺少数据库账号");
+            }
+            int port = ctx.port() != null && ctx.port() > 0 ? ctx.port() : defaultPort();
+            String db = StringUtils.hasText(ctx.database()) ? ctx.database().trim() : "postgres";
+            String url = "jdbc:postgresql://" + ctx.host().trim() + ":" + port + "/" + db;
+            Properties props = new Properties();
+            props.setProperty("user", ctx.username().trim());
+            props.setProperty("password", ctx.secret());
+            props.setProperty("connectTimeout", String.valueOf(JDBC_TIMEOUT_SEC));
+            try (Connection conn = DriverManager.getConnection(url, props);
+                    Statement st = conn.createStatement()) {
+                st.setMaxRows(100);
+                st.setQueryTimeout(JDBC_TIMEOUT_SEC);
+                boolean hasResult = st.execute(statement);
+                if (!hasResult) {
+                    return AssetQueryResponse.text("OK (无结果集)");
+                }
+                try (ResultSet rs = st.getResultSet()) {
+                    ResultSetMetaData meta = rs.getMetaData();
+                    int cols = meta.getColumnCount();
+                    List<String> columns = new ArrayList<>();
+                    for (int i = 1; i <= cols; i++) {
+                        columns.add(meta.getColumnLabel(i));
+                    }
+                    List<List<String>> rows = new ArrayList<>();
+                    while (rs.next() && rows.size() < 100) {
+                        List<String> row = new ArrayList<>(cols);
+                        for (int i = 1; i <= cols; i++) {
+                            Object v = rs.getObject(i);
+                            row.add(v == null ? "NULL" : String.valueOf(v));
+                        }
+                        rows.add(row);
+                    }
+                    return AssetQueryResponse.table("返回 " + rows.size() + " 行", columns, rows);
+                }
+            }
+        } catch (Exception e) {
+            return AssetQueryResponse.failure(e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName());
+        }
+    }
+
+    private static boolean isReadonlySql(String statement) {
+        if (statement == null || statement.isBlank()) {
+            return false;
+        }
+        String normalized = statement.trim().toLowerCase(Locale.ROOT);
+        if (normalized.contains(";")) {
+            // single statement only
+            String withoutTrailing = normalized.replaceAll(";\\s*$", "");
+            if (withoutTrailing.contains(";")) {
+                return false;
+            }
+            normalized = withoutTrailing.trim();
+        }
+        return normalized.startsWith("select")
+                || normalized.startsWith("show")
+                || normalized.startsWith("explain")
+                || normalized.startsWith("with");
     }
 
     private static long elapsedMs(long startedNanos) {

@@ -22,7 +22,8 @@ class AssetTypeRegistryTest {
                 new ServiceAssetTypeHandler(),
                 new NetworkAssetTypeHandler(),
                 new DatabaseAssetTypeHandler(),
-                new K8sAssetTypeHandler(mock(AssetSshDialer.class))));
+                new K8sAssetTypeHandler(mock(AssetSshDialer.class)),
+                new RedisAssetTypeHandler()));
     }
 
     @Test
@@ -30,13 +31,14 @@ class AssetTypeRegistryTest {
         assertThat(registry.findRequired("SERVER")).isInstanceOf(ServerAssetTypeHandler.class);
         assertThat(registry.findRequired("DATABASE")).isInstanceOf(DatabaseAssetTypeHandler.class);
         assertThat(registry.findRequired("K8S")).isInstanceOf(K8sAssetTypeHandler.class);
+        assertThat(registry.findRequired("REDIS")).isInstanceOf(RedisAssetTypeHandler.class);
 
         assertThat(registry.find("SERVER")).isPresent();
         assertThat(registry.find("DATABASE")).isPresent();
 
         assertThat(registry.all())
                 .extracting(AssetTypeHandler::type)
-                .contains("SERVER", "DATABASE", "CLUSTER", "SERVICE", "NETWORK", "K8S");
+                .contains("SERVER", "DATABASE", "CLUSTER", "SERVICE", "NETWORK", "K8S", "REDIS");
     }
 
     @Test

@@ -7,5 +7,7 @@ public enum AssetKind {
     NETWORK,
     DATABASE,
     /** Kubernetes API / jump+kubectl (W4b). */
-    K8S
+    K8S,
+    /** Redis (W4c). */
+    REDIS
 }

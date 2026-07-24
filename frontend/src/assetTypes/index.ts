@@ -64,3 +64,14 @@ registerAssetType({
   showK8sMode: true,
   supportsTest: true,
 })
+
+registerAssetType({
+  kind: 'REDIS',
+  labelKey: 'assets.kindRedis',
+  defaultPort: 6379,
+  connectAction: 'query',
+  authMode: 'password',
+  showHost: true,
+  showPort: true,
+  supportsTest: true,
+})

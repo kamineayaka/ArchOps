@@ -90,3 +90,17 @@ export async function testSavedAssetConnection(assetId: number) {
   )
   return data
 }
+
+export interface AssetQueryResponse {
+  ok: boolean
+  message: string
+  columns: string[]
+  rows: string[][]
+}
+
+export async function queryAsset(assetId: number, statement: string) {
+  const { data } = await client.post<ApiResponse<AssetQueryResponse>>(`/api/assets/${assetId}/query`, {
+    statement,
+  })
+  return data
+}

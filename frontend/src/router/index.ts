@@ -58,6 +58,12 @@ const router = createRouter({
           meta: { requiresAdmin: true, titleKey: 'nav.aiSettings', descKey: 'aiSettings.subtitle' },
         },
         {
+          path: 'assets/query/:assetId?',
+          name: 'asset-query',
+          component: () => import('@/views/AssetQueryView.vue'),
+          meta: { titleKey: 'nav.assetQuery', descKey: 'query.subtitle' },
+        },
+        {
           path: 'terminal/:assetId?',
           name: 'terminal',
           component: () => import('@/views/TerminalView.vue'),

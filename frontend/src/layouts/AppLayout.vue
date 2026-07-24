@@ -86,6 +86,7 @@ const menuOptions = computed(() => {
   const items = [
     { label: t('nav.dashboard'), key: 'dashboard', icon: () => h(NIcon, null, { default: () => h(GridOutline) }) },
     { label: t('nav.assets'), key: 'assets', icon: () => h(NIcon, null, { default: () => h(ServerOutline) }) },
+    { label: t('nav.assetQuery'), key: 'asset-query', icon: () => h(NIcon, null, { default: () => h(LibraryOutline) }) },
     { label: t('nav.assetGroups'), key: 'asset-groups', icon: () => h(NIcon, null, { default: () => h(FolderOutline) }) },
     { label: t('nav.architecture'), key: 'architecture', icon: () => h(NIcon, null, { default: () => h(LibraryOutline) }) },
     {

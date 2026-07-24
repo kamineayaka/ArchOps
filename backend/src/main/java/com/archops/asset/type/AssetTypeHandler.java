@@ -3,6 +3,7 @@ package com.archops.asset.type;
 import com.archops.asset.domain.Asset;
 import com.archops.asset.dto.AssetRequest;
 import com.archops.asset.dto.TestConnectionResponse;
+import com.archops.asset.dto.AssetQueryResponse;
 import java.util.Map;
 
 /**
@@ -36,5 +37,12 @@ public interface AssetTypeHandler {
      */
     default TestConnectionResponse testConnection(ConnectivityContext ctx) {
         return new TestConnectionResponse(false, 0L, "该资产类型暂不支持测试连接");
+    }
+
+    /**
+     * Read-only query/probe for the Query shell. Must reject mutating statements.
+     */
+    default AssetQueryResponse executeReadonlyQuery(ConnectivityContext ctx, String statement) {
+        return AssetQueryResponse.failure("该资产类型暂不支持查询面板");
     }
 }

@@ -125,7 +125,7 @@ watch(
     form.value.port = defaultPortFor(kind)
     const def = getAssetType(kind)
     if (def?.authMode === 'password') {
-      form.value.username = 'postgres'
+      form.value.username = kind === 'REDIS' ? 'default' : 'postgres'
       form.value.authType = 'PASSWORD'
     } else if (def?.authMode === 'ssh') {
       form.value.username = 'root'
@@ -176,6 +176,8 @@ function validateBasics(): boolean {
         message.warning(t('assets.k8sTokenRequired'))
         return false
       }
+    } else if (form.value.kind === 'REDIS') {
+      // password optional (AUTH may be disabled)
     } else {
       if (!form.value.username.trim()) {
         message.warning(t('assets.usernameRequired'))
@@ -221,7 +223,11 @@ function toPayload(): AssetRequest {
   if (showAuth.value) {
     payload.username = form.value.username.trim() || (showTokenAuth.value ? 'token' : undefined)
     payload.authType = showSsh.value ? form.value.authType : 'PASSWORD'
-    payload.secret = form.value.secret
+    if (form.value.secret) {
+      payload.secret = form.value.secret
+    } else if (form.value.kind !== 'REDIS') {
+      payload.secret = form.value.secret
+    }
   }
   if (showJump.value) {
     payload.jumpAssetIds = form.value.jumpAssetIds

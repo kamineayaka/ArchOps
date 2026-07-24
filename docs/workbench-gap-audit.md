@@ -214,8 +214,8 @@ ArchOps 已有 kind：`SERVER, CLUSTER, SERVICE, NETWORK, DATABASE`（SPI 方向
 | **W4-02** | connectAction 模型 | 统一：`terminal` \| `query` \| `page` \| `none`；资产树/列表「连接」按注册表分发 | SERVER→terminal；未实现面板的类型友好提示而非抛错 | [x] W4a |
 | **W4-03** | DATABASE 最小可配 | host、port、username、password、database 可选、跳板可选；`test-connection`（至少 TCP，可选 JDBC 探活） | 可创建/编辑/测试；列表有类型标签 | [x] W4a（创建+测试；跳板 ID 可存，探活直连） |
 | **W4-04** | K8s 最小可配 | API server URL **或**「跳板 SSH + kubectl」二选一；kubeconfig/凭证加密；测试只读 `version`/`get ns` | 可保存可测；**不做**完整 K8s 控制台 | [x] W4b |
-| **W4-05** | Kafka 最小可配（可与 Redis 二选一先做） | bootstrap、可选 SASL、跳板；测试连通或 list topics | 类型可选可测；面板可后置 | |
-| **W4-06** | Query 壳（可选同期） | 通用查询页：选资产 → 简单 SQL/命令 → 结果表；先接 DATABASE 只读或 Redis PING | 至少一种非 SSH 类型能在 UI 执行一条只读操作 | |
+| **W4-05** | Kafka 最小可配（可与 Redis 二选一先做） | bootstrap、可选 SASL、跳板；测试连通或 list topics | 类型可选可测；面板可后置 | [x] W4c（先做 Redis PING） |
+| **W4-06** | Query 壳（可选同期） | 通用查询页：选资产 → 简单 SQL/命令 → 结果表；先接 DATABASE 只读或 Redis PING | 至少一种非 SSH 类型能在 UI 执行一条只读操作 | [x] W4c |
 | **W4-07** | Agent 工具扩展 | `list_assets` 按 type 过滤；只读 `db_ping` / `k8s_get`（LOW）；写操作走审批 | 越权资产拒绝 | |
 | **W4-08** | 验收剧本 | `docs/workbench-w4-acceptance.md` | 创建→测试→（可选）query→Agent 只读 可打勾 | |
 
@@ -269,3 +269,4 @@ ArchOps 已有 kind：`SERVER, CLUSTER, SERVICE, NETWORK, DATABASE`（SPI 方向
 | 2026-07-24 | W3 交付：Provider 字段/Flyway/runtime、拉模型+测连通 toast、首次向导（Dashboard/AI/侧轨）、Agent 生效、契约勾选 |
 | 2026-07-24 | W4a：SPI/文档固化、connectAction 分发、DATABASE 表单+TCP/JDBC 探活 |
 | 2026-07-24 | W4b：K8S 类型（API Server+/version 或跳板 kubectl get ns）；connectAction=page |
+| 2026-07-24 | W4c：REDIS + Query 壳（DATABASE SELECT / Redis PING） |

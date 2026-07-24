@@ -30,13 +30,7 @@ export function openAsset(
       void deps.router.push({ name: 'terminal', params: { assetId: String(asset.id) } })
       return
     case 'query':
-      deps.message.info(
-        deps.t('assets.connectQueryDeferred', {
-          name: asset.name,
-          kind: def ? deps.t(def.labelKey) : asset.kind,
-        }),
-      )
-      void deps.router.push({ name: 'assets', query: { highlight: String(asset.id) } })
+      void deps.router.push({ name: 'asset-query', params: { assetId: String(asset.id) } })
       return
     case 'page':
       deps.message.info(

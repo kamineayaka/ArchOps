@@ -1,11 +1,14 @@
 package com.archops.asset.controller;
 
+import com.archops.asset.dto.AssetQueryRequest;
+import com.archops.asset.dto.AssetQueryResponse;
 import com.archops.asset.dto.AssetRequest;
 import com.archops.asset.dto.AssetResponse;
 import com.archops.asset.dto.SshCredentialRequest;
 import com.archops.asset.dto.TestConnectionRequest;
 import com.archops.asset.dto.TestConnectionResponse;
 import com.archops.asset.service.AssetConnectionTestService;
+import com.archops.asset.service.AssetQueryService;
 import com.archops.asset.service.AssetService;
 import com.archops.common.dto.ApiResponse;
 import com.archops.common.security.AuthUserPrincipal;
@@ -28,10 +31,15 @@ public class AssetController {
 
     private final AssetService assetService;
     private final AssetConnectionTestService connectionTestService;
+    private final AssetQueryService assetQueryService;
 
-    public AssetController(AssetService assetService, AssetConnectionTestService connectionTestService) {
+    public AssetController(
+            AssetService assetService,
+            AssetConnectionTestService connectionTestService,
+            AssetQueryService assetQueryService) {
         this.assetService = assetService;
         this.connectionTestService = connectionTestService;
+        this.assetQueryService = assetQueryService;
     }
 
     @PostMapping
@@ -93,5 +101,12 @@ public class AssetController {
     public ApiResponse<TestConnectionResponse> testSavedConnection(@PathVariable Long id) {
         return ApiResponse.ok(connectionTestService.test(new TestConnectionRequest(
                 id, null, null, null, null, null, null, null, null, null, null)));
+    }
+
+    @PostMapping("/{id}/query")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_OPERATOR')")
+    public ApiResponse<AssetQueryResponse> query(
+            @PathVariable Long id, @RequestBody AssetQueryRequest request) {
+        return ApiResponse.ok(assetQueryService.query(id, request != null ? request.statement() : null));
     }
 }
