@@ -3,8 +3,10 @@ package com.archops.ai.provider.service;
 import com.archops.ai.provider.domain.AiProvider;
 import com.archops.ai.provider.domain.ProviderType;
 import com.archops.ai.provider.domain.ReasoningEffort;
+import com.archops.ai.provider.dto.AiModelInfo;
 import com.archops.ai.provider.dto.AiProviderRequest;
 import com.archops.ai.provider.dto.AiProviderResponse;
+import com.archops.ai.provider.dto.ModelDefaultsResponse;
 import com.archops.ai.provider.repository.AiProviderRepository;
 import com.archops.ai.runtime.AnthropicRuntime;
 import com.archops.ai.runtime.LlmGenerationConfig;
@@ -27,18 +29,21 @@ public class AiProviderService {
     private final LlmRuntimeFactory runtimeFactory;
     private final AuditService auditService;
     private final ObjectMapper objectMapper;
+    private final ModelDefaultsCatalog modelDefaultsCatalog;
 
     public AiProviderService(
             AiProviderRepository repository,
             PlatformAiSettingsService settingsService,
             LlmRuntimeFactory runtimeFactory,
             AuditService auditService,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            ModelDefaultsCatalog modelDefaultsCatalog) {
         this.repository = repository;
         this.settingsService = settingsService;
         this.runtimeFactory = runtimeFactory;
         this.auditService = auditService;
         this.objectMapper = objectMapper;
+        this.modelDefaultsCatalog = modelDefaultsCatalog;
     }
 
     @Transactional(readOnly = true)
@@ -109,12 +114,12 @@ public class AiProviderService {
     }
 
     @Transactional(readOnly = true)
-    public List<String> listModels(Long id) {
+    public List<AiModelInfo> listModels(Long id) {
         AiProvider provider = findOrThrow(id);
         String apiKey = runtimeFactory.decryptApiKey(provider);
         LlmGenerationConfig config = LlmGenerationConfig.from(provider);
         try {
-            return switch (provider.getProviderType()) {
+            List<String> ids = switch (provider.getProviderType()) {
                 case OPENAI_COMPAT -> new OpenAiCompatRuntime(
                         provider.getBaseUrl(), apiKey, provider.getChatModel(), provider.getTimeoutMs(),
                         config, objectMapper).listModels();
@@ -122,6 +127,7 @@ public class AiProviderService {
                         provider.getBaseUrl(), apiKey, provider.getChatModel(), provider.getTimeoutMs(),
                         config, objectMapper).listModels();
             };
+            return ids.stream().map(modelDefaultsCatalog::enrich).toList();
         } catch (BusinessException ex) {
             throw ex;
         } catch (Exception ex) {
@@ -130,6 +136,11 @@ public class AiProviderService {
                     "FETCH_MODELS_FAILED",
                     "获取模型失败: " + sanitizeError(ex.getMessage()));
         }
+    }
+
+    /** Catalog lookup; unknown models return zeros (never 500). */
+    public ModelDefaultsResponse modelDefaults(String model) {
+        return modelDefaultsCatalog.defaultsFor(model);
     }
 
     @Transactional(readOnly = true)

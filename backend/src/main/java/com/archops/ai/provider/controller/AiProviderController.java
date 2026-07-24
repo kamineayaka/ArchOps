@@ -1,7 +1,9 @@
 package com.archops.ai.provider.controller;
 
+import com.archops.ai.provider.dto.AiModelInfo;
 import com.archops.ai.provider.dto.AiProviderRequest;
 import com.archops.ai.provider.dto.AiProviderResponse;
+import com.archops.ai.provider.dto.ModelDefaultsResponse;
 import com.archops.ai.provider.dto.PlatformAiSettingsRequest;
 import com.archops.ai.provider.dto.PlatformAiSettingsResponse;
 import com.archops.ai.provider.service.AiProviderService;
@@ -20,6 +22,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -80,8 +83,17 @@ public class AiProviderController {
 
     @GetMapping("/providers/{id}/models")
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
-    public ApiResponse<List<String>> models(@PathVariable Long id) {
+    public ApiResponse<List<AiModelInfo>> models(@PathVariable Long id) {
         return ApiResponse.ok(providerService.listModels(id));
+    }
+
+    /**
+     * OpsKat GetModelDefaults analogue. Unknown models return zeros (not an error).
+     */
+    @GetMapping("/model-defaults")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_OPERATOR')")
+    public ApiResponse<ModelDefaultsResponse> modelDefaults(@RequestParam("model") String model) {
+        return ApiResponse.ok(providerService.modelDefaults(model));
     }
 
     @GetMapping("/settings")

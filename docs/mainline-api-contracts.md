@@ -168,7 +168,8 @@
 | PUT | `/api/ai/providers/{id}` | ADMIN | 更新（`apiKey` 空=不改） |
 | DELETE | `/api/ai/providers/{id}` | ADMIN | 删除（不可删默认） |
 | POST | `/api/ai/providers/{id}/test` | ADMIN | 最小 chat 探活；`data.status`=`ok` 或 `failed: …`（脱敏） |
-| GET | `/api/ai/providers/{id}/models` | ADMIN | 拉取模型列表；失败 `FETCH_MODELS_FAILED` |
+| GET | `/api/ai/providers/{id}/models` | ADMIN | 拉取模型列表；`data` 为 `AiModelInfo[]`（`id` + 可选 `maxOutputTokens`/`contextWindow`）；失败 `FETCH_MODELS_FAILED` |
+| GET | `/api/ai/model-defaults?model=` | ADMIN/OPERATOR | 内置目录默认参数（OpsKat GetModelDefaults）；未知模型返回 `0/0`，不 500 |
 
 ### DTO 字段（相对既有 CRUD 新增 / 对齐图 3）
 
@@ -178,6 +179,16 @@
 | `contextWindow` | int | `0`=平台默认上下文预算；>0 时按 ≈3 chars/token 截断 Agent 系统上下文 |
 | `reasoningEnabled` | bool | 与 `reasoningEffort` 联动；`NONE` 时为 false |
 | `reasoningEffort` | enum | `NONE\|LOW\|MEDIUM\|HIGH\|XHIGH\|MAX`；**MAX 仅 Anthropic**，OpenAI 兼容归一为 `HIGH` |
+
+### `AiModelInfo` / `ModelDefaultsResponse`（UX-AI）
+
+| 字段 | 说明 |
+|------|------|
+| `id` / `model` | 模型标识 |
+| `maxOutputTokens` | 目录或 enrich 后的默认；未知为 null/0 |
+| `contextWindow` | 同上 |
+
+前端：名称+地址+Key 门控「获取模型」；选模型/手输 blur 回填 tokens·context，**不**覆盖 `reasoningEffort`。
 
 运行时：`LlmGenerationConfig` 注入 `OpenAiCompatRuntime` / `AnthropicRuntime`（`max_tokens`、`reasoning_effort` / Anthropic `thinking.budget_tokens`）。
 
@@ -191,3 +202,4 @@
 |------|------|
 | 2026-07-23 | ML-0-03：初版；含 ML-1 已定契约与后续阶段草案 |
 | 2026-07-24 | W3：补充 AI Provider 高级字段与 test/models 契约 |
+| 2026-07-24 | UX-AI：models 返回 AiModelInfo；新增 `/api/ai/model-defaults` |

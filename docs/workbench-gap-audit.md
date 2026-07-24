@@ -237,7 +237,7 @@ ArchOps 已有 kind：`SERVER, CLUSTER, SERVICE, NETWORK, DATABASE`（SPI 方向
 
 | 波次 | 主题 | 文档 |
 |------|------|------|
-| **UX-AI** | Provider：门控「获取模型」+ 选模型默认参数 | [`ux-clarification-todo.md`](ux-clarification-todo.md) |
+| **UX-AI** | Provider：门控「获取模型」+ 选模型默认参数 | **已交付（见 ux-clarification-todo）** |
 | **UX-LAYOUT** | 纠正隐喻；Agent 窗口左资产右对话无终端 | **已交付（见 ux-clarification-todo）** |
 
 ---
@@ -280,7 +280,7 @@ ArchOps 已有 kind：`SERVER, CLUSTER, SERVICE, NETWORK, DATABASE`（SPI 方向
 | W1 | SSH 表单 + 测试连接 | 对齐图 1（本分支/后续 PR） |
 | W2 | 多 Tab 终端 + Agent 侧栏 | 对齐图 2 |
 | **W3** | **AI Provider 表单 / 向导 / reasoning** | **已交付；对齐图 3；W3-01…07** |
-| **UX-AI / UX-LAYOUT** | **配置流精修 + 双窗口隐喻落地** | **UX-LAYOUT 已交付；UX-AI 见独立波次** |
+| **UX-AI / UX-LAYOUT** | **配置流精修 + 双窗口隐喻落地** | **UX-AI 与 UX-LAYOUT 均已交付** |
 | **W4** | **多资产类型 SPI 落地** | **W4a 已合 DATABASE；W4b–d 后续** |
 
 **建议顺序：** W0 → W1 → W2 → W3 → **UX-AI ∥ UX-LAYOUT**（可与 **W4b** 并行）→ W4b→W4d。
@@ -309,5 +309,6 @@ ArchOps 已有 kind：`SERVER, CLUSTER, SERVICE, NETWORK, DATABASE`（SPI 方向
 | 2026-07-23 | W0 确认已合入 main（#18）并补回归；W1 SSH 表单+测试连接；W2 终端 IDE 多 Tab |
 | 2026-07-24 | W3 交付：Provider 字段/Flyway/runtime、拉模型+测连通 toast、首次向导（Dashboard/AI/侧轨）、Agent 生效、契约勾选 |
 | 2026-07-24 | 纠正操作台/Agent 窗口隐喻；W3 后 UX-AI/UX-LAYOUT 指向 ux-clarification-todo |
+| 2026-07-24 | UX-AI：三件套门控、模型默认参数 API、选模型/blur 回填（不覆盖 reasoning） |
 | 2026-07-24 | UX-LAYOUT：操作台/Agent 并列入口；Agent 窗口左树右对话无终端；文案纠偏 |
 | 2026-07-24 | W4a：SPI/文档固化、connectAction 分发、DATABASE 表单+TCP/JDBC 探活 |

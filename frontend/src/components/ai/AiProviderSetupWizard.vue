@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   NAlert,
@@ -20,13 +20,16 @@ import {
 import {
   createProvider,
   fetchProviderModels,
+  getModelDefaults,
   testProvider,
   updateAiSettings,
   updateProvider,
+  type AiModelInfo,
   type AiProvider,
   type ProviderType,
   type ReasoningEffort,
 } from '@/api/ai-providers'
+import { applyModelDefaults, canFetchModels } from '@/composables/useAiModelDefaults'
 import { apiErrorMessage, isProviderTestFailed } from '@/utils/apiError'
 
 const props = defineProps<{
@@ -52,6 +55,9 @@ const testStatus = ref<string | null>(null)
 const testError = ref<string | null>(null)
 const stepError = ref<string | null>(null)
 const modelOptions = ref<{ label: string; value: string }[]>([])
+const modelInfoById = ref<Record<string, AiModelInfo>>({})
+const modelSelectOpen = ref(false)
+const lastDefaultsModel = ref('')
 
 const form = ref({
   name: '',
@@ -89,6 +95,17 @@ const canSave = computed(
   () => Boolean(form.value.name.trim() && form.value.baseUrl.trim() && form.value.apiKey.trim()),
 )
 
+/** After save, key is stored; step 3 fetch needs name+url+key (or stored). */
+const fetchModelsEnabled = computed(() =>
+  canFetchModels({
+    name: form.value.name,
+    baseUrl: form.value.baseUrl,
+    apiKey: form.value.apiKey,
+    editing: createdId.value != null,
+    hasStoredKey: createdId.value != null,
+  }),
+)
+
 function reset() {
   step.value = 0
   createdId.value = null
@@ -96,6 +113,9 @@ function reset() {
   testError.value = null
   stepError.value = null
   modelOptions.value = []
+  modelInfoById.value = {}
+  modelSelectOpen.value = false
+  lastDefaultsModel.value = ''
   form.value = {
     name: '',
     providerType: 'OPENAI_COMPAT',
@@ -227,7 +247,10 @@ async function handleTest() {
 }
 
 async function handleFetchModels() {
-  if (!createdId.value) return
+  if (!createdId.value || !fetchModelsEnabled.value) {
+    message.warning(t('aiSettings.apiKeyRequiredForModels'))
+    return
+  }
   fetchingModels.value = true
   stepError.value = null
   try {
@@ -237,17 +260,53 @@ async function handleFetchModels() {
       message.error(stepError.value)
       return
     }
-    modelOptions.value = res.data.map((m) => ({ label: m, value: m }))
-    if (res.data.length && !res.data.includes(form.value.chatModel)) {
-      form.value.chatModel = res.data[0]
+    const infos = res.data
+    modelInfoById.value = Object.fromEntries(infos.map((m) => [m.id, m]))
+    modelOptions.value = infos.map((m) => ({ label: m.id, value: m.id }))
+    if (infos.length && !infos.some((m) => m.id === form.value.chatModel)) {
+      form.value.chatModel = infos[0].id
+      await applyDefaultsForModel(infos[0].id)
     }
-    message.success(t('aiSettings.modelsLoaded', { count: res.data.length }))
+    message.success(t('aiSettings.modelsLoaded', { count: infos.length }))
+    await nextTick()
+    modelSelectOpen.value = true
   } catch (err) {
     stepError.value = apiErrorMessage(err, t('aiSettings.wizard.modelsFailed'))
     message.error(stepError.value)
   } finally {
     fetchingModels.value = false
   }
+}
+
+async function applyDefaultsForModel(model: string | null | undefined) {
+  const id = (model ?? '').trim()
+  if (!id || lastDefaultsModel.value === id) return
+
+  const cached = modelInfoById.value[id]
+  if (cached && applyModelDefaults(form.value, cached)) {
+    lastDefaultsModel.value = id
+    message.success(t('aiSettings.appliedModelDefaults'))
+    return
+  }
+
+  try {
+    const res = await getModelDefaults(id)
+    if (res.success && res.data && applyModelDefaults(form.value, res.data)) {
+      lastDefaultsModel.value = id
+      message.success(t('aiSettings.appliedModelDefaults'))
+    }
+  } catch {
+    // silent
+  }
+}
+
+function onChatModelUpdate(value: string) {
+  form.value.chatModel = value
+  void applyDefaultsForModel(value)
+}
+
+function onChatModelBlur() {
+  void applyDefaultsForModel(form.value.chatModel)
 }
 
 async function handleFinish() {
@@ -318,7 +377,7 @@ async function handleFinish() {
       </NSpace>
     </div>
 
-    <!-- Step 1: credentials + save -->
+    <!-- Step 1: credentials only (name → URL → Key) -->
     <div v-else-if="step === 1" class="wizard-body">
       <NForm label-placement="top">
         <NFormItem :label="t('aiSettings.name')" required>
@@ -330,18 +389,6 @@ async function handleFinish() {
         <NFormItem :label="t('aiSettings.apiKey')" required>
           <NInput v-model:value="form.apiKey" type="password" show-password-on="click" />
         </NFormItem>
-        <NFormItem :label="t('aiSettings.maxOutputTokens')">
-          <NInputNumber v-model:value="form.maxOutputTokens" :min="0" :step="256" class="full-width" />
-        </NFormItem>
-        <p class="field-hint">{{ t('aiSettings.maxOutputTokensHint') }}</p>
-        <NFormItem :label="t('aiSettings.contextWindow')">
-          <NInputNumber v-model:value="form.contextWindow" :min="0" :step="1024" class="full-width" />
-        </NFormItem>
-        <p class="field-hint">{{ t('aiSettings.contextWindowHint') }}</p>
-        <NFormItem :label="t('aiSettings.reasoningEffort')">
-          <NSelect v-model:value="form.reasoningEffort" :options="reasoningOptions" />
-        </NFormItem>
-        <p class="field-hint">{{ t('aiSettings.reasoningEffortHint') }}</p>
       </NForm>
       <NSpace justify="space-between" class="wizard-actions">
         <NButton @click="step = 0">{{ t('aiSettings.wizard.back') }}</NButton>
@@ -388,30 +435,55 @@ async function handleFinish() {
       </NSpace>
     </div>
 
-    <!-- Step 3: models + set default -->
+    <!-- Step 3: fetch models → select → params (reasoning not overwritten by select) -->
     <div v-else class="wizard-body">
       <p class="wizard-hint">{{ t('aiSettings.wizard.modelsHint') }}</p>
       <NForm label-placement="top">
+        <NFormItem :label="t('aiSettings.fetchModels')">
+          <NSpace vertical :size="4" style="width: 100%">
+            <NButton
+              :loading="fetchingModels"
+              :disabled="!fetchModelsEnabled"
+              @click="handleFetchModels"
+            >
+              {{ t('aiSettings.fetchModels') }}
+            </NButton>
+            <p v-if="!fetchModelsEnabled" class="field-hint field-hint--inline">
+              {{ t('aiSettings.fetchModelsGateHint') }}
+            </p>
+          </NSpace>
+        </NFormItem>
         <NFormItem :label="t('aiSettings.chatModel')">
           <NSelect
-            v-model:value="form.chatModel"
+            :value="form.chatModel"
             :options="modelOptions"
             filterable
             tag
+            :show="modelSelectOpen"
             :placeholder="t('aiSettings.wizard.modelPlaceholder')"
+            @update:show="(v: boolean) => (modelSelectOpen = v)"
+            @update:value="onChatModelUpdate"
+            @blur="onChatModelBlur"
           />
         </NFormItem>
+        <NFormItem :label="t('aiSettings.maxOutputTokens')">
+          <NInputNumber v-model:value="form.maxOutputTokens" :min="0" :step="256" class="full-width" />
+        </NFormItem>
+        <p class="field-hint">{{ t('aiSettings.maxOutputTokensHint') }}</p>
+        <NFormItem :label="t('aiSettings.contextWindow')">
+          <NInputNumber v-model:value="form.contextWindow" :min="0" :step="1024" class="full-width" />
+        </NFormItem>
+        <p class="field-hint">{{ t('aiSettings.contextWindowHint') }}</p>
+        <NFormItem :label="t('aiSettings.reasoningEffort')">
+          <NSelect v-model:value="form.reasoningEffort" :options="reasoningOptions" />
+        </NFormItem>
+        <p class="field-hint">{{ t('aiSettings.reasoningEffortHint') }}</p>
       </NForm>
       <NSpace justify="space-between" class="wizard-actions">
         <NButton @click="step = 2">{{ t('aiSettings.wizard.back') }}</NButton>
-        <NSpace>
-          <NButton :loading="fetchingModels" @click="handleFetchModels">
-            {{ t('aiSettings.fetchModels') }}
-          </NButton>
-          <NButton type="primary" :loading="finishing" @click="handleFinish">
-            {{ t('aiSettings.wizard.finish') }}
-          </NButton>
-        </NSpace>
+        <NButton type="primary" :loading="finishing" @click="handleFinish">
+          {{ t('aiSettings.wizard.finish') }}
+        </NButton>
       </NSpace>
     </div>
   </NModal>
@@ -462,6 +534,10 @@ async function handleFinish() {
   color: var(--co-text-muted);
   font-size: 0.75rem;
   line-height: 1.4;
+}
+
+.field-hint--inline {
+  margin: 0;
 }
 
 .full-width {

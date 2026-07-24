@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, h, onMounted, ref } from 'vue'
+import { computed, h, nextTick, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   NAlert,
@@ -23,10 +23,12 @@ import {
   deleteProvider,
   fetchProviderModels,
   getAiSettings,
+  getModelDefaults,
   listAllProviders,
   testProvider,
   updateAiSettings,
   updateProvider,
+  type AiModelInfo,
   type AiProvider,
   type AiProviderRequest,
   type ProviderType,
@@ -36,6 +38,7 @@ import { getIndexStats, type IndexStats } from '@/api/knowledge'
 import AiProviderSetupWizard from '@/components/ai/AiProviderSetupWizard.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import PageHeader from '@/components/PageHeader.vue'
+import { applyModelDefaults, canFetchModels } from '@/composables/useAiModelDefaults'
 import { apiErrorMessage, isProviderTestFailed } from '@/utils/apiError'
 
 const { t } = useI18n()
@@ -46,8 +49,12 @@ const loading = ref(false)
 const showModal = ref(false)
 const showWizard = ref(false)
 const editingId = ref<number | null>(null)
+const hasStoredKey = ref(false)
 const modelOptions = ref<{ label: string; value: string }[]>([])
+const modelInfoById = ref<Record<string, AiModelInfo>>({})
+const modelSelectOpen = ref(false)
 const fetchingModels = ref(false)
+const lastDefaultsModel = ref('')
 const indexStats = ref<IndexStats | null>(null)
 const initialEmbeddingProviderId = ref<number | null>(null)
 
@@ -100,6 +107,16 @@ const baseUrlHint = computed(() =>
   form.value.providerType === 'ANTHROPIC'
     ? t('aiSettings.baseUrlHintAnthropic')
     : t('aiSettings.baseUrlHintOpenAi'),
+)
+
+const fetchModelsEnabled = computed(() =>
+  canFetchModels({
+    name: form.value.name,
+    baseUrl: form.value.baseUrl ?? '',
+    apiKey: form.value.apiKey,
+    editing: editingId.value != null,
+    hasStoredKey: hasStoredKey.value,
+  }),
 )
 
 const chatProviders = computed(() => providers.value.filter((p) => p.supportsChat && p.enabled))
@@ -204,6 +221,10 @@ function resetForm() {
     reasoningEffort: 'NONE',
   }
   modelOptions.value = []
+  modelInfoById.value = {}
+  modelSelectOpen.value = false
+  hasStoredKey.value = false
+  lastDefaultsModel.value = ''
 }
 
 function openCreate() {
@@ -214,6 +235,7 @@ function openCreate() {
 
 function openEdit(row: AiProvider) {
   editingId.value = row.id
+  hasStoredKey.value = Boolean(row.apiKeyMasked)
   form.value = {
     name: row.name,
     providerType: row.providerType,
@@ -232,6 +254,8 @@ function openEdit(row: AiProvider) {
     reasoningEffort: (row.reasoningEffort ?? 'NONE') as ReasoningEffort,
   }
   modelOptions.value = row.chatModel ? [{ label: row.chatModel, value: row.chatModel }] : []
+  modelInfoById.value = {}
+  lastDefaultsModel.value = row.chatModel ?? ''
   showModal.value = true
 }
 
@@ -328,7 +352,7 @@ async function handleTest(id: number) {
 }
 
 async function handleFetchModels() {
-  if (!editingId.value && !form.value.apiKey) {
+  if (!fetchModelsEnabled.value) {
     message.warning(t('aiSettings.apiKeyRequiredForModels'))
     return
   }
@@ -343,12 +367,18 @@ async function handleFetchModels() {
       }
       id = created.data.id
       editingId.value = id
+      hasStoredKey.value = Boolean(created.data.apiKeyMasked)
+      form.value.apiKey = ''
       await load()
     }
     const res = await fetchProviderModels(id)
     if (res.success && res.data) {
-      modelOptions.value = res.data.map((m) => ({ label: m, value: m }))
-      message.success(t('aiSettings.modelsLoaded', { count: res.data.length }))
+      const infos = res.data
+      modelInfoById.value = Object.fromEntries(infos.map((m) => [m.id, m]))
+      modelOptions.value = infos.map((m) => ({ label: m.id, value: m.id }))
+      message.success(t('aiSettings.modelsLoaded', { count: infos.length }))
+      await nextTick()
+      modelSelectOpen.value = true
     } else {
       message.error(res.message || t('aiSettings.wizard.modelsFailed'))
     }
@@ -357,6 +387,42 @@ async function handleFetchModels() {
   } finally {
     fetchingModels.value = false
   }
+}
+
+function toastAppliedDefaults() {
+  message.success(t('aiSettings.appliedModelDefaults'))
+}
+
+async function applyDefaultsForModel(model: string | null | undefined, opts?: { toast?: boolean }) {
+  const id = (model ?? '').trim()
+  if (!id) return
+  if (lastDefaultsModel.value === id) return
+
+  const cached = modelInfoById.value[id]
+  if (cached && applyModelDefaults(form.value, cached)) {
+    lastDefaultsModel.value = id
+    if (opts?.toast !== false) toastAppliedDefaults()
+    return
+  }
+
+  try {
+    const res = await getModelDefaults(id)
+    if (res.success && res.data && applyModelDefaults(form.value, res.data)) {
+      lastDefaultsModel.value = id
+      if (opts?.toast !== false) toastAppliedDefaults()
+    }
+  } catch {
+    // unknown / network — silent for blur path
+  }
+}
+
+function onChatModelUpdate(value: string) {
+  form.value.chatModel = value
+  void applyDefaultsForModel(value)
+}
+
+function onChatModelBlur() {
+  void applyDefaultsForModel(form.value.chatModel)
 }
 
 async function handleSaveSettings() {
@@ -472,10 +538,37 @@ onMounted(async () => {
       </NFormItem>
       <p class="field-hint">{{ baseUrlHint }}</p>
       <NFormItem :label="t('aiSettings.apiKey')">
-        <NInput v-model:value="form.apiKey" type="password" :placeholder="editingId ? t('aiSettings.apiKeyKeep') : ''" />
+        <NInput
+          v-model:value="form.apiKey"
+          type="password"
+          :placeholder="editingId ? t('aiSettings.apiKeyKeep') : ''"
+        />
+      </NFormItem>
+      <NFormItem :label="t('aiSettings.fetchModels')">
+        <NSpace vertical :size="4" style="width: 100%">
+          <NButton
+            :loading="fetchingModels"
+            :disabled="!fetchModelsEnabled"
+            @click="handleFetchModels"
+          >
+            {{ t('aiSettings.fetchModels') }}
+          </NButton>
+          <p v-if="!fetchModelsEnabled" class="field-hint field-hint--inline">
+            {{ t('aiSettings.fetchModelsGateHint') }}
+          </p>
+        </NSpace>
       </NFormItem>
       <NFormItem :label="t('aiSettings.chatModel')">
-        <NSelect v-model:value="form.chatModel" :options="modelOptions" filterable tag />
+        <NSelect
+          :value="form.chatModel"
+          :options="modelOptions"
+          filterable
+          tag
+          :show="modelSelectOpen"
+          @update:show="(v: boolean) => (modelSelectOpen = v)"
+          @update:value="onChatModelUpdate"
+          @blur="onChatModelBlur"
+        />
       </NFormItem>
       <NFormItem :label="t('aiSettings.maxOutputTokens')">
         <NInputNumber v-model:value="form.maxOutputTokens" :min="0" :step="256" class="full-width" />
@@ -506,7 +599,6 @@ onMounted(async () => {
         <NSwitch v-model:value="form.enabled" />
       </NFormItem>
       <NSpace justify="end">
-        <NButton :loading="fetchingModels" @click="handleFetchModels">{{ t('aiSettings.fetchModels') }}</NButton>
         <NButton @click="showModal = false">{{ t('common.cancel') }}</NButton>
         <NButton type="primary" @click="handleSaveProvider">{{ t('common.save') }}</NButton>
       </NSpace>
@@ -531,6 +623,10 @@ onMounted(async () => {
   color: var(--co-text-muted);
   font-size: 0.75rem;
   line-height: 1.4;
+}
+
+.field-hint--inline {
+  margin: 0;
 }
 
 .setup-prompt__title {
