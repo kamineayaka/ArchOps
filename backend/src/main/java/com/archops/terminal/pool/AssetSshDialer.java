@@ -15,6 +15,7 @@ import org.apache.sshd.client.SshClient;
 import org.apache.sshd.client.session.ClientSession;
 import org.apache.sshd.client.session.forward.ExplicitPortForwardingTracker;
 import org.apache.sshd.common.util.net.SshdSocketAddress;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
@@ -32,7 +33,11 @@ public class AssetSshDialer {
     private final SshClient sshClient;
     private final SshPoolProperties properties;
 
-    public AssetSshDialer(AssetService assetService, SshClient sshClient, SshPoolProperties properties) {
+    /**
+     * {@code @Lazy} breaks the cycle AssetService → AssetTypeRegistry → ServerAssetTypeHandler
+     * → AssetSshDialer → AssetService introduced when SERVER gained testConnection via the dialer.
+     */
+    public AssetSshDialer(@Lazy AssetService assetService, SshClient sshClient, SshPoolProperties properties) {
         this.assetService = assetService;
         this.sshClient = sshClient;
         this.properties = properties;
