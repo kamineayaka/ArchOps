@@ -4,15 +4,26 @@
 #   ./deploy/scripts/remote-deploy.sh root@HOST
 #   LOWMEM=0 ./deploy/scripts/remote-deploy.sh root@HOST   # full resources
 #   SKIP_BUILD=1 ./deploy/scripts/remote-deploy.sh root@HOST  # use images already on host
+#   PREBUILT=1 ./deploy/scripts/remote-deploy.sh root@HOST    # use local JAR/dist
+#
+# Optional build mirrors (slow networks / China):
+#   NPM_REGISTRY=https://registry.npmmirror.com \
+#   MAVEN_MIRROR=https://maven.aliyun.com/repository/public \
+#   ./deploy/scripts/remote-deploy.sh root@HOST
+#
+# Requires SSH key auth (BatchMode). First time: ssh-copy-id user@HOST
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 TARGET="${1:?usage: $0 user@host}"
 REMOTE_DIR="${REMOTE_DIR:-/opt/archops}"
+RELEASES_DIR="${RELEASES_DIR:-/opt/archops-releases}"
 LOWMEM="${LOWMEM:-1}"
 SKIP_BUILD="${SKIP_BUILD:-0}"
 LOAD_IMAGES="${LOAD_IMAGES:-0}"
 PREBUILT="${PREBUILT:-0}"
+NPM_REGISTRY="${NPM_REGISTRY:-}"
+MAVEN_MIRROR="${MAVEN_MIRROR:-}"
 
 SSH=(ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new "$TARGET")
 RSYNC_EXCLUDES=(
@@ -22,6 +33,8 @@ RSYNC_EXCLUDES=(
   --exclude '*.log'
   --exclude '.env'
   --exclude 'deploy/compose/.env'
+  # Runtime-only files on the remote host (must survive --delete)
+  --exclude 'VERSION'
 )
 if [ "$PREBUILT" != "1" ]; then
   RSYNC_EXCLUDES+=(--exclude 'frontend/dist/' --exclude 'backend/target/')
@@ -48,18 +61,34 @@ if [ "$LOAD_IMAGES" = "1" ]; then
   "${SSH[@]}" 'docker load -i /tmp/archops-images.tar.gz && rm -f /tmp/archops-images.tar.gz'
 fi
 
+# Stamp deploy version outside the sync tree so rsync --delete cannot wipe it.
+DEPLOY_VERSION="$(git -C "$ROOT" describe --tags --always --dirty 2>/dev/null || date -u +%Y%m%dT%H%M%SZ)"
+echo "==> Writing deploy stamp ${DEPLOY_VERSION} → ${RELEASES_DIR}/VERSION"
+"${SSH[@]}" "mkdir -p '$RELEASES_DIR' && printf '%s\n' '$DEPLOY_VERSION' > '$RELEASES_DIR/VERSION' && ln -sfn '$RELEASES_DIR/VERSION' '$REMOTE_DIR/VERSION'"
+
 echo "==> Starting stack on remote (LOWMEM=$LOWMEM SKIP_BUILD=$SKIP_BUILD PREBUILT=$PREBUILT)"
-"${SSH[@]}" "bash -s" -- "$REMOTE_DIR" "$LOWMEM" "$SKIP_BUILD" "$PREBUILT" <<'REMOTE'
+"${SSH[@]}" "bash -s" -- "$REMOTE_DIR" "$LOWMEM" "$SKIP_BUILD" "$PREBUILT" "$NPM_REGISTRY" "$MAVEN_MIRROR" <<'REMOTE'
 set -euo pipefail
 REMOTE_DIR="$1"
 LOWMEM="$2"
 SKIP_BUILD="$3"
 PREBUILT="$4"
+NPM_REGISTRY="$5"
+MAVEN_MIRROR="$6"
 cd "$REMOTE_DIR/deploy/compose"
 if [ ! -f .env ]; then
   cp .env.example .env
   HOST_IP=$(curl -fsS --max-time 3 ifconfig.me || hostname -I | awk '{print $1}')
   sed -i "s|CORS_ALLOWED_ORIGINS=.*|CORS_ALLOWED_ORIGINS=http://${HOST_IP},http://localhost|" .env
+fi
+# Inject optional mirrors into .env for this build (do not persist secrets; mirrors are public URLs).
+if [ -n "$NPM_REGISTRY" ]; then
+  grep -q '^NPM_REGISTRY=' .env && sed -i "s|^NPM_REGISTRY=.*|NPM_REGISTRY=${NPM_REGISTRY}|" .env \
+    || echo "NPM_REGISTRY=${NPM_REGISTRY}" >> .env
+fi
+if [ -n "$MAVEN_MIRROR" ]; then
+  grep -q '^MAVEN_MIRROR=' .env && sed -i "s|^MAVEN_MIRROR=.*|MAVEN_MIRROR=${MAVEN_MIRROR}|" .env \
+    || echo "MAVEN_MIRROR=${MAVEN_MIRROR}" >> .env
 fi
 FILES=(-p archops -f compose.yaml)
 [ "$PREBUILT" = "1" ] && FILES+=(-f compose.prebuilt.yaml)
@@ -67,7 +96,15 @@ FILES=(-p archops -f compose.yaml)
 if [ "$SKIP_BUILD" = "1" ]; then
   docker compose "${FILES[@]}" --env-file .env up -d
 else
-  docker compose "${FILES[@]}" --env-file .env up -d --build
+  # On ≤2GiB hosts, simultaneous Maven+npm in one --build often OOMs.
+  # Prefer: pull base images via dockerd (honors registry-mirrors), then build.
+  echo "==> Prefetching base images (dockerd; honors registry-mirrors unlike some buildx setups)"
+  docker pull node:22-alpine || true
+  docker pull nginx:1.27-alpine || true
+  docker pull maven:3.9.9-eclipse-temurin-21 || true
+  docker pull eclipse-temurin:21-jre || true
+  docker compose "${FILES[@]}" --env-file .env build
+  docker compose "${FILES[@]}" --env-file .env up -d
 fi
 docker compose "${FILES[@]}" ps
 echo "Health:"
@@ -84,4 +121,4 @@ docker compose "${FILES[@]}" logs --tail=80 backend || true
 exit 1
 REMOTE
 
-echo "==> Deploy finished"
+echo "==> Deploy finished (version $DEPLOY_VERSION)"

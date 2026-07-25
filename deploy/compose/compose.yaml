@@ -50,6 +50,9 @@ services:
     build:
       context: ../../backend
       dockerfile: Dockerfile
+      args:
+        # Optional: https://maven.aliyun.com/repository/public
+        MAVEN_MIRROR: ${MAVEN_MIRROR:-}
     container_name: archops-backend
     restart: unless-stopped
     environment:
@@ -98,6 +101,9 @@ services:
     build:
       context: ../../frontend
       dockerfile: Dockerfile
+      args:
+        # Optional: https://registry.npmmirror.com
+        NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmjs.org}
     container_name: archops-frontend
     restart: unless-stopped
     ports:

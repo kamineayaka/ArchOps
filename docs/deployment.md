@@ -2,16 +2,18 @@
 
 ## Docker Compose（推荐，单机）
 
-低内存 VPS 的远程初始化与同步脚本用法，见 [test-deploy-server.md](./test-deploy-server.md)。
+低内存 VPS 的远程初始化与同步脚本用法，见 [test-deploy-server.md](./test-deploy-server.md)。API 一览见 [api.md](./api.md)。
 
 ### 1. 服务器要求
 
 | 资源 | 最低 | 推荐 |
 |---|---|---|
 | CPU | 2 核 | 4 核 |
-| 内存 | 4 GB | 8 GB |
+| 内存 | 4 GB（≤2 GB 请用预构建 / lowmem，见下文） | 8 GB |
 | 磁盘 | 40 GB | 100 GB SSD |
 | 系统 | Ubuntu 22.04+ / Debian 12+ / CentOS Stream 9+ | |
+
+> **警告**：在 ≤2 GiB 内存的机器上直接 `docker compose ... up -d --build` 会同时跑 Maven 与 npm，极易 OOM。请改用「分步构建」或「预构建」路径。
 
 ### 2. 安装 Docker
 
@@ -32,12 +34,52 @@ cp deploy/compose/.env.example deploy/compose/.env
 # 部署后也可在控制台「设置 → AI 设置」中配置。
 # 编辑 deploy/compose/.env，例如：
 # - CORS_ALLOWED_ORIGINS=http://你的服务器IP
+
+# 国内 / 慢网构建（推荐写入 .env，compose 会传给 Dockerfile build args）：
+# NPM_REGISTRY=https://registry.npmmirror.com
+# MAVEN_MIRROR=https://maven.aliyun.com/repository/public
 ```
 
 ### 4. 启动平台
 
+#### 4a. 标准路径（≥4 GiB 内存）
+
 ```bash
+# 可选：先用 dockerd 拉基础镜像（会走 daemon.json 的 registry-mirrors；
+# docker compose build / buildx 有时不继承该加速器）
+docker pull node:22-alpine nginx:1.27-alpine \
+  maven:3.9.9-eclipse-temurin-21 eclipse-temurin:21-jre
+
 docker compose -f deploy/compose/compose.yaml --env-file deploy/compose/.env up -d --build
+```
+
+也可显式传 build arg（不必写进 .env）：
+
+```bash
+docker compose -f deploy/compose/compose.yaml --env-file deploy/compose/.env \
+  build \
+  --build-arg NPM_REGISTRY=https://registry.npmmirror.com \
+  --build-arg MAVEN_MIRROR=https://maven.aliyun.com/repository/public
+docker compose -f deploy/compose/compose.yaml --env-file deploy/compose/.env up -d
+```
+
+#### 4b. 低内存机（≤2 GiB）：先构建再启动，或预构建
+
+```bash
+# 方案 A：分步 —— 先 build，再 up（仍可能吃紧，建议加 ≥4G swap）
+docker compose -f deploy/compose/compose.yaml -f deploy/compose/compose.lowmem.yaml \
+  --env-file deploy/compose/.env build
+docker compose -f deploy/compose/compose.yaml -f deploy/compose/compose.lowmem.yaml \
+  --env-file deploy/compose/.env up -d
+
+# 方案 B（推荐）：在较强机器上预构建 JAR/dist，再同步到小内存机
+cd backend && ./mvnw -DskipTests package && cd ..
+cd frontend && npm ci && npm run build && cd ..
+# 然后用 remote-deploy.sh PREBUILT=1，或本地：
+docker compose -f deploy/compose/compose.yaml \
+  -f deploy/compose/compose.prebuilt.yaml \
+  -f deploy/compose/compose.lowmem.yaml \
+  --env-file deploy/compose/.env up -d --build
 ```
 
 健康检查：
@@ -46,7 +88,15 @@ docker compose -f deploy/compose/compose.yaml --env-file deploy/compose/.env up 
 curl http://localhost/actuator/health
 ```
 
-### 5. 安装后检查清单
+### 5. 构建加速说明
+
+| 问题 | 做法 |
+|---|---|
+| npm / Maven 下载极慢 | 在 `.env` 设 `NPM_REGISTRY` / `MAVEN_MIRROR`（见上文） |
+| 配了 `registry-mirrors` 但 compose build 仍慢 | buildx 不一定继承 dockerd 加速器；先 `docker pull` 基础镜像再 `build` |
+| 想强制走 legacy builder | `DOCKER_BUILDKIT=0 docker compose ... build`（可复用 dockerd 镜像缓存） |
+
+### 6. 安装后检查清单
 
 - [ ] 登录并修改默认 `admin` 密码
 - [ ] 在 **资产管理** 中添加服务器资产

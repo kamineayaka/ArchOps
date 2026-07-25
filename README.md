@@ -25,7 +25,7 @@
 ### 环境要求
 
 - Docker 24+ 与 Docker Compose v2
-- 最低 2 核 CPU、4 GB 内存（建议 8 GB）
+- 最低 2 核 CPU、**4 GB 内存**（建议 8 GB；≤2 GB 请用[预构建 / lowmem](docs/deployment.md)，勿直接 `--build`）
 - OpenAI 兼容 API Key 或 Anthropic API Key（可在控制台「AI 设置」中配置；也可通过 `OPENAI_API_KEY` 环境变量种子迁移）
 - 前端开发需 Node.js 22+
 
@@ -40,9 +40,19 @@ cp deploy/compose/.env.example deploy/compose/.env
 # 可选：在 deploy/compose/.env 中设置 OPENAI_API_KEY，首次启动会自动迁移为默认 AI Provider
 # 也可在部署后于 Web 控制台「AI 设置」中配置多个 Provider
 
-# 启动平台
+# 国内 / 慢网建议取消注释 .env 中的镜像源：
+#   NPM_REGISTRY=https://registry.npmmirror.com
+#   MAVEN_MIRROR=https://maven.aliyun.com/repository/public
+
+# 可选：先拉基础镜像（走 dockerd registry-mirrors；compose buildx 不一定继承）
+docker pull node:22-alpine nginx:1.27-alpine \
+  maven:3.9.9-eclipse-temurin-21 eclipse-temurin:21-jre
+
+# 启动平台（≥4 GiB）
 docker compose -f deploy/compose/compose.yaml --env-file deploy/compose/.env up -d --build
 ```
+
+≤2 GiB VPS：**不要**一条命令 `--build` 同时编前后端，见 [docs/deployment.md](docs/deployment.md) 的分步 / `PREBUILT` 路径，或 [docs/test-deploy-server.md](docs/test-deploy-server.md)。
 
 浏览器访问 **http://你的服务器IP**，使用默认账号登录：
 
@@ -51,7 +61,7 @@ docker compose -f deploy/compose/compose.yaml --env-file deploy/compose/.env up 
 
 **首次登录后请立即修改默认密码。**
 
-首次部署后，建议以管理员身份调用 `POST /api/knowledge/reindex` 初始化 RAG 向量索引。
+首次部署后，建议以管理员身份调用 `POST /api/knowledge/reindex` 初始化 RAG 向量索引。API 速查：[docs/api.md](docs/api.md)。
 
 ### SSH 连接池与 AI 目标资产
 
@@ -90,7 +100,8 @@ ArchOps/
 | 方式 | 适用场景 | 文档 |
 |---|---|---|
 | Docker Compose | 单机 / MVP / 小规模生产 | [docs/deployment.md](docs/deployment.md) |
-| 远程 VPS 脚本 | 低内存主机同步 + Compose overlay | [docs/test-deploy-server.md](docs/test-deploy-server.md) |
+| 远程 VPS 脚本 | 低内存主机同步 + Compose overlay（需 SSH 密钥） | [docs/test-deploy-server.md](docs/test-deploy-server.md) |
+| API 速查 | 集成 / 排查路径 | [docs/api.md](docs/api.md) |
 
 ## 技术栈
 

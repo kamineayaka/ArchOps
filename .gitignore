@@ -53,6 +53,7 @@ logs/
 *.pid
 *.seed
 data/
+/VERSION
 
 # Build artifacts
 coverage/

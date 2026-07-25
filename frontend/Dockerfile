@@ -2,8 +2,14 @@
 
 FROM node:22-alpine AS build
 WORKDIR /app
+
+# Override for slow networks, e.g. China:
+#   --build-arg NPM_REGISTRY=https://registry.npmmirror.com
+ARG NPM_REGISTRY=https://registry.npmjs.org
 COPY package*.json ./
-RUN npm ci
+RUN npm config set registry "$NPM_REGISTRY" \
+    && npm ci --no-audit --no-fund
+
 COPY . .
 RUN npm run build
 
