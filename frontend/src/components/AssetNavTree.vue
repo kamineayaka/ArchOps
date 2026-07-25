@@ -1,7 +1,7 @@
 <script setup lang="ts">
+import { t } from '@/messages'
 import { computed, h, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { useI18n } from 'vue-i18n'
 import { NEmpty, NIcon, NSpin, NTree, useMessage, type TreeOption } from 'naive-ui'
 import { DesktopOutline, FolderOutline, ServerOutline } from '@vicons/ionicons5'
 import { getAssetGroup, listAssetGroups, type AssetGroup } from '@/api/assetGroups'
@@ -27,7 +27,6 @@ const emit = defineEmits<{
   'select-group': [groupId: number]
 }>()
 
-const { t } = useI18n()
 const router = useRouter()
 const message = useMessage()
 

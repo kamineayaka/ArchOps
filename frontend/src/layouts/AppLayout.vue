@@ -1,7 +1,7 @@
 <script setup lang="ts">
+import { t } from '@/messages'
 import { computed, h } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useI18n } from 'vue-i18n'
 import {
   NAvatar,
   NButton,
@@ -41,7 +41,6 @@ import { isAdmin as roleIsAdmin } from '@/utils/roles'
 
 const route = useRoute()
 const router = useRouter()
-const { t } = useI18n()
 const authStore = useAuthStore()
 const { isDark, toggle } = useTheme()
 const {

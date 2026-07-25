@@ -1,7 +1,7 @@
 <script setup lang="ts">
+import { t } from '@/messages'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useI18n } from 'vue-i18n'
 import { NButton, NIcon, NInput, NSelect, NSpin, NTooltip, useMessage } from 'naive-ui'
 import {
   CloseOutline,
@@ -30,7 +30,6 @@ const props = withDefaults(
   { mode: 'sider' },
 )
 
-const { t } = useI18n()
 const message = useMessage()
 const route = useRoute()
 const router = useRouter()

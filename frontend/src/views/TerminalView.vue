@@ -1,7 +1,7 @@
 <script setup lang="ts">
+import { t } from '@/messages'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useI18n } from 'vue-i18n'
 import { NButton, NCard, NIcon, NTag, useMessage } from 'naive-ui'
 import { ChatbubbleEllipsesOutline, CloseOutline, RefreshOutline } from '@vicons/ionicons5'
 import { Terminal } from '@xterm/xterm'
@@ -21,7 +21,6 @@ interface LiveSession {
   onDataDisposable: { dispose: () => void } | null
 }
 
-const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const message = useMessage()

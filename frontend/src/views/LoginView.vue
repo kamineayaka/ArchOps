@@ -1,12 +1,11 @@
 <script setup lang="ts">
+import { t } from '@/messages'
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { useI18n } from 'vue-i18n'
 import { NButton, NCard, NForm, NFormItem, NInput, NSpace, useMessage } from 'naive-ui'
 import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
-const { t } = useI18n()
 const message = useMessage()
 const authStore = useAuthStore()
 

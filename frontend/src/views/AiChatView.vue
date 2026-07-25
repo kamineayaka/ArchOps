@@ -1,7 +1,7 @@
 <script setup lang="ts">
+import { t } from '@/messages'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useI18n } from 'vue-i18n'
 import { NAlert, NButton, NCard, NInput, NSelect, NSpace, NSpin, NTag, useMessage } from 'naive-ui'
 import {
   createConversation,
@@ -35,7 +35,6 @@ interface DisplayMessage extends ChatMessage {
   workLogHint?: { level: string; message: string }
 }
 
-const { t } = useI18n()
 const message = useMessage()
 const route = useRoute()
 const router = useRouter()

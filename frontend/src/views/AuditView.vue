@@ -1,6 +1,6 @@
 <script setup lang="ts">
+import { t } from '@/messages'
 import { computed, h, onMounted, ref } from 'vue'
-import { useI18n } from 'vue-i18n'
 import { NButton, NCard, NDataTable, NTag, NSpace, useMessage } from 'naive-ui'
 import client from '@/api/client'
 import type { ApiResponse } from '@/api/types'
@@ -8,7 +8,6 @@ import EmptyState from '@/components/EmptyState.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import { formatDateTime } from '@/utils/format'
 
-const { t } = useI18n()
 const message = useMessage()
 
 interface AuditLog {

@@ -1,6 +1,6 @@
 <script setup lang="ts">
+import { t } from '@/messages'
 import { computed, h, onMounted, ref } from 'vue'
-import { useI18n } from 'vue-i18n'
 import {
   NButton,
   NCard,
@@ -24,7 +24,6 @@ import PageHeader from '@/components/PageHeader.vue'
 import { useAuthStore } from '@/stores/auth'
 import { isAdmin as roleIsAdmin } from '@/utils/roles'
 
-const { t } = useI18n()
 const message = useMessage()
 const authStore = useAuthStore()
 

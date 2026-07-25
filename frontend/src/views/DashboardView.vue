@@ -1,7 +1,7 @@
 <script setup lang="ts">
+import { t } from '@/messages'
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { useI18n } from 'vue-i18n'
 import {
   ChatbubbleEllipsesOutline,
   DesktopOutline,
@@ -28,7 +28,6 @@ import { useAuthStore } from '@/stores/auth'
 import { formatRole } from '@/utils/format'
 import { isAdmin as roleIsAdmin } from '@/utils/roles'
 
-const { t } = useI18n()
 const router = useRouter()
 const authStore = useAuthStore()
 const user = computed(() => authStore.user)

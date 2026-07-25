@@ -1,6 +1,6 @@
 <script setup lang="ts">
+import { t } from '@/messages'
 import { computed, ref, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
 import {
   NButton,
   NForm,
@@ -51,7 +51,6 @@ const emit = defineEmits<{
   cancel: []
 }>()
 
-const { t } = useI18n()
 const message = useMessage()
 
 const groups = ref<AssetGroup[]>([])

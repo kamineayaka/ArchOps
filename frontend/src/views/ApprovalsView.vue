@@ -1,12 +1,11 @@
 <script setup lang="ts">
+import { t } from '@/messages'
 import { computed, h, onMounted, ref } from 'vue'
-import { useI18n } from 'vue-i18n'
 import { NButton, NCard, NCheckbox, NDataTable, NPopconfirm, NSpace, NTag, useMessage } from 'naive-ui'
 import { decideApproval, listPendingApprovals, type Approval } from '@/api/approvals'
 import EmptyState from '@/components/EmptyState.vue'
 import PageHeader from '@/components/PageHeader.vue'
 
-const { t } = useI18n()
 const message = useMessage()
 
 const approvals = ref<Approval[]>([])

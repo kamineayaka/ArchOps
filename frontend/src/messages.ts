@@ -1,4 +1,6 @@
-export default {
+/** 中文文案（非 i18n）。用 t('a.b') 取字符串，可用 {name} 插值。 */
+export const messages = 
+{
   common: {
     appName: 'ArchOps AI Platform',
     appTagline: '智能运维控制平面',
@@ -384,4 +386,23 @@ export default {
     expandRail: '展开 AI 对话',
     openFullAi: '打开 Agent 窗口',
   },
+}
+
+type Dict = { [key: string]: string | Dict }
+
+export function t(path: string, params?: Record<string, unknown>): string {
+  const parts = path.split('.')
+  let cur: unknown = messages
+  for (const part of parts) {
+    if (cur !== null && typeof cur === 'object' && part in (cur as object)) {
+      cur = (cur as Dict)[part]
+    } else {
+      return path
+    }
+  }
+  if (typeof cur !== 'string') return path
+  if (!params) return cur
+  return cur.replace(/\{(\w+)\}/g, (_, key: string) =>
+    params[key] !== undefined && params[key] !== null ? String(params[key]) : '{' + key + '}',
+  )
 }

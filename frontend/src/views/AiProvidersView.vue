@@ -1,6 +1,6 @@
 <script setup lang="ts">
+import { t } from '@/messages'
 import { computed, h, nextTick, onMounted, ref } from 'vue'
-import { useI18n } from 'vue-i18n'
 import {
   NAlert,
   NButton,
@@ -41,7 +41,6 @@ import PageHeader from '@/components/PageHeader.vue'
 import { applyModelDefaults, canFetchModels } from '@/composables/useAiModelDefaults'
 import { apiErrorMessage, isProviderTestFailed } from '@/utils/apiError'
 
-const { t } = useI18n()
 const message = useMessage()
 
 const providers = ref<AiProvider[]>([])
