@@ -37,6 +37,15 @@ public class AssetGroupController {
         return ApiResponse.ok(assetGroupService.create(request, principal.getUserId(), principal.getUsername()));
     }
 
+    @PostMapping("/find-or-create")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_OPERATOR')")
+    public ApiResponse<AssetGroupResponse> findOrCreate(
+            @Valid @RequestBody AssetGroupRequest request,
+            @AuthenticationPrincipal AuthUserPrincipal principal) {
+        return ApiResponse.ok(assetGroupService.findOrCreate(
+                request.name(), principal.getUserId(), principal.getUsername()));
+    }
+
     @GetMapping
     @PreAuthorize("hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_OPERATOR') or hasAuthority('ROLE_VIEWER')")
     public ApiResponse<List<AssetGroupResponse>> list() {

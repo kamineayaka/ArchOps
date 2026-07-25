@@ -40,6 +40,14 @@ export async function createAssetGroup(payload: AssetGroupRequest) {
   return data
 }
 
+/** 已有同名（忽略大小写）则返回，否则创建。 */
+export async function findOrCreateAssetGroup(name: string) {
+  const { data } = await client.post<ApiResponse<AssetGroup>>('/api/asset-groups/find-or-create', {
+    name,
+  })
+  return data
+}
+
 export async function updateAssetGroup(id: number, payload: AssetGroupRequest) {
   const { data } = await client.put<ApiResponse<AssetGroup>>(`/api/asset-groups/${id}`, payload)
   return data

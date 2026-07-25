@@ -59,6 +59,19 @@ public class AssetGroupService {
         return toResponse(group, List.of(), true);
     }
 
+    /** 按名称查找（忽略大小写）；不存在则创建。用于资产表单「输入即新建分组」。 */
+    @Transactional
+    public AssetGroupResponse findOrCreate(String rawName, Long actorId, String actorName) {
+        String name = rawName == null ? "" : rawName.trim();
+        if (name.isEmpty()) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "VALIDATION_ERROR", "分组名称不能为空");
+        }
+        return assetGroupRepository
+                .findByNameIgnoreCase(name)
+                .map(g -> toResponse(g, memberRepository.findByIdGroupId(g.getId()), false))
+                .orElseGet(() -> create(new AssetGroupRequest(name, null, true), actorId, actorName));
+    }
+
     @Transactional(readOnly = true)
     public List<AssetGroupResponse> list() {
         return assetGroupRepository.findAll().stream()
