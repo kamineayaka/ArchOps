@@ -77,12 +77,11 @@ cd frontend && npm install && npm run dev
 
 ```
 ArchOps/
-├── backend/           Spring Boot 3（Java 21），模块化包结构
-├── frontend/          Vue 3 + Naive UI + TypeScript
+├── backend/           Spring Boot 3（Java 21）+ Dockerfile
+├── frontend/          Vue 3 + Naive UI + Dockerfile / nginx.conf
 ├── deploy/
 │   ├── compose/       Docker Compose（单节点）
 │   └── scripts/       远程初始化 / 部署脚本
-├── docker/            后端 Dockerfile
 └── docs/              部署文档
 ```
 

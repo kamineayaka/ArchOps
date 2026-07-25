@@ -49,7 +49,7 @@ services:
   backend:
     build:
       context: ../../backend
-      dockerfile: ../docker/Dockerfile.backend
+      dockerfile: Dockerfile
     container_name: archops-backend
     restart: unless-stopped
     environment:

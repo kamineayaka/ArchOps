@@ -5,7 +5,7 @@ services:
   backend:
     build:
       context: ../../backend
-      dockerfile: ../docker/Dockerfile.backend.prebuilt
+      dockerfile: Dockerfile.prebuilt
 
   frontend:
     build:
