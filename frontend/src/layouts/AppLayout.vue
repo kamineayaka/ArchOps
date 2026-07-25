@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, h, ref } from 'vue'
+import { computed, h } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import {
@@ -13,7 +13,6 @@ import {
   NLayoutHeader,
   NLayoutSider,
   NMenu,
-  NSelect,
   NSpace,
   NText,
   NTooltip,
@@ -39,11 +38,10 @@ import { useAiWorkbenchShell } from '@/composables/useAiWorkbenchShell'
 import { useAuthStore } from '@/stores/auth'
 import { useTheme } from '@/composables/useTheme'
 import { isAdmin as roleIsAdmin } from '@/utils/roles'
-import { setAppLocale } from '@/i18n'
 
 const route = useRoute()
 const router = useRouter()
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const authStore = useAuthStore()
 const { isDark, toggle } = useTheme()
 const {
@@ -59,18 +57,6 @@ const {
   toggleAssetTree,
   setAssetTreeOpen,
 } = useAiWorkbenchShell()
-
-const localeOptions = computed(() => [
-  { label: t('common.localeZh'), value: 'zh-CN' },
-  { label: t('common.localeEn'), value: 'en-US' },
-])
-
-const currentLocale = ref(locale.value)
-
-function handleLocaleChange(value: 'zh-CN' | 'en-US') {
-  setAppLocale(value)
-  currentLocale.value = value
-}
 
 const username = computed(() => authStore.user?.displayName || authStore.user?.username || '')
 const userInitial = computed(() => (username.value ? username.value.charAt(0).toUpperCase() : '?'))
@@ -197,15 +183,6 @@ async function handleLogout() {
               </template>
               {{ isDark ? t('common.lightMode') : t('common.darkMode') }}
             </NTooltip>
-            <NSelect
-              v-model:value="currentLocale"
-              :options="localeOptions"
-              size="small"
-              class="locale-select"
-              :consistent-menu-width="false"
-              :aria-label="t('common.language')"
-              @update:value="handleLocaleChange"
-            />
             <NSpace align="center" :size="8" class="user-area">
               <NAvatar round size="small" class="user-avatar">{{ userInitial }}</NAvatar>
               <NText class="user-name">{{ username }}</NText>
@@ -377,10 +354,6 @@ async function handleLogout() {
   color: #fff !important;
   font-size: 0.75rem;
   font-weight: 600;
-}
-
-.locale-select {
-  width: 112px;
 }
 
 .workbench {

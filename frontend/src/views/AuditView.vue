@@ -8,7 +8,7 @@ import EmptyState from '@/components/EmptyState.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import { formatDateTime } from '@/utils/format'
 
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const message = useMessage()
 
 interface AuditLog {
@@ -39,7 +39,7 @@ const columns = computed(() => [
   {
     title: t('audit.time'),
     key: 'createdAt',
-    render: (row: AuditLog) => formatDateTime(row.createdAt, locale.value),
+    render: (row: AuditLog) => formatDateTime(row.createdAt),
   },
 ])
 

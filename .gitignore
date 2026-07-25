@@ -3,12 +3,17 @@
 Thumbs.db
 desktop.ini
 
-# IDE
+# IDE / Agent（克隆与部署不需要）
 .idea/
 .vscode/
+.cursor/
 *.iml
 *.swp
 *.swo
+skills-lock.json
+
+# Editor 本地配置（可选留在本机）
+.editorconfig
 
 # Java / Maven
 target/
@@ -17,6 +22,8 @@ target/
 # Ignore JAR artifacts except the Maven Wrapper bootstrap
 *.jar
 !backend/.mvn/wrapper/maven-wrapper.jar
+backend/mvnwDebug
+backend/mvnwDebug.cmd
 
 # Node / Vue
 node_modules/
@@ -34,6 +41,9 @@ dist/
 *.p12
 secrets/
 credentials.json
+
+# 本机部署备注（含真实主机名/IP 时勿提交）
+docs/test-deploy-server.local.md
 
 # Logs
 *.log

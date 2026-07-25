@@ -1,4 +1,4 @@
-export function formatDateTime(value: string, locale: string) {
+export function formatDateTime(value: string, locale = 'zh-CN') {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
   return new Intl.DateTimeFormat(locale, {

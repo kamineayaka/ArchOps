@@ -1,22 +1,22 @@
-# Security Policy
+# 安全策略
 
-## Reporting a Vulnerability
+## 报告漏洞
 
-If you discover a security vulnerability, please report it responsibly:
+如发现安全漏洞，请负责任地披露：
 
-1. Do **not** open a public GitHub issue.
-2. Email the maintainers with a description and reproduction steps.
-3. Allow up to 72 hours for an initial response.
+1. **不要**公开提 GitHub Issue。
+2. 邮件联系维护者，说明问题与复现步骤。
+3. 请预留最多 72 小时等待首次回复。
 
-## Supported Versions
+## 支持版本
 
-Only the latest release line receives security fixes.
+仅最新发布线接受安全修复。
 
-## Hardening Checklist for Deployments
+## 部署加固清单
 
-- Change the default `admin` password immediately after first boot.
-- Set a strong `JWT_SECRET` (at least 256 bits) via environment variable.
-- Put the platform behind TLS (reverse proxy in front of Docker Compose).
-- Restrict `CORS_ALLOWED_ORIGINS` to your actual frontend origin.
-- Store SSH credentials encrypted; rotate the `CREDENTIALS_MASTER_KEY` regularly.
-- Enable the audit log hash-chain integrity check on a schedule.
+- 首次启动后立即修改默认 `admin` 密码。
+- 通过环境变量设置足够强度的 `JWT_SECRET`（至少 256 bit）。
+- 在 Docker Compose 前放置 TLS 反向代理。
+- 将 `CORS_ALLOWED_ORIGINS` 限制为真实前端来源。
+- SSH 凭证加密存储；定期轮换 `CREDENTIALS_MASTER_KEY`。
+- 按计划启用审计日志哈希链完整性校验。

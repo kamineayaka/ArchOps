@@ -1,62 +1,62 @@
-# Deployment Guide
+# 部署指南
 
-## Docker Compose (Recommended for Single Server)
+## Docker Compose（推荐，单机）
 
-For turning a small Linux VPS into a dedicated test/deploy host (SSH key, swap, low-memory overlay, remote sync scripts), see [test-deploy-server.md](./test-deploy-server.md).
+低内存 VPS 的远程初始化与同步脚本用法，见 [test-deploy-server.md](./test-deploy-server.md)。
 
-### 1. Server Requirements
+### 1. 服务器要求
 
-| Resource | Minimum | Recommended |
+| 资源 | 最低 | 推荐 |
 |---|---|---|
-| CPU | 2 cores | 4 cores |
-| RAM | 4 GB | 8 GB |
-| Disk | 40 GB | 100 GB SSD |
-| OS | Ubuntu 22.04+ / Debian 12+ / CentOS Stream 9+ | |
+| CPU | 2 核 | 4 核 |
+| 内存 | 4 GB | 8 GB |
+| 磁盘 | 40 GB | 100 GB SSD |
+| 系统 | Ubuntu 22.04+ / Debian 12+ / CentOS Stream 9+ | |
 
-### 2. Install Docker
+### 2. 安装 Docker
 
 ```bash
 curl -fsSL https://get.docker.com | sh
 sudo usermod -aG docker $USER
 ```
 
-### 3. Configure Environment
+### 3. 配置环境变量
 
 ```bash
 cp deploy/compose/.env.example deploy/compose/.env
 
-# JWT_SECRET and CREDENTIALS_MASTER_KEY are optional — leave empty to auto-generate
-# on first boot and persist to the archops_secrets volume.
+# JWT_SECRET 与 CREDENTIALS_MASTER_KEY 可留空：首次启动自动生成，
+# 并持久化到 archops_secrets 卷。
 
-# Optional: set OPENAI_API_KEY for one-time seed migration to default AI Provider.
-# After deploy, configure providers in the admin UI: Settings → AI Settings.
-# Edit deploy/compose/.env and set:
-# - CORS_ALLOWED_ORIGINS=http://your-server-ip
+# 可选：设置 OPENAI_API_KEY，用于一次性种子迁移默认 AI Provider。
+# 部署后也可在控制台「设置 → AI 设置」中配置。
+# 编辑 deploy/compose/.env，例如：
+# - CORS_ALLOWED_ORIGINS=http://你的服务器IP
 ```
 
-### 4. Start Platform
+### 4. 启动平台
 
 ```bash
 docker compose -f deploy/compose/compose.yaml --env-file deploy/compose/.env up -d --build
 ```
 
-Verify health:
+健康检查：
 
 ```bash
 curl http://localhost/actuator/health
 ```
 
-### 5. Post-Install Checklist
+### 5. 安装后检查清单
 
-- [ ] Log in and change the default `admin` password
-- [ ] Add your server assets under **资产管理**
-- [ ] Configure SSH credentials for each asset
-- [ ] Set `OPENAI_API_KEY` or connect Ollama
-- [ ] Run initial RAG index: `POST /api/knowledge/reindex` (admin JWT) after first deploy
-- [ ] Put Nginx behind TLS (reverse proxy or cloud load balancer)
-- [ ] Restrict firewall: only expose port 80/443
+- [ ] 登录并修改默认 `admin` 密码
+- [ ] 在 **资产管理** 中添加服务器资产
+- [ ] 为各资产配置 SSH 凭证
+- [ ] 配置 `OPENAI_API_KEY` 或接入 Ollama
+- [ ] 首次部署后以管理员 JWT 调用 `POST /api/knowledge/reindex` 初始化 RAG
+- [ ] 为 Nginx 配置 TLS（反向代理或云负载均衡）
+- [ ] 防火墙仅开放 80/443
 
-## Backup
+## 备份
 
 ### PostgreSQL
 
@@ -66,51 +66,51 @@ docker exec archops-postgres pg_dump -U archops archops > backup_$(date +%Y%m%d)
 
 ### Redis
 
-Redis uses AOF persistence (`appendonly yes`). Data is in the `redis_data` Docker volume.
+Redis 使用 AOF（`appendonly yes`），数据在 Docker 卷 `redis_data` 中。
 
-### Restore
+### 恢复
 
 ```bash
 cat backup_20260101.sql | docker exec -i archops-postgres psql -U archops archops
 ```
 
-## Secret rotation (`JWT_SECRET` / `CREDENTIALS_MASTER_KEY`)
+## 密钥轮换（`JWT_SECRET` / `CREDENTIALS_MASTER_KEY`）
 
-Platform secrets resolve in priority order: environment variables → secrets file (`archops.secrets.path`, default `./data/secrets.properties` in Compose) → auto-generated on first boot.
+平台密钥解析优先级：环境变量 → 密钥文件（`archops.secrets.path`，Compose 下默认 `./data/secrets.properties`）→ 首次启动自动生成。
 
-### Impact summary
+### 影响说明
 
-| Secret | What it protects | Rotation impact |
+| 密钥 | 保护内容 | 轮换影响 |
 |--------|------------------|-----------------|
-| `JWT_SECRET` | Signs access/refresh JWTs | **All active sessions invalidated.** Users must sign in again. Existing tokens in browsers/clients stop working immediately after restart with the new value. |
-| `CREDENTIALS_MASTER_KEY` | AES key for encrypted SSH credentials and AI provider API keys in PostgreSQL | **Existing ciphertext cannot be decrypted** with the new key. SSH credentials and stored provider API keys appear missing until re-entered. RAG embeddings already written to the DB are unaffected, but embedding API calls need valid provider keys again. |
+| `JWT_SECRET` | 签发 access/refresh JWT | **全部会话立即失效**，用户需重新登录。 |
+| `CREDENTIALS_MASTER_KEY` | 加密 SSH 凭证与 AI Provider API Key | **旧密文无法解密**，需重新录入凭证与 Provider Key。库中已有 RAG embedding 不受影响。 |
 
-Auto-generated secrets (empty env + empty file) are written once to the secrets volume. Rotating them later has the same impact as setting new values manually.
+自动生成的密钥会写入 secrets 卷一次；之后手动轮换效果相同。
 
-### Recommended rotation procedure
+### 推荐步骤
 
-1. **Plan a maintenance window** — rotation requires backend restart and user re-login.
-2. **Back up PostgreSQL** (see [Backup](#backup)) before rotating `CREDENTIALS_MASTER_KEY`.
-3. **Generate new values** (at least 32 random bytes; base64-encoded is fine), e.g. `openssl rand -base64 32`.
-4. **Update configuration:** set `JWT_SECRET` and/or `CREDENTIALS_MASTER_KEY` in `deploy/compose/.env`, or edit the persisted file on the `archops_secrets` volume (`jwt.secret`, `credentials.master-key`).
-5. **Restart the backend** (`docker compose up -d`).
-6. **After `CREDENTIALS_MASTER_KEY` rotation:**
-   - Re-enter SSH credentials for each asset under **Assets**.
-   - Re-enter API keys for each AI provider under **Settings → AI Settings** (masked keys cannot be recovered).
-   - Run `POST /api/knowledge/reindex` if you changed embedding provider or dimensions in the same maintenance window.
-7. **Communicate** that all users need to sign in again when `JWT_SECRET` changes.
+1. **安排维护窗口** — 需重启后端并重新登录。
+2. **备份 PostgreSQL**（见上文）再轮换 `CREDENTIALS_MASTER_KEY`。
+3. **生成新值**（至少 32 随机字节，可用 base64），例如 `openssl rand -base64 32`。
+4. **更新配置：** 在 `deploy/compose/.env` 设置，或编辑 `archops_secrets` 卷中的 `jwt.secret` / `credentials.master-key`。
+5. **重启后端**（`docker compose up -d`）。
+6. **轮换 `CREDENTIALS_MASTER_KEY` 后：**
+   - 在 **资产管理** 中重新录入 SSH 凭证
+   - 在 **设置 → AI 设置** 中重新录入 Provider API Key
+   - 若同时更换了 embedding 模型/维度，再执行 `POST /api/knowledge/reindex`
+7. **通知用户** `JWT_SECRET` 变更后需重新登录。
 
-### What you do *not* need to re-run
+### 无需重做的事项
 
-- Flyway migrations
-- Asset host/port inventory (still in PostgreSQL)
-- Platform AI settings rows (provider IDs, RAG toggles) — only encrypted fields need re-entry
+- Flyway 迁移
+- 资产主机/端口清单（仍在 PostgreSQL）
+- 平台 AI 设置行（Provider ID、RAG 开关等）— 仅加密字段需重录
 
-## Upgrading
+## 升级
 
 ```bash
 git pull
 docker compose -f deploy/compose/compose.yaml --env-file deploy/compose/.env up -d --build
 ```
 
-Flyway migrations run automatically on backend startup.
+后端启动时会自动执行 Flyway 迁移。

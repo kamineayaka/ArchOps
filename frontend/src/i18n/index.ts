@@ -1,24 +1,14 @@
 import { createI18n } from 'vue-i18n'
 import zhCN from '@/locales/zh-CN'
-import enUS from '@/locales/en-US'
 
-const LOCALE_STORAGE_KEY = 'archops.locale'
-
-const savedLocale = typeof localStorage !== 'undefined' ? localStorage.getItem(LOCALE_STORAGE_KEY) : null
-
+/** 单语（中文）。文案仍走 vue-i18n 键值，便于集中维护，不再提供语言切换。 */
 const i18n = createI18n({
   legacy: false,
-  locale: savedLocale === 'en-US' ? 'en-US' : 'zh-CN',
+  locale: 'zh-CN',
   fallbackLocale: 'zh-CN',
   messages: {
     'zh-CN': zhCN,
-    'en-US': enUS,
   },
 })
-
-export function setAppLocale(locale: 'zh-CN' | 'en-US') {
-  i18n.global.locale.value = locale
-  localStorage.setItem(LOCALE_STORAGE_KEY, locale)
-}
 
 export default i18n

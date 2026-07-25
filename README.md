@@ -1,119 +1,118 @@
 # ArchOps AI Platform
 
-[中文文档](README.zh-CN.md) | English
-
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-**ArchOps AI Platform** is a B/S cloud-native intelligent operations control plane for Linux server fleets. It provides a unified web interface with AI-assisted operations, Web SSH terminal, in-process agent tool registry, knowledge-base RAG, RBAC-tiered approval workflow, and tamper-evident audit logging.
+**ArchOps AI Platform** 是一套面向 Linux 服务器集群的云原生智能运维控制平面，采用 B/S 架构。它提供统一的 Web 管理界面，集成 AI 辅助运维、Web SSH 终端、进程内工具注册表、知识库 RAG、分级审批工作流，以及可防篡改的审计日志。
 
-Designed for deployment on any Linux server — from a single VPS to a small production host — and for other developers to self-host and extend.
+适用于从单台 VPS 到小规模生产主机的部署场景，方便其他开发者自行搭建与二次开发。
 
-## Features
+## 功能模块
 
-| Module | Description |
+| 模块 | 说明 |
 |---|---|
-| **User & RBAC** | JWT auth, role-based access (ADMIN / OPERATOR / VIEWER), single-session kick-out |
-| **Asset Management** | Server/cluster/service inventory, AES-256-GCM encrypted SSH credentials |
-| **SSH Connection Pool** | Server-side pooled SSH sessions per user/asset; warm API; reused by terminal and `ssh_exec` |
-| **Web SSH Terminal** | Browser terminal (xterm.js + MINA SSHD) over pooled connections, PTY resize |
-| **AI Agent** | ReAct tool-calling loop; pin target assets per conversation so `ssh_exec` needs no repeated `assetId` |
-| **Built-in Tool Registry** | Extensible in-process agent tools (`ssh_exec`, `list_assets`, ...) |
-| **Approval Workflow** | RBAC-tiered risk classification (LOW / MEDIUM / HIGH) with human gate |
-| **Knowledge Base** | Architecture snapshot + work logs + pgvector RAG semantic retrieval |
-| **Audit Center** | Append-only log with SHA-256 hash chain for tamper detection |
+| **用户与 RBAC** | JWT 认证、角色权限（ADMIN / OPERATOR / VIEWER）、单会话挤下 |
+| **资产管理** | 服务器 / 集群 / 服务清单，SSH 凭证 AES-256-GCM 加密存储 |
+| **SSH 连接池** | 服务端按用户/资产复用 SSH 会话，支持预热 API，终端与 `ssh_exec` 共用 |
+| **Web SSH 终端** | 浏览器内终端（xterm.js + MINA SSHD），基于连接池，支持 PTY 缩放 |
+| **AI Agent** | ReAct 工具调用循环；对话可固定目标资产，`ssh_exec` 无需每次传 `assetId` |
+| **内置工具注册表** | 可扩展的进程内 Agent 工具（`ssh_exec`、`list_assets` 等） |
+| **审批工作流** | 按 RBAC 分级风险识别（LOW / MEDIUM / HIGH）与人工门控 |
+| **知识库** | 架构快照 + 工作日志 + pgvector RAG 语义检索 |
+| **审计中心** | 追加写入日志 + SHA-256 哈希链防篡改校验 |
 
-## Quick Start (Docker Compose)
+## 快速开始（Docker Compose）
 
-### Prerequisites
+### 环境要求
 
-- Docker 24+ and Docker Compose v2
-- 2 CPU cores, 4 GB RAM minimum (8 GB recommended)
-- An OpenAI-compatible or Anthropic API key (configure in admin UI → AI Settings; optional `OPENAI_API_KEY` env seed)
-- Node.js 22+ for frontend development
+- Docker 24+ 与 Docker Compose v2
+- 最低 2 核 CPU、4 GB 内存（建议 8 GB）
+- OpenAI 兼容 API Key 或 Anthropic API Key（可在控制台「AI 设置」中配置；也可通过 `OPENAI_API_KEY` 环境变量种子迁移）
+- 前端开发需 Node.js 22+
 
-### Deploy
+### 部署步骤
 
 ```bash
 git clone https://github.com/kamineayaka/ArchOps.git
 cd ArchOps
 
-# Configure environment (JWT/credentials auto-generate if left empty)
+# 配置环境（JWT/凭证密钥可留空，首次启动自动生成并持久化）
 cp deploy/compose/.env.example deploy/compose/.env
-# Optional: set OPENAI_API_KEY for seed migration, or configure providers in AI Settings after deploy
+# 可选：在 deploy/compose/.env 中设置 OPENAI_API_KEY，首次启动会自动迁移为默认 AI Provider
+# 也可在部署后于 Web 控制台「AI 设置」中配置多个 Provider
 
-# Start platform
+# 启动平台
 docker compose -f deploy/compose/compose.yaml --env-file deploy/compose/.env up -d --build
 ```
 
-Open **http://your-server-ip** and log in with:
+浏览器访问 **http://你的服务器IP**，使用默认账号登录：
 
-- Username: `admin`
-- Password: `admin123`
+- 用户名：`admin`
+- 密码：`admin123`
 
-**Change the default password immediately after first login.**
+**首次登录后请立即修改默认密码。**
 
-After the first deploy, run `POST /api/knowledge/reindex` as admin to initialize the RAG vector index.
+首次部署后，建议以管理员身份调用 `POST /api/knowledge/reindex` 初始化 RAG 向量索引。
 
-### SSH pool & AI targets
+### SSH 连接池与 AI 目标资产
 
-1. Register assets and save SSH credentials under **Assets**.
-2. In **AI Ops**, select **Target assets** for the conversation (connections are warmed automatically).
-3. Ask naturally (e.g. “check disk usage”) — the agent runs `ssh_exec` against pinned targets without you specifying `assetId` each time.
-4. **Web Terminal** reuses the same pool; optional warm: `POST /api/ssh/pool/{assetId}/warm`.
+1. 在 **资产管理** 中录入资产并保存 SSH 凭证。
+2. 在 **AI 运维** 页为当前对话选择 **目标资产**（保存后会自动预热连接池）。
+3. 直接用自然语言提问（如「检查磁盘使用情况」），Agent 会对已选资产执行 `ssh_exec`，无需每次指定 `assetId`。
+4. **Web 终端** 复用同一连接池；也可调用 `POST /api/ssh/pool/{assetId}/warm` 手动预热。
 
-## Development
+## 本地开发
 
 ```bash
-# Start dependencies only
+# 仅启动依赖服务
 docker compose -f deploy/compose/compose.yaml up -d postgres redis minio
 
-# Backend (port 8080)
+# 后端（端口 8080）
 cd backend && ./mvnw spring-boot:run
 
-# Frontend (port 5173, requires Node.js 22+)
+# 前端（端口 5173，需 Node.js 22+）
 cd frontend && npm install && npm run dev
 ```
 
-## Project Structure
+## 项目结构
 
 ```
 ArchOps/
-├── backend/           Spring Boot 3 (Java 21), modular packages
+├── backend/           Spring Boot 3（Java 21），模块化包结构
 ├── frontend/          Vue 3 + Naive UI + TypeScript
 ├── deploy/
-│   ├── compose/       Docker Compose (single-node)
-│   └── scripts/       Remote provision / deploy helpers
-├── docker/            Backend Dockerfiles
-└── docs/              Deployment guides
+│   ├── compose/       Docker Compose（单节点）
+│   └── scripts/       远程初始化 / 部署脚本
+├── docker/            后端 Dockerfile
+└── docs/              部署文档
 ```
 
-## Deployment
+## 部署方式
 
-| Method | Use Case | Guide |
+| 方式 | 适用场景 | 文档 |
 |---|---|---|
-| Docker Compose | Single server / MVP / small production | [docs/deployment.md](docs/deployment.md) |
-| Remote VPS scripts | Low-memory host sync + compose overlays | [docs/test-deploy-server.md](docs/test-deploy-server.md) |
+| Docker Compose | 单机 / MVP / 小规模生产 | [docs/deployment.md](docs/deployment.md) |
+| 远程 VPS 脚本 | 低内存主机同步 + Compose overlay | [docs/test-deploy-server.md](docs/test-deploy-server.md) |
 
-## Tech Stack
+## 技术栈
 
-| Layer | Choices |
+| 层级 | 技术选型 |
 |---|---|
-| Backend | Java 21, Spring Boot 3, Flyway, PostgreSQL + pgvector, Redis |
-| Frontend | Vue 3, Naive UI, Pinia, vue-i18n |
-| AI | OpenAI-compatible API / Ollama, in-process agent tools, pgvector RAG |
-| Deploy | Docker Compose, Nginx |
+| 后端 | Java 21、Spring Boot 3、Flyway、PostgreSQL + pgvector、Redis |
+| 前端 | Vue 3、Naive UI、Pinia |
+| AI | OpenAI 兼容 API / Ollama，进程内 Agent 工具，pgvector RAG |
+| 部署 | Docker Compose、Nginx |
 
-## Security
+## 安全
 
-See [SECURITY.md](SECURITY.md) for the vulnerability reporting process and production hardening checklist.
+漏洞报告流程与生产加固清单见 [SECURITY.md](SECURITY.md)。
 
-Before going to production:
+生产环境请务必：
 
-- Rotate `JWT_SECRET`, `CREDENTIALS_MASTER_KEY`, and other default secrets
-- Change the default admin password
-- Expose only ports 80/443 and enable TLS
-- Restrict access to `/actuator/prometheus` and other monitoring endpoints as needed
+- 修改 `JWT_SECRET`、`CREDENTIALS_MASTER_KEY` 等默认密钥
+- 修改默认管理员密码
+- 仅对外暴露 80/443，并配置 TLS
+- 按需限制 `/actuator/prometheus` 等监控端点访问
 
-## License
+## 许可证
 
 [MIT](LICENSE)

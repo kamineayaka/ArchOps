@@ -1,98 +1,85 @@
-# Test & Deploy Server
+# 测试 / 部署服务器
 
-This guide turns a single Linux VPS into the ArchOps **test / deploy** host (Docker Compose, low-memory overlay when RAM ≤ 2 GiB).
+将一台 Linux VPS 变为 ArchOps 的 **测试 / 部署** 主机（Docker Compose；内存 ≤ 2 GiB 时使用 lowmem overlay）。
 
-## Target host (current)
+## 目标主机（请按实际填写）
 
-| Item | Value |
+| 项 | 值 |
 |---|---|
-| Host | `8.138.118.78` |
-| OS | Ubuntu 24.04 LTS |
-| SSH | `root@8.138.118.78` (prefer **SSH key**, not password) |
-| App path | `/opt/archops` |
-| Public URL | `http://8.138.118.78` / `http://console.skycore.top` |
+| Host | `YOUR_HOST` |
+| OS | Ubuntu 24.04 LTS（或其他兼容发行版） |
+| SSH | `root@YOUR_HOST`（推荐 **SSH 密钥**，勿用密码） |
+| 应用路径 | `/opt/archops` |
+| 公网 URL | `http://YOUR_HOST` |
 
-> Do **not** commit passwords or private keys. Use `ssh-copy-id` once, then disable password auth when ready.
+> 不要把密码或私钥提交进 Git。首次用 `ssh-copy-id`，就绪后可关闭密码登录。
 
-## One-time provision
+本机私有备注可写在 `docs/test-deploy-server.local.md`（已 gitignore，不会进仓库）。
 
-From a workstation that already has SSH key access:
+## 一次性初始化
+
+在已具备 SSH 密钥访问的工作站上：
 
 ```bash
-# Install your public key (first time only)
-ssh-copy-id root@8.138.118.78
+# 首次安装公钥
+ssh-copy-id root@YOUR_HOST
 
-# Expand swap, ensure Docker, create /opt/archops
-./deploy/scripts/remote-provision.sh root@8.138.118.78
+# 扩大 swap、确保 Docker、创建 /opt/archops
+./deploy/scripts/remote-provision.sh root@YOUR_HOST
 ```
 
-## Configure env
+## 配置环境
 
 ```bash
 cp deploy/compose/.env.example deploy/compose/.env
-# Edit CORS (and optional OPENAI_API_KEY):
-# CORS_ALLOWED_ORIGINS=http://8.138.118.78,http://console.skycore.top
-# For ≤2 GiB hosts also set:
+# 编辑 CORS（以及可选的 OPENAI_API_KEY）：
+# CORS_ALLOWED_ORIGINS=http://YOUR_HOST
+# ≤2 GiB 主机建议：
 # JAVA_OPTS=-Xms128m -Xmx384m -XX:+UseSerialGC -XX:MaxMetaspaceSize=128m
 ```
 
-`deploy/compose/.env` is gitignored — keep it only on your machine / the server.
+`deploy/compose/.env` 已被 gitignore — 只保留在本机 / 服务器。
 
-## Deploy / upgrade
+## 部署 / 升级
 
 ```bash
-# Default: low-memory overlay + remote source build
-./deploy/scripts/remote-deploy.sh root@8.138.118.78
+# 默认：lowmem overlay + 远端源码构建
+./deploy/scripts/remote-deploy.sh root@YOUR_HOST
 
-# Recommended on ≤2 GiB hosts: build JAR/dist on a stronger machine first
+# ≤2 GiB 主机推荐：先在较强机器上构建 JAR/dist
 cd backend && ./mvnw -DskipTests package && cd ..
 cd frontend && npm ci && npm run build && cd ..
-PREBUILT=1 ./deploy/scripts/remote-deploy.sh root@8.138.118.78
+PREBUILT=1 ./deploy/scripts/remote-deploy.sh root@YOUR_HOST
 
-# Full resources (when the VPS has ≥4 GiB RAM)
-LOWMEM=0 ./deploy/scripts/remote-deploy.sh root@8.138.118.78
+# 主机内存 ≥4 GiB 时可用满配
+LOWMEM=0 ./deploy/scripts/remote-deploy.sh root@YOUR_HOST
 ```
 
-### Optional: build images elsewhere, load on VPS
-
-On a machine with enough RAM/CPU:
+### 可选：别处构建镜像，再加载到 VPS
 
 ```bash
 docker compose -f deploy/compose/compose.yaml build
 docker save archops-backend archops-frontend | gzip > /tmp/archops-images.tar.gz
-LOAD_IMAGES=1 SKIP_BUILD=1 ./deploy/scripts/remote-deploy.sh root@8.138.118.78
+LOAD_IMAGES=1 SKIP_BUILD=1 ./deploy/scripts/remote-deploy.sh root@YOUR_HOST
 ```
 
-Image repository names follow Compose project naming (`archops-*` when the project directory / `-p` name is `archops`).
+镜像名遵循 Compose 项目命名（目录 / `-p` 为 `archops` 时一般为 `archops-*`）。
 
-## Verify
+## 验证
 
 ```bash
-curl -fsS http://8.138.118.78/actuator/health
-# Login: admin / admin123  — change immediately
+curl -fsS http://YOUR_HOST/actuator/health
+# 登录：admin / admin123  — 立即修改
 ```
 
-## Notes for 1.6–2 GiB VPS
+## 1.6–2 GiB VPS 注意
 
-- Always use `compose.lowmem.yaml` (script default `LOWMEM=1`).
-- Keep at least 4 GiB swap; builds and JVM spikes will use it.
-- Prefer loading prebuilt images if Maven/`npm` builds OOM on the VPS.
-- If Docker Hub / mirrors fail (`TLS handshake timeout`), rebuild app images from any already-cached `compose-backend` / `compose-frontend` layers:
+- 始终使用 `compose.lowmem.yaml`（脚本默认 `LOWMEM=1`）。
+- 保持至少 4 GiB swap。
+- 若 VPS 上 Maven/`npm` 容易 OOM，优先预构建或加载镜像。
+- 若 Docker Hub / 镜像源失败（如 TLS handshake timeout），可从已缓存层重建：
 
 ```bash
 ./deploy/scripts/rebuild-images-from-cache.sh
 docker compose -p archops -f compose.yaml -f compose.images.yaml -f compose.lowmem.yaml --env-file .env up -d
 ```
-
-## Current status (aliserver)
-
-Provisioned and verified on `8.138.118.78`:
-
-- SSH key auth for the deploy agent
-- Swap expanded to 4 GiB
-- Stack path: `/opt/archops`
-- Health: `http://8.138.118.78/actuator/health` → `UP`
-- UI: `http://8.138.118.78` and `http://console.skycore.top`
-
-Default login remains `admin` / `admin123` — change it immediately after first login.
-Rotate the root password that was shared out-of-band; prefer key-only SSH.
