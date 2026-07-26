@@ -42,33 +42,49 @@ cp deploy/compose/.env.example deploy/compose/.env
 
 ### 4. 启动平台
 
-#### 4a. 标准路径（≥4 GiB 内存）
+优先用封装脚本（会预拉基础镜像、可选国内源、低内存串行构建）：
 
 ```bash
-# 可选：先用 dockerd 拉基础镜像（会走 daemon.json 的 registry-mirrors；
-# docker compose build / buildx 有时不继承该加速器）
+# 国内 ECS 推荐
+USE_CN_MIRRORS=1 ./deploy/scripts/compose-build.sh
+docker compose -f deploy/compose/compose.yaml --env-file deploy/compose/.env up -d
+
+# ≤2 GiB
+USE_CN_MIRRORS=1 LOWMEM=1 ./deploy/scripts/compose-build.sh
+docker compose -f deploy/compose/compose.yaml -f deploy/compose/compose.lowmem.yaml \
+  --env-file deploy/compose/.env up -d
+```
+
+#### 4a. 标准路径（≥4 GiB 内存，手写命令）
+
+```bash
+# 先用 dockerd 拉基础镜像（走 daemon.json registry-mirrors；
+# docker compose build / buildx 常常不继承该加速器）
 docker pull node:22-alpine nginx:1.27-alpine \
   maven:3.9.9-eclipse-temurin-21 eclipse-temurin:21-jre
 
-docker compose -f deploy/compose/compose.yaml --env-file deploy/compose/.env up -d --build
+# 关闭 BuildKit，复用 dockerd 本地层，避免 buildx 再慢吞吞拉一遍
+DOCKER_BUILDKIT=0 COMPOSE_DOCKER_CLI_BUILD=0 \
+  docker compose -f deploy/compose/compose.yaml --env-file deploy/compose/.env \
+  build --pull=false
+docker compose -f deploy/compose/compose.yaml --env-file deploy/compose/.env up -d
 ```
 
 也可显式传 build arg（不必写进 .env）：
 
 ```bash
 docker compose -f deploy/compose/compose.yaml --env-file deploy/compose/.env \
-  build \
+  build --pull=false \
   --build-arg NPM_REGISTRY=https://registry.npmmirror.com \
   --build-arg MAVEN_MIRROR=https://maven.aliyun.com/repository/public
 docker compose -f deploy/compose/compose.yaml --env-file deploy/compose/.env up -d
 ```
 
-#### 4b. 低内存机（≤2 GiB）：先构建再启动，或预构建
+#### 4b. 低内存机（≤2 GiB）：串行构建或预构建
 
 ```bash
-# 方案 A：分步 —— 先 build，再 up（仍可能吃紧，建议加 ≥4G swap）
-docker compose -f deploy/compose/compose.yaml -f deploy/compose/compose.lowmem.yaml \
-  --env-file deploy/compose/.env build
+# 方案 A：封装脚本（停 backend/frontend → 串行 build → 再 up）
+USE_CN_MIRRORS=1 LOWMEM=1 ./deploy/scripts/compose-build.sh
 docker compose -f deploy/compose/compose.yaml -f deploy/compose/compose.lowmem.yaml \
   --env-file deploy/compose/.env up -d
 
@@ -76,10 +92,11 @@ docker compose -f deploy/compose/compose.yaml -f deploy/compose/compose.lowmem.y
 cd backend && ./mvnw -DskipTests package && cd ..
 cd frontend && npm ci && npm run build && cd ..
 # 然后用 remote-deploy.sh PREBUILT=1，或本地：
+USE_CN_MIRRORS=1 PREBUILT=1 LOWMEM=1 ./deploy/scripts/compose-build.sh
 docker compose -f deploy/compose/compose.yaml \
   -f deploy/compose/compose.prebuilt.yaml \
   -f deploy/compose/compose.lowmem.yaml \
-  --env-file deploy/compose/.env up -d --build
+  --env-file deploy/compose/.env up -d
 ```
 
 健康检查：
@@ -92,9 +109,9 @@ curl http://localhost/actuator/health
 
 | 问题 | 做法 |
 |---|---|
-| npm / Maven 下载极慢 | 在 `.env` 设 `NPM_REGISTRY` / `MAVEN_MIRROR`（见上文） |
-| 配了 `registry-mirrors` 但 compose build 仍慢 | buildx 不一定继承 dockerd 加速器；先 `docker pull` 基础镜像再 `build` |
-| 想强制走 legacy builder | `DOCKER_BUILDKIT=0 docker compose ... build`（可复用 dockerd 镜像缓存） |
+| npm / Maven 下载极慢（国内常见 30–60min） | `USE_CN_MIRRORS=1` 或 `.env` 设 `NPM_REGISTRY` / `MAVEN_MIRROR` |
+| 配了 `registry-mirrors` 但 compose build 仍慢 | buildx 不继承 dockerd 加速器；先 `docker pull`，并用 `DOCKER_BUILDKIT=0` / `compose-build.sh` |
+| ≤2GiB 上 `up --build` OOM | 勿并行编前后端；用 `LOWMEM=1 ./deploy/scripts/compose-build.sh` 或 `PREBUILT=1` |
 
 ### 6. 安装后检查清单
 

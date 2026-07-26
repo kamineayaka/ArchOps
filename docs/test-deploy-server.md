@@ -51,23 +51,20 @@ cp deploy/compose/.env.example deploy/compose/.env
 ## 部署 / 升级
 
 ```bash
-# 默认：lowmem overlay + 远端源码构建
-# （脚本会先 docker pull 基础镜像，再 build，再 up，减轻 buildx 不走加速器的问题）
+# 国内 ECS 强烈推荐带上 USE_CN_MIRRORS=1（否则 npm/Maven 可能卡 30–60+ 分钟）
+USE_CN_MIRRORS=1 ./deploy/scripts/remote-deploy.sh root@YOUR_HOST
+
+# 默认：lowmem + 远端源码构建（脚本会：docker pull → 串行 build → up）
 ./deploy/scripts/remote-deploy.sh root@YOUR_HOST
 
-# 国内镜像源也可在命令行覆盖：
-NPM_REGISTRY=https://registry.npmmirror.com \
-MAVEN_MIRROR=https://maven.aliyun.com/repository/public \
-  ./deploy/scripts/remote-deploy.sh root@YOUR_HOST
-
-# ≤2 GiB 主机强烈推荐：先在较强机器上构建 JAR/dist，再 PREBUILT
-# （小内存机上同时跑 Maven + npm 极易 OOM，不要指望一条 up --build）
+# ≤2 GiB 主机更推荐：先在较强机器上构建 JAR/dist，再 PREBUILT
+# （小内存机上同时跑 Maven + npm 极易 OOM）
 cd backend && ./mvnw -DskipTests package && cd ..
 cd frontend && npm ci && npm run build && cd ..
-PREBUILT=1 ./deploy/scripts/remote-deploy.sh root@YOUR_HOST
+USE_CN_MIRRORS=1 PREBUILT=1 ./deploy/scripts/remote-deploy.sh root@YOUR_HOST
 
 # 主机内存 ≥4 GiB 时可用满配
-LOWMEM=0 ./deploy/scripts/remote-deploy.sh root@YOUR_HOST
+USE_CN_MIRRORS=1 LOWMEM=0 ./deploy/scripts/remote-deploy.sh root@YOUR_HOST
 ```
 
 ### 可选：别处构建镜像，再加载到 VPS

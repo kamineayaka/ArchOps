@@ -40,19 +40,19 @@ cp deploy/compose/.env.example deploy/compose/.env
 # 可选：在 deploy/compose/.env 中设置 OPENAI_API_KEY，首次启动会自动迁移为默认 AI Provider
 # 也可在部署后于 Web 控制台「AI 设置」中配置多个 Provider
 
-# 国内 / 慢网建议取消注释 .env 中的镜像源：
+# 国内 / 慢网建议取消注释 .env 中的镜像源，或构建时加 USE_CN_MIRRORS=1：
 #   NPM_REGISTRY=https://registry.npmmirror.com
 #   MAVEN_MIRROR=https://maven.aliyun.com/repository/public
 
-# 可选：先拉基础镜像（走 dockerd registry-mirrors；compose buildx 不一定继承）
-docker pull node:22-alpine nginx:1.27-alpine \
-  maven:3.9.9-eclipse-temurin-21 eclipse-temurin:21-jre
+# 推荐：用封装脚本构建（预拉基础镜像 + 可选国内源；避免 buildx 慢拉）
+USE_CN_MIRRORS=1 ./deploy/scripts/compose-build.sh
+docker compose -f deploy/compose/compose.yaml --env-file deploy/compose/.env up -d
 
-# 启动平台（≥4 GiB）
+# 或一条命令（≥4 GiB；仍建议先 compose-build.sh）
 docker compose -f deploy/compose/compose.yaml --env-file deploy/compose/.env up -d --build
 ```
 
-≤2 GiB VPS：**不要**一条命令 `--build` 同时编前后端，见 [docs/deployment.md](docs/deployment.md) 的分步 / `PREBUILT` 路径，或 [docs/test-deploy-server.md](docs/test-deploy-server.md)。
+≤2 GiB VPS：**不要**一条命令 `--build` 同时编前后端。用 `USE_CN_MIRRORS=1 LOWMEM=1 ./deploy/scripts/compose-build.sh`，或见 [docs/deployment.md](docs/deployment.md) / [docs/test-deploy-server.md](docs/test-deploy-server.md)。
 
 浏览器访问 **http://你的服务器IP**，使用默认账号登录：
 
