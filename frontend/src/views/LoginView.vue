@@ -22,7 +22,7 @@ const rules = computed(() => ({
 async function handleSubmit() {
   try {
     await authStore.login(form.value.username, form.value.password)
-    await router.push({ name: 'dashboard' })
+    await router.push({ name: 'topology' })
   } catch (error) {
     message.error(t('common.loginFailed'))
     console.error(error)

@@ -10,7 +10,6 @@ export const messages =
     password: '密码',
     submit: '提交',
     welcome: '欢迎使用 ArchOps',
-    dashboard: '控制台',
     loading: '加载中…',
     sessionKicked: '账号已在其他设备登录，请重新登录',
     loginFailed: '登录失败，请检查用户名和密码',
@@ -37,9 +36,7 @@ export const messages =
     darkMode: '暗色模式',
     lightMode: '亮色模式',
   },
-    nav: {
-    dashboard: '控制台',
-    assets: '拓扑图',
+  nav: {
     topology: '拓扑图',
     graphEditor: '图编辑',
     architecture: '架构知识',

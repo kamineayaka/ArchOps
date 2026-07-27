@@ -17,15 +17,17 @@ const router = createRouter({
       children: [
         {
           path: '',
-          name: 'dashboard',
-          component: () => import('@/views/DashboardView.vue'),
-          meta: { titleKey: 'nav.dashboard', descKey: 'dashboard.description' },
-        },
-        {
-          path: 'topology',
           name: 'topology',
           component: () => import('@/views/TopologyView.vue'),
           meta: { titleKey: 'nav.topology', descKey: 'topology.subtitle' },
+        },
+        {
+          path: 'topology',
+          redirect: { name: 'topology' },
+        },
+        {
+          path: 'dashboard',
+          redirect: { name: 'topology' },
         },
         {
           path: 'graph',
@@ -98,7 +100,7 @@ router.beforeEach(async (to) => {
   const hasToken = authStore.isAuthenticated()
 
   if (to.meta.public) {
-    if (hasToken && to.name === 'login') return { name: 'dashboard' }
+    if (hasToken && to.name === 'login') return { name: 'topology' }
     return true
   }
 
@@ -113,7 +115,7 @@ router.beforeEach(async (to) => {
     }
   }
   if (to.meta.requiresAdmin && !isAdmin(authStore.user?.roles)) {
-    return { name: 'dashboard' }
+    return { name: 'topology' }
   }
   return true
 })

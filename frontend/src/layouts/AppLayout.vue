@@ -22,7 +22,6 @@ import {
   DesktopOutline,
   DocumentTextOutline,
   GitPullRequestOutline,
-  GridOutline,
   LibraryOutline,
   LogOutOutline,
   MoonOutline,
@@ -65,7 +64,6 @@ const pageTitle = computed(() => {
 
 const menuOptions = computed(() => {
   const items = [
-    { label: t('nav.dashboard'), key: 'dashboard', icon: () => h(NIcon, null, { default: () => h(GridOutline) }) },
     { label: t('nav.topology'), key: 'topology', icon: () => h(NIcon, null, { default: () => h(ServerOutline) }) },
   ]
   if (canEditGraph.value) {
