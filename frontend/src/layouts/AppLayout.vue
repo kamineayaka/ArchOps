@@ -98,6 +98,7 @@ const menuOptions = computed(() => {
 const activeKey = computed(() => {
   const name = route.name as string
   if (name === 'terminal') return 'terminal'
+  if (name === 'query') return 'query'
   if (name === 'ai' || name === 'agent') return 'ai'
   if (name === 'ai-settings') return 'ai-settings'
   return name

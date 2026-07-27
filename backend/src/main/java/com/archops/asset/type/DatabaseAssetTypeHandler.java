@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 /**
- * DATABASE asset type: TCP/JDBC probe. Query UI may be deferred (connectAction=QUERY).
+ * DATABASE asset type: TCP/JDBC probe. Primary connect opens the SQL query console.
  */
 @Component
 public class DatabaseAssetTypeHandler extends AbstractAssetTypeHandler {

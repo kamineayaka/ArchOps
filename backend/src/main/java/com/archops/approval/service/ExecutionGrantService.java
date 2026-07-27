@@ -26,7 +26,7 @@ public class ExecutionGrantService {
     private static final Logger log = LoggerFactory.getLogger(ExecutionGrantService.class);
 
     /** Tools eligible for session grants. Knowledge proposal tools are intentionally excluded. */
-    private static final Set<String> GRANTABLE_TOOLS = Set.of("ssh_exec", "list_assets");
+    private static final Set<String> GRANTABLE_TOOLS = Set.of("ssh_exec", "list_assets", "db_query");
 
     private static final String PROPOSE_ARCHITECTURE_UPDATE = "propose_architecture_update";
 
@@ -138,7 +138,9 @@ public class ExecutionGrantService {
         if (pattern == null || pattern.isBlank()) {
             return true;
         }
-        return haystack.startsWith(pattern) || haystack.contains("\"command\":\"" + pattern);
+        return haystack.startsWith(pattern)
+                || haystack.contains("\"command\":\"" + pattern)
+                || haystack.toLowerCase().contains("\"sql\":\"" + pattern.toLowerCase());
     }
 
     private PayloadFields parsePayload(String payloadJson) {
@@ -166,6 +168,18 @@ public class ExecutionGrantService {
                         }
                         if (pattern.length() > 512) {
                             pattern = pattern.substring(0, 512);
+                        }
+                    } else {
+                        String sql = asString(args.get("sql"));
+                        if (sql != null && !sql.isBlank()) {
+                            pattern = sql.trim().replaceAll("\\s+", " ");
+                            int space = pattern.indexOf(' ');
+                            if (space > 0) {
+                                pattern = pattern.substring(0, space);
+                            }
+                            if (pattern.length() > 512) {
+                                pattern = pattern.substring(0, 512);
+                            }
                         }
                     }
                 } catch (Exception ignored) {

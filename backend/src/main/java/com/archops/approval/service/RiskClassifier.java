@@ -1,13 +1,20 @@
 package com.archops.approval.service;
 
 import com.archops.approval.domain.RiskLevel;
+import com.archops.asset.dbquery.SqlAccessClassifier;
+import com.archops.asset.dbquery.SqlAccessKind;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.regex.Pattern;
 import org.springframework.stereotype.Component;
 
 /**
  * Classifies operational risk from tool name and argument payload.
  * Rules are intentionally conservative for production deployments.
+ * Mutating {@code db_query} is always HIGH so writes require approval under all policies including AUTO_C.
  */
 @Component
 public class RiskClassifier {
@@ -37,9 +44,20 @@ public class RiskClassifier {
             Pattern.compile("\\bwget\\b"),
             Pattern.compile("\\bcurl\\b.*\\|\\s*sh"));
 
+    private final SqlAccessClassifier sqlAccessClassifier;
+    private final ObjectMapper objectMapper;
+
+    public RiskClassifier(SqlAccessClassifier sqlAccessClassifier, ObjectMapper objectMapper) {
+        this.sqlAccessClassifier = sqlAccessClassifier;
+        this.objectMapper = objectMapper;
+    }
+
     public RiskLevel classify(String toolName, String arguments) {
+        if ("db_query".equals(toolName)) {
+            return classifyDbQuery(arguments);
+        }
         String text = ((toolName != null ? toolName : "") + " " + (arguments != null ? arguments : ""))
-                .toLowerCase();
+                .toLowerCase(Locale.ROOT);
         for (Pattern pattern : HIGH) {
             if (pattern.matcher(text).find()) {
                 return RiskLevel.HIGH;
@@ -51,5 +69,31 @@ public class RiskClassifier {
             }
         }
         return RiskLevel.LOW;
+    }
+
+    private RiskLevel classifyDbQuery(String arguments) {
+        String sql = extractSql(arguments);
+        if (sql == null || sql.isBlank()) {
+            return RiskLevel.HIGH;
+        }
+        try {
+            SqlAccessKind kind = sqlAccessClassifier.classify(sql);
+            return kind == SqlAccessKind.READ ? RiskLevel.LOW : RiskLevel.HIGH;
+        } catch (Exception ex) {
+            return RiskLevel.HIGH;
+        }
+    }
+
+    private String extractSql(String arguments) {
+        if (arguments == null || arguments.isBlank()) {
+            return null;
+        }
+        try {
+            Map<String, Object> args = objectMapper.readValue(arguments, new TypeReference<>() {});
+            Object sql = args.get("sql");
+            return sql != null ? String.valueOf(sql) : null;
+        } catch (Exception ex) {
+            return null;
+        }
     }
 }

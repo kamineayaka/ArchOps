@@ -78,6 +78,12 @@ const router = createRouter({
           meta: { titleKey: 'nav.terminal', descKey: 'terminal.subtitle' },
         },
         {
+          path: 'query/:assetId?',
+          name: 'query',
+          component: () => import('@/views/QueryView.vue'),
+          meta: { titleKey: 'nav.query', descKey: 'query.subtitle' },
+        },
+        {
           path: 'approvals',
           name: 'approvals',
           component: () => import('@/views/ApprovalsView.vue'),

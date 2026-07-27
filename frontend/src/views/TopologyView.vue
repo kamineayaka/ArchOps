@@ -87,11 +87,31 @@ async function connectAsset(assetId: number, elementId: string) {
   void router.push({ name: 'terminal', params: { assetId: String(assetId) } })
 }
 
+function openQuery(assetId: number) {
+  hideCtxMenu()
+  void router.push({ name: 'query', params: { assetId: String(assetId) } })
+}
+
 function tryConnectFromData(data: Record<string, unknown>) {
   const kind = String(data.kind || '')
   const pgAssetId = data.pgAssetId != null ? Number(data.pgAssetId) : null
   const elementId = String(data.id || '')
-  if (kind !== 'SERVER' || !pgAssetId) {
+  if (!pgAssetId) {
+    message.info(t('topology.connectOnlyServer'))
+    return
+  }
+  if (kind === 'DATABASE') {
+    if (!data.hasCredential) {
+      message.warning(t('topology.connectNeedsCredential'))
+      if (canEdit) {
+        void router.push({ name: 'graph' })
+      }
+      return
+    }
+    openQuery(pgAssetId)
+    return
+  }
+  if (kind !== 'SERVER') {
     message.info(t('topology.connectOnlyServer'))
     return
   }
@@ -110,7 +130,9 @@ function openCtxMenu(evt: cytoscape.EventObject) {
   original.preventDefault()
   const data = evt.target.data()
   const pgAssetId = data.pgAssetId != null ? Number(data.pgAssetId) : null
-  const canConnect = data.kind === 'SERVER' && Boolean(pgAssetId)
+  const kind = String(data.kind || '')
+  const canConnect = kind === 'SERVER' && Boolean(pgAssetId)
+  const canQuery = kind === 'DATABASE' && Boolean(pgAssetId)
   ctxMenu.value = {
     show: true,
     x: original.clientX,
@@ -121,11 +143,31 @@ function openCtxMenu(evt: cytoscape.EventObject) {
     canConnect,
   }
   ctxOptions.value = [
-    {
-      label: t('topology.connect'),
-      key: 'connect',
-      disabled: !canConnect,
-    },
+    ...(canConnect
+      ? [
+          {
+            label: t('topology.connect'),
+            key: 'connect',
+          },
+        ]
+      : []),
+    ...(canQuery
+      ? [
+          {
+            label: t('topology.query'),
+            key: 'query',
+          },
+        ]
+      : []),
+    ...(!canConnect && !canQuery
+      ? [
+          {
+            label: t('topology.connect'),
+            key: 'connect',
+            disabled: true,
+          },
+        ]
+      : []),
     ...(canEdit
       ? [
           {
@@ -138,6 +180,18 @@ function openCtxMenu(evt: cytoscape.EventObject) {
 }
 
 function onCtxSelect(key: string | number) {
+  if (key === 'query' && ctxMenu.value.assetId) {
+    if (!cy) return
+    const node = cy.$id(ctxMenu.value.elementId)
+    if (node.nonempty() && !node.data('hasCredential')) {
+      message.warning(t('topology.connectNeedsCredential'))
+      hideCtxMenu()
+      if (canEdit) void router.push({ name: 'graph' })
+      return
+    }
+    openQuery(ctxMenu.value.assetId)
+    return
+  }
   if (key === 'connect' && ctxMenu.value.assetId) {
     if (!cy) return
     const node = cy.$id(ctxMenu.value.elementId)

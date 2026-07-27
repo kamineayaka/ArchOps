@@ -157,7 +157,8 @@ public class AiAgentService {
         Map<String, Object> payload = parseApprovalPayload(approval.getPayload());
         Long conversationId = asLong(payload.get("conversationId"));
         if (conversationId == null) {
-            throw new BusinessException(HttpStatus.BAD_REQUEST, "MISSING_CONVERSATION", "审批载荷缺少 conversationId");
+            // Query console / non-agent approvals: no Agent loop to resume
+            return new AgentResult("非对话审批，请在查询台携带 approvalId 再次执行", List.of());
         }
         Long providerId = asLong(payload.get("providerId"));
         String toolName = String.valueOf(payload.get("tool"));

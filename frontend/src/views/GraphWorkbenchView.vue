@@ -450,6 +450,8 @@ function initCy(elements: ElementDefinition[]) {
     const data = evt.target.data()
     if (data.kind === 'SERVER' && data.pgAssetId) {
       void openTerminal(Number(data.pgAssetId), String(data.id))
+    } else if (data.kind === 'DATABASE' && data.pgAssetId) {
+      void router.push({ name: 'query', params: { assetId: String(data.pgAssetId) } })
     }
   })
 
