@@ -95,8 +95,8 @@ asset:{elementId}          # 新写用 UUID；迁移期兼容 asset:{numericId}
 Neo4j 使用 Compose **profile `graph`**（默认不启；≈2 GiB lowmem 机不建议开）：
 
 ```bash
-docker compose -f compose.yaml --profile graph up -d
-# backend: ARCHOPS_GRAPH_ENABLED=true NEO4J_URI=bolt://neo4j:7687
+docker compose -f compose.yaml -f compose.graph.yaml --profile graph up -d
+# compose.graph.yaml 注入 ARCHOPS_GRAPH_ENABLED + NEO4J_*（graph=false 时主 compose 不注入）
 ```
 
 - `backend` 对 `neo4j`：`depends_on: condition: service_healthy, required: false`（无 profile 时不拦启动）
@@ -106,6 +106,5 @@ docker compose -f compose.yaml --profile graph up -d
 ## 8. 非目标（后续）
 
 - 布局持久化 / 保存视图
-- DATABASE 查询面板
 - Agent 子图 scope 收紧（阶段 2）
 - 清理历史列：`assets.parent_id`、`ssh_credentials.jump_asset_ids`、会话 `target_group_ids`（已停写，列可后续 DROP）

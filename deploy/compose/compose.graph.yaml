@@ -1,0 +1,16 @@
+# Overlay when enabling Neo4j (Compose profile: graph).
+# Usage:
+#   COMPOSE_PROFILES=graph ARCHOPS_GRAPH_ENABLED=true docker compose ... up -d
+#   # or: docker compose --profile graph -f compose.yaml -f compose.graph.yaml ...
+#
+# Injects Neo4j connection env only when the graph stack is intentionally on,
+# so graph=false deploys do not look "half enabled".
+
+services:
+  backend:
+    environment:
+      ARCHOPS_GRAPH_ENABLED: ${ARCHOPS_GRAPH_ENABLED:-true}
+      NEO4J_URI: ${NEO4J_URI:-bolt://neo4j:7687}
+      NEO4J_USERNAME: ${NEO4J_USERNAME:-neo4j}
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD:-archops}
+      NEO4J_DATABASE: ${NEO4J_DATABASE:-neo4j}

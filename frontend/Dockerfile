@@ -8,6 +8,9 @@ WORKDIR /app
 ARG NPM_REGISTRY=https://registry.npmjs.org
 COPY package*.json ./
 RUN npm config set registry "$NPM_REGISTRY" \
+    && npm config set supportedArchitectures.os linux \
+    && npm config set supportedArchitectures.cpu x64 \
+    && npm config set supportedArchitectures.libc musl \
     && npm ci --no-audit --no-fund
 
 COPY . .

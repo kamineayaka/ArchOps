@@ -80,4 +80,6 @@ WebSocket 流式：见前端 `AiView` / 后端 `AiStreamWebSocketHandler`（路�
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
-| GET | `/actuator/health` | 经前端 Nginx 反代亦可访问 |
+| GET | `/actuator/health/liveness` | 部署冒烟推荐（与 Compose healthcheck 一致） |
+| GET | `/actuator/health/readiness` | 就绪探针 |
+| GET | `/actuator/health` | 整体健康；graph=false 时不应因 Neo4j 变 DOWN |

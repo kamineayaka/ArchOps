@@ -71,20 +71,19 @@ cp deploy/compose/.env.example deploy/compose/.env
 ## 部署 / 升级
 
 ```bash
-# 国内 ECS 强烈推荐带上 USE_CN_MIRRORS=1（否则 npm/Maven 可能卡 30–60+ 分钟）
-USE_CN_MIRRORS=1 ./deploy/scripts/remote-deploy.sh root@YOUR_HOST
-
-# 默认：lowmem + 远端源码构建（脚本会：docker pull → 串行 build → up）
-./deploy/scripts/remote-deploy.sh root@YOUR_HOST
-
-# ≤2 GiB 主机更推荐：先在较强机器上构建 JAR/dist，再 PREBUILT
-# （小内存机上同时跑 Maven + npm 极易 OOM）
+# 国内 ECS：镜像源 + 预构建（小 VPS 推荐默认路径）
 cd backend && ./mvnw -DskipTests package && cd ..
 cd frontend && npm ci && npm run build && cd ..
-USE_CN_MIRRORS=1 PREBUILT=1 ./deploy/scripts/remote-deploy.sh root@YOUR_HOST
+USE_CN_MIRRORS=1 PREBUILT=1 bash deploy/scripts/remote-deploy.sh root@YOUR_HOST
+
+# 国内 ECS 强烈推荐带上 USE_CN_MIRRORS=1（否则 npm/Maven 可能卡 30–60+ 分钟）
+USE_CN_MIRRORS=1 bash deploy/scripts/remote-deploy.sh root@YOUR_HOST
+
+# 默认：lowmem + 远端源码构建（慢；仅在无预构建机时使用）
+bash deploy/scripts/remote-deploy.sh root@YOUR_HOST
 
 # 主机内存 ≥4 GiB 时可用满配
-USE_CN_MIRRORS=1 LOWMEM=0 ./deploy/scripts/remote-deploy.sh root@YOUR_HOST
+USE_CN_MIRRORS=1 LOWMEM=0 bash deploy/scripts/remote-deploy.sh root@YOUR_HOST
 ```
 
 ### 可选：别处构建镜像，再加载到 VPS
@@ -100,21 +99,39 @@ LOAD_IMAGES=1 SKIP_BUILD=1 ./deploy/scripts/remote-deploy.sh root@YOUR_HOST
 ## 验证
 
 ```bash
-curl -fsS http://YOUR_HOST/actuator/health
+# 与 Compose healthcheck 一致（推荐）
+curl -fsS http://YOUR_HOST/actuator/health/liveness
+curl -fsS http://YOUR_HOST/actuator/health/readiness
 # 登录：admin / admin123  — 立即修改
 cat /opt/archops-releases/VERSION   # 或 ssh 上查看本次部署戳
 ```
+
+## 可运行 vs 可构建（1.6–2 GiB）
+
+| 模式 | 内存 | 做法 |
+|---|---|---|
+| **仅可运行** | ≈1.5–2 GiB + ≥4G swap | `PREBUILT=1` 或 `LOAD_IMAGES=1`；**禁止**在机上 Maven/npm |
+| **可构建** | ≥4 GiB（推荐 8） | `USE_CN_MIRRORS=1 LOWMEM=1 bash deploy/scripts/compose-build.sh` |
+
+Cursor / 其它 agent 常驻时可用内存经常 <600MiB——即使有 swap，源码构建也会极慢且脆。
 
 ## 1.6–2 GiB VPS 注意
 
 - **不要**在低内存机上直接 `docker compose up -d --build`（Maven + npm 并行极易 OOM）。
 - 始终使用 `compose.lowmem.yaml`（脚本默认 `LOWMEM=1`）。
 - 保持至少 4 GiB swap。
-- 优先 `PREBUILT=1` 或 `LOAD_IMAGES=1`。
-- **不要**在 ≈2 GiB 机上开 Compose `--profile graph` / `ARCHOPS_GRAPH_ENABLED=true`（Neo4j ≥512M + 平台会挤爆内存）。图能力放到更大规格机验证。
+- **默认** `PREBUILT=1` 或 `LOAD_IMAGES=1`（墙钟可从 ~80min 冷构建降到分钟级 up）。
+- **不要**在 ≈2 GiB 机上开 Compose `--profile graph` / `ARCHOPS_GRAPH_ENABLED=true`（脚本会强制关掉残留 `true`）。图能力放到更大规格机，并用 `compose.graph.yaml`。
+- 日常升级勿 `docker system prune -a` 清空基础镜像；prefetch 在国内可达 20–25min。
 - 若 Docker Hub / 镜像源失败（如 TLS handshake timeout），可从已缓存层重建：
 
 ```bash
-./deploy/scripts/rebuild-images-from-cache.sh
+bash deploy/scripts/rebuild-images-from-cache.sh
 docker compose -p archops -f compose.yaml -f compose.images.yaml -f compose.lowmem.yaml --env-file .env up -d
+```
+
+半成功续跑：
+
+```bash
+RESUME=frontend USE_CN_MIRRORS=1 LOWMEM=1 bash deploy/scripts/compose-build.sh
 ```

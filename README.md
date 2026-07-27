@@ -41,18 +41,19 @@ cp deploy/compose/.env.example deploy/compose/.env
 # 编辑 CORS_ALLOWED_ORIGINS=http://你的主机IP,http://localhost
 # 国内/慢网建议在 .env 中设置 NPM_REGISTRY / MAVEN_MIRROR，或构建时加 USE_CN_MIRRORS=1
 
-USE_CN_MIRRORS=1 ./deploy/scripts/compose-build.sh
+USE_CN_MIRRORS=1 bash deploy/scripts/compose-build.sh
 docker compose -f deploy/compose/compose.yaml --env-file deploy/compose/.env up -d
 
 # ≥4 GiB 也可：
 # docker compose -f deploy/compose/compose.yaml --env-file deploy/compose/.env up -d --build
 ```
 
-**可选：启用 Neo4j 图库存**
+**可选：启用 Neo4j 图库存**（内存充足；≈2 GiB 勿开）
 
 ```bash
-# .env: ARCHOPS_GRAPH_ENABLED=true
-docker compose -f deploy/compose/compose.yaml --profile graph --env-file deploy/compose/.env up -d
+# .env: ARCHOPS_GRAPH_ENABLED=true 与 COMPOSE_PROFILES=graph
+docker compose -f deploy/compose/compose.yaml -f deploy/compose/compose.graph.yaml \
+  --profile graph --env-file deploy/compose/.env up -d
 ```
 
 ≤2 GiB VPS：用 `LOWMEM=1` / `compose.lowmem.yaml`，优先 `PREBUILT=1`；细节见 [docs/deployment.md](docs/deployment.md)、[docs/test-deploy-server.md](docs/test-deploy-server.md)。

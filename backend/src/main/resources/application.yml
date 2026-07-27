@@ -40,6 +40,9 @@ management:
       enabled: true
     readinessstate:
       enabled: true
+    # Graph uses a hand-rolled Driver bean; disable Boot's Neo4j indicator unless graph is on.
+    neo4j:
+      enabled: ${ARCHOPS_GRAPH_ENABLED:false}
   metrics:
     tags:
       application: ${spring.application.name}

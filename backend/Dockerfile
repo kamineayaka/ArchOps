@@ -25,15 +25,17 @@ RUN if [ -n "$MAVEN_MIRROR" ]; then \
         '</settings>' > /root/.m2/settings.xml; \
     fi
 
+# Dependency layer: source changes should not re-download the world.
 COPY pom.xml .
-COPY src ./src
-RUN mvn -q -DskipTests package
+# Cache deps separately from sources (go-offline can be flaky on plugins — resolve is enough).
+RUN mvn -B -q -DskipTests dependency:resolve dependency:resolve-plugins
 
+COPY src ./src
+RUN mvn -B -q -DskipTests package
+
+# No apt/curl: Compose healthcheck uses /dev/tcp (see deploy/compose/compose.yaml).
 FROM eclipse-temurin:21-jre
 WORKDIR /app
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl \
-    && rm -rf /var/lib/apt/lists/*
 COPY --from=build /workspace/target/*.jar app.jar
 EXPOSE 8080
 ENV JAVA_OPTS="-XX:MaxRAMPercentage=75.0"

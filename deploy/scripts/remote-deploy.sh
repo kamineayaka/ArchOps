@@ -5,13 +5,14 @@
 # Docs / IDE / VCS / secrets are never uploaded.
 #
 # Usage:
-#   ./deploy/scripts/remote-deploy.sh root@HOST
-#   LOWMEM=0 ./deploy/scripts/remote-deploy.sh root@HOST   # full resources
-#   SKIP_BUILD=1 ./deploy/scripts/remote-deploy.sh root@HOST  # use images already on host
-#   PREBUILT=1 ./deploy/scripts/remote-deploy.sh root@HOST    # use local JAR/dist (recommended)
+#   bash deploy/scripts/remote-deploy.sh root@HOST
+#   LOWMEM=0 bash deploy/scripts/remote-deploy.sh root@HOST   # full resources
+#   SKIP_BUILD=1 bash deploy/scripts/remote-deploy.sh root@HOST  # use images already on host
+#   PREBUILT=1 bash deploy/scripts/remote-deploy.sh root@HOST    # use local JAR/dist (recommended on ≤2GiB)
+#   RESUME=frontend bash deploy/scripts/remote-deploy.sh root@HOST
 #
 # China / slow networks (strongly recommended on Aliyun ECS etc.):
-#   USE_CN_MIRRORS=1 ./deploy/scripts/remote-deploy.sh root@HOST
+#   USE_CN_MIRRORS=1 bash deploy/scripts/remote-deploy.sh root@HOST
 #
 # Requires SSH key auth (BatchMode). First time: ssh-copy-id user@HOST
 set -euo pipefail
@@ -25,6 +26,7 @@ SKIP_BUILD="${SKIP_BUILD:-0}"
 LOAD_IMAGES="${LOAD_IMAGES:-0}"
 PREBUILT="${PREBUILT:-0}"
 USE_CN_MIRRORS="${USE_CN_MIRRORS:-0}"
+RESUME="${RESUME:-}"
 NPM_REGISTRY="${NPM_REGISTRY:-}"
 MAVEN_MIRROR="${MAVEN_MIRROR:-}"
 FILTER_FILE="${ROOT}/deploy/rsync-deploy.filter"
@@ -37,6 +39,11 @@ fi
 if [ ! -f "$FILTER_FILE" ]; then
   echo "ERROR: missing rsync filter: $FILTER_FILE" >&2
   exit 1
+fi
+
+if [ "$LOWMEM" = "1" ] && [ "$PREBUILT" != "1" ] && [ "$SKIP_BUILD" != "1" ] && [ "$LOAD_IMAGES" != "1" ]; then
+  echo "WARN: LOWMEM=1 without PREBUILT/LOAD_IMAGES — cold Maven+npm on ≤2GiB often takes 60–90+ min and may OOM."
+  echo "      Preferred: build JAR/dist on a stronger host, then PREBUILT=1 $0 $TARGET"
 fi
 
 SSH=(ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new "$TARGET")
@@ -73,6 +80,7 @@ else
   )
 fi
 
+# -a preserves executable bits on scripts; always invoke with bash as a fallback.
 RSYNC=(
   rsync -az --delete
   -e "$SSH_RSYNC_OPTS"
@@ -80,7 +88,7 @@ RSYNC=(
   "${MODE_EXCLUDES[@]}"
 )
 
-echo "==> Syncing deploy payload → ${TARGET}:${REMOTE_DIR} (PREBUILT=$PREBUILT USE_CN_MIRRORS=$USE_CN_MIRRORS)"
+echo "==> Syncing deploy payload → ${TARGET}:${REMOTE_DIR} (PREBUILT=$PREBUILT USE_CN_MIRRORS=$USE_CN_MIRRORS RESUME=${RESUME:-none})"
 echo "    include: deploy/ + backend/ + frontend/ (see deploy/rsync-deploy.filter); docs/IDE/VCS ignored"
 "${SSH[@]}" "mkdir -p '${REMOTE_DIR}'"
 "${RSYNC[@]}" "$ROOT/" "${TARGET}:${REMOTE_DIR}/"
@@ -105,6 +113,8 @@ if [ "$PREBUILT" = "1" ]; then
     frontend/Dockerfile frontend/.gitignore \
     2>/dev/null || true
 fi
+# Ensure scripts remain runnable even if a filter stripped +x
+chmod +x deploy/scripts/*.sh 2>/dev/null || true
 PRUNE
 
 if [ ! -f "$ROOT/deploy/compose/.env" ]; then
@@ -144,8 +154,8 @@ if [ "$PREBUILT" = "1" ]; then
   fi
 fi
 
-echo "==> Starting stack on remote (LOWMEM=$LOWMEM SKIP_BUILD=$SKIP_BUILD PREBUILT=$PREBUILT)"
-"${SSH[@]}" "bash -s" -- "$REMOTE_DIR" "$LOWMEM" "$SKIP_BUILD" "$PREBUILT" "$NPM_REGISTRY" "$MAVEN_MIRROR" <<'REMOTE'
+echo "==> Starting stack on remote (LOWMEM=$LOWMEM SKIP_BUILD=$SKIP_BUILD PREBUILT=$PREBUILT RESUME=${RESUME:-none})"
+"${SSH[@]}" "bash -s" -- "$REMOTE_DIR" "$LOWMEM" "$SKIP_BUILD" "$PREBUILT" "$NPM_REGISTRY" "$MAVEN_MIRROR" "$RESUME" <<'REMOTE'
 set -euo pipefail
 REMOTE_DIR="$1"
 LOWMEM="$2"
@@ -153,6 +163,7 @@ SKIP_BUILD="$3"
 PREBUILT="$4"
 NPM_REGISTRY="$5"
 MAVEN_MIRROR="$6"
+RESUME="$7"
 
 cd "$REMOTE_DIR/deploy/compose"
 if [ ! -f .env ]; then
@@ -161,27 +172,44 @@ if [ ! -f .env ]; then
   sed -i "s|CORS_ALLOWED_ORIGINS=.*|CORS_ALLOWED_ORIGINS=http://${HOST_IP},http://localhost|" .env
 fi
 
+# Stale .env from larger hosts often leaves graph on — refuse on lowmem.
+if [ "$LOWMEM" = "1" ] && grep -qE '^ARCHOPS_GRAPH_ENABLED=true' .env 2>/dev/null; then
+  echo "WARN: LOWMEM=1 — forcing ARCHOPS_GRAPH_ENABLED=false (Neo4j does not fit ≈2GiB)"
+  sed -i.bak 's|^ARCHOPS_GRAPH_ENABLED=.*|ARCHOPS_GRAPH_ENABLED=false|' .env && rm -f .env.bak
+fi
+
 FILES=(-p archops -f compose.yaml)
 [ "$PREBUILT" = "1" ] && FILES+=(-f compose.prebuilt.yaml)
 [ "$LOWMEM" = "1" ] && FILES+=(-f compose.lowmem.yaml)
+if echo "${COMPOSE_PROFILES:-}" | grep -qw graph \
+  || grep -qE '^COMPOSE_PROFILES=.*\bgraph\b' .env 2>/dev/null \
+  || grep -qE '^ARCHOPS_GRAPH_ENABLED=true' .env 2>/dev/null; then
+  if [ "$LOWMEM" = "1" ]; then
+    echo "WARN: ignoring graph profile/overlay under LOWMEM=1"
+  else
+    FILES+=(-f compose.graph.yaml)
+  fi
+fi
 
 if [ "$SKIP_BUILD" != "1" ]; then
-  export LOWMEM PREBUILT NPM_REGISTRY MAVEN_MIRROR
+  export LOWMEM PREBUILT NPM_REGISTRY MAVEN_MIRROR RESUME
   bash "$REMOTE_DIR/deploy/scripts/compose-build.sh"
 fi
 
 docker compose "${FILES[@]}" --env-file .env up -d
 docker compose "${FILES[@]}" ps
-echo "Health:"
+echo "Health (liveness — matches Compose healthcheck; overall /actuator/health may include optional deps):"
 for i in $(seq 1 40); do
-  if curl -fsS http://127.0.0.1/actuator/health >/dev/null 2>&1; then
-    curl -fsS http://127.0.0.1/actuator/health || true
+  if curl -fsS http://127.0.0.1/actuator/health/liveness >/dev/null 2>&1; then
+    curl -fsS http://127.0.0.1/actuator/health/liveness || true
+    echo
+    curl -fsS http://127.0.0.1/actuator/health/readiness || true
     echo
     exit 0
   fi
   sleep 5
 done
-echo "WARN: health check did not pass within timeout; check: docker compose logs"
+echo "WARN: liveness check did not pass within timeout; check: docker compose logs"
 docker compose "${FILES[@]}" logs --tail=80 backend || true
 exit 1
 REMOTE
