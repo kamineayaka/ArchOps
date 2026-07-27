@@ -2,19 +2,19 @@ package com.archops.asset.dto;
 
 import com.archops.asset.domain.AssetKind;
 import java.time.Instant;
-import java.util.List;
+import java.util.UUID;
 
 public record AssetResponse(
         Long id,
+        UUID elementId,
         String name,
         AssetKind kind,
         String host,
         Integer port,
         String metadata,
         String description,
-        Long parentId,
         boolean enabled,
         boolean hasSshCredential,
-        List<Long> jumpAssetIds,
+        Instant deletedAt,
         Instant createdAt,
         Instant updatedAt) {}

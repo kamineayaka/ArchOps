@@ -1,7 +1,6 @@
 package com.archops.asset.type;
 
 import com.archops.asset.domain.Asset;
-import com.archops.asset.dto.AssetRequest;
 import com.archops.asset.dto.TestConnectionResponse;
 import java.util.Map;
 
@@ -25,10 +24,6 @@ public interface AssetTypeHandler {
 
     /** Sanitized view for APIs/UI — never include secrets. */
     Map<String, Object> safeView(Asset asset);
-
-    void validateCreate(AssetRequest req);
-
-    void validateUpdate(AssetRequest req);
 
     /**
      * Type-owned connectivity probe (SSH, TCP, JDBC, …).

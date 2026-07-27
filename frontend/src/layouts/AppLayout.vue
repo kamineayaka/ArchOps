@@ -21,7 +21,6 @@ import {
   ChatbubbleEllipsesOutline,
   DesktopOutline,
   DocumentTextOutline,
-  FolderOutline,
   GitPullRequestOutline,
   GridOutline,
   LibraryOutline,
@@ -33,7 +32,6 @@ import {
   SunnyOutline,
 } from '@vicons/ionicons5'
 import AiAssistantRail from '@/components/AiAssistantRail.vue'
-import AssetNavTree from '@/components/AssetNavTree.vue'
 import { useAiWorkbenchShell } from '@/composables/useAiWorkbenchShell'
 import { useAuthStore } from '@/stores/auth'
 import { useTheme } from '@/composables/useTheme'
@@ -49,12 +47,8 @@ const {
   railAllowed,
   showDesktopRail,
   showMobileRailDrawer,
-  showDesktopAssetTree,
-  showMobileAssetTreeDrawer,
   toggleOpen,
   setOpen,
-  toggleAssetTree,
-  setAssetTreeOpen,
 } = useAiWorkbenchShell()
 
 const username = computed(() => authStore.user?.displayName || authStore.user?.username || '')
@@ -70,8 +64,7 @@ const pageTitle = computed(() => {
 const menuOptions = computed(() => {
   const items = [
     { label: t('nav.dashboard'), key: 'dashboard', icon: () => h(NIcon, null, { default: () => h(GridOutline) }) },
-    { label: t('nav.assets'), key: 'assets', icon: () => h(NIcon, null, { default: () => h(ServerOutline) }) },
-    { label: t('nav.assetGroups'), key: 'asset-groups', icon: () => h(NIcon, null, { default: () => h(FolderOutline) }) },
+    { label: t('nav.assets'), key: 'graph', icon: () => h(NIcon, null, { default: () => h(ServerOutline) }) },
     { label: t('nav.architecture'), key: 'architecture', icon: () => h(NIcon, null, { default: () => h(LibraryOutline) }) },
     {
       label: t('nav.proposals'),
@@ -147,20 +140,6 @@ async function handleLogout() {
                 <template #trigger>
                   <NButton
                     quaternary
-                    :type="showDesktopAssetTree || showMobileAssetTreeDrawer ? 'primary' : 'default'"
-                    :aria-label="t('workbench.toggleAssetTree')"
-                    @click="toggleAssetTree"
-                  >
-                    <template #icon><NIcon :component="FolderOutline" /></template>
-                    <span class="header-action-label">{{ t('workbench.assetTree') }}</span>
-                  </NButton>
-                </template>
-                {{ t('workbench.toggleAssetTree') }}
-              </NTooltip>
-              <NTooltip :show-arrow="false">
-                <template #trigger>
-                  <NButton
-                    quaternary
                     :type="open || pinned ? 'primary' : 'default'"
                     :aria-label="t('workbench.toggleAiRail')"
                     @click="toggleOpen"
@@ -194,64 +173,41 @@ async function handleLogout() {
         </div>
       </NLayoutHeader>
       <NLayout has-sider class="workbench">
+        <NLayoutContent id="main-content" class="content" tag="main">
+          <div class="page-shell">
+            <RouterView />
+          </div>
+        </NLayoutContent>
         <NLayoutSider
-          v-if="showDesktopAssetTree"
-          class="asset-tree-sider"
+          v-if="showDesktopRail"
+          class="ai-rail-sider"
           bordered
-          :width="248"
+          :width="railSiderWidth"
+          :collapsed="!open"
+          :collapsed-width="48"
+          collapse-mode="width"
           :native-scrollbar="false"
         >
-          <AssetNavTree />
+          <div v-if="!open" class="ai-rail-collapsed">
+            <NTooltip :show-arrow="false" placement="left">
+              <template #trigger>
+                <NButton
+                  quaternary
+                  circle
+                  :aria-label="t('workbench.expandRail')"
+                  @click="setOpen(true)"
+                >
+                  <template #icon><NIcon :component="ChatbubbleEllipsesOutline" /></template>
+                </NButton>
+              </template>
+              {{ t('workbench.expandRail') }}
+            </NTooltip>
+          </div>
+          <AiAssistantRail v-else mode="sider" />
         </NLayoutSider>
-        <NLayout has-sider class="workbench__main">
-          <NLayoutContent id="main-content" class="content" tag="main">
-            <div class="page-shell">
-              <RouterView />
-            </div>
-          </NLayoutContent>
-          <NLayoutSider
-            v-if="showDesktopRail"
-            class="ai-rail-sider"
-            bordered
-            :width="railSiderWidth"
-            :collapsed="!open"
-            :collapsed-width="48"
-            collapse-mode="width"
-            :native-scrollbar="false"
-          >
-            <div v-if="!open" class="ai-rail-collapsed">
-              <NTooltip :show-arrow="false" placement="left">
-                <template #trigger>
-                  <NButton
-                    quaternary
-                    circle
-                    :aria-label="t('workbench.expandRail')"
-                    @click="setOpen(true)"
-                  >
-                    <template #icon><NIcon :component="ChatbubbleEllipsesOutline" /></template>
-                  </NButton>
-                </template>
-                {{ t('workbench.expandRail') }}
-              </NTooltip>
-            </div>
-            <AiAssistantRail v-else mode="sider" />
-          </NLayoutSider>
-        </NLayout>
       </NLayout>
     </NLayout>
   </NLayout>
-
-  <NDrawer
-    :show="showMobileAssetTreeDrawer"
-    placement="left"
-    :width="300"
-    display-directive="show"
-    @update:show="setAssetTreeOpen"
-  >
-    <NDrawerContent :title="t('workbench.assetTree')" closable>
-      <AssetNavTree />
-    </NDrawerContent>
-  </NDrawer>
 
   <NDrawer
     :show="showMobileRailDrawer"
@@ -359,24 +315,16 @@ async function handleLogout() {
   min-height: calc(100vh - var(--co-header-height));
 }
 
-.workbench__main {
-  min-height: calc(100vh - var(--co-header-height));
-  flex: 1;
-  min-width: 0;
-}
-
 .content {
   padding: var(--co-space-6);
   min-height: calc(100vh - var(--co-header-height));
   background: var(--co-bg-page);
 }
 
-.asset-tree-sider,
 .ai-rail-sider {
   background: var(--co-bg-card);
 }
 
-.asset-tree-sider :deep(.n-layout-sider-scroll-container),
 .ai-rail-sider :deep(.n-layout-sider-scroll-container) {
   height: 100%;
 }

@@ -22,16 +22,18 @@ const router = createRouter({
           meta: { titleKey: 'nav.dashboard', descKey: 'dashboard.description' },
         },
         {
+          path: 'graph',
+          name: 'graph',
+          component: () => import('@/views/GraphWorkbenchView.vue'),
+          meta: { titleKey: 'nav.assets', descKey: 'graph.subtitle' },
+        },
+        {
           path: 'assets',
-          name: 'assets',
-          component: () => import('@/views/AssetsView.vue'),
-          meta: { titleKey: 'nav.assets', descKey: 'assets.subtitle' },
+          redirect: { name: 'graph' },
         },
         {
           path: 'asset-groups',
-          name: 'asset-groups',
-          component: () => import('@/views/AssetGroupsView.vue'),
-          meta: { titleKey: 'nav.assetGroups', descKey: 'assetGroups.subtitle' },
+          redirect: { name: 'graph' },
         },
         {
           path: 'architecture',

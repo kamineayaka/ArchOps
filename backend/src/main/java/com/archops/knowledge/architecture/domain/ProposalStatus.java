@@ -6,5 +6,8 @@ public enum ProposalStatus {
     APPROVED,
     REJECTED,
     AUTO_MERGED,
-    MERGED
+    MERGED,
+    CONFLICT,
+    SUPERSEDED,
+    MERGE_FAILED
 }

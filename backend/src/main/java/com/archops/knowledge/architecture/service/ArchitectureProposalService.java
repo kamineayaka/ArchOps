@@ -72,21 +72,29 @@ public class ArchitectureProposalService {
 
     @Transactional
     public ProposalResponse create(ProposalCreateRequest request, Long requesterId) {
-        PartitionKeys.validate(request.partitionKey());
-        assetAclService.requirePartitionAccess(requesterId, rolesOf(requesterId), request.partitionKey());
-        partitionService.getOrCreate(request.partitionKey());
+        String scopeKey = PartitionKeys.normalize(request.partitionKey());
+        PartitionKeys.validate(scopeKey);
+        assetAclService.requirePartitionAccess(requesterId, rolesOf(requesterId), scopeKey);
+        partitionService.getOrCreate(scopeKey);
 
         List<FactOpRequest> ops = resolveFactOps(request);
         String factOpsJson = mergeEngine.writeFactOps(ops);
         String evidenceJson = request.evidenceJson() != null && !request.evidenceJson().isBlank()
                 ? request.evidenceJson()
                 : "[]";
+        String changeSetJson = request.changeSetJson() != null && !request.changeSetJson().isBlank()
+                ? request.changeSetJson()
+                : "{}";
 
         ArchitectureProposal proposal = new ArchitectureProposal();
-        proposal.setPartitionKey(request.partitionKey());
+        proposal.setPartitionKey(scopeKey);
+        proposal.setScopeKind(PartitionKeys.scopeKindOf(scopeKey));
+        proposal.setScopeRef(PartitionKeys.scopeRefOf(scopeKey));
         proposal.setSummary(request.summary());
         proposal.setDiffJson("{}");
         proposal.setFactOps(factOpsJson);
+        proposal.setChangeSet(changeSetJson);
+        proposal.setPlanJson(request.planJson());
         proposal.setEvidence(evidenceJson);
         proposal.setRisk(request.risk());
         proposal.setConfidence(request.confidence());
@@ -94,10 +102,15 @@ public class ArchitectureProposalService {
         proposal.setConversationId(request.conversationId());
         proposal.setRelatedApprovalId(request.relatedApprovalId());
         proposal.setBaseVersion(request.baseVersion());
+        proposal.setBaseGraphVersion(request.baseGraphVersion() != null ? request.baseGraphVersion() : 0L);
+        proposal.setSource(request.source() != null ? request.source() : "api");
         proposal.setStatus(ProposalStatus.PENDING_REVIEW);
 
         boolean autoMerged = false;
-        if (properties.getAutoMerge().isEnabled() && canAutoMerge(ops, evidenceJson, request.confidence())) {
+        // Graph ChangeSet never auto-merges in this phase (always review).
+        if (!proposal.hasGraphChangeSet()
+                && properties.getAutoMerge().isEnabled()
+                && canAutoMerge(ops, evidenceJson, request.confidence())) {
             proposal.setStatus(ProposalStatus.AUTO_MERGED);
             proposal.setReviewerId(requesterId);
             proposal.setDecidedAt(Instant.now());
@@ -176,12 +189,16 @@ public class ArchitectureProposalService {
                 summary,
                 mergeEngine.writeFactOps(ops),
                 ops,
+                null,
+                null,
                 evidenceJson != null ? evidenceJson : "[]",
                 risk,
                 confidence,
                 conversationId,
                 null,
-                baseVersion);
+                baseVersion,
+                null,
+                "agent_tool");
 
         // Bypass nested ACL re-check by constructing directly when status != PENDING default path
         if (status == null || status == ProposalStatus.PENDING_REVIEW) {
@@ -253,7 +270,7 @@ public class ArchitectureProposalService {
         ArchitecturePartition partition = partitionRepository
                 .findByPartitionKey(proposal.getPartitionKey())
                 .orElse(null);
-        boolean highImpact = PartitionKeys.GLOBAL.equals(proposal.getPartitionKey())
+        boolean highImpact = PartitionKeys.isGlobal(proposal.getPartitionKey())
                 || (partition != null && partition.isHighImpact());
         if (approve && highImpact && !hasAdmin(reviewerId, authorities)) {
             throw new BusinessException(
@@ -438,10 +455,14 @@ public class ArchitectureProposalService {
         return new ProposalResponse(
                 p.getId(),
                 p.getPartitionKey(),
+                p.getScopeKind(),
+                p.getScopeRef(),
                 p.getStatus(),
                 p.getSummary(),
                 p.getDiffJson(),
                 p.getFactOps(),
+                p.getChangeSet(),
+                p.getPlanJson(),
                 p.getEvidence(),
                 p.getRisk(),
                 p.getConfidence(),
@@ -449,6 +470,9 @@ public class ArchitectureProposalService {
                 p.getReviewerId(),
                 p.getConversationId(),
                 p.getBaseVersion(),
+                p.getBaseGraphVersion(),
+                p.getMergedGraphVersion(),
+                p.getSource(),
                 p.getRelatedApprovalId(),
                 p.getCreatedAt(),
                 p.getDecidedAt());

@@ -67,8 +67,7 @@ public class AiController {
         return ApiResponse.ok(conversationService.updateTargets(
                 id,
                 principal.getUserId(),
-                request.targetAssetIds(),
-                request.targetGroupIds()));
+                request.targetAssetIds()));
     }
 
     @PostMapping("/chat")

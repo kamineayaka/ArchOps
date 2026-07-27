@@ -50,10 +50,14 @@ export interface PartitionDetail {
 export interface ProposalResponse {
   id: number
   partitionKey: string
+  scopeKind?: string | null
+  scopeRef?: string | null
   status: ProposalStatus
   summary: string | null
   diffJson: string | null
   factOps: string | null
+  changeSet?: string | null
+  planJson?: string | null
   evidence: string | null
   risk: string | null
   confidence: number | null
@@ -61,9 +65,31 @@ export interface ProposalResponse {
   reviewerId: number | null
   conversationId: number | null
   baseVersion: number | null
+  baseGraphVersion?: number | null
+  mergedGraphVersion?: number | null
+  source?: string | null
   relatedApprovalId: number | null
   createdAt: string
   decidedAt: string | null
+}
+
+export async function createProposal(payload: {
+  partitionKey: string
+  summary?: string
+  factOps?: unknown[]
+  changeSetJson?: string
+  planJson?: string
+  evidenceJson?: string
+  risk?: string
+  confidence?: number
+  conversationId?: number
+  relatedApprovalId?: number
+  baseVersion: number
+  baseGraphVersion?: number
+  source?: string
+}) {
+  const { data } = await client.post<ApiResponse<ProposalResponse>>('/api/architecture/proposals', payload)
+  return data
 }
 
 function partitionPath(key: string) {

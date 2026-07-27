@@ -70,14 +70,19 @@ public class ArchitecturePartitionService {
 
     @Transactional
     public ArchitecturePartition getOrCreate(String partitionKey) {
-        PartitionKeys.validate(partitionKey);
-        return partitionRepository.findByPartitionKey(partitionKey).orElseGet(() -> {
-            ArchitecturePartition p = new ArchitecturePartition();
-            p.setPartitionKey(partitionKey);
-            p.setTitle(defaultTitle(partitionKey));
-            p.setHighImpact(PartitionKeys.GLOBAL.equals(partitionKey));
-            return partitionRepository.save(p);
-        });
+        String key = PartitionKeys.normalize(partitionKey);
+        PartitionKeys.validate(key);
+        return partitionRepository.findByPartitionKey(key)
+                .or(() -> PartitionKeys.LEGACY_GLOBAL.equals(partitionKey)
+                        ? partitionRepository.findByPartitionKey(PartitionKeys.LEGACY_GLOBAL)
+                        : java.util.Optional.empty())
+                .orElseGet(() -> {
+                    ArchitecturePartition p = new ArchitecturePartition();
+                    p.setPartitionKey(key);
+                    p.setTitle(defaultTitle(key));
+                    p.setHighImpact(PartitionKeys.isGlobal(key));
+                    return partitionRepository.save(p);
+                });
     }
 
     @Transactional(readOnly = true)
@@ -140,7 +145,7 @@ public class ArchitecturePartitionService {
                 null,
                 "architecture.admin_write",
                 "architecture_partition:" + key,
-                PartitionKeys.GLOBAL.equals(key) || partition.isHighImpact() ? "HIGH" : "MEDIUM",
+                PartitionKeys.isGlobal(key) || partition.isHighImpact() ? "HIGH" : "MEDIUM",
                 "SUCCESS",
                 "{\"version\":" + revision.getVersion() + ",\"factCount\":" + facts.size() + "}",
                 null,
@@ -384,8 +389,17 @@ public class ArchitecturePartitionService {
     }
 
     private static String defaultTitle(String partitionKey) {
-        if (PartitionKeys.GLOBAL.equals(partitionKey)) {
-            return "Global architecture";
+        if (PartitionKeys.isGlobal(partitionKey)) {
+            return "Global graph";
+        }
+        if (partitionKey.startsWith("cluster:")) {
+            return "Cluster " + partitionKey.substring("cluster:".length());
+        }
+        if (partitionKey.startsWith("tag:")) {
+            return "Tag " + partitionKey.substring("tag:".length());
+        }
+        if (partitionKey.startsWith("view:")) {
+            return "View " + partitionKey.substring("view:".length());
         }
         if (partitionKey.startsWith("group:")) {
             return "Group " + partitionKey.substring(6);

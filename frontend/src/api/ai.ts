@@ -57,14 +57,10 @@ export async function getConversationTargets(conversationId: number) {
   return data
 }
 
-export async function updateConversationTargets(
-  conversationId: number,
-  targetAssetIds: number[],
-  targetGroupIds: number[] = [],
-) {
+export async function updateConversationTargets(conversationId: number, targetAssetIds: number[]) {
   const { data } = await client.put<ApiResponse<Conversation>>(
     `/api/ai/conversations/${conversationId}/targets`,
-    { targetAssetIds, targetGroupIds },
+    { targetAssetIds },
   )
   return data
 }

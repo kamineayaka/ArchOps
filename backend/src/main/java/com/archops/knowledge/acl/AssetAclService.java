@@ -1,6 +1,5 @@
 package com.archops.knowledge.acl;
 
-import com.archops.asset.repository.AssetGroupMemberRepository;
 import com.archops.common.exception.BusinessException;
 import com.archops.knowledge.architecture.PartitionKeys;
 import com.archops.knowledge.retrieval.RagScope;
@@ -21,12 +20,9 @@ import org.springframework.stereotype.Service;
 public class AssetAclService {
 
     private final UserAssetRepository userAssetRepository;
-    private final AssetGroupMemberRepository groupMemberRepository;
 
-    public AssetAclService(
-            UserAssetRepository userAssetRepository, AssetGroupMemberRepository groupMemberRepository) {
+    public AssetAclService(UserAssetRepository userAssetRepository) {
         this.userAssetRepository = userAssetRepository;
-        this.groupMemberRepository = groupMemberRepository;
     }
 
     public boolean isAdmin(Collection<String> roles) {
@@ -81,23 +77,15 @@ public class AssetAclService {
         if (isAdmin(roles)) {
             return true;
         }
-        if (PartitionKeys.GLOBAL.equals(partitionKey)) {
+        if (PartitionKeys.isGlobal(partitionKey)) {
             return userId != null;
+        }
+        if (partitionKey.startsWith("group:")) {
+            return false;
         }
         if (partitionKey.startsWith("asset:")) {
             Long assetId = Long.parseLong(partitionKey.substring("asset:".length()));
             return canAccessAsset(userId, roles, assetId);
-        }
-        if (partitionKey.startsWith("group:")) {
-            Long groupId = Long.parseLong(partitionKey.substring("group:".length()));
-            List<Long> memberIds = groupMemberRepository.findByIdGroupId(groupId).stream()
-                    .map(m -> m.getAssetId())
-                    .toList();
-            if (memberIds.isEmpty()) {
-                return false;
-            }
-            List<Long> allowed = filterAssetIds(userId, roles, memberIds);
-            return !allowed.isEmpty();
         }
         return false;
     }
@@ -110,7 +98,7 @@ public class AssetAclService {
     }
 
     /**
-     * Intersect a RAG scope with the caller's allowed assets/groups.
+     * Intersect a RAG scope with the caller's allowed assets.
      * ADMIN returns scope unchanged. Null/empty scope stays empty (no extra filter).
      */
     public RagScope intersectScope(Long userId, Collection<String> roles, RagScope scope) {
@@ -129,18 +117,6 @@ public class AssetAclService {
             }
         }
 
-        List<Long> groupIds = new ArrayList<>();
-        if (scope.groupIds() != null) {
-            for (Long groupId : scope.groupIds()) {
-                List<Long> members = groupMemberRepository.findByIdGroupId(groupId).stream()
-                        .map(m -> m.getAssetId())
-                        .toList();
-                if (members.stream().anyMatch(allowedSet::contains)) {
-                    groupIds.add(groupId);
-                }
-            }
-        }
-
         List<String> partitionKeys = new ArrayList<>();
         if (scope.partitionKeys() != null) {
             for (String key : scope.partitionKeys()) {
@@ -150,7 +126,7 @@ public class AssetAclService {
             }
         }
 
-        return new RagScope(assetIds, groupIds, partitionKeys);
+        return new RagScope(assetIds, partitionKeys);
     }
 
     private static String normalizeRole(String role) {

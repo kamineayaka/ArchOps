@@ -43,10 +43,8 @@ public class ArchitectureController {
 
     @GetMapping("/view")
     @PreAuthorize("hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_OPERATOR') or hasAuthority('ROLE_VIEWER')")
-    public ApiResponse<ArchitectureViewResponse> view(
-            @RequestParam(required = false) List<Long> assetIds,
-            @RequestParam(required = false) List<Long> groupIds) {
-        return ApiResponse.ok(viewService.buildView(assetIds, groupIds));
+    public ApiResponse<ArchitectureViewResponse> view(@RequestParam(required = false) List<Long> assetIds) {
+        return ApiResponse.ok(viewService.buildView(assetIds));
     }
 
     @GetMapping("/{key:.+}")

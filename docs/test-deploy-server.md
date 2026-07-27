@@ -48,6 +48,26 @@ cp deploy/compose/.env.example deploy/compose/.env
 
 `deploy/compose/.env` 已被 gitignore — 只保留在本机 / 服务器。
 
+## 远端同步范围（只传部署必要文件）
+
+`remote-deploy.sh` **不会**把整仓镜像到 `/opt/archops`。规则见 `deploy/rsync-deploy.filter`。
+
+| 上传 | 不上传（ignore） |
+|---|---|
+| `deploy/`（compose、脚本、filter；不含 `.env`，本机有则单独 `scp`） | `docs/`、`README.md`、`LICENSE`、`SECURITY.md` |
+| `backend/`、`frontend/`（见下） | `.git/`、`.cursor/`、IDE 配置、`node_modules/` |
+| | 密钥 / `.env*`（除 `.env.example`） |
+
+**`PREBUILT=1`（推荐）** 远端只要能打 runtime 镜像：
+
+- `backend/Dockerfile.prebuilt` + `backend/target/*.jar`
+- `frontend/Dockerfile.prebuilt` + `frontend/nginx.conf` + `frontend/dist/`
+- 源码树（`src/`、`pom.xml`、`package.json` 等）会被 exclude，并清理旧同步残留
+
+**未设 PREBUILT** 才同步前后端源码（仍排除 `node_modules/`、本地 `target/`/`dist/`），供远端 `docker compose build`。
+
+他人部署最小步骤：拿齐上述 payload + 本机 `deploy/compose/.env`（或服务器上从 `.env.example` 生成），再跑本脚本。
+
 ## 部署 / 升级
 
 ```bash

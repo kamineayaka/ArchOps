@@ -75,9 +75,6 @@ public class WorkLogPromotionService {
         if (log.getAssetIds() != null && !log.getAssetIds().isEmpty()) {
             return PartitionKeys.asset(log.getAssetIds().getFirst());
         }
-        if (log.getGroupIds() != null && !log.getGroupIds().isEmpty()) {
-            return PartitionKeys.group(log.getGroupIds().getFirst());
-        }
         return PartitionKeys.GLOBAL;
     }
 }

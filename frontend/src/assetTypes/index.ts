@@ -52,3 +52,23 @@ registerAssetType({
   showDatabaseName: true,
   supportsTest: true,
 })
+
+registerAssetType({
+  kind: 'TAG',
+  labelKey: 'assets.kindTag',
+  defaultPort: 0,
+  connectAction: 'none',
+  authMode: 'none',
+  showHost: false,
+  showPort: false,
+})
+
+registerAssetType({
+  kind: 'ENVIRONMENT',
+  labelKey: 'assets.kindEnvironment',
+  defaultPort: 0,
+  connectAction: 'none',
+  authMode: 'none',
+  showHost: false,
+  showPort: false,
+})

@@ -6,7 +6,6 @@ import com.archops.ai.dto.ChatMessageResponse;
 import com.archops.ai.dto.ConversationResponse;
 import com.archops.ai.repository.AiConversationRepository;
 import com.archops.ai.repository.AiMessageRepository;
-import com.archops.asset.service.AssetGroupService;
 import com.archops.asset.service.AssetService;
 import com.archops.common.exception.BusinessException;
 import com.archops.terminal.pool.SshConnectionPool;
@@ -24,19 +23,16 @@ public class ConversationService {
     private final AiConversationRepository conversationRepository;
     private final AiMessageRepository messageRepository;
     private final AssetService assetService;
-    private final AssetGroupService assetGroupService;
     private final SshConnectionPool sshConnectionPool;
 
     public ConversationService(
             AiConversationRepository conversationRepository,
             AiMessageRepository messageRepository,
             AssetService assetService,
-            AssetGroupService assetGroupService,
             SshConnectionPool sshConnectionPool) {
         this.conversationRepository = conversationRepository;
         this.messageRepository = messageRepository;
         this.assetService = assetService;
-        this.assetGroupService = assetGroupService;
         this.sshConnectionPool = sshConnectionPool;
     }
 
@@ -83,22 +79,15 @@ public class ConversationService {
     }
 
     @Transactional
-    public ConversationResponse updateTargets(
-            Long conversationId,
-            Long userId,
-            List<Long> targetAssetIds,
-            List<Long> targetGroupIds) {
+    public ConversationResponse updateTargets(Long conversationId, Long userId, List<Long> targetAssetIds) {
         AiConversation conversation = requireOwned(conversationId, userId);
         List<Long> assets = normalizeIds(targetAssetIds);
-        List<Long> groups = normalizeIds(targetGroupIds);
         for (Long assetId : assets) {
             assetService.get(assetId);
         }
-        // Validates groups exist and loads members.
-        assetGroupService.resolveMemberAssetIds(groups);
 
         conversation.setTargetAssetIds(assets);
-        conversation.setTargetGroupIds(groups);
+        conversation.setTargetGroupIds(List.of());
         ConversationResponse response = toResponse(conversationRepository.save(conversation));
         for (Long assetId : response.resolvedAssetIds()) {
             try {
@@ -121,9 +110,6 @@ public class ConversationService {
         if (conversation.getTargetAssetIds() != null) {
             resolved.addAll(conversation.getTargetAssetIds());
         }
-        if (conversation.getTargetGroupIds() != null && !conversation.getTargetGroupIds().isEmpty()) {
-            resolved.addAll(assetGroupService.resolveMemberAssetIds(conversation.getTargetGroupIds()));
-        }
         return new ArrayList<>(resolved);
     }
 
@@ -140,7 +126,7 @@ public class ConversationService {
                 conversation.getId(),
                 conversation.getTitle(),
                 conversation.getTargetAssetIds() != null ? conversation.getTargetAssetIds() : List.of(),
-                conversation.getTargetGroupIds() != null ? conversation.getTargetGroupIds() : List.of(),
+                List.of(),
                 resolved,
                 conversation.getCreatedAt(),
                 conversation.getUpdatedAt());

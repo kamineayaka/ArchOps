@@ -55,8 +55,7 @@ public class KnowledgeContextService {
         ArchitectureViewService viewService = architectureViewService.getIfAvailable();
         if (viewService != null) {
             List<Long> assetIds = scope != null && scope.assetIds() != null ? scope.assetIds() : List.of();
-            List<Long> groupIds = scope != null && scope.groupIds() != null ? scope.groupIds() : List.of();
-            ArchitectureViewResponse view = viewService.buildView(assetIds, groupIds);
+            ArchitectureViewResponse view = viewService.buildView(assetIds);
             String archSnippet = viewService.toPromptSnippet(view);
             if (archSnippet != null && !archSnippet.isBlank()) {
                 sb.append(archSnippet).append('\n');
@@ -100,7 +99,7 @@ public class KnowledgeContextService {
 
     private static RagScope enrichScopeWithPartitions(RagScope scope) {
         if (scope == null || scope.isEmpty()) {
-            return new RagScope(List.of(), List.of(), List.of(PartitionKeys.GLOBAL));
+            return new RagScope(List.of(), List.of(PartitionKeys.GLOBAL));
         }
         List<String> keys = new ArrayList<>();
         if (scope.partitionKeys() != null) {
@@ -111,15 +110,10 @@ public class KnowledgeContextService {
                 keys.add(PartitionKeys.asset(id));
             }
         }
-        if (scope.groupIds() != null) {
-            for (Long id : scope.groupIds()) {
-                keys.add(PartitionKeys.group(id));
-            }
-        }
         if (!keys.contains(PartitionKeys.GLOBAL)) {
             keys.add(0, PartitionKeys.GLOBAL);
         }
-        return new RagScope(scope.assetIds(), scope.groupIds(), keys);
+        return new RagScope(scope.assetIds(), keys);
     }
 
     private static String shortSummary(ArchitectureSnapshot s) {

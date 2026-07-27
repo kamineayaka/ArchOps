@@ -7,10 +7,12 @@ import { ChatbubbleEllipsesOutline, CloseOutline, RefreshOutline } from '@vicons
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { listAssets, type Asset } from '@/api/assets'
+import { touchTerminalDock } from '@/api/graph'
 import { listSshPool, warmSshPool, type SshPoolEntry } from '@/api/sshPool'
 import { useAiWorkbenchShell } from '@/composables/useAiWorkbenchShell'
 import { useTerminalSessions } from '@/composables/useTerminalSessions'
 import { useTheme } from '@/composables/useTheme'
+import TerminalSessionDock from '@/components/TerminalSessionDock.vue'
 import '@xterm/xterm/css/xterm.css'
 
 interface LiveSession {
@@ -25,7 +27,7 @@ const route = useRoute()
 const router = useRouter()
 const message = useMessage()
 const { isDark } = useTheme()
-const { setOpen, setAssetTreeOpen } = useAiWorkbenchShell()
+const { setOpen } = useAiWorkbenchShell()
 const { tabs, activeAssetId, activeTab, openOrFocus, closeTab, setStatus, setActive } =
   useTerminalSessions()
 
@@ -183,6 +185,10 @@ function openAssetById(assetId: number) {
   }
   const already = tabs.value.some((tab) => tab.assetId === assetId)
   openOrFocus(asset)
+  void touchTerminalDock({
+    assetId: asset.id,
+    elementId: asset.elementId,
+  }).catch(() => undefined)
   void router.replace({ name: 'terminal', params: { assetId: String(assetId) } })
   void nextTick(async () => {
     ensureLive(assetId)
@@ -253,7 +259,6 @@ watch(
 )
 
 onMounted(async () => {
-  setAssetTreeOpen(true)
   await Promise.all([loadAssets(), refreshPool()])
   elapsedTimer = setInterval(tickElapsed, 1000)
   const paramId = Number(route.params.assetId)
@@ -325,6 +330,8 @@ onBeforeUnmount(() => {
       </NButton>
     </div>
 
+    <TerminalSessionDock class="terminal-ide__dock" />
+
     <NCard class="terminal-ide__stage" :bordered="false">
       <div v-if="!tabs.length" class="terminal-ide__empty">
         {{ t('terminal.hintSelectTree') }}
@@ -347,6 +354,10 @@ onBeforeUnmount(() => {
   height: calc(100vh - var(--co-header-height) - var(--co-space-6) * 2);
   min-height: 420px;
   gap: 0;
+}
+
+.terminal-ide__dock {
+  margin: 0 var(--co-space-3) var(--co-space-2);
 }
 
 .terminal-ide__tabs {

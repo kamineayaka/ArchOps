@@ -5,5 +5,5 @@ import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface SshCredentialRepository extends JpaRepository<SshCredential, Long> {
-    Optional<SshCredential> findByAssetId(Long assetId);
+    Optional<SshCredential> findByAssetIdAndDeletedAtIsNull(Long assetId);
 }

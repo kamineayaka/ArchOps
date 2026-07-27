@@ -15,14 +15,11 @@ import com.archops.common.exception.BusinessException;
 import com.archops.common.security.CredentialCipher;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
 
 /**
  * Dispatches connectivity probes to the registered {@link AssetTypeHandler} for the asset kind.
- * No shared {@code switch(kind)}.
  */
 @Service
 public class AssetConnectionTestService {
@@ -48,8 +45,11 @@ public class AssetConnectionTestService {
 
     public TestConnectionResponse test(TestConnectionRequest request) {
         try {
-            ConnectivityContext ctx = buildContext(request);
-            AssetKind kind = resolveKind(request);
+            ConnectivityContext ctx = buildContext(request.assetId());
+            AssetKind kind = assetRepository.findById(request.assetId())
+                    .map(Asset::getKind)
+                    .orElseThrow(() -> new BusinessException(
+                            HttpStatus.NOT_FOUND, "ASSET_NOT_FOUND", "资产不存在"));
             AssetTypeHandler handler = assetTypeRegistry.findRequired(kind.name());
             return handler.testConnection(ctx);
         } catch (BusinessException e) {
@@ -62,55 +62,27 @@ public class AssetConnectionTestService {
         }
     }
 
-    private AssetKind resolveKind(TestConnectionRequest request) {
-        if (request.kind() != null) {
-            return request.kind();
-        }
-        if (request.assetId() != null) {
-            return assetRepository.findById(request.assetId())
-                    .map(Asset::getKind)
-                    .orElseThrow(() -> new BusinessException(
-                            HttpStatus.NOT_FOUND, "ASSET_NOT_FOUND", "资产不存在"));
-        }
-        // Legacy ephemeral SSH forms may omit kind — default SERVER.
-        return AssetKind.SERVER;
-    }
-
-    private ConnectivityContext buildContext(TestConnectionRequest request) {
-        if (request.assetId() != null && !StringUtils.hasText(request.secret())) {
-            Asset asset = assetRepository.findById(request.assetId())
-                    .orElseThrow(() -> new BusinessException(
-                            HttpStatus.NOT_FOUND, "ASSET_NOT_FOUND", "资产不存在"));
-            SshCredential credential = sshCredentialRepository.findByAssetId(asset.getId()).orElse(null);
-            String secret = null;
-            String username = null;
-            SshAuthType authType = null;
-            List<Long> jumps = List.of();
-            if (credential != null) {
-                username = credential.getUsername();
-                authType = credential.getAuthType();
-                secret = credentialCipher.decrypt(credential.getSecretCipher(), credential.getSecretIv());
-                jumps = credential.getJumpAssetIds() != null ? credential.getJumpAssetIds() : List.of();
-            }
-            return new ConnectivityContext(
-                    asset.getId(),
-                    asset.getHost(),
-                    asset.getPort(),
-                    username,
-                    authType,
-                    secret,
-                    jumps,
-                    readDatabase(asset.getMetadata()));
+    private ConnectivityContext buildContext(Long assetId) {
+        Asset asset = assetRepository.findByIdAndDeletedAtIsNull(assetId)
+                .orElseThrow(() -> new BusinessException(
+                        HttpStatus.NOT_FOUND, "ASSET_NOT_FOUND", "资产不存在"));
+        SshCredential credential = sshCredentialRepository.findByAssetIdAndDeletedAtIsNull(asset.getId()).orElse(null);
+        String secret = null;
+        String username = null;
+        SshAuthType authType = null;
+        if (credential != null) {
+            username = credential.getUsername();
+            authType = credential.getAuthType();
+            secret = credentialCipher.decrypt(credential.getSecretCipher(), credential.getSecretIv());
         }
         return new ConnectivityContext(
-                request.assetId(),
-                request.host(),
-                request.port(),
-                request.username(),
-                request.authType(),
-                request.secret(),
-                request.jumpAssetIds(),
-                request.database());
+                asset.getId(),
+                asset.getHost(),
+                asset.getPort(),
+                username,
+                authType,
+                secret,
+                readDatabase(asset.getMetadata()));
     }
 
     private String readDatabase(String metadata) {

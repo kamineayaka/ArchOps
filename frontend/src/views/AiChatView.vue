@@ -13,9 +13,7 @@ import {
 import { createAiStreamClient, type AiStreamEvent, type UiContext } from '@/api/aiStream'
 import { listChatProviders, type AiProvider } from '@/api/ai-providers'
 import AiProviderSetupWizard from '@/components/ai/AiProviderSetupWizard.vue'
-import AssetNavTree from '@/components/AssetNavTree.vue'
 import { listAssets, type Asset } from '@/api/assets'
-import { listAssetGroups, type AssetGroup } from '@/api/assetGroups'
 import { listSshPool, type SshPoolEntry } from '@/api/sshPool'
 import EmptyState from '@/components/EmptyState.vue'
 import PageHeader from '@/components/PageHeader.vue'
@@ -57,17 +55,13 @@ const savingTargets = ref(false)
 const messages = ref<DisplayMessage[]>([])
 const providers = ref<AiProvider[]>([])
 const assets = ref<Asset[]>([])
-const groups = ref<AssetGroup[]>([])
 const poolEntries = ref<SshPoolEntry[]>([])
 const selectedProviderId = ref<number | undefined>(undefined)
 const targetAssetIds = ref<number[]>([])
-const targetGroupIds = ref<number[]>([])
 const resolvedAssetIds = ref<number[]>([])
 const chatBottomRef = ref<HTMLDivElement | null>(null)
 const streamingIndex = ref<number | null>(null)
 const showWizard = ref(false)
-const workspacesOpen = ref(true)
-const isNarrow = ref(false)
 
 const needsProvider = computed(() => providers.value.length === 0)
 const hasAssets = computed(() => assets.value.length > 0)
@@ -83,13 +77,6 @@ const assetOptions = computed(() =>
   assets.value.map((a) => ({
     label: a.host ? `${a.name} (${a.host})` : a.name,
     value: a.id,
-  })),
-)
-
-const groupOptions = computed(() =>
-  groups.value.map((g) => ({
-    label: `${g.name} (${g.memberCount})`,
-    value: g.id,
   })),
 )
 
@@ -275,13 +262,6 @@ async function loadAssets() {
   }
 }
 
-async function loadGroups() {
-  const res = await listAssetGroups()
-  if (res.success && res.data) {
-    groups.value = res.data
-  }
-}
-
 async function refreshPool() {
   const res = await listSshPool()
   if (res.success && res.data) {
@@ -300,11 +280,9 @@ async function ensureConversation() {
 
 function applyTargets(data: {
   targetAssetIds?: number[]
-  targetGroupIds?: number[]
   resolvedAssetIds?: number[]
 }) {
   targetAssetIds.value = data.targetAssetIds ?? []
-  targetGroupIds.value = data.targetGroupIds ?? []
   resolvedAssetIds.value = data.resolvedAssetIds ?? []
 }
 
@@ -322,11 +300,11 @@ async function loadMessages() {
   if (res.success && res.data) messages.value = res.data
 }
 
-async function persistTargets(nextAssets: number[], nextGroups: number[]) {
+async function persistTargets(nextAssets: number[]) {
   if (!conversationId.value) return
   savingTargets.value = true
   try {
-    const res = await updateConversationTargets(conversationId.value, nextAssets, nextGroups)
+    const res = await updateConversationTargets(conversationId.value, nextAssets)
     if (res.success && res.data) {
       applyTargets(res.data)
       await refreshPool()
@@ -340,11 +318,7 @@ async function persistTargets(nextAssets: number[], nextGroups: number[]) {
 }
 
 async function handleTargetsChange(value: number[]) {
-  await persistTargets(value, targetGroupIds.value)
-}
-
-async function handleGroupTargetsChange(value: number[]) {
-  await persistTargets(targetAssetIds.value, value)
+  await persistTargets(value)
 }
 
 async function scrollToBottom() {
@@ -379,7 +353,6 @@ async function handleNewChat() {
   conversationId.value = null
   messages.value = []
   targetAssetIds.value = []
-  targetGroupIds.value = []
   resolvedAssetIds.value = []
   streamingIndex.value = null
   await ensureConversation()
@@ -397,39 +370,8 @@ async function applyQueryAsset() {
   const id = parseQueryAssetId()
   if (id == null) return
   if (!targetAssetIds.value.includes(id)) {
-    await persistTargets([...targetAssetIds.value, id], targetGroupIds.value)
+    await persistTargets([...targetAssetIds.value, id])
   }
-}
-
-async function onWorkspaceAsset(asset: Asset) {
-  const next = targetAssetIds.value.includes(asset.id)
-    ? targetAssetIds.value
-    : [...targetAssetIds.value, asset.id]
-  await persistTargets(next, targetGroupIds.value)
-  if (route.query.assetId !== String(asset.id)) {
-    await router.replace({
-      name: route.name ?? 'ai',
-      query: { ...route.query, assetId: String(asset.id) },
-    })
-  }
-}
-
-async function onWorkspaceGroup(groupId: number) {
-  const next = targetGroupIds.value.includes(groupId)
-    ? targetGroupIds.value
-    : [...targetGroupIds.value, groupId]
-  await persistTargets(targetAssetIds.value, next)
-}
-
-function bindNarrowMedia() {
-  if (typeof window === 'undefined') return
-  const mq = window.matchMedia('(max-width: 900px)')
-  isNarrow.value = mq.matches
-  if (mq.matches) workspacesOpen.value = false
-  mq.addEventListener('change', (event) => {
-    isNarrow.value = event.matches
-    if (event.matches) workspacesOpen.value = false
-  })
 }
 
 watch(conversationId, async (id) => {
@@ -449,8 +391,7 @@ watch(
 )
 
 onMounted(async () => {
-  bindNarrowMedia()
-  await Promise.all([loadProviders(), loadAssets(), loadGroups(), refreshPool()])
+  await Promise.all([loadProviders(), loadAssets(), refreshPool()])
   await ensureConversation()
   await loadTargets()
   await applyQueryAsset()
@@ -469,46 +410,13 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="agent-window" data-surface="agent">
-    <aside
-      class="agent-window__workspaces"
-      :class="{ 'agent-window__workspaces--collapsed': !workspacesOpen }"
-      :aria-label="t('ai.workspaces')"
-    >
-      <div v-if="workspacesOpen" class="agent-window__tree">
-        <AssetNavTree
-          select-mode
-          title-key="ai.workspaces"
-          :selected-asset-ids="targetAssetIds"
-          @select-asset="onWorkspaceAsset"
-          @select-group="onWorkspaceGroup"
-        />
-        <div v-if="!hasAssets && !needsProvider" class="agent-window__empty-assets">
-          <p>{{ t('ai.emptyAssets') }}</p>
-          <NButton size="small" @click="router.push({ name: 'assets' })">{{ t('ai.goAssets') }}</NButton>
-        </div>
-      </div>
-    </aside>
-
     <div class="agent-window__main">
       <PageHeader :title="t('ai.title')" :description="t('ai.subtitle')">
         <template #extra>
           <NSpace align="center" :size="12">
-            <NButton quaternary @click="workspacesOpen = !workspacesOpen">
-              {{ t('ai.toggleWorkspaces') }}
-            </NButton>
             <NButton v-if="needsProvider" type="warning" @click="showWizard = true">
               {{ t('aiSettings.startWizard') }}
             </NButton>
-            <NSelect
-              v-model:value="targetGroupIds"
-              class="select-lg"
-              :options="groupOptions"
-              :placeholder="t('ai.targetGroups')"
-              :loading="savingTargets"
-              multiple
-              :aria-label="t('ai.targetGroups')"
-              @update:value="handleGroupTargetsChange"
-            />
             <NSelect
               v-model:value="targetAssetIds"
               class="select-lg"
@@ -527,6 +435,9 @@ onBeforeUnmount(() => {
               clearable
               :aria-label="t('ai.provider')"
             />
+            <NButton v-if="!hasAssets && !needsProvider" @click="router.push({ name: 'graph' })">
+              {{ t('ai.goAssets') }}
+            </NButton>
             <NButton @click="handleNewChat">{{ t('ai.newChat') }}</NButton>
           </NSpace>
         </template>
@@ -656,47 +567,11 @@ onBeforeUnmount(() => {
 <style scoped>
 .agent-window {
   display: flex;
-  gap: 0;
+  flex-direction: column;
   height: calc(100vh - var(--co-header-height) - var(--co-space-6) * 2);
   min-height: 480px;
   margin: calc(var(--co-space-6) * -1);
   width: calc(100% + var(--co-space-6) * 2);
-}
-
-.agent-window__workspaces {
-  width: 260px;
-  flex-shrink: 0;
-  border-right: 1px solid var(--co-border);
-  background: var(--co-bg-page);
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  transition: width 0.15s ease;
-}
-
-.agent-window__workspaces--collapsed {
-  width: 0;
-  border-right: none;
-  overflow: hidden;
-}
-
-.agent-window__tree {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.agent-window__empty-assets {
-  padding: var(--co-space-3) var(--co-space-4);
-  border-top: 1px solid var(--co-border);
-  font-size: 0.8125rem;
-  color: var(--co-text-secondary);
-  line-height: 1.45;
-}
-
-.agent-window__empty-assets p {
-  margin: 0 0 var(--co-space-2);
 }
 
 .agent-window__main {

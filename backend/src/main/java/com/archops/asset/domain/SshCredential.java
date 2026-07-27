@@ -41,10 +41,22 @@ public class SshCredential {
     @Column(name = "passphrase_hash", length = 255)
     private String passphraseHash;
 
-    /** Ordered jump asset IDs (connection topology; not Architecture SSOT). */
+    /**
+     * Ordered jump asset IDs (legacy connection topology).
+     * Prefer Neo4j {@code CONNECTS_VIA}; column kept for migration / rollback.
+     */
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "jump_asset_ids", nullable = false)
     private List<Long> jumpAssetIds = new ArrayList<>();
+
+    @Column(name = "deleted_at")
+    private Instant deletedAt;
+
+    @Column(name = "deleted_by")
+    private Long deletedBy;
+
+    @Column(name = "superseded_by")
+    private Long supersededBy;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -82,6 +94,13 @@ public class SshCredential {
     public void setJumpAssetIds(List<Long> jumpAssetIds) {
         this.jumpAssetIds = jumpAssetIds != null ? jumpAssetIds : new ArrayList<>();
     }
+    public Instant getDeletedAt() { return deletedAt; }
+    public void setDeletedAt(Instant deletedAt) { this.deletedAt = deletedAt; }
+    public Long getDeletedBy() { return deletedBy; }
+    public void setDeletedBy(Long deletedBy) { this.deletedBy = deletedBy; }
+    public Long getSupersededBy() { return supersededBy; }
+    public void setSupersededBy(Long supersededBy) { this.supersededBy = supersededBy; }
+    public boolean isDeleted() { return deletedAt != null; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
 }

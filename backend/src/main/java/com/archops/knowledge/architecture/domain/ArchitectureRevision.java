@@ -37,6 +37,15 @@ public class ArchitectureRevision {
     @Column(name = "created_by")
     private Long createdBy;
 
+    @Column(name = "graph_version")
+    private Long graphVersion;
+
+    @Column(name = "change_set_id", length = 64)
+    private String changeSetId;
+
+    @Column(name = "proposal_id")
+    private Long proposalId;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
 
@@ -56,5 +65,11 @@ public class ArchitectureRevision {
     }
     public Long getCreatedBy() { return createdBy; }
     public void setCreatedBy(Long createdBy) { this.createdBy = createdBy; }
+    public Long getGraphVersion() { return graphVersion; }
+    public void setGraphVersion(Long graphVersion) { this.graphVersion = graphVersion; }
+    public String getChangeSetId() { return changeSetId; }
+    public void setChangeSetId(String changeSetId) { this.changeSetId = changeSetId; }
+    public Long getProposalId() { return proposalId; }
+    public void setProposalId(Long proposalId) { this.proposalId = proposalId; }
     public Instant getCreatedAt() { return createdAt; }
 }

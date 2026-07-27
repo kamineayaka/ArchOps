@@ -102,13 +102,12 @@ public class RagRetrievalService {
             return scored.size() <= topK ? scored : scored.subList(0, topK);
         }
         Set<Long> assetIds = scope.assetIds() != null ? new HashSet<>(scope.assetIds()) : Set.of();
-        Set<Long> groupIds = scope.groupIds() != null ? new HashSet<>(scope.groupIds()) : Set.of();
         Set<String> partitionKeys =
                 scope.partitionKeys() != null ? new HashSet<>(scope.partitionKeys()) : Set.of();
 
         List<ScoredChunk> out = new ArrayList<>();
         for (ScoredChunk chunk : scored) {
-            if (matchesScope(chunk.metadata(), assetIds, groupIds, partitionKeys)) {
+            if (matchesScope(chunk.metadata(), assetIds, partitionKeys)) {
                 out.add(chunk);
                 if (out.size() >= topK) {
                     break;
@@ -118,10 +117,9 @@ public class RagRetrievalService {
         return out;
     }
 
-    private boolean matchesScope(
-            String metadataJson, Set<Long> assetIds, Set<Long> groupIds, Set<String> partitionKeys) {
+    private boolean matchesScope(String metadataJson, Set<Long> assetIds, Set<String> partitionKeys) {
         Map<String, Object> meta = parseMetadata(metadataJson);
-        if (meta.isEmpty() && (assetIds.isEmpty() && groupIds.isEmpty() && partitionKeys.isEmpty())) {
+        if (meta.isEmpty() && (assetIds.isEmpty() && partitionKeys.isEmpty())) {
             return true;
         }
         if (!partitionKeys.isEmpty()) {
@@ -149,15 +147,6 @@ public class RagRetrievalService {
                         return true;
                     }
                 }
-            }
-        }
-        if (!groupIds.isEmpty()) {
-            Long groupId = asLong(meta.get("group_id"));
-            if (groupId == null) {
-                groupId = asLong(meta.get("groupId"));
-            }
-            if (groupId != null && groupIds.contains(groupId)) {
-                return true;
             }
         }
         // If scope dimensions present but none matched → exclude

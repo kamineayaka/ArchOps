@@ -24,7 +24,7 @@ export function openAsset(
     case 'terminal':
       if (!asset.hasSshCredential) {
         deps.message.warning(deps.t('assets.connectNeedsCredential'))
-        void deps.router.push({ name: 'assets' })
+        void deps.router.push({ name: 'graph' })
         return
       }
       void deps.router.push({ name: 'terminal', params: { assetId: String(asset.id) } })
@@ -36,7 +36,7 @@ export function openAsset(
           kind: def ? deps.t(def.labelKey) : asset.kind,
         }),
       )
-      void deps.router.push({ name: 'assets', query: { highlight: String(asset.id) } })
+      void deps.router.push({ name: 'graph' })
       return
     case 'page':
       deps.message.info(
@@ -45,11 +45,11 @@ export function openAsset(
           kind: def ? deps.t(def.labelKey) : asset.kind,
         }),
       )
-      void deps.router.push({ name: 'assets', query: { highlight: String(asset.id) } })
+      void deps.router.push({ name: 'graph' })
       return
     case 'none':
     default:
       deps.message.info(deps.t('assets.connectNone', { name: asset.name }))
-      void deps.router.push({ name: 'assets' })
+      void deps.router.push({ name: 'graph' })
   }
 }

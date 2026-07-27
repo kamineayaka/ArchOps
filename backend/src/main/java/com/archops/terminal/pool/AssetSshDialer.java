@@ -6,6 +6,7 @@ import com.archops.asset.dto.AssetResponse;
 import com.archops.asset.service.AssetService;
 import com.archops.common.config.SshPoolProperties;
 import com.archops.common.exception.BusinessException;
+import com.archops.graph.service.GraphConnectPathService;
 import java.security.KeyPair;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -21,10 +22,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * Resolves asset credentials and opens authenticated SSH sessions.
- * Shared by the connection pool, AI tools, and web terminal.
- *
- * <p>Jump / proxy chains are connection topology stored on {@link SshCredential},
- * not Architecture SSOT. Empty jump list uses a direct dial.
+ * Jump hops use Neo4j {@code CONNECTS_VIA} (graph SSOT) via {@link GraphConnectPathService}.
  */
 @Component
 public class AssetSshDialer {
@@ -32,85 +30,26 @@ public class AssetSshDialer {
     private final AssetService assetService;
     private final SshClient sshClient;
     private final SshPoolProperties properties;
+    private final GraphConnectPathService graphConnectPathService;
 
-    /**
-     * {@code @Lazy} breaks the cycle AssetService → AssetTypeRegistry → ServerAssetTypeHandler
-     * → AssetSshDialer → AssetService introduced when SERVER gained testConnection via the dialer.
-     */
-    public AssetSshDialer(@Lazy AssetService assetService, SshClient sshClient, SshPoolProperties properties) {
+    public AssetSshDialer(
+            @Lazy AssetService assetService,
+            SshClient sshClient,
+            SshPoolProperties properties,
+            GraphConnectPathService graphConnectPathService) {
         this.assetService = assetService;
         this.sshClient = sshClient;
         this.properties = properties;
+        this.graphConnectPathService = graphConnectPathService;
     }
 
     public ClientSession dial(Long assetId) throws Exception {
-        SshCredential credential = assetService.getSshCredential(assetId);
-        List<Long> jumps = credential.getJumpAssetIds();
+        List<Long> jumps = graphConnectPathService.resolveJumpAssetIds(assetId);
         if (jumps == null || jumps.isEmpty()) {
             return dialAssetDirect(assetId);
         }
         validateJumpChain(jumps, assetId);
         return dialViaJumpChain(jumps, assetId);
-    }
-
-    /**
-     * Ephemeral dial for "test connection" from the create/edit form.
-     * Jump hops use saved credentials; the final target uses the provided secret.
-     * Same SSH client / dialer path as the pool and WebSSH (no separate code path).
-     */
-    public ClientSession dialEphemeral(
-            List<Long> jumpAssetIds,
-            String host,
-            int port,
-            String username,
-            SshAuthType authType,
-            String secret,
-            long timeoutMs) throws Exception {
-        List<Long> jumps = jumpAssetIds != null ? jumpAssetIds : List.of();
-        if (jumps.isEmpty()) {
-            return connectAndAuthRaw(host, port, username, authType, secret, timeoutMs);
-        }
-        validateJumpList(jumps);
-        List<ClientSession> hopSessions = new ArrayList<>();
-        List<ExplicitPortForwardingTracker> trackers = new ArrayList<>();
-        try {
-            ClientSession current = dialAssetDirect(jumps.get(0));
-            hopSessions.add(current);
-            for (int i = 1; i < jumps.size(); i++) {
-                Long nextId = jumps.get(i);
-                AssetResponse next = requireHost(nextId);
-                int nextPort = next.port() != null ? next.port() : 22;
-                SshdSocketAddress remote = new SshdSocketAddress(next.host(), nextPort);
-                ExplicitPortForwardingTracker tracker = current.createLocalPortForwardingTracker(
-                        SshdSocketAddress.LOCALHOST_ADDRESS, remote);
-                trackers.add(tracker);
-                SshdSocketAddress bound = tracker.getBoundAddress();
-                current = connectAndAuth(nextId, bound.getHostName(), bound.getPort());
-                hopSessions.add(current);
-            }
-            SshdSocketAddress remoteTarget = new SshdSocketAddress(host, port);
-            ExplicitPortForwardingTracker targetTracker = current.createLocalPortForwardingTracker(
-                    SshdSocketAddress.LOCALHOST_ADDRESS, remoteTarget);
-            trackers.add(targetTracker);
-            SshdSocketAddress boundTarget = targetTracker.getBoundAddress();
-            ClientSession target = connectAndAuthRaw(
-                    boundTarget.getHostName(),
-                    boundTarget.getPort(),
-                    username,
-                    authType,
-                    secret,
-                    timeoutMs);
-            List<ClientSession> heldJumps = List.copyOf(hopSessions);
-            List<ExplicitPortForwardingTracker> heldTrackers = List.copyOf(trackers);
-            target.addCloseFutureListener(f -> closeQuietly(heldJumps, heldTrackers));
-            return target;
-        } catch (BusinessException e) {
-            closeQuietly(hopSessions, trackers);
-            throw e;
-        } catch (Exception e) {
-            closeQuietly(hopSessions, trackers);
-            throw e;
-        }
     }
 
     /**
@@ -138,29 +77,9 @@ public class AssetSshDialer {
         }
     }
 
-    static void validateJumpList(List<Long> jumpAssetIds) {
-        if (jumpAssetIds == null || jumpAssetIds.isEmpty()) {
-            return;
-        }
-        Set<Long> seen = new HashSet<>();
-        for (Long id : jumpAssetIds) {
-            if (id == null) {
-                throw new BusinessException(
-                        HttpStatus.BAD_REQUEST, "SSH_JUMP_INVALID", "跳板链包含无效资产 ID");
-            }
-            if (!seen.add(id)) {
-                throw new BusinessException(
-                        HttpStatus.BAD_REQUEST,
-                        "SSH_JUMP_CYCLE",
-                        "跳板链存在循环，资产 ID: " + id);
-            }
-        }
-    }
-
     /**
      * Multi-hop dial: connect first jump directly, then for each next hop open a
-     * local port forward (DirectTcpip under the hood) and authenticate with that
-     * hop's own credentials — same pattern as Apache SSHD ProxyJump.
+     * local port forward and authenticate with that hop's credentials.
      */
     ClientSession dialViaJumpChain(List<Long> jumpAssetIds, Long targetAssetId) throws Exception {
         List<Long> path = new ArrayList<>(jumpAssetIds);

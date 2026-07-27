@@ -1,7 +1,6 @@
 package com.archops.asset.type;
 
 import com.archops.asset.domain.AssetKind;
-import com.archops.asset.dto.AssetRequest;
 import com.archops.asset.dto.TestConnectionResponse;
 import com.archops.common.exception.BusinessException;
 import java.net.InetSocketAddress;
@@ -14,7 +13,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 /**
- * DATABASE asset type: form + TCP/JDBC probe. Query UI may be deferred (connectAction=QUERY).
+ * DATABASE asset type: TCP/JDBC probe. Query UI may be deferred (connectAction=QUERY).
  */
 @Component
 public class DatabaseAssetTypeHandler extends AbstractAssetTypeHandler {
@@ -43,18 +42,6 @@ public class DatabaseAssetTypeHandler extends AbstractAssetTypeHandler {
     }
 
     @Override
-    public void validateCreate(AssetRequest req) {
-        validateCommon(req);
-        requireHost(req);
-    }
-
-    @Override
-    public void validateUpdate(AssetRequest req) {
-        validateCommon(req);
-        requireHost(req);
-    }
-
-    @Override
     public TestConnectionResponse testConnection(ConnectivityContext ctx) {
         long started = System.nanoTime();
         try {
@@ -63,12 +50,6 @@ public class DatabaseAssetTypeHandler extends AbstractAssetTypeHandler {
             }
             int port = ctx.port() != null && ctx.port() > 0 ? ctx.port() : defaultPort();
             String host = ctx.host().trim();
-
-            // Jump-through TCP is deferred; still allow saving jump ids for later Agent use.
-            if (!ctx.jumpsOrEmpty().isEmpty()) {
-                // Probe the jump SSH asset instead of failing hard — operator still gets signal.
-                // Direct TCP to target is attempted first when reachable; otherwise report jump note.
-            }
 
             tcpProbe(host, port);
 

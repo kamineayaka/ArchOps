@@ -11,6 +11,7 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.util.UUID;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -21,6 +22,9 @@ public class Asset {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(name = "element_id", nullable = false, unique = true)
+    private UUID elementId;
 
     @Column(nullable = false, length = 128)
     private String name;
@@ -38,11 +42,24 @@ public class Asset {
     @Column(columnDefinition = "jsonb")
     private String metadata;
 
+    /** @deprecated Prefer graph edges (MEMBER_OF / RUNS_ON); kept for migration. */
     @Column(name = "parent_id")
     private Long parentId;
 
     @Column(nullable = false)
     private boolean enabled = true;
+
+    @Column(name = "deleted_at")
+    private Instant deletedAt;
+
+    @Column(name = "deleted_by")
+    private Long deletedBy;
+
+    @Column(name = "delete_reason", length = 512)
+    private String deleteReason;
+
+    @Column(name = "graph_synced_at")
+    private Instant graphSyncedAt;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -55,6 +72,9 @@ public class Asset {
         Instant now = Instant.now();
         createdAt = now;
         updatedAt = now;
+        if (elementId == null) {
+            elementId = UUID.randomUUID();
+        }
     }
 
     @PreUpdate
@@ -62,8 +82,14 @@ public class Asset {
         updatedAt = Instant.now();
     }
 
+    public boolean isDeleted() {
+        return deletedAt != null;
+    }
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
+    public UUID getElementId() { return elementId; }
+    public void setElementId(UUID elementId) { this.elementId = elementId; }
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
     public AssetKind getKind() { return kind; }
@@ -78,6 +104,14 @@ public class Asset {
     public void setParentId(Long parentId) { this.parentId = parentId; }
     public boolean isEnabled() { return enabled; }
     public void setEnabled(boolean enabled) { this.enabled = enabled; }
+    public Instant getDeletedAt() { return deletedAt; }
+    public void setDeletedAt(Instant deletedAt) { this.deletedAt = deletedAt; }
+    public Long getDeletedBy() { return deletedBy; }
+    public void setDeletedBy(Long deletedBy) { this.deletedBy = deletedBy; }
+    public String getDeleteReason() { return deleteReason; }
+    public void setDeleteReason(String deleteReason) { this.deleteReason = deleteReason; }
+    public Instant getGraphSyncedAt() { return graphSyncedAt; }
+    public void setGraphSyncedAt(Instant graphSyncedAt) { this.graphSyncedAt = graphSyncedAt; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
 }

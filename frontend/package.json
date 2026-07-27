@@ -18,12 +18,14 @@
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/xterm": "^6.0.0",
     "axios": "^1.18.1",
+    "cytoscape": "^3.34.0",
     "naive-ui": "^2.44.1",
     "pinia": "^3.0.4",
     "vue": "^3.5.39",
     "vue-router": "^5.1.0"
   },
   "devDependencies": {
+    "@types/cytoscape": "^3.21.9",
     "@types/node": "^24.13.2",
     "@vitejs/plugin-vue": "^6.0.7",
     "@vue/tsconfig": "^0.9.1",

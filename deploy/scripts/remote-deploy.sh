@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
-# Sync ArchOps to a remote host and start Docker Compose (lowmem overlay by default).
+# Sync ArchOps deploy payload to a remote host and start Docker Compose (lowmem by default).
+#
+# Only syncs files needed to build/run on the target (see deploy/rsync-deploy.filter).
+# Docs / IDE / VCS / secrets are never uploaded.
+#
 # Usage:
 #   ./deploy/scripts/remote-deploy.sh root@HOST
 #   LOWMEM=0 ./deploy/scripts/remote-deploy.sh root@HOST   # full resources
 #   SKIP_BUILD=1 ./deploy/scripts/remote-deploy.sh root@HOST  # use images already on host
-#   PREBUILT=1 ./deploy/scripts/remote-deploy.sh root@HOST    # use local JAR/dist
+#   PREBUILT=1 ./deploy/scripts/remote-deploy.sh root@HOST    # use local JAR/dist (recommended)
 #
 # China / slow networks (strongly recommended on Aliyun ECS etc.):
 #   USE_CN_MIRRORS=1 ./deploy/scripts/remote-deploy.sh root@HOST
@@ -23,30 +27,85 @@ PREBUILT="${PREBUILT:-0}"
 USE_CN_MIRRORS="${USE_CN_MIRRORS:-0}"
 NPM_REGISTRY="${NPM_REGISTRY:-}"
 MAVEN_MIRROR="${MAVEN_MIRROR:-}"
+FILTER_FILE="${ROOT}/deploy/rsync-deploy.filter"
 
 if [ "$USE_CN_MIRRORS" = "1" ]; then
   NPM_REGISTRY="${NPM_REGISTRY:-https://registry.npmmirror.com}"
   MAVEN_MIRROR="${MAVEN_MIRROR:-https://maven.aliyun.com/repository/public}"
 fi
 
-SSH=(ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new "$TARGET")
-RSYNC_EXCLUDES=(
-  --exclude '.git/'
-  --exclude 'node_modules/'
-  --exclude '.cursor/'
-  --exclude '*.log'
-  --exclude '.env'
-  --exclude 'deploy/compose/.env'
-  --exclude 'VERSION'
-)
-if [ "$PREBUILT" != "1" ]; then
-  RSYNC_EXCLUDES+=(--exclude 'frontend/dist/' --exclude 'backend/target/')
+if [ ! -f "$FILTER_FILE" ]; then
+  echo "ERROR: missing rsync filter: $FILTER_FILE" >&2
+  exit 1
 fi
 
-RSYNC=(rsync -az --delete -e "ssh -o BatchMode=yes -o ServerAliveInterval=15 -o ServerAliveCountMax=120 -o Compression=yes" "${RSYNC_EXCLUDES[@]}")
+SSH=(ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new "$TARGET")
+SSH_RSYNC_OPTS='ssh -o BatchMode=yes -o ServerAliveInterval=15 -o ServerAliveCountMax=120 -o Compression=yes'
 
-echo "==> Syncing sources → ${TARGET}:${REMOTE_DIR} (PREBUILT=$PREBUILT USE_CN_MIRRORS=$USE_CN_MIRRORS)"
+# Mode-specific excludes layered on top of deploy/rsync-deploy.filter
+MODE_EXCLUDES=()
+if [ "$PREBUILT" = "1" ]; then
+  # Runtime image contexts only — no Maven/npm source trees on the target.
+  MODE_EXCLUDES+=(
+    --exclude 'backend/src/'
+    --exclude 'backend/.mvn/'
+    --exclude 'backend/pom.xml'
+    --exclude 'backend/mvnw'
+    --exclude 'backend/mvnw.cmd'
+    --exclude 'backend/Dockerfile'
+    --exclude 'frontend/src/'
+    --exclude 'frontend/public/'
+    --exclude 'frontend/index.html'
+    --exclude 'frontend/package.json'
+    --exclude 'frontend/package-lock.json'
+    --exclude 'frontend/tsconfig.json'
+    --exclude 'frontend/tsconfig*.json'
+    --exclude 'frontend/vite.config.*'
+    --exclude 'frontend/vitest.config.*'
+    --exclude 'frontend/eslint.config.*'
+    --exclude 'frontend/Dockerfile'
+    --exclude 'frontend/.gitignore'
+  )
+else
+  MODE_EXCLUDES+=(
+    --exclude 'frontend/dist/'
+    --exclude 'backend/target/'
+  )
+fi
+
+RSYNC=(
+  rsync -az --delete
+  -e "$SSH_RSYNC_OPTS"
+  --filter="merge ${FILTER_FILE}"
+  "${MODE_EXCLUDES[@]}"
+)
+
+echo "==> Syncing deploy payload → ${TARGET}:${REMOTE_DIR} (PREBUILT=$PREBUILT USE_CN_MIRRORS=$USE_CN_MIRRORS)"
+echo "    include: deploy/ + backend/ + frontend/ (see deploy/rsync-deploy.filter); docs/IDE/VCS ignored"
+"${SSH[@]}" "mkdir -p '${REMOTE_DIR}'"
 "${RSYNC[@]}" "$ROOT/" "${TARGET}:${REMOTE_DIR}/"
+
+# Drop leftovers from older full-tree syncs (docs, meta, source when PREBUILT).
+echo "==> Pruning non-deploy leftovers on remote"
+"${SSH[@]}" "bash -s" -- "$REMOTE_DIR" "$PREBUILT" <<'PRUNE'
+set -euo pipefail
+REMOTE_DIR="$1"
+PREBUILT="$2"
+cd "$REMOTE_DIR"
+rm -rf docs .cursor .git .idea .vscode \
+  README.md LICENSE SECURITY.md .editorconfig .gitignore skills-lock.json \
+  agent-transcripts 2>/dev/null || true
+if [ "$PREBUILT" = "1" ]; then
+  rm -rf \
+    backend/src backend/.mvn backend/pom.xml backend/mvnw backend/mvnw.cmd backend/Dockerfile \
+    frontend/src frontend/public frontend/index.html \
+    frontend/package.json frontend/package-lock.json \
+    frontend/tsconfig.json frontend/tsconfig.app.json frontend/tsconfig.node.json \
+    frontend/vite.config.ts frontend/vite.config.js \
+    frontend/Dockerfile frontend/.gitignore \
+    2>/dev/null || true
+fi
+PRUNE
 
 if [ ! -f "$ROOT/deploy/compose/.env" ]; then
   echo "WARN: local deploy/compose/.env missing; remote .env will be created from example if absent"
@@ -70,6 +129,19 @@ echo "==> Writing deploy stamp ${DEPLOY_VERSION} → ${RELEASES_DIR}/VERSION"
 if [ "$SKIP_BUILD" != "1" ] && [ -z "$NPM_REGISTRY" ] && [ -z "$MAVEN_MIRROR" ]; then
   echo "WARN: no npm/Maven mirrors set. On China ECS, dependency downloads alone can take 30–60+ min."
   echo "      Re-run with USE_CN_MIRRORS=1 for npmmirror + Aliyun Maven."
+fi
+
+if [ "$PREBUILT" = "1" ]; then
+  if ! "${SSH[@]}" "ls '${REMOTE_DIR}/backend/target/'*.jar >/dev/null 2>&1"; then
+    echo "ERROR: PREBUILT=1 but no backend/target/*.jar on remote. Build locally first:" >&2
+    echo "  cd backend && ./mvnw -DskipTests package" >&2
+    exit 1
+  fi
+  if ! "${SSH[@]}" "test -d '${REMOTE_DIR}/frontend/dist' && test -f '${REMOTE_DIR}/frontend/nginx.conf'"; then
+    echo "ERROR: PREBUILT=1 but frontend/dist or nginx.conf missing on remote. Build locally first:" >&2
+    echo "  cd frontend && npm ci && npm run build" >&2
+    exit 1
+  fi
 fi
 
 echo "==> Starting stack on remote (LOWMEM=$LOWMEM SKIP_BUILD=$SKIP_BUILD PREBUILT=$PREBUILT)"

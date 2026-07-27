@@ -334,9 +334,6 @@ public class AiAgentService {
         Classification classification = changeClassifier.classify(
                 toolCall.name(), toolCall.arguments(), exec.output());
         List<Long> assetIds = extractAssetIds(toolCall.arguments(), conversation);
-        List<Long> groupIds = conversation.getTargetGroupIds() != null
-                ? new ArrayList<>(conversation.getTargetGroupIds())
-                : List.of();
 
         try {
             toolExecutionEventService.record(
@@ -362,7 +359,7 @@ public class AiAgentService {
                     "[" + classification.level() + "] " + toolCall.name() + ": " + truncate(exec.output(), 500),
                     classification.level(),
                     assetIds,
-                    groupIds,
+                    List.of(),
                     "{\"tool\":\"" + toolCall.name() + "\",\"rationale\":"
                             + quote(classification.rationale()) + "}");
             if (onEvent != null && workLog != null) {
@@ -489,9 +486,6 @@ public class AiAgentService {
             UiContext uiContext,
             Long providerId) {
         List<Long> assetIds = conversationService.resolveEffectiveTargetAssetIds(conversation);
-        List<Long> groupIds = conversation.getTargetGroupIds() != null
-                ? conversation.getTargetGroupIds()
-                : List.of();
         Integer contextBudget = null;
         try {
             AiProvider provider = llmRuntimeResolver.resolveProvider(providerId);
@@ -505,7 +499,6 @@ public class AiAgentService {
         return agentContextAssembler.assemble(
                 conversation.getUserId(),
                 assetIds,
-                groupIds,
                 userQuery,
                 conversationId,
                 uiContext,

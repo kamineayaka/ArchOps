@@ -41,6 +41,16 @@ services:
         limits:
           memory: 192M
 
+  neo4j:
+    environment:
+      NEO4J_server_memory_heap_initial__size: 192m
+      NEO4J_server_memory_heap_max__size: 192m
+      NEO4J_server_memory_pagecache_size: 32m
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+
   backend:
     environment:
       JAVA_OPTS: ${JAVA_OPTS:--Xms128m -Xmx384m -XX:+UseSerialGC -XX:MaxMetaspaceSize=128m}

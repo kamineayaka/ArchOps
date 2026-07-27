@@ -36,13 +36,14 @@ public class ProposeArchitectureUpdateTool implements AgentTool {
         return "Propose an architecture knowledge update for review. Use when you discover roles "
                 + "(namenode/datanode/hive/spark), topology, or other durable facts. "
                 + "Never write architecture SSOT directly — always propose. "
-                + "partitionKey must be global / group:{id} / asset:{id}.";
+                + "partitionKey (scope) must be graph:global / cluster:{id} / tag:{slug} / asset:{id} "
+                + "(legacy global|asset:{numericId} accepted during migration).";
     }
 
     @Override
     public String parametersJson() {
         return """
-                {"type":"object","properties":{"partitionKey":{"type":"string","description":"global | group:{id} | asset:{id}"},"summary":{"type":"string","description":"Human-readable proposal summary"},"facts":{"type":"array","items":{"type":"object","properties":{"factType":{"type":"string"},"subject":{"type":"string"},"predicate":{"type":"string"},"object":{"type":"string"},"assetId":{"type":"integer"},"confidence":{"type":"number"}},"required":["factType","subject","predicate","object"]}},"evidence":{"type":"object","properties":{"command":{"type":"string"},"stdoutSummary":{"type":"string"},"assetId":{"type":"integer"},"conversationId":{"type":"integer"}}}},"required":["partitionKey","summary"]}""";
+                {"type":"object","properties":{"partitionKey":{"type":"string","description":"graph:global | cluster:{id} | tag:{slug} | asset:{id}"},"summary":{"type":"string","description":"Human-readable proposal summary"},"facts":{"type":"array","items":{"type":"object","properties":{"factType":{"type":"string"},"subject":{"type":"string"},"predicate":{"type":"string"},"object":{"type":"string"},"assetId":{"type":"integer"},"confidence":{"type":"number"}},"required":["factType","subject","predicate","object"]}},"evidence":{"type":"object","properties":{"command":{"type":"string"},"stdoutSummary":{"type":"string"},"assetId":{"type":"integer"},"conversationId":{"type":"integer"}}}},"required":["partitionKey","summary"]}""";
     }
 
     @Override

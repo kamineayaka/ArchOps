@@ -2,6 +2,7 @@ package com.archops.knowledge.architecture.service;
 
 import com.archops.audit.service.AuditService;
 import com.archops.common.exception.BusinessException;
+import com.archops.graph.service.GraphMergeEngine;
 import com.archops.knowledge.architecture.ArchitectureMetrics;
 import com.archops.knowledge.architecture.PartitionKeys;
 import com.archops.knowledge.architecture.domain.ArchitectureFact;
@@ -38,6 +39,7 @@ public class ArchitectureMergeEngine {
     private final ObjectMapper objectMapper;
     private final ApplicationEventPublisher eventPublisher;
     private final ArchitectureMetrics architectureMetrics;
+    private final GraphMergeEngine graphMergeEngine;
 
     public ArchitectureMergeEngine(
             ArchitecturePartitionService partitionService,
@@ -47,7 +49,8 @@ public class ArchitectureMergeEngine {
             AuditService auditService,
             ObjectMapper objectMapper,
             ApplicationEventPublisher eventPublisher,
-            ArchitectureMetrics architectureMetrics) {
+            ArchitectureMetrics architectureMetrics,
+            GraphMergeEngine graphMergeEngine) {
         this.partitionService = partitionService;
         this.revisionRepository = revisionRepository;
         this.factRepository = factRepository;
@@ -56,12 +59,17 @@ public class ArchitectureMergeEngine {
         this.objectMapper = objectMapper;
         this.eventPublisher = eventPublisher;
         this.architectureMetrics = architectureMetrics;
+        this.graphMergeEngine = graphMergeEngine;
     }
 
     @Transactional
     public PartitionDetailResponse mergeApprovedProposal(ArchitectureProposal proposal, Long reviewerId) {
         if (proposal == null) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "PROPOSAL_REQUIRED", "proposal 不能为空");
+        }
+        if (proposal.hasGraphChangeSet()) {
+            graphMergeEngine.mergeApprovedProposal(proposal, reviewerId);
+            return partitionService.getDetail(PartitionKeys.normalize(proposal.getPartitionKey()));
         }
         PartitionKeys.validate(proposal.getPartitionKey());
         ArchitecturePartition partition = partitionService.getOrCreate(proposal.getPartitionKey());
@@ -106,7 +114,7 @@ public class ArchitectureMergeEngine {
                 null,
                 "architecture.merge",
                 "architecture_proposal:" + proposal.getId(),
-                partition.isHighImpact() || PartitionKeys.GLOBAL.equals(partition.getPartitionKey())
+                partition.isHighImpact() || PartitionKeys.isGlobal(partition.getPartitionKey())
                         ? "HIGH"
                         : "MEDIUM",
                 "SUCCESS",

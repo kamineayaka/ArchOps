@@ -1,11 +1,9 @@
 package com.archops.asset.type;
 
 import com.archops.asset.domain.SshAuthType;
-import java.util.List;
 
 /**
- * Inputs for a type-owned connectivity probe. Built by {@code AssetConnectionTestService}
- * from ephemeral form fields or a saved asset + credential.
+ * Inputs for a type-owned connectivity probe. Built from a saved asset + credential.
  */
 public record ConnectivityContext(
         Long assetId,
@@ -14,11 +12,5 @@ public record ConnectivityContext(
         String username,
         SshAuthType authType,
         String secret,
-        List<Long> jumpAssetIds,
         /** Optional logical database / schema name (DATABASE assets). */
-        String database) {
-
-    public List<Long> jumpsOrEmpty() {
-        return jumpAssetIds != null ? jumpAssetIds : List.of();
-    }
-}
+        String database) {}

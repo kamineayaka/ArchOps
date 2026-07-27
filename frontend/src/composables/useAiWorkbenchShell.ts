@@ -7,43 +7,38 @@ const CONVERSATION_KEY = 'archops.aiSideRail.conversationId'
 /** Routes where the AI side rail may dock beside the main work surface. */
 export const AI_RAIL_ROUTE_NAMES = new Set([
   'terminal',
-  'assets',
+  'graph',
   'architecture',
-  'asset-groups',
 ])
 
-export type AiRailSurface = 'terminal' | 'assets' | 'architecture' | 'asset-groups'
+export type AiRailSurface = 'terminal' | 'graph' | 'architecture'
 
 interface ShellState {
   pinned: boolean
   open: boolean
-  assetTreeOpen: boolean
 }
 
 function readShellState(): ShellState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return { pinned: false, open: false, assetTreeOpen: true }
+    if (!raw) return { pinned: false, open: false }
     const parsed = JSON.parse(raw) as Partial<ShellState>
     return {
       pinned: Boolean(parsed.pinned),
       open: Boolean(parsed.open),
-      assetTreeOpen: parsed.assetTreeOpen !== false,
     }
   } catch {
-    return { pinned: false, open: false, assetTreeOpen: true }
+    return { pinned: false, open: false }
   }
 }
 
 const saved = typeof localStorage !== 'undefined' ? readShellState() : {
   pinned: false,
   open: false,
-  assetTreeOpen: true,
 }
 
 const pinned = ref(saved.pinned)
 const open = ref(saved.open)
-const assetTreeOpen = ref(saved.assetTreeOpen)
 const isMobile = ref(false)
 
 let mediaBound = false
@@ -60,20 +55,19 @@ function bindMedia() {
 
 bindMedia()
 
-watch([pinned, open, assetTreeOpen], () => {
+watch([pinned, open], () => {
   if (typeof localStorage === 'undefined') return
   localStorage.setItem(
     STORAGE_KEY,
     JSON.stringify({
       pinned: pinned.value,
       open: open.value,
-      assetTreeOpen: assetTreeOpen.value,
     }),
   )
 })
 
 /**
- * Workbench shell UI state: pin/open AI rail + asset tree visibility.
+ * Workbench shell UI state: pin/open AI rail.
  * Module-singleton so AppLayout and rail share one source of truth.
  */
 export function useAiWorkbenchShell() {
@@ -101,14 +95,6 @@ export function useAiWorkbenchShell() {
     () => railAllowed.value && open.value && isMobile.value,
   )
 
-  const showDesktopAssetTree = computed(
-    () => railAllowed.value && assetTreeOpen.value && !isMobile.value,
-  )
-
-  const showMobileAssetTreeDrawer = computed(
-    () => railAllowed.value && assetTreeOpen.value && isMobile.value,
-  )
-
   function toggleOpen() {
     open.value = !open.value
     if (open.value && !pinned.value && !isMobile.value) {
@@ -130,14 +116,6 @@ export function useAiWorkbenchShell() {
     }
   }
 
-  function toggleAssetTree() {
-    assetTreeOpen.value = !assetTreeOpen.value
-  }
-
-  function setAssetTreeOpen(value: boolean) {
-    assetTreeOpen.value = value
-  }
-
   function readConversationId(): number | null {
     const raw = localStorage.getItem(CONVERSATION_KEY)
     if (!raw) return null
@@ -156,19 +134,14 @@ export function useAiWorkbenchShell() {
   return {
     pinned,
     open,
-    assetTreeOpen,
     isMobile,
     railAllowed,
     surface,
     showDesktopRail,
     showMobileRailDrawer,
-    showDesktopAssetTree,
-    showMobileAssetTreeDrawer,
     toggleOpen,
     togglePin,
     setOpen,
-    toggleAssetTree,
-    setAssetTreeOpen,
     readConversationId,
     writeConversationId,
   }
