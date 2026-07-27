@@ -435,7 +435,7 @@ onBeforeUnmount(() => {
               clearable
               :aria-label="t('ai.provider')"
             />
-            <NButton v-if="!hasAssets && !needsProvider" @click="router.push({ name: 'graph' })">
+            <NButton v-if="!hasAssets && !needsProvider" @click="router.push({ name: 'topology' })">
               {{ t('ai.goAssets') }}
             </NButton>
             <NButton @click="handleNewChat">{{ t('ai.newChat') }}</NButton>

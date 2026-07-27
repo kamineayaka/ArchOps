@@ -111,6 +111,7 @@ cat /opt/archops-releases/VERSION   # 或 ssh 上查看本次部署戳
 - 始终使用 `compose.lowmem.yaml`（脚本默认 `LOWMEM=1`）。
 - 保持至少 4 GiB swap。
 - 优先 `PREBUILT=1` 或 `LOAD_IMAGES=1`。
+- **不要**在 ≈2 GiB 机上开 Compose `--profile graph` / `ARCHOPS_GRAPH_ENABLED=true`（Neo4j ≥512M + 平台会挤爆内存）。图能力放到更大规格机验证。
 - 若 Docker Hub / 镜像源失败（如 TLS handshake timeout），可从已缓存层重建：
 
 ```bash

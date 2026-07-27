@@ -35,21 +35,17 @@ services:
         limits:
           memory: 96M
 
-  minio:
-    deploy:
-      resources:
-        limits:
-          memory: 192M
-
+  # Neo4j Community needs ≥256m heap to become healthy; 192m OOMs in a restart loop.
+  # Even at 512M limit, graph profile is tight on ≈2 GiB hosts — prefer not enabling it there.
   neo4j:
     environment:
-      NEO4J_server_memory_heap_initial__size: 192m
-      NEO4J_server_memory_heap_max__size: 192m
-      NEO4J_server_memory_pagecache_size: 32m
+      NEO4J_server_memory_heap_initial__size: 256m
+      NEO4J_server_memory_heap_max__size: 256m
+      NEO4J_server_memory_pagecache_size: 64m
     deploy:
       resources:
         limits:
-          memory: 384M
+          memory: 512M
 
   backend:
     environment:

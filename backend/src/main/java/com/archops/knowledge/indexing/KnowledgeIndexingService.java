@@ -123,25 +123,17 @@ public class KnowledgeIndexingService {
         if (revision.getBodyMd() != null) {
             text.append(revision.getBodyMd());
         }
+        // Skip empty / fact-only partitions — structured facts are injected via Hybrid RAG, not vectors
+        String body = text.toString().trim();
+        if (body.length() < 40) {
+            kbChunkRepository.deleteBySource(KnowledgeSourceType.ARCHITECTURE, revision.getId());
+            return 0;
+        }
         Map<String, Object> metadata = new HashMap<>();
         metadata.put("partition_key", partition.getPartitionKey());
         metadata.put("version", revision.getVersion());
         metadata.put("revision_id", revision.getId());
-        if (partition.getPartitionKey().startsWith("asset:")) {
-            try {
-                metadata.put("asset_id", Long.parseLong(partition.getPartitionKey().substring(6)));
-            } catch (NumberFormatException ignored) {
-                // ignore
-            }
-        }
-        if (partition.getPartitionKey().startsWith("group:")) {
-            try {
-                metadata.put("group_id", Long.parseLong(partition.getPartitionKey().substring(6)));
-            } catch (NumberFormatException ignored) {
-                // ignore
-            }
-        }
-        // Use revision id as source id for partition-scoped chunks
+        enrichAssetScopeMetadata(metadata, partition.getPartitionKey());
         return indexDocument(KnowledgeSourceType.ARCHITECTURE, revision.getId(), text.toString(), metadata);
     }
 
@@ -198,6 +190,7 @@ public class KnowledgeIndexingService {
         if (workLog.getAssetIds() != null && !workLog.getAssetIds().isEmpty()) {
             metadata.put("assetIds", workLog.getAssetIds());
             metadata.put("asset_id", workLog.getAssetIds().getFirst());
+            metadata.put("partition_key", PartitionKeys.asset(workLog.getAssetIds().getFirst()));
         }
         if (workLog.getGroupIds() != null && !workLog.getGroupIds().isEmpty()) {
             metadata.put("groupIds", workLog.getGroupIds());
@@ -209,7 +202,9 @@ public class KnowledgeIndexingService {
     @Transactional
     public int indexManualDocument(Long documentId, String title, String content) {
         String text = title + "\n" + content;
-        Map<String, Object> metadata = Map.of("title", title);
+        Map<String, Object> metadata = new HashMap<>();
+        metadata.put("title", title);
+        metadata.put("partition_key", PartitionKeys.GLOBAL);
         return indexDocument(KnowledgeSourceType.MANUAL, documentId, text, metadata);
     }
 
@@ -218,21 +213,106 @@ public class KnowledgeIndexingService {
         if (!settingsService.getSettings().isRagEnabled()) {
             return new ReindexResult(0, 0, "RAG is disabled");
         }
+
+        // Preserve MANUAL docs across wipe (no separate source table)
+        Map<Long, String> manualDocs = new HashMap<>();
+        Map<Long, String> manualTitles = new HashMap<>();
+        for (Long sourceId : kbChunkRepository.findDistinctSourceIds(KnowledgeSourceType.MANUAL)) {
+            List<com.archops.knowledge.domain.KbChunk> chunks =
+                    kbChunkRepository.findBySourceTypeAndSourceIdOrderByChunkIndexAsc(
+                            KnowledgeSourceType.MANUAL, sourceId);
+            if (chunks.isEmpty()) {
+                continue;
+            }
+            StringBuilder joined = new StringBuilder();
+            for (var chunk : chunks) {
+                if (!joined.isEmpty()) {
+                    joined.append('\n');
+                }
+                joined.append(chunk.getContent());
+            }
+            manualDocs.put(sourceId, joined.toString());
+            manualTitles.put(sourceId, "manual-" + sourceId);
+            try {
+                var meta = objectMapper.readTree(chunks.getFirst().getMetadata());
+                if (meta.has("title") && !meta.get("title").asText("").isBlank()) {
+                    manualTitles.put(sourceId, meta.get("title").asText());
+                }
+            } catch (Exception ignored) {
+                // keep default title
+            }
+        }
+
         vectorRepository.deleteAllChunks();
         int architectureChunks = 0;
         int workLogChunks = 0;
+        int partitionChunks = 0;
+        int manualChunks = 0;
         int sources = 0;
+
         for (ArchitectureSnapshot snapshot : snapshotRepository.findAll()) {
             architectureChunks += indexArchitecture(snapshot);
+            sources++;
+        }
+        for (ArchitecturePartition partition : partitionRepository.findAll()) {
+            ArchitectureRevision latest = revisionRepository
+                    .findTopByPartitionIdOrderByVersionDesc(partition.getId())
+                    .orElse(null);
+            if (latest == null) {
+                continue;
+            }
+            partitionChunks += indexPartitionRevision(partition, latest);
             sources++;
         }
         for (WorkLog workLog : workLogRepository.findAll()) {
             workLogChunks += indexWorkLog(workLog);
             sources++;
         }
-        int total = architectureChunks + workLogChunks;
-        log.info("RAG reindex complete: {} chunks (architecture={}, work_log={})", total, architectureChunks, workLogChunks);
+        for (Map.Entry<Long, String> entry : manualDocs.entrySet()) {
+            Long id = entry.getKey();
+            String full = entry.getValue();
+            String title = manualTitles.getOrDefault(id, "manual-" + id);
+            // full text already includes title line from prior index — re-embed as content body
+            manualChunks += indexManualDocument(id, title, full);
+            sources++;
+        }
+
+        int total = architectureChunks + workLogChunks + partitionChunks + manualChunks;
+        log.info(
+                "RAG reindex complete: {} chunks (architecture={}, partitions={}, work_log={}, manual={})",
+                total,
+                architectureChunks,
+                partitionChunks,
+                workLogChunks,
+                manualChunks);
         return new ReindexResult(total, sources, "ok");
+    }
+
+    private void enrichAssetScopeMetadata(Map<String, Object> metadata, String partitionKey) {
+        if (partitionKey == null) {
+            return;
+        }
+        if (partitionKey.startsWith("asset:")) {
+            String ref = partitionKey.substring("asset:".length());
+            try {
+                metadata.put("asset_id", Long.parseLong(ref));
+            } catch (NumberFormatException ex) {
+                metadata.put("element_id", ref);
+            }
+        }
+        if (partitionKey.startsWith("group:")) {
+            try {
+                metadata.put("group_id", Long.parseLong(partitionKey.substring("group:".length())));
+            } catch (NumberFormatException ignored) {
+                // ignore
+            }
+        }
+        if (partitionKey.startsWith("cluster:")) {
+            metadata.put("element_id", partitionKey.substring("cluster:".length()));
+        }
+        if (partitionKey.startsWith("tag:")) {
+            metadata.put("tag_slug", partitionKey.substring("tag:".length()));
+        }
     }
 
     private int indexDocument(

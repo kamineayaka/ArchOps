@@ -73,10 +73,12 @@ asset:{elementId}          # 新写用 UUID；迁移期兼容 asset:{numericId}
 | V17 | `terminal_session_dock` |
 | V18 | 删除 `asset_group` / `asset_group_member`（分组迁图标签） |
 | P2+ 清理 | Dialer 仅 `CONNECTS_VIA`；移除资产树/分组 UI 与直写资产 API；凭证 staging |
+| P3 工作台 | 选中详情侧栏；编辑 / 软删 / 删边 / 更新凭证入草稿；开终端与测连；草稿列表与 plan warnings |
 
-### 前端入口（P0–P2）
+### 前端入口（P0–P3）
 
-- 侧栏「拓扑图」→ `/graph`（旧 `/assets`、`/asset-groups` 重定向）
+- 侧栏「拓扑图」→ `/topology`；「图编辑」→ `/graph`（旧 `/assets`、`/asset-groups` → topology）
+- 拓扑图双击 / 右键「连接」→ 操作台；图编辑用底部悬浮条，无侧栏
 - 操作台会话坞：`/api/terminal/dock` + PG 同步
 - 变更路径：画布草稿 → `POST /api/graph/plan` → `POST /api/architecture/proposals` → 审批合并
 - 建 SERVER/DATABASE 时可暂存凭证；提案仅带 `CREDENTIAL_UPSERT_REF`，合并时消费 staging
@@ -84,20 +86,26 @@ asset:{elementId}          # 新写用 UUID；迁移期兼容 asset:{numericId}
 ### Neo4j schema
 
 - 脚本：`backend/src/main/resources/neo4j/init-schema.cypher`
-- 启动时由 `Neo4jSchemaInitializer` 在 `archops.graph.enabled=true` 时执行
+- `Neo4jSchemaInitializer` 在 `archops.graph.enabled=true` 时**异步重试**执行，失败不阻塞 Spring 启动
 - Merge：`GraphOpApplier` 应用全部 GraphOp；`GraphPgAnchorService` 负责 PG 锚点/凭证侧效应
+- **Hybrid RAG**：`HybridRetrievalService` 以 Neo4j 邻域 + `architecture_fact` 为主，pgvector 文本记忆为辅；Agent 工具 `graph_neighborhood` / `graph_path` 只读深挖
 
 ### Compose
 
-Neo4j 使用 Compose **profile `graph`**（默认不启，避免 2G 机 OOM）：
+Neo4j 使用 Compose **profile `graph`**（默认不启；≈2 GiB lowmem 机不建议开）：
 
 ```bash
-docker compose -f compose.yaml --profile graph up -d neo4j
+docker compose -f compose.yaml --profile graph up -d
 # backend: ARCHOPS_GRAPH_ENABLED=true NEO4J_URI=bolt://neo4j:7687
 ```
 
+- `backend` 对 `neo4j`：`depends_on: condition: service_healthy, required: false`（无 profile 时不拦启动）
+- lowmem Neo4j heap ≥256m、容器 limit 512M（192m 无法 healthy）
+- 后端镜像构建用基础镜像自带 `mvn`（不用 `./mvnw`，避免绕过 `MAVEN_MIRROR` 拉 Maven 本体）
+
 ## 8. 非目标（后续）
 
-- Graph Workbench 完整能力（布局/保存视图等）
+- 布局持久化 / 保存视图
+- DATABASE 查询面板
 - Agent 子图 scope 收紧（阶段 2）
 - 清理历史列：`assets.parent_id`、`ssh_credentials.jump_asset_ids`、会话 `target_group_ids`（已停写，列可后续 DROP）

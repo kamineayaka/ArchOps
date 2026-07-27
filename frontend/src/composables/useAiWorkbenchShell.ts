@@ -7,11 +7,12 @@ const CONVERSATION_KEY = 'archops.aiSideRail.conversationId'
 /** Routes where the AI side rail may dock beside the main work surface. */
 export const AI_RAIL_ROUTE_NAMES = new Set([
   'terminal',
+  'topology',
   'graph',
   'architecture',
 ])
 
-export type AiRailSurface = 'terminal' | 'graph' | 'architecture'
+export type AiRailSurface = 'terminal' | 'topology' | 'graph' | 'architecture'
 
 interface ShellState {
   pinned: boolean

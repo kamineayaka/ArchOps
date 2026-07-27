@@ -44,6 +44,23 @@ upsert_env() {
 upsert_env NPM_REGISTRY "$NPM_REGISTRY"
 upsert_env MAVEN_MIRROR "$MAVEN_MIRROR"
 
+if [ "$PREBUILT" != "1" ]; then
+  if [ ! -f "$ROOT/frontend/package-lock.json" ]; then
+    echo "ERROR: frontend/package-lock.json missing — Docker frontend build runs npm ci and will fail." >&2
+    echo "       Run: cd frontend && npm install && git add package-lock.json" >&2
+    exit 1
+  fi
+  if command -v npm >/dev/null 2>&1; then
+    echo "==> Preflight: npm ci --dry-run (lockfile sync check)"
+    (cd "$ROOT/frontend" && npm ci --dry-run --no-audit --no-fund) \
+      || {
+        echo "ERROR: package-lock.json out of sync with package.json." >&2
+        echo "       Run: cd frontend && npm install && commit package-lock.json" >&2
+        exit 1
+      }
+  fi
+fi
+
 if [ -z "${NPM_REGISTRY}" ] && [ -z "${MAVEN_MIRROR}" ] \
   && ! grep -qE '^NPM_REGISTRY=.+' .env 2>/dev/null \
   && ! grep -qE '^MAVEN_MIRROR=.+' .env 2>/dev/null; then
@@ -61,7 +78,6 @@ BASE_IMAGES=(
   eclipse-temurin:21-jre
   pgvector/pgvector:pg16
   redis:7-alpine
-  minio/minio:RELEASE.2025-04-22T22-12-26Z
 )
 if [ "$PREBUILT" != "1" ]; then
   BASE_IMAGES+=(node:22-alpine maven:3.9.9-eclipse-temurin-21)

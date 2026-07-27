@@ -1,9 +1,11 @@
 # syntax=docker/dockerfile:1
 
+# Base image already ships Maven; do NOT use ./mvnw here — the wrapper
+# downloads apache-maven from Central and ignores MAVEN_MIRROR.
 FROM maven:3.9.9-eclipse-temurin-21 AS build
 WORKDIR /workspace
 
-# Optional Maven mirror for slow networks, e.g. China:
+# Optional Maven mirror for dependency resolution, e.g. China:
 #   --build-arg MAVEN_MIRROR=https://maven.aliyun.com/repository/public
 ARG MAVEN_MIRROR=
 RUN if [ -n "$MAVEN_MIRROR" ]; then \
@@ -24,10 +26,8 @@ RUN if [ -n "$MAVEN_MIRROR" ]; then \
     fi
 
 COPY pom.xml .
-COPY .mvn .mvn
-COPY mvnw mvnw.cmd ./
 COPY src ./src
-RUN chmod +x mvnw && ./mvnw -q -DskipTests package
+RUN mvn -q -DskipTests package
 
 FROM eclipse-temurin:21-jre
 WORKDIR /app

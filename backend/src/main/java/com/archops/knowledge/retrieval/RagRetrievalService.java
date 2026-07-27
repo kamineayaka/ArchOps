@@ -44,16 +44,8 @@ public class RagRetrievalService {
         this.objectMapper = objectMapper;
     }
 
-    public List<ScoredChunk> retrieve(String query) {
-        return retrieve(query, null, null, null);
-    }
-
     public List<ScoredChunk> retrieve(String query, Integer topKOverride) {
         return retrieve(query, null, topKOverride, null, null);
-    }
-
-    public List<ScoredChunk> retrieve(String query, RagScope scope) {
-        return retrieve(query, scope, null, null, null);
     }
 
     public List<ScoredChunk> retrieve(

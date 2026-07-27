@@ -73,19 +73,36 @@ public class AssetAclService {
     }
 
     public boolean canAccessPartition(Long userId, Collection<String> roles, String partitionKey) {
-        PartitionKeys.validate(partitionKey);
+        try {
+            PartitionKeys.validate(partitionKey);
+        } catch (BusinessException ex) {
+            return false;
+        }
         if (isAdmin(roles)) {
             return true;
         }
         if (PartitionKeys.isGlobal(partitionKey)) {
             return userId != null;
         }
-        if (partitionKey.startsWith("group:")) {
+        String normalized = PartitionKeys.normalize(partitionKey);
+        if (normalized.startsWith("group:")) {
             return false;
         }
-        if (partitionKey.startsWith("asset:")) {
-            Long assetId = Long.parseLong(partitionKey.substring("asset:".length()));
-            return canAccessAsset(userId, roles, assetId);
+        if (normalized.startsWith("asset:")) {
+            String ref = normalized.substring("asset:".length());
+            try {
+                Long assetId = Long.parseLong(ref);
+                return canAccessAsset(userId, roles, assetId);
+            } catch (NumberFormatException ex) {
+                // elementId-form asset scopes: allow authenticated callers (numeric ACL applied via assetIds)
+                return userId != null;
+            }
+        }
+        // cluster: / tag: / view: — authenticated non-admin with any ACL (facts are not credential material)
+        if (normalized.startsWith("cluster:")
+                || normalized.startsWith("tag:")
+                || normalized.startsWith("view:")) {
+            return userId != null;
         }
         return false;
     }

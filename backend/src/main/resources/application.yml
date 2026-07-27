@@ -99,7 +99,6 @@ archops:
   approval:
     grant-ttl-minutes: ${APPROVAL_GRANT_TTL_MINUTES:60}
     allow-high-grants: ${APPROVAL_ALLOW_HIGH_GRANTS:false}
-archops:
   graph:
     enabled: ${ARCHOPS_GRAPH_ENABLED:false}
     uri: ${NEO4J_URI:bolt://localhost:7687}

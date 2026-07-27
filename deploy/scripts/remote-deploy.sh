@@ -134,7 +134,7 @@ fi
 if [ "$PREBUILT" = "1" ]; then
   if ! "${SSH[@]}" "ls '${REMOTE_DIR}/backend/target/'*.jar >/dev/null 2>&1"; then
     echo "ERROR: PREBUILT=1 but no backend/target/*.jar on remote. Build locally first:" >&2
-    echo "  cd backend && ./mvnw -DskipTests package" >&2
+    echo "  cd backend && mvn -DskipTests package   # or ./mvnw locally" >&2
     exit 1
   fi
   if ! "${SSH[@]}" "test -d '${REMOTE_DIR}/frontend/dist' && test -f '${REMOTE_DIR}/frontend/nginx.conf'"; then

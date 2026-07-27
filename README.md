@@ -74,7 +74,7 @@ docker compose -f deploy/compose/compose.yaml --env-file deploy/compose/.env up 
 
 ```bash
 # 仅启动依赖服务
-docker compose -f deploy/compose/compose.yaml up -d postgres redis minio
+docker compose -f deploy/compose/compose.yaml up -d postgres redis
 
 # 后端（端口 8080）
 cd backend && ./mvnw spring-boot:run

@@ -22,18 +22,24 @@ const router = createRouter({
           meta: { titleKey: 'nav.dashboard', descKey: 'dashboard.description' },
         },
         {
+          path: 'topology',
+          name: 'topology',
+          component: () => import('@/views/TopologyView.vue'),
+          meta: { titleKey: 'nav.topology', descKey: 'topology.subtitle' },
+        },
+        {
           path: 'graph',
           name: 'graph',
           component: () => import('@/views/GraphWorkbenchView.vue'),
-          meta: { titleKey: 'nav.assets', descKey: 'graph.subtitle' },
+          meta: { titleKey: 'nav.graphEditor', descKey: 'graph.subtitle' },
         },
         {
           path: 'assets',
-          redirect: { name: 'graph' },
+          redirect: { name: 'topology' },
         },
         {
           path: 'asset-groups',
-          redirect: { name: 'graph' },
+          redirect: { name: 'topology' },
         },
         {
           path: 'architecture',

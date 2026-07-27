@@ -26,6 +26,7 @@ import {
   LibraryOutline,
   LogOutOutline,
   MoonOutline,
+  PencilOutline,
   ServerOutline,
   SettingsOutline,
   ShieldCheckmarkOutline,
@@ -35,7 +36,7 @@ import AiAssistantRail from '@/components/AiAssistantRail.vue'
 import { useAiWorkbenchShell } from '@/composables/useAiWorkbenchShell'
 import { useAuthStore } from '@/stores/auth'
 import { useTheme } from '@/composables/useTheme'
-import { isAdmin as roleIsAdmin } from '@/utils/roles'
+import { isAdmin as roleIsAdmin, isOperatorOrAdmin } from '@/utils/roles'
 
 const route = useRoute()
 const router = useRouter()
@@ -55,6 +56,7 @@ const username = computed(() => authStore.user?.displayName || authStore.user?.u
 const userInitial = computed(() => (username.value ? username.value.charAt(0).toUpperCase() : '?'))
 
 const isAdmin = computed(() => roleIsAdmin(authStore.user?.roles))
+const canEditGraph = computed(() => isOperatorOrAdmin(authStore.user?.roles))
 
 const pageTitle = computed(() => {
   const key = route.meta.titleKey as string | undefined
@@ -64,7 +66,16 @@ const pageTitle = computed(() => {
 const menuOptions = computed(() => {
   const items = [
     { label: t('nav.dashboard'), key: 'dashboard', icon: () => h(NIcon, null, { default: () => h(GridOutline) }) },
-    { label: t('nav.assets'), key: 'graph', icon: () => h(NIcon, null, { default: () => h(ServerOutline) }) },
+    { label: t('nav.topology'), key: 'topology', icon: () => h(NIcon, null, { default: () => h(ServerOutline) }) },
+  ]
+  if (canEditGraph.value) {
+    items.push({
+      label: t('nav.graphEditor'),
+      key: 'graph',
+      icon: () => h(NIcon, null, { default: () => h(PencilOutline) }),
+    })
+  }
+  items.push(
     { label: t('nav.architecture'), key: 'architecture', icon: () => h(NIcon, null, { default: () => h(LibraryOutline) }) },
     {
       label: t('nav.proposals'),
@@ -75,7 +86,7 @@ const menuOptions = computed(() => {
     { label: t('nav.ai'), key: 'ai', icon: () => h(NIcon, null, { default: () => h(ChatbubbleEllipsesOutline) }) },
     { label: t('nav.approvals'), key: 'approvals', icon: () => h(NIcon, null, { default: () => h(ShieldCheckmarkOutline) }) },
     { label: t('nav.audit'), key: 'audit', icon: () => h(NIcon, null, { default: () => h(DocumentTextOutline) }) },
-  ]
+  )
   if (isAdmin.value) {
     items.push({
       label: t('nav.aiSettings'),

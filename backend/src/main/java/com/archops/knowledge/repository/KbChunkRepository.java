@@ -20,4 +20,7 @@ public interface KbChunkRepository extends JpaRepository<KbChunk, Long> {
 
     List<KbChunk> findBySourceTypeAndSourceIdOrderByChunkIndexAsc(
             KnowledgeSourceType sourceType, Long sourceId);
+
+    @Query("SELECT DISTINCT c.sourceId FROM KbChunk c WHERE c.sourceType = :sourceType AND c.sourceId IS NOT NULL")
+    List<Long> findDistinctSourceIds(@Param("sourceType") KnowledgeSourceType sourceType);
 }

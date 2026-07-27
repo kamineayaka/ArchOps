@@ -36,7 +36,7 @@ const showNoProviderBanner = ref(false)
 const showWizard = ref(false)
 
 const modules = computed(() => [
-  { key: 'graph', label: t('dashboard.modules.assets'), icon: ServerOutline, route: 'graph' },
+  { key: 'topology', label: t('dashboard.modules.assets'), icon: ServerOutline, route: 'topology' },
   { key: 'ai', label: t('dashboard.modules.ai'), icon: ChatbubbleEllipsesOutline, route: 'ai' },
   { key: 'terminal', label: t('dashboard.modules.terminal'), icon: DesktopOutline, route: 'terminal' },
   { key: 'approvals', label: t('dashboard.modules.approvals'), icon: ShieldCheckmarkOutline, route: 'approvals' },
