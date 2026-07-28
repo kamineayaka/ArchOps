@@ -3,7 +3,6 @@ import { t } from '@/messages'
 import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import {
-  NAlert,
   NButton,
   NDropdown,
   NSpace,
@@ -23,7 +22,6 @@ const auth = useAuthStore()
 const canEdit = isOperatorOrAdmin(auth.user?.roles)
 
 const loading = ref(false)
-const graphEnabled = ref(false)
 const graphVersion = ref(0)
 const containerRef = ref<HTMLDivElement | null>(null)
 
@@ -304,7 +302,6 @@ async function loadSnapshot() {
       message.error(res.message || t('common.failed'))
       return
     }
-    graphEnabled.value = res.data.graphEnabled
     graphVersion.value = res.data.graphVersion
     await nextTick()
     initCy(toElements(res.data.nodes, res.data.edges))
@@ -332,9 +329,6 @@ onBeforeUnmount(() => {
     <PageHeader :title="t('topology.title')" :description="t('topology.subtitle')">
       <template #extra>
         <NSpace>
-          <NTag size="small" :type="graphEnabled ? 'success' : 'warning'">
-            {{ graphEnabled ? t('graph.enabled') : t('graph.disabled') }}
-          </NTag>
           <NTag size="small">v{{ graphVersion }}</NTag>
           <NButton :loading="loading" @click="loadSnapshot">{{ t('common.refresh') }}</NButton>
           <NButton v-if="canEdit" @click="router.push({ name: 'graph' })">
@@ -343,10 +337,6 @@ onBeforeUnmount(() => {
         </NSpace>
       </template>
     </PageHeader>
-
-    <NAlert v-if="!graphEnabled" type="warning" :bordered="false">
-      {{ t('graph.disabledHint') }}
-    </NAlert>
 
     <p class="topology-hint">{{ t('topology.connectHint') }}</p>
 

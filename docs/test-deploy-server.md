@@ -1,17 +1,20 @@
 # 测试 / 部署服务器
 
-将一台 Linux VPS 变为 ArchOps 的 **测试 / 部署** 主机（Docker Compose；内存 ≤ 2 GiB 时使用 lowmem overlay）。
+将一台 Linux 主机变为 ArchOps 的 **测试 / 部署** 机（Docker Compose）。
+
+**默认验证目标：kamiserver**（见 `.cursor/rules/remote-kamiserver.mdc`）。Neo4j 为图库存 SSOT 的必选依赖，主机内存需 **≥4 GiB**（建议 8 GiB）；`<4 GiB` 时 `remote-deploy.sh` / `compose-build.sh` 会直接拒绝。
 
 ## 目标主机（请按实际填写）
 
 | 项 | 值 |
 |---|---|
-| Host | `YOUR_HOST` |
+| Host | `YOUR_HOST`（默认验证可用 `kamiserver`） |
 | OS | Ubuntu 24.04 LTS（或其他兼容发行版） |
-| SSH | `root@YOUR_HOST`（**必须 SSH 密钥**；脚本使用 `BatchMode=yes`，不支持交互密码） |
+| SSH | `user@YOUR_HOST`（**必须 SSH 密钥**；脚本使用 `BatchMode=yes`，不支持交互密码） |
+| 内存 | **≥4 GiB**（推荐 8 GiB） |
 | 应用路径 | `/opt/archops` |
 | 版本戳 | `/opt/archops-releases/VERSION`（`/opt/archops/VERSION` 为其软链） |
-| 公网 URL | `http://YOUR_HOST` |
+| URL | `http://YOUR_HOST` |
 
 > 不要把密码或私钥提交进 Git。脚本**只支持密钥登录**——首次务必 `ssh-copy-id`，就绪后可关闭密码登录。
 
@@ -23,23 +26,22 @@
 
 ```bash
 # 首次安装公钥（密码登录仅用于这一步）
-ssh-copy-id root@YOUR_HOST
+ssh-copy-id user@YOUR_HOST
 
 # 验证免密
-ssh -o BatchMode=yes root@YOUR_HOST 'echo ok'
+ssh -o BatchMode=yes user@YOUR_HOST 'echo ok'
 
-# 扩大 swap、确保 Docker、创建 /opt/archops 与 /opt/archops-releases
-./deploy/scripts/remote-provision.sh root@YOUR_HOST
+# 确保 Docker、创建 /opt/archops 与 /opt/archops-releases
+./deploy/scripts/remote-provision.sh user@YOUR_HOST
 ```
 
 ## 配置环境
 
 ```bash
 cp deploy/compose/.env.example deploy/compose/.env
-# 编辑 CORS（以及可选的 OPENAI_API_KEY）：
-# CORS_ALLOWED_ORIGINS=http://YOUR_HOST
-# ≤2 GiB 主机建议：
-# JAVA_OPTS=-Xms128m -Xmx384m -XX:+UseSerialGC -XX:MaxMetaspaceSize=128m
+# 编辑 CORS 与 Neo4j 密码（≥8 字符）：
+# CORS_ALLOWED_ORIGINS=http://YOUR_HOST,http://localhost
+# NEO4J_PASSWORD=archopsneo4j
 
 # 国内 / 慢网构建镜像源（会传给 Dockerfile）：
 # NPM_REGISTRY=https://registry.npmmirror.com
@@ -71,19 +73,16 @@ cp deploy/compose/.env.example deploy/compose/.env
 ## 部署 / 升级
 
 ```bash
-# 国内 ECS：镜像源 + 预构建（小 VPS 推荐默认路径）
+# 推荐：本机构建 + 同步（默认验证机 kamiserver）
 cd backend && ./mvnw -DskipTests package && cd ..
 cd frontend && npm ci && npm run build && cd ..
-USE_CN_MIRRORS=1 PREBUILT=1 bash deploy/scripts/remote-deploy.sh root@YOUR_HOST
+USE_CN_MIRRORS=1 PREBUILT=1 bash deploy/scripts/remote-deploy.sh kamiserver
 
-# 国内 ECS 强烈推荐带上 USE_CN_MIRRORS=1（否则 npm/Maven 可能卡 30–60+ 分钟）
-USE_CN_MIRRORS=1 bash deploy/scripts/remote-deploy.sh root@YOUR_HOST
+# 通用主机
+USE_CN_MIRRORS=1 PREBUILT=1 bash deploy/scripts/remote-deploy.sh user@YOUR_HOST
 
-# 默认：lowmem + 远端源码构建（慢；仅在无预构建机时使用）
-bash deploy/scripts/remote-deploy.sh root@YOUR_HOST
-
-# 主机内存 ≥4 GiB 时可用满配
-USE_CN_MIRRORS=1 LOWMEM=0 bash deploy/scripts/remote-deploy.sh root@YOUR_HOST
+# 可选：收紧容器限额（主机仍须 ≥4 GiB；不会关闭 Neo4j）
+USE_CN_MIRRORS=1 PREBUILT=1 LOWMEM=1 bash deploy/scripts/remote-deploy.sh user@YOUR_HOST
 ```
 
 ### 可选：别处构建镜像，再加载到 VPS
@@ -91,7 +90,7 @@ USE_CN_MIRRORS=1 LOWMEM=0 bash deploy/scripts/remote-deploy.sh root@YOUR_HOST
 ```bash
 docker compose -f deploy/compose/compose.yaml build
 docker save archops-backend archops-frontend | gzip > /tmp/archops-images.tar.gz
-LOAD_IMAGES=1 SKIP_BUILD=1 ./deploy/scripts/remote-deploy.sh root@YOUR_HOST
+LOAD_IMAGES=1 SKIP_BUILD=1 ./deploy/scripts/remote-deploy.sh user@YOUR_HOST
 ```
 
 镜像名遵循 Compose 项目命名（目录 / `-p` 为 `archops` 时一般为 `archops-*`）。
@@ -106,32 +105,18 @@ curl -fsS http://YOUR_HOST/actuator/health/readiness
 cat /opt/archops-releases/VERSION   # 或 ssh 上查看本次部署戳
 ```
 
-## 可运行 vs 可构建（1.6–2 GiB）
+readiness 会包含 Neo4j；Neo4j DOWN 时整体 readiness 应失败。
+
+## 内存门槛
 
 | 模式 | 内存 | 做法 |
 |---|---|---|
-| **仅可运行** | ≈1.5–2 GiB + ≥4G swap | `PREBUILT=1` 或 `LOAD_IMAGES=1`；**禁止**在机上 Maven/npm |
-| **可构建** | ≥4 GiB（推荐 8） | `USE_CN_MIRRORS=1 LOWMEM=1 bash deploy/scripts/compose-build.sh` |
-
-Cursor / 其它 agent 常驻时可用内存经常 <600MiB——即使有 swap，源码构建也会极慢且脆。
-
-## 1.6–2 GiB VPS 注意
-
-- **不要**在低内存机上直接 `docker compose up -d --build`（Maven + npm 并行极易 OOM）。
-- 始终使用 `compose.lowmem.yaml`（脚本默认 `LOWMEM=1`）。
-- 保持至少 4 GiB swap。
-- **默认** `PREBUILT=1` 或 `LOAD_IMAGES=1`（墙钟可从 ~80min 冷构建降到分钟级 up）。
-- **不要**在 ≈2 GiB 机上开 Compose `--profile graph` / `ARCHOPS_GRAPH_ENABLED=true`（脚本会强制关掉残留 `true`）。图能力放到更大规格机，并用 `compose.graph.yaml`。
-- 日常升级勿 `docker system prune -a` 清空基础镜像；prefetch 在国内可达 20–25min。
-- 若 Docker Hub / 镜像源失败（如 TLS handshake timeout），可从已缓存层重建：
-
-```bash
-bash deploy/scripts/rebuild-images-from-cache.sh
-docker compose -p archops -f compose.yaml -f compose.images.yaml -f compose.lowmem.yaml --env-file .env up -d
-```
+| **全栈运行（必选 Neo4j）** | ≥4 GiB（推荐 8） | `PREBUILT=1` 或本机构建后部署 |
+| **本机构建** | ≥4 GiB 推荐 8 | `USE_CN_MIRRORS=1 bash deploy/scripts/compose-build.sh` |
+| **&lt;4 GiB** | 不支持 | 脚本拒绝；勿再「关 Neo4j 将就跑」 |
 
 半成功续跑：
 
 ```bash
-RESUME=frontend USE_CN_MIRRORS=1 LOWMEM=1 bash deploy/scripts/compose-build.sh
+RESUME=frontend USE_CN_MIRRORS=1 bash deploy/scripts/compose-build.sh
 ```

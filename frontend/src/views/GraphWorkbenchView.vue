@@ -71,7 +71,6 @@ const auth = useAuthStore()
 const canEdit = computed(() => isOperatorOrAdmin(auth.user?.roles))
 
 const loading = ref(false)
-const graphEnabled = ref(false)
 const graphVersion = ref(0)
 const cypher = ref("MATCH (n:Asset) WHERE n.kind = 'SERVER' RETURN n LIMIT 50")
 const cypherBusy = ref(false)
@@ -468,7 +467,6 @@ async function loadSnapshot() {
       message.error(res.message || t('common.failed'))
       return
     }
-    graphEnabled.value = res.data.graphEnabled
     graphVersion.value = res.data.graphVersion
     await nextTick()
     initCy(toElements(res.data.nodes, res.data.edges))
@@ -1012,9 +1010,6 @@ onBeforeUnmount(() => {
       <template #extra>
         <NSpace>
           <NButton @click="router.push({ name: 'topology' })">{{ t('graph.backToTopology') }}</NButton>
-          <NTag size="small" :type="graphEnabled ? 'success' : 'warning'">
-            {{ graphEnabled ? t('graph.enabled') : t('graph.disabled') }}
-          </NTag>
           <NTag size="small">v{{ graphVersion }}</NTag>
           <NButton :loading="loading" @click="loadSnapshot">{{ t('common.refresh') }}</NButton>
           <NButton v-if="canEdit" @click="showAddNode = true">{{ t('graph.addNode') }}</NButton>
@@ -1048,10 +1043,6 @@ onBeforeUnmount(() => {
         </NSpace>
       </template>
     </PageHeader>
-
-    <NAlert v-if="!graphEnabled" type="warning" class="graph-alert" :bordered="false">
-      {{ t('graph.disabledHint') }}
-    </NAlert>
 
     <div class="graph-cypher">
       <NInput

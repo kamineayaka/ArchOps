@@ -22,7 +22,6 @@ import org.neo4j.driver.Session;
 import org.neo4j.driver.SessionConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -40,7 +39,7 @@ public class GraphMergeEngine {
 
     private final GraphProperties graphProperties;
     private final GraphVersionService graphVersionService;
-    private final ObjectProvider<Driver> neo4jDriver;
+    private final Driver neo4jDriver;
     private final GraphOpApplier graphOpApplier;
     private final GraphPgAnchorService graphPgAnchorService;
     private final GraphProposalStatusService proposalStatusService;
@@ -55,7 +54,7 @@ public class GraphMergeEngine {
     public GraphMergeEngine(
             GraphProperties graphProperties,
             GraphVersionService graphVersionService,
-            ObjectProvider<Driver> neo4jDriver,
+            Driver neo4jDriver,
             GraphOpApplier graphOpApplier,
             GraphPgAnchorService graphPgAnchorService,
             GraphProposalStatusService proposalStatusService,
@@ -87,17 +86,7 @@ public class GraphMergeEngine {
             throw new BusinessException(
                     HttpStatus.BAD_REQUEST, "GRAPH_CHANGESET_REQUIRED", "提案缺少 Graph ChangeSet");
         }
-        if (!graphProperties.isEnabled()) {
-            throw new BusinessException(
-                    HttpStatus.SERVICE_UNAVAILABLE,
-                    "GRAPH_DISABLED",
-                    "archops.graph.enabled=false；启用 Neo4j 后再合并图变更");
-        }
-        Driver driver = neo4jDriver.getIfAvailable();
-        if (driver == null) {
-            throw new BusinessException(
-                    HttpStatus.SERVICE_UNAVAILABLE, "NEO4J_UNAVAILABLE", "Neo4j Driver 未配置");
-        }
+        Driver driver = neo4jDriver;
 
         GraphChangeSet changeSet = parseChangeSet(proposal.getChangeSet());
         validateStatic(changeSet);

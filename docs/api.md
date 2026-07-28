@@ -16,7 +16,7 @@
 
 ## 拓扑图（Graph SSOT）
 
-库存与拓扑以 Neo4j 为主；写路径一律 **plan → Proposal → Merge**。需 `ARCHOPS_GRAPH_ENABLED=true`。
+库存与拓扑以 Neo4j 为主；写路径一律 **plan → Proposal → Merge**。Neo4j 为必选依赖。
 
 | 方法 | 路径 | 角色 | 说明 |
 |---|---|---|---|

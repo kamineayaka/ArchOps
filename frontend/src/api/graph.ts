@@ -24,7 +24,6 @@ export interface GraphEdge {
 }
 
 export interface GraphSnapshot {
-  graphEnabled: boolean
   graphVersion: number
   nodes: GraphNode[]
   edges: GraphEdge[]

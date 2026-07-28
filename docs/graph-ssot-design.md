@@ -86,21 +86,20 @@ asset:{elementId}          # 新写用 UUID；迁移期兼容 asset:{numericId}
 ### Neo4j schema
 
 - 脚本：`backend/src/main/resources/neo4j/init-schema.cypher`
-- `Neo4jSchemaInitializer` 在 `archops.graph.enabled=true` 时**异步重试**执行，失败不阻塞 Spring 启动
+- `Neo4jSchemaInitializer` 在启动时**异步重试**执行，失败不阻塞 Spring 启动
 - Merge：`GraphOpApplier` 应用全部 GraphOp；`GraphPgAnchorService` 负责 PG 锚点/凭证侧效应
 - **Hybrid RAG**：`HybridRetrievalService` 以 Neo4j 邻域 + `architecture_fact` 为主，pgvector 文本记忆为辅；Agent 工具 `graph_neighborhood` / `graph_path` 只读深挖
 
 ### Compose
 
-Neo4j 使用 Compose **profile `graph`**（默认不启；≈2 GiB lowmem 机不建议开）：
+Neo4j 与 Postgres/Redis 同级，始终随主 `compose.yaml` 启动（无 profile）：
 
 ```bash
-docker compose -f compose.yaml -f compose.graph.yaml --profile graph up -d
-# compose.graph.yaml 注入 ARCHOPS_GRAPH_ENABLED + NEO4J_*（graph=false 时主 compose 不注入）
+docker compose -f compose.yaml --env-file .env up -d
 ```
 
-- `backend` 对 `neo4j`：`depends_on: condition: service_healthy, required: false`（无 profile 时不拦启动）
-- lowmem Neo4j heap ≥256m、容器 limit 512M（192m 无法 healthy）
+- `backend` 对 `neo4j`：`depends_on: condition: service_healthy`（必选）
+- lowmem overlay 可收紧 Neo4j heap（≥256m）与容器 limit；主机仍需 ≥4 GiB
 - 后端镜像构建用基础镜像自带 `mvn`（不用 `./mvnw`，避免绕过 `MAVEN_MIRROR` 拉 Maven 本体）
 
 ## 8. 非目标（后续）

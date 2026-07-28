@@ -15,12 +15,11 @@ import org.neo4j.driver.SessionConfig;
 import org.neo4j.driver.Values;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
 /**
  * Read-only Neo4j neighborhood / path retrieval for hybrid RAG.
- * Soft-fails when graph is disabled or Neo4j is unreachable.
+ * Soft-fails when Neo4j is temporarily unreachable.
  */
 @Service
 public class GraphContextRetriever {
@@ -31,12 +30,12 @@ public class GraphContextRetriever {
     public static final int DEFAULT_MAX_NODES = 30;
 
     private final GraphProperties properties;
-    private final ObjectProvider<Driver> neo4jDriver;
+    private final Driver neo4jDriver;
     private final GraphConnectPathService connectPathService;
 
     public GraphContextRetriever(
             GraphProperties properties,
-            ObjectProvider<Driver> neo4jDriver,
+            Driver neo4jDriver,
             GraphConnectPathService connectPathService) {
         this.properties = properties;
         this.neo4jDriver = neo4jDriver;
@@ -51,13 +50,7 @@ public class GraphContextRetriever {
         if (pgAssetIds == null || pgAssetIds.isEmpty()) {
             return NeighborhoodResult.unavailable("(no seed assets for graph neighborhood)");
         }
-        if (!properties.isEnabled()) {
-            return NeighborhoodResult.unavailable("(graph storage disabled)");
-        }
-        Driver driver = neo4jDriver.getIfAvailable();
-        if (driver == null) {
-            return NeighborhoodResult.unavailable("(Neo4j driver unavailable)");
-        }
+        Driver driver = neo4jDriver;
 
         int safeHops = Math.max(1, Math.min(hops, 2));
         int safeMax = Math.max(5, Math.min(maxNodes, 50));
@@ -226,13 +219,7 @@ public class GraphContextRetriever {
         if (fromPgAssetId == null || toPgAssetId == null) {
             return "(fromAssetId and toAssetId required)";
         }
-        if (!properties.isEnabled()) {
-            return "(graph storage disabled)";
-        }
-        Driver driver = neo4jDriver.getIfAvailable();
-        if (driver == null) {
-            return "(Neo4j driver unavailable)";
-        }
+        Driver driver = neo4jDriver;
 
         StringBuilder sb = new StringBuilder();
         try (Session session = driver.session(SessionConfig.forDatabase(properties.getDatabase()))) {

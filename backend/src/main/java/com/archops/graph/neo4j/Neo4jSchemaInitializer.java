@@ -12,21 +12,18 @@ import org.neo4j.driver.Session;
 import org.neo4j.driver.SessionConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 
 /**
- * Applies classpath:neo4j/init-schema.cypher when graph is enabled.
- * Runs asynchronously with retries so a slow/unavailable Neo4j never blocks Spring Boot startup.
+ * Applies classpath:neo4j/init-schema.cypher on startup.
+ * Runs asynchronously with retries so a slow Neo4j never blocks Spring Boot startup.
  */
 @Component
 @Order(40)
-@ConditionalOnProperty(prefix = "archops.graph", name = "enabled", havingValue = "true")
 public class Neo4jSchemaInitializer implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(Neo4jSchemaInitializer.class);
@@ -34,10 +31,10 @@ public class Neo4jSchemaInitializer implements ApplicationRunner {
     private static final int MAX_ATTEMPTS = 12;
     private static final Duration BASE_BACKOFF = Duration.ofSeconds(5);
 
-    private final ObjectProvider<Driver> neo4jDriver;
+    private final Driver neo4jDriver;
     private final GraphProperties properties;
 
-    public Neo4jSchemaInitializer(ObjectProvider<Driver> neo4jDriver, GraphProperties properties) {
+    public Neo4jSchemaInitializer(Driver neo4jDriver, GraphProperties properties) {
         this.neo4jDriver = neo4jDriver;
         this.properties = properties;
     }
@@ -48,11 +45,6 @@ public class Neo4jSchemaInitializer implements ApplicationRunner {
     }
 
     private void initializeWithRetry() {
-        Driver driver = neo4jDriver.getIfAvailable();
-        if (driver == null) {
-            log.warn("Neo4j schema init skipped: driver bean missing");
-            return;
-        }
         List<String> statements;
         try {
             statements = loadStatements();
@@ -63,7 +55,7 @@ public class Neo4jSchemaInitializer implements ApplicationRunner {
 
         for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
             try {
-                applySchema(driver, statements);
+                applySchema(neo4jDriver, statements);
                 log.info("Neo4j schema initialized ({} statements, attempt {})", statements.size(), attempt);
                 return;
             } catch (Exception ex) {

@@ -26,8 +26,7 @@
 ### 环境要求
 
 - Docker 24+ 与 Docker Compose v2
-- 最低 2 核、**4 GB 内存**（建议 8 GB；≤2 GB 用[预构建 / lowmem](docs/deployment.md)，勿直接并行 `--build`）
-- 可选：启用图能力时需更大内存 + Compose `--profile graph`（≈2 GB 机不建议开 Neo4j）
+- 最低 2 核、**≥4 GB 内存**（建议 8 GB）。Neo4j 为必选依赖；`<4 GB` 主机部署脚本会拒绝
 - OpenAI 兼容 / Ollama 等（可在「AI 设置」配置；也可用 `OPENAI_API_KEY` 种子迁移）
 - 前端开发：Node.js 22+
 
@@ -39,24 +38,14 @@ cd ArchOps
 
 cp deploy/compose/.env.example deploy/compose/.env
 # 编辑 CORS_ALLOWED_ORIGINS=http://你的主机IP,http://localhost
+# 确认 NEO4J_PASSWORD（≥8 字符）
 # 国内/慢网建议在 .env 中设置 NPM_REGISTRY / MAVEN_MIRROR，或构建时加 USE_CN_MIRRORS=1
 
 USE_CN_MIRRORS=1 bash deploy/scripts/compose-build.sh
 docker compose -f deploy/compose/compose.yaml --env-file deploy/compose/.env up -d
-
-# ≥4 GiB 也可：
-# docker compose -f deploy/compose/compose.yaml --env-file deploy/compose/.env up -d --build
 ```
 
-**可选：启用 Neo4j 图库存**（内存充足；≈2 GiB 勿开）
-
-```bash
-# .env: ARCHOPS_GRAPH_ENABLED=true 与 COMPOSE_PROFILES=graph
-docker compose -f deploy/compose/compose.yaml -f deploy/compose/compose.graph.yaml \
-  --profile graph --env-file deploy/compose/.env up -d
-```
-
-≤2 GiB VPS：用 `LOWMEM=1` / `compose.lowmem.yaml`，优先 `PREBUILT=1`；细节见 [docs/deployment.md](docs/deployment.md)、[docs/test-deploy-server.md](docs/test-deploy-server.md)。
+默认验证机为 **kamiserver**（见 `.cursor/rules/remote-kamiserver.mdc`）。远程部署细节见 [docs/deployment.md](docs/deployment.md)、[docs/test-deploy-server.md](docs/test-deploy-server.md)。
 
 浏览器访问 **http://你的服务器IP**，默认账号：
 
@@ -69,14 +58,14 @@ docker compose -f deploy/compose/compose.yaml -f deploy/compose/compose.graph.ya
 
 ### 远程 VPS 部署（给其他克隆者）
 
-脚本是**通用的**，参数换成你自己的 `user@host` 即可（需已配置 SSH 公钥，不支持交互密码）：
+脚本是**通用的**，参数换成你自己的 `user@host` 即可（需已配置 SSH 公钥，不支持交互密码）。主机内存需 **≥4 GiB**：
 
 ```bash
-# 一次性：swap≥4G、Docker、/opt/archops
-./deploy/scripts/remote-provision.sh root@YOUR_HOST
+# 一次性：Docker、/opt/archops
+./deploy/scripts/remote-provision.sh user@YOUR_HOST
 
-# 推荐：本机构建后再同步（小内存机）
-USE_CN_MIRRORS=1 PREBUILT=1 ./deploy/scripts/remote-deploy.sh root@YOUR_HOST
+# 推荐：本机构建后再同步
+USE_CN_MIRRORS=1 PREBUILT=1 ./deploy/scripts/remote-deploy.sh user@YOUR_HOST
 ```
 
 ### 图与操作台快速路径
@@ -88,9 +77,8 @@ USE_CN_MIRRORS=1 PREBUILT=1 ./deploy/scripts/remote-deploy.sh root@YOUR_HOST
 ## 本地开发
 
 ```bash
-# 依赖（无需 MinIO）
-docker compose -f deploy/compose/compose.yaml up -d postgres redis
-# 需要图时：再起 neo4j（--profile graph）并设置 ARCHOPS_GRAPH_ENABLED=true
+# 依赖（Postgres + Redis + Neo4j）
+docker compose -f deploy/compose/compose.yaml up -d postgres redis neo4j
 
 cd backend && ./mvnw spring-boot:run   # :8080
 cd frontend && npm install && npm run dev   # :5173
@@ -100,10 +88,10 @@ cd frontend && npm install && npm run dev   # :5173
 
 ```
 ArchOps/
-├── backend/           Spring Boot 3（Java 21）+ Flyway + 可选 Neo4j
+├── backend/           Spring Boot 3（Java 21）+ Flyway + Neo4j
 ├── frontend/          Vue 3 + Naive UI（拓扑图 / 图编辑 / 操作台 / Agent）
 ├── deploy/
-│   ├── compose/       Docker Compose（含 lowmem / graph profile / prebuilt）
+│   ├── compose/       Docker Compose（含 lowmem / prebuilt）
 │   └── scripts/       本机构建与远程 provision/deploy
 └── docs/              部署、API、图 SSOT 设计
 ```
@@ -112,15 +100,15 @@ ArchOps/
 
 | 方式 | 适用场景 | 文档 |
 |---|---|---|
-| Docker Compose | 单机 / MVP / 小规模生产 | [docs/deployment.md](docs/deployment.md) |
-| 远程脚本 | 任意可 SSH 的 Linux（含小内存 VPS） | [docs/test-deploy-server.md](docs/test-deploy-server.md) |
+| Docker Compose | 单机 / MVP / 小规模生产（≥4 GiB） | [docs/deployment.md](docs/deployment.md) |
+| 远程脚本 | 任意可 SSH 的 Linux（推荐 kamiserver 级规格） | [docs/test-deploy-server.md](docs/test-deploy-server.md) |
 | API 速查 | 集成 / 排查 | [docs/api.md](docs/api.md) |
 
 ## 技术栈
 
 | 层级 | 技术选型 |
 |---|---|
-| 后端 | Java 21、Spring Boot 3、Flyway、PostgreSQL + pgvector、Redis、可选 Neo4j |
+| 后端 | Java 21、Spring Boot 3、Flyway、PostgreSQL + pgvector、Redis、Neo4j |
 | 前端 | Vue 3、Naive UI、Pinia、Cytoscape |
 | AI | OpenAI 兼容 / Ollama；进程内 Agent 工具；Hybrid RAG（图 + 事实 + 向量） |
 | 部署 | Docker Compose、Nginx |

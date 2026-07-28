@@ -1,4 +1,4 @@
-// ArchOps Neo4j schema — run by Neo4jSchemaInitializer when archops.graph.enabled=true
+// ArchOps Neo4j schema — applied by Neo4jSchemaInitializer on startup
 // Statements are executed one-by-one (Neo4j does not allow multi-statement in one run).
 
 CREATE CONSTRAINT asset_element_id IF NOT EXISTS FOR (n:Asset) REQUIRE n.elementId IS UNIQUE;

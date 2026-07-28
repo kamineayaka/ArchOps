@@ -10,7 +10,9 @@
 # Why this exists:
 # - docker compose build (buildx) often ignores dockerd registry-mirrors → prefetch via docker pull
 # - npm/Maven official registries are painful on China ECS → USE_CN_MIRRORS / .env build args
-# - ≤2GiB hosts OOM if Maven+npm build in parallel → LOWMEM serializes + frees RAM first
+# - ≥4GiB hosts preferred; Neo4j is mandatory (graph inventory SSOT)
+# - LOWMEM only tightens container limits — it does not disable Neo4j
+# - ≤2GiB hosts OOM if Maven+npm build in parallel → PREBUILT=1 or refuse
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -27,6 +29,7 @@ RESUME="${RESUME:-}"
 SKIP_PREFLIGHT="${SKIP_PREFLIGHT:-0}"
 PULL_RETRIES="${PULL_RETRIES:-5}"
 DEPLOY_LOG="${DEPLOY_LOG:-$COMPOSE_DIR/deploy-build.log}"
+MIN_MEM_MB="${MIN_MEM_MB:-4096}"
 
 ts() { date -u +"%Y-%m-%dT%H:%M:%SZ"; }
 log() { echo "[$(ts)] $*"; echo "[$(ts)] $*" >>"$DEPLOY_LOG"; }
@@ -38,6 +41,11 @@ log "==> compose-build start (LOWMEM=$LOWMEM PREBUILT=$PREBUILT RESUME=${RESUME:
 
 if [ ! -f .env ]; then
   cp .env.example .env
+fi
+
+MEM_MB="$(awk '/MemTotal/ {printf "%d", $2/1024}' /proc/meminfo 2>/dev/null || echo 0)"
+if [ "${MEM_MB}" -gt 0 ] && [ "${MEM_MB}" -lt "${MIN_MEM_MB}" ]; then
+  die "host has ${MEM_MB}MiB RAM; need ≥${MIN_MEM_MB}MiB (Neo4j is mandatory). Use kamiserver or a larger host."
 fi
 
 # Auto-enable China mirrors when unset and TZ/locale looks like CN, or USE_CN_MIRRORS=auto
@@ -64,28 +72,11 @@ upsert_env() {
   fi
 }
 
-force_env() {
-  local key="$1" val="$2"
-  if grep -q "^${key}=" .env; then
-    sed -i.bak "s|^${key}=.*|${key}=${val}|" .env && rm -f .env.bak
-  else
-    printf '%s=%s\n' "$key" "$val" >> .env
-  fi
-}
-
 upsert_env NPM_REGISTRY "$NPM_REGISTRY"
 upsert_env MAVEN_MIRROR "$MAVEN_MIRROR"
 
-# ≤2GiB / LOWMEM: never leave graph half-on from a stale .env
-if [ "$LOWMEM" = "1" ]; then
-  MEM_MB="$(awk '/MemTotal/ {printf "%d", $2/1024}' /proc/meminfo 2>/dev/null || echo 0)"
-  if [ "${MEM_MB}" -gt 0 ] && [ "${MEM_MB}" -lt 3072 ]; then
-    if grep -qE '^ARCHOPS_GRAPH_ENABLED=true' .env 2>/dev/null; then
-      log "WARN: low memory (${MEM_MB}MiB) but ARCHOPS_GRAPH_ENABLED=true in .env — forcing false"
-      force_env ARCHOPS_GRAPH_ENABLED false
-    fi
-  fi
-fi
+# Drop stale optional-graph knobs from older .env copies.
+sed -i.bak -E '/^ARCHOPS_GRAPH_ENABLED=/d;/^COMPOSE_PROFILES=/d' .env 2>/dev/null && rm -f .env.bak || true
 
 if [ "$PREBUILT" != "1" ]; then
   if [ ! -f "$ROOT/frontend/package-lock.json" ]; then
@@ -129,6 +120,7 @@ BASE_IMAGES=(
   eclipse-temurin:21-jre
   pgvector/pgvector:pg16
   redis:7-alpine
+  neo4j:5.26-community
 )
 if [ "$PREBUILT" != "1" ]; then
   BASE_IMAGES+=(node:22-alpine maven:3.9.9-eclipse-temurin-21)

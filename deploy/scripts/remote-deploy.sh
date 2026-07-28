@@ -1,18 +1,22 @@
 #!/usr/bin/env bash
-# Sync ArchOps deploy payload to a remote host and start Docker Compose (lowmem by default).
+# Sync ArchOps deploy payload to a remote host and start Docker Compose.
 #
 # Only syncs files needed to build/run on the target (see deploy/rsync-deploy.filter).
 # Docs / IDE / VCS / secrets are never uploaded.
 #
-# Usage:
-#   bash deploy/scripts/remote-deploy.sh root@HOST
-#   LOWMEM=0 bash deploy/scripts/remote-deploy.sh root@HOST   # full resources
-#   SKIP_BUILD=1 bash deploy/scripts/remote-deploy.sh root@HOST  # use images already on host
-#   PREBUILT=1 bash deploy/scripts/remote-deploy.sh root@HOST    # use local JAR/dist (recommended on ≤2GiB)
-#   RESUME=frontend bash deploy/scripts/remote-deploy.sh root@HOST
+# Neo4j is required (graph inventory SSOT). Host should have ≥4 GiB RAM (recommend 8).
+# Default verify host: kamiserver — see .cursor/rules/remote-kamiserver.mdc
 #
-# China / slow networks (strongly recommended on Aliyun ECS etc.):
-#   USE_CN_MIRRORS=1 bash deploy/scripts/remote-deploy.sh root@HOST
+# Usage:
+#   bash deploy/scripts/remote-deploy.sh user@HOST
+#   USE_CN_MIRRORS=1 PREBUILT=1 bash deploy/scripts/remote-deploy.sh kamiserver
+#   SKIP_BUILD=1 bash deploy/scripts/remote-deploy.sh user@HOST  # use images already on host
+#   PREBUILT=1 bash deploy/scripts/remote-deploy.sh user@HOST    # use local JAR/dist
+#   RESUME=frontend bash deploy/scripts/remote-deploy.sh user@HOST
+#   LOWMEM=1 ...   # tighter container limits only; still requires ≥4 GiB host RAM
+#
+# China / slow networks:
+#   USE_CN_MIRRORS=1 bash deploy/scripts/remote-deploy.sh user@HOST
 #
 # Requires SSH key auth (BatchMode). First time: ssh-copy-id user@HOST
 set -euo pipefail
@@ -21,7 +25,7 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 TARGET="${1:?usage: $0 user@host}"
 REMOTE_DIR="${REMOTE_DIR:-/opt/archops}"
 RELEASES_DIR="${RELEASES_DIR:-/opt/archops-releases}"
-LOWMEM="${LOWMEM:-1}"
+LOWMEM="${LOWMEM:-0}"
 SKIP_BUILD="${SKIP_BUILD:-0}"
 LOAD_IMAGES="${LOAD_IMAGES:-0}"
 PREBUILT="${PREBUILT:-0}"
@@ -30,6 +34,7 @@ RESUME="${RESUME:-}"
 NPM_REGISTRY="${NPM_REGISTRY:-}"
 MAVEN_MIRROR="${MAVEN_MIRROR:-}"
 FILTER_FILE="${ROOT}/deploy/rsync-deploy.filter"
+MIN_MEM_MB="${MIN_MEM_MB:-4096}"
 
 if [ "$USE_CN_MIRRORS" = "1" ]; then
   NPM_REGISTRY="${NPM_REGISTRY:-https://registry.npmmirror.com}"
@@ -39,11 +44,6 @@ fi
 if [ ! -f "$FILTER_FILE" ]; then
   echo "ERROR: missing rsync filter: $FILTER_FILE" >&2
   exit 1
-fi
-
-if [ "$LOWMEM" = "1" ] && [ "$PREBUILT" != "1" ] && [ "$SKIP_BUILD" != "1" ] && [ "$LOAD_IMAGES" != "1" ]; then
-  echo "WARN: LOWMEM=1 without PREBUILT/LOAD_IMAGES — cold Maven+npm on ≤2GiB often takes 60–90+ min and may OOM."
-  echo "      Preferred: build JAR/dist on a stronger host, then PREBUILT=1 $0 $TARGET"
 fi
 
 SSH=(ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new "$TARGET")
@@ -155,7 +155,7 @@ if [ "$PREBUILT" = "1" ]; then
 fi
 
 echo "==> Starting stack on remote (LOWMEM=$LOWMEM SKIP_BUILD=$SKIP_BUILD PREBUILT=$PREBUILT RESUME=${RESUME:-none})"
-"${SSH[@]}" "bash -s" -- "$REMOTE_DIR" "$LOWMEM" "$SKIP_BUILD" "$PREBUILT" "$NPM_REGISTRY" "$MAVEN_MIRROR" "$RESUME" <<'REMOTE'
+"${SSH[@]}" "bash -s" -- "$REMOTE_DIR" "$LOWMEM" "$SKIP_BUILD" "$PREBUILT" "$NPM_REGISTRY" "$MAVEN_MIRROR" "$RESUME" "$MIN_MEM_MB" <<'REMOTE'
 set -euo pipefail
 REMOTE_DIR="$1"
 LOWMEM="$2"
@@ -164,6 +164,7 @@ PREBUILT="$4"
 NPM_REGISTRY="$5"
 MAVEN_MIRROR="$6"
 RESUME="$7"
+MIN_MEM_MB="$8"
 
 cd "$REMOTE_DIR/deploy/compose"
 if [ ! -f .env ]; then
@@ -172,35 +173,33 @@ if [ ! -f .env ]; then
   sed -i "s|CORS_ALLOWED_ORIGINS=.*|CORS_ALLOWED_ORIGINS=http://${HOST_IP},http://localhost|" .env
 fi
 
-# Stale .env from larger hosts often leaves graph on — refuse on lowmem.
-if [ "$LOWMEM" = "1" ] && grep -qE '^ARCHOPS_GRAPH_ENABLED=true' .env 2>/dev/null; then
-  echo "WARN: LOWMEM=1 — forcing ARCHOPS_GRAPH_ENABLED=false (Neo4j does not fit ≈2GiB)"
-  sed -i.bak 's|^ARCHOPS_GRAPH_ENABLED=.*|ARCHOPS_GRAPH_ENABLED=false|' .env && rm -f .env.bak
+MEM_MB="$(awk '/MemTotal/ {printf "%d", $2/1024}' /proc/meminfo 2>/dev/null || echo 0)"
+if [ "${MEM_MB}" -gt 0 ] && [ "${MEM_MB}" -lt "${MIN_MEM_MB}" ]; then
+  echo "ERROR: host has ${MEM_MB}MiB RAM; ArchOps requires ≥${MIN_MEM_MB}MiB (Neo4j is mandatory)." >&2
+  echo "  Use kamiserver or another ≥4–8 GiB host. Do not disable Neo4j." >&2
+  exit 1
 fi
 
 # Neo4j 5.x rejects passwords shorter than 8 chars (container exit 70).
 NEO4J_PW="$(grep -E '^NEO4J_PASSWORD=' .env 2>/dev/null | cut -d= -f2- || true)"
-if [ -n "$NEO4J_PW" ] && [ "${#NEO4J_PW}" -lt 8 ]; then
+if [ -z "$NEO4J_PW" ]; then
+  NEO4J_PW=archopsneo4j
+fi
+if [ "${#NEO4J_PW}" -lt 8 ]; then
   echo "ERROR: NEO4J_PASSWORD in .env is only ${#NEO4J_PW} chars; Neo4j requires ≥8." >&2
   echo "  Set e.g. NEO4J_PASSWORD=archopsneo4j in deploy/compose/.env" >&2
   exit 1
 fi
 
+# Drop stale optional-graph knobs from older .env copies (ignored if absent).
+sed -i.bak -E '/^ARCHOPS_GRAPH_ENABLED=/d;/^COMPOSE_PROFILES=/d' .env 2>/dev/null && rm -f .env.bak || true
+
 FILES=(-p archops -f compose.yaml)
 [ "$PREBUILT" = "1" ] && FILES+=(-f compose.prebuilt.yaml)
 [ "$LOWMEM" = "1" ] && FILES+=(-f compose.lowmem.yaml)
-if echo "${COMPOSE_PROFILES:-}" | grep -qw graph \
-  || grep -qE '^COMPOSE_PROFILES=.*\bgraph\b' .env 2>/dev/null \
-  || grep -qE '^ARCHOPS_GRAPH_ENABLED=true' .env 2>/dev/null; then
-  if [ "$LOWMEM" = "1" ]; then
-    echo "WARN: ignoring graph profile/overlay under LOWMEM=1"
-  else
-    FILES+=(-f compose.graph.yaml)
-  fi
-fi
 
 if [ "$SKIP_BUILD" != "1" ]; then
-  export LOWMEM PREBUILT NPM_REGISTRY MAVEN_MIRROR RESUME
+  export LOWMEM PREBUILT NPM_REGISTRY MAVEN_MIRROR RESUME MIN_MEM_MB
   bash "$REMOTE_DIR/deploy/scripts/compose-build.sh"
 fi
 
@@ -224,7 +223,7 @@ fi
 
 docker compose "${FILES[@]}" --env-file .env up -d
 docker compose "${FILES[@]}" ps
-echo "Health (liveness — matches Compose healthcheck; overall /actuator/health may include optional deps):"
+echo "Health (liveness — matches Compose healthcheck; readiness includes Neo4j):"
 for i in $(seq 1 40); do
   if curl -fsS "http://127.0.0.1:${HTTP_PORT}/actuator/health/liveness" >/dev/null 2>&1; then
     curl -fsS "http://127.0.0.1:${HTTP_PORT}/actuator/health/liveness" || true

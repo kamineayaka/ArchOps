@@ -110,7 +110,7 @@
             <scope>runtime</scope>
         </dependency>
 
-        <!-- Neo4j (graph SSOT; optional via archops.graph.enabled) -->
+        <!-- Neo4j (graph inventory SSOT; required) -->
         <dependency>
             <groupId>org.neo4j.driver</groupId>
             <artifactId>neo4j-java-driver</artifactId>

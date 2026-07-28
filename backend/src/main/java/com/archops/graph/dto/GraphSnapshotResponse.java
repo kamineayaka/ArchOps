@@ -4,7 +4,6 @@ import java.util.List;
 import java.util.Map;
 
 public record GraphSnapshotResponse(
-        boolean graphEnabled,
         long graphVersion,
         List<GraphNodeDto> nodes,
         List<GraphEdgeDto> edges) {

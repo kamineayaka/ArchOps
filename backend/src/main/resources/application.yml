@@ -40,9 +40,9 @@ management:
       enabled: true
     readinessstate:
       enabled: true
-    # Graph uses a hand-rolled Driver bean; disable Boot's Neo4j indicator unless graph is on.
+    # Graph uses a hand-rolled Driver bean + Neo4jHealthIndicator.
     neo4j:
-      enabled: ${ARCHOPS_GRAPH_ENABLED:false}
+      enabled: true
   metrics:
     tags:
       application: ${spring.application.name}
@@ -103,7 +103,6 @@ archops:
     grant-ttl-minutes: ${APPROVAL_GRANT_TTL_MINUTES:60}
     allow-high-grants: ${APPROVAL_ALLOW_HIGH_GRANTS:false}
   graph:
-    enabled: ${ARCHOPS_GRAPH_ENABLED:false}
     uri: ${NEO4J_URI:bolt://localhost:7687}
     username: ${NEO4J_USERNAME:neo4j}
     password: ${NEO4J_PASSWORD:archopsneo4j}

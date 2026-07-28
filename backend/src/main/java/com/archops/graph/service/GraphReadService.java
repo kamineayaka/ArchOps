@@ -23,7 +23,6 @@ import org.neo4j.driver.SessionConfig;
 import org.neo4j.driver.Value;
 import org.neo4j.driver.types.Node;
 import org.neo4j.driver.types.Relationship;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
@@ -35,12 +34,12 @@ public class GraphReadService {
             Pattern.CASE_INSENSITIVE);
 
     private final GraphProperties properties;
-    private final ObjectProvider<Driver> neo4jDriver;
+    private final Driver neo4jDriver;
     private final GraphVersionService graphVersionService;
 
     public GraphReadService(
             GraphProperties properties,
-            ObjectProvider<Driver> neo4jDriver,
+            Driver neo4jDriver,
             GraphVersionService graphVersionService) {
         this.properties = properties;
         this.neo4jDriver = neo4jDriver;
@@ -49,11 +48,7 @@ public class GraphReadService {
 
     public GraphSnapshotResponse snapshot() {
         long version = graphVersionService.currentVersion();
-        if (!properties.isEnabled()) {
-            return new GraphSnapshotResponse(false, version, List.of(), List.of());
-        }
-        Driver driver = requireDriver();
-        try (Session session = driver.session(SessionConfig.forDatabase(properties.getDatabase()))) {
+        try (Session session = neo4jDriver.session(SessionConfig.forDatabase(properties.getDatabase()))) {
             List<GraphNodeDto> nodes = new ArrayList<>();
             Result nodeResult = session.run(
                     """
@@ -84,15 +79,16 @@ public class GraphReadService {
                         rec.get("toId").asString(),
                         toMap(rel.asMap())));
             }
-            return new GraphSnapshotResponse(true, version, nodes, edges);
+            return new GraphSnapshotResponse(version, nodes, edges);
+        } catch (BusinessException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            throw new BusinessException(
+                    HttpStatus.SERVICE_UNAVAILABLE, "NEO4J_UNAVAILABLE", "Neo4j 不可用: " + ex.getMessage());
         }
     }
 
     public GraphQueryResponse query(String cypher) {
-        if (!properties.isEnabled()) {
-            throw new BusinessException(
-                    HttpStatus.SERVICE_UNAVAILABLE, "GRAPH_DISABLED", "图存储未启用");
-        }
         String trimmed = cypher != null ? cypher.trim() : "";
         if (trimmed.isEmpty()) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "CYPHER_REQUIRED", "Cypher 不能为空");
@@ -103,9 +99,8 @@ public class GraphReadService {
                     "CYPHER_WRITE_FORBIDDEN",
                     "只读查询禁止写语句；请使用计划模式提交 ChangeSet");
         }
-        Driver driver = requireDriver();
         Instant start = Instant.now();
-        try (Session session = driver.session(SessionConfig.forDatabase(properties.getDatabase()))) {
+        try (Session session = neo4jDriver.session(SessionConfig.forDatabase(properties.getDatabase()))) {
             Result result = session.run(trimmed);
             List<String> columns = result.keys();
             List<Map<String, Object>> rows = new ArrayList<>();
@@ -213,14 +208,5 @@ public class GraphReadService {
     private static boolean looksLikeUuid(String s) {
         return s != null
                 && s.matches("(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$");
-    }
-
-    private Driver requireDriver() {
-        Driver driver = neo4jDriver.getIfAvailable();
-        if (driver == null) {
-            throw new BusinessException(
-                    HttpStatus.SERVICE_UNAVAILABLE, "NEO4J_UNAVAILABLE", "Neo4j Driver 未配置");
-        }
-        return driver;
     }
 }

@@ -6,9 +6,8 @@ import org.springframework.boot.autoconfigure.neo4j.Neo4jAutoConfiguration;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
- * Neo4j driver is optional ({@code archops.graph.enabled}). Exclude Spring Boot's Neo4j
- * autoconfig so a classpath-only {@code neo4j-java-driver} does not create a default
- * {@code bolt://localhost:7687} Driver + Neo4j health indicator when graph is off.
+ * Neo4j is a required dependency (graph inventory SSOT). Boot Neo4j autoconfig is excluded
+ * so we use a single hand-rolled {@code Driver} bean + {@link com.archops.graph.config.Neo4jHealthIndicator}.
  */
 @SpringBootApplication(exclude = {Neo4jAutoConfiguration.class})
 @EnableScheduling

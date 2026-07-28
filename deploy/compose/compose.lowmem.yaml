@@ -1,4 +1,5 @@
-# Low-memory overlay for small VPS (≈2 GiB RAM).
+# Memory-tuned overlay (tighter heap/limits). Full stack still needs ≥4 GiB host RAM
+# because Neo4j is required — do not use this to "fit" onto ≈2 GiB machines.
 # Usage:
 #   docker compose -f compose.yaml -f compose.lowmem.yaml --env-file .env up -d --build
 #
@@ -36,7 +37,6 @@ services:
           memory: 96M
 
   # Neo4j Community needs ≥256m heap to become healthy; 192m OOMs in a restart loop.
-  # Even at 512M limit, graph profile is tight on ≈2 GiB hosts — prefer not enabling it there.
   neo4j:
     environment:
       NEO4J_server_memory_heap_initial__size: 256m

@@ -68,17 +68,17 @@ services:
       RAG_TOP_K: ${RAG_TOP_K:-5}
       RAG_MIN_SIMILARITY: ${RAG_MIN_SIMILARITY:-0.35}
       ARCH_AUTO_MERGE_ENABLED: ${ARCH_AUTO_MERGE_ENABLED:-false}
-      # Graph off by default. NEO4J_* injected only via compose.graph.yaml (--profile graph).
-      ARCHOPS_GRAPH_ENABLED: ${ARCHOPS_GRAPH_ENABLED:-false}
+      NEO4J_URI: ${NEO4J_URI:-bolt://neo4j:7687}
+      NEO4J_USERNAME: ${NEO4J_USERNAME:-neo4j}
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD:-archopsneo4j}
+      NEO4J_DATABASE: ${NEO4J_DATABASE:-neo4j}
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-      # When --profile graph is off, Compose skips this dependency (required: false).
       neo4j:
         condition: service_healthy
-        required: false
     # No curl in runtime image: TCP+HTTP via bash /dev/tcp (Ubuntu JRE has bash).
     healthcheck:
       test:
@@ -98,7 +98,6 @@ services:
     image: neo4j:5.26-community
     container_name: archops-neo4j
     restart: unless-stopped
-    profiles: ["graph"]
     environment:
       NEO4J_AUTH: ${NEO4J_USERNAME:-neo4j}/${NEO4J_PASSWORD:-archopsneo4j}
       NEO4J_dbms_security_auth__minimum__password__length: "8"

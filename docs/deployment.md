@@ -8,11 +8,11 @@
 
 | 用途 | CPU | 内存 | 说明 |
 |---|---|---|---|
-| **仅运行**（PREBUILT / 加载镜像） | 2 核 | **≥1.5–2 GiB** + ≥4 GiB swap | 不要在目标机源码构建 |
-| **本机构建**（Maven + npm） | 2 核 | **≥4 GiB** 推荐 8 GiB | 1.6–2 GiB 冷构建极慢且脆 |
-| 推荐生产 | 4 核 | 8 GiB | SSD ≥40 GB |
+| **全栈运行**（含必选 Neo4j） | 2 核 | **≥4 GiB** 推荐 8 GiB | `<4 GiB` 部署脚本会拒绝 |
+| **本机构建**（Maven + npm） | 2 核 | **≥4 GiB** 推荐 8 GiB | 优先本机构建 + `PREBUILT=1` 同步 |
+| 推荐生产 / 默认验证（kamiserver） | 4 核 | 8 GiB | SSD ≥40 GB |
 
-> **警告**：在 ≤2 GiB 内存的机器上直接 `docker compose ... up -d --build` 会同时跑 Maven 与 npm，极易 OOM。小 VPS **默认应走 PREBUILT / 镜像加载**，不要在目标机冷构建。
+> Neo4j 是图库存 SSOT 的必选依赖，与 Postgres/Redis 同级启动。`LOWMEM=1` 仅收紧容器限额，**不会**关闭 Neo4j。
 
 
 ### 2. 安装 Docker
@@ -34,6 +34,7 @@ cp deploy/compose/.env.example deploy/compose/.env
 # 部署后也可在控制台「设置 → AI 设置」中配置。
 # 编辑 deploy/compose/.env，例如：
 # - CORS_ALLOWED_ORIGINS=http://你的服务器IP
+# - NEO4J_PASSWORD=archopsneo4j   # ≥8 字符，必填
 
 # 国内 / 慢网构建（推荐写入 .env；.env.example 已默认填国内镜像）：
 # NPM_REGISTRY=https://registry.npmmirror.com
@@ -42,20 +43,20 @@ cp deploy/compose/.env.example deploy/compose/.env
 
 ### 4. 启动平台
 
-优先用封装脚本（会预拉基础镜像并**失败即停**、可选国内源、低内存串行构建、可 `RESUME=` 续跑）：
+优先用封装脚本（会预拉基础镜像并**失败即停**、可选国内源、可 `RESUME=` 续跑）：
 
 ```bash
-# 国内 ECS 推荐
+# 国内 ECS / 推荐路径
 USE_CN_MIRRORS=1 bash deploy/scripts/compose-build.sh
 docker compose -f deploy/compose/compose.yaml --env-file deploy/compose/.env up -d
 
-# ≤2 GiB：务必 PREBUILT（见 4b），不要在目标机源码构建
+# 可选：收紧容器限额（主机仍须 ≥4 GiB）
 USE_CN_MIRRORS=1 LOWMEM=1 PREBUILT=1 bash deploy/scripts/compose-build.sh
 docker compose -f deploy/compose/compose.yaml -f deploy/compose/compose.prebuilt.yaml \
   -f deploy/compose/compose.lowmem.yaml --env-file deploy/compose/.env up -d
 
 # 半成功续跑（例如 backend 已成、frontend 失败）
-RESUME=frontend USE_CN_MIRRORS=1 LOWMEM=1 bash deploy/scripts/compose-build.sh
+RESUME=frontend USE_CN_MIRRORS=1 bash deploy/scripts/compose-build.sh
 ```
 
 #### 4a. 标准路径（≥4 GiB 内存，手写命令）
@@ -64,7 +65,7 @@ RESUME=frontend USE_CN_MIRRORS=1 LOWMEM=1 bash deploy/scripts/compose-build.sh
 # 先用 dockerd 拉基础镜像（走 daemon.json registry-mirrors；
 # docker compose build / buildx 常常不继承该加速器）
 docker pull node:22-alpine nginx:1.27-alpine \
-  maven:3.9.9-eclipse-temurin-21 eclipse-temurin:21-jre
+  maven:3.9.9-eclipse-temurin-21 eclipse-temurin:21-jre neo4j:5.26-community
 
 # 关闭 BuildKit，复用 dockerd 本地层，避免 buildx 再慢吞吞拉一遍
 DOCKER_BUILDKIT=0 COMPOSE_DOCKER_CLI_BUILD=0 \
@@ -83,22 +84,14 @@ docker compose -f deploy/compose/compose.yaml --env-file deploy/compose/.env \
 docker compose -f deploy/compose/compose.yaml --env-file deploy/compose/.env up -d
 ```
 
-#### 4b. 低内存机（≤2 GiB）：串行构建或预构建
+#### 4b. 预构建（推荐用于验证机，避免在目标机冷 Maven/npm）
 
 ```bash
-# 方案 A：封装脚本（停 backend/frontend → 串行 build → 再 up）
-USE_CN_MIRRORS=1 LOWMEM=1 ./deploy/scripts/compose-build.sh
-docker compose -f deploy/compose/compose.yaml -f deploy/compose/compose.lowmem.yaml \
-  --env-file deploy/compose/.env up -d
-
-# 方案 B（推荐）：在较强机器上预构建 JAR/dist，再同步到小内存机
 cd backend && ./mvnw -DskipTests package && cd ..
 cd frontend && npm ci && npm run build && cd ..
-# 然后用 remote-deploy.sh PREBUILT=1，或本地：
-USE_CN_MIRRORS=1 PREBUILT=1 LOWMEM=1 ./deploy/scripts/compose-build.sh
+USE_CN_MIRRORS=1 PREBUILT=1 ./deploy/scripts/compose-build.sh
 docker compose -f deploy/compose/compose.yaml \
   -f deploy/compose/compose.prebuilt.yaml \
-  -f deploy/compose/compose.lowmem.yaml \
   --env-file deploy/compose/.env up -d
 ```
 
@@ -107,7 +100,7 @@ docker compose -f deploy/compose/compose.yaml \
 ```bash
 curl -fsS http://localhost/actuator/health/liveness
 curl -fsS http://localhost/actuator/health/readiness
-# 可选：整体 /actuator/health（graph=false 时不应再因 Neo4j 变 DOWN）
+# 整体 /actuator/health（Neo4j DOWN 时 readiness / 整体应失败）
 curl -fsS http://localhost/actuator/health
 ```
 
@@ -117,9 +110,10 @@ curl -fsS http://localhost/actuator/health
 |---|---|
 | npm / Maven 下载极慢（国内常见 30–60min） | `USE_CN_MIRRORS=1` 或 `.env` 已默认的 `NPM_REGISTRY` / `MAVEN_MIRROR` |
 | 配了 `registry-mirrors` 但 compose build 仍慢 | buildx 不继承 dockerd 加速器；先 `docker pull`（脚本会重试并失败即停），并用 `DOCKER_BUILDKIT=0` |
-| ≤2GiB 上 `up --build` OOM / 过慢 | **不要**在目标机构建；`PREBUILT=1` 或 `LOAD_IMAGES=1` |
+| 目标机冷构建过慢 | **不要**在目标机构建；`PREBUILT=1` 或 `LOAD_IMAGES=1` |
 | 清空镜像后冷启动仅 prefetch 就 20min+ | 日常升级勿 `docker system prune -a`；可用 `docker save` / 私有 registry（见下） |
-| frontend 半失败 | `RESUME=frontend LOWMEM=1 bash deploy/scripts/compose-build.sh` |
+| frontend 半失败 | `RESUME=frontend bash deploy/scripts/compose-build.sh` |
+| 主机 &lt;4 GiB | 不支持全栈；升级规格或换 kamiserver |
 
 #### 保存 / 加载镜像层（避免小 VPS 反复拉 Hub）
 
@@ -127,7 +121,7 @@ curl -fsS http://localhost/actuator/health
 # 在已构建成功的机器上
 docker save archops-backend:latest archops-frontend:latest \
   nginx:1.27-alpine eclipse-temurin:21-jre \
-  pgvector/pgvector:pg16 redis:7-alpine \
+  pgvector/pgvector:pg16 redis:7-alpine neo4j:5.26-community \
   | gzip > /tmp/archops-images.tar.gz
 
 # 拷到目标机后
