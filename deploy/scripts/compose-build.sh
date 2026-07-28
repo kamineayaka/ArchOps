@@ -23,6 +23,8 @@ NPM_REGISTRY="${NPM_REGISTRY:-}"
 MAVEN_MIRROR="${MAVEN_MIRROR:-}"
 # RESUME=backend|frontend|"" — skip completed services after a partial LOWMEM failure
 RESUME="${RESUME:-}"
+# SKIP_PREFLIGHT=1 — skip npm ci --dry-run (Docker build still validates lockfile)
+SKIP_PREFLIGHT="${SKIP_PREFLIGHT:-0}"
 PULL_RETRIES="${PULL_RETRIES:-5}"
 DEPLOY_LOG="${DEPLOY_LOG:-$COMPOSE_DIR/deploy-build.log}"
 
@@ -32,7 +34,7 @@ die() { log "ERROR: $*"; exit 1; }
 
 cd "$COMPOSE_DIR"
 : >"$DEPLOY_LOG"
-log "==> compose-build start (LOWMEM=$LOWMEM PREBUILT=$PREBUILT RESUME=${RESUME:-none} USE_CN_MIRRORS=$USE_CN_MIRRORS)"
+log "==> compose-build start (LOWMEM=$LOWMEM PREBUILT=$PREBUILT RESUME=${RESUME:-none} USE_CN_MIRRORS=$USE_CN_MIRRORS SKIP_PREFLIGHT=$SKIP_PREFLIGHT)"
 
 if [ ! -f .env ]; then
   cp .env.example .env
@@ -89,19 +91,24 @@ if [ "$PREBUILT" != "1" ]; then
   if [ ! -f "$ROOT/frontend/package-lock.json" ]; then
     die "frontend/package-lock.json missing — Docker frontend build runs npm ci and will fail. Run: cd frontend && npm install && git add package-lock.json"
   fi
-  log "==> Preflight: lockfile sync check"
-  if command -v npm >/dev/null 2>&1; then
-    (cd "$ROOT/frontend" && npm ci --dry-run --no-audit --no-fund) \
-      || die "package-lock.json out of sync with package.json. Run: cd frontend && npm install && commit package-lock.json"
-  elif command -v docker >/dev/null 2>&1; then
-    # Hosts without Node still catch lock drift before a long Maven build.
-    docker run --rm \
-      -v "$ROOT/frontend:/app" -w /app \
-      node:22-alpine \
-      sh -c "npm ci --dry-run --no-audit --no-fund" \
-      || die "package-lock.json out of sync (docker npm ci --dry-run failed)"
+  if [ "$SKIP_PREFLIGHT" = "1" ]; then
+    log "==> Preflight skipped (SKIP_PREFLIGHT=1) — Docker npm ci will still fail fast on lock drift"
   else
-    log "WARN: neither npm nor docker available for lockfile preflight"
+    log "==> Preflight: lockfile sync check"
+    if command -v npm >/dev/null 2>&1; then
+      (cd "$ROOT/frontend" && npm ci --dry-run --no-audit --no-fund) \
+        || die "package-lock.json out of sync with package.json. Run: cd frontend && npm install && commit package-lock.json"
+    elif command -v docker >/dev/null 2>&1; then
+      # Prefer alpine: Dockerfile builds on node:22-alpine (musl); host glibc npm can miss optional deps.
+      docker run --rm \
+        -v "$ROOT/frontend:/app" -w /app \
+        ${NPM_REGISTRY:+-e "npm_config_registry=$NPM_REGISTRY"} \
+        node:22-alpine \
+        sh -c "npm ci --dry-run --no-audit --no-fund" \
+        || die "package-lock.json out of sync (docker npm ci --dry-run failed on node:22-alpine)"
+    else
+      log "WARN: neither npm nor docker available for lockfile preflight"
+    fi
   fi
 fi
 

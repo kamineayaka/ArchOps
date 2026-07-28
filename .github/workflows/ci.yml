@@ -24,6 +24,18 @@ jobs:
       - name: Typecheck / unit smoke
         run: npm test
 
+  frontend-lockfile-alpine:
+    name: frontend npm ci (node:22-alpine)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify lockfile on musl (matches Dockerfile)
+        run: |
+          docker run --rm \
+            -v "$PWD/frontend:/app" -w /app \
+            node:22-alpine \
+            sh -c "npm ci --no-audit --no-fund"
+
   backend-compile:
     name: backend compile
     runs-on: ubuntu-latest

@@ -100,7 +100,8 @@ services:
     restart: unless-stopped
     profiles: ["graph"]
     environment:
-      NEO4J_AUTH: ${NEO4J_USERNAME:-neo4j}/${NEO4J_PASSWORD:-archops}
+      NEO4J_AUTH: ${NEO4J_USERNAME:-neo4j}/${NEO4J_PASSWORD:-archopsneo4j}
+      NEO4J_dbms_security_auth__minimum__password__length: "8"
       NEO4J_server_memory_heap_initial__size: 256m
       NEO4J_server_memory_heap_max__size: 256m
       NEO4J_server_memory_pagecache_size: 64m

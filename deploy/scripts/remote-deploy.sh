@@ -178,6 +178,14 @@ if [ "$LOWMEM" = "1" ] && grep -qE '^ARCHOPS_GRAPH_ENABLED=true' .env 2>/dev/nul
   sed -i.bak 's|^ARCHOPS_GRAPH_ENABLED=.*|ARCHOPS_GRAPH_ENABLED=false|' .env && rm -f .env.bak
 fi
 
+# Neo4j 5.x rejects passwords shorter than 8 chars (container exit 70).
+NEO4J_PW="$(grep -E '^NEO4J_PASSWORD=' .env 2>/dev/null | cut -d= -f2- || true)"
+if [ -n "$NEO4J_PW" ] && [ "${#NEO4J_PW}" -lt 8 ]; then
+  echo "ERROR: NEO4J_PASSWORD in .env is only ${#NEO4J_PW} chars; Neo4j requires ≥8." >&2
+  echo "  Set e.g. NEO4J_PASSWORD=archopsneo4j in deploy/compose/.env" >&2
+  exit 1
+fi
+
 FILES=(-p archops -f compose.yaml)
 [ "$PREBUILT" = "1" ] && FILES+=(-f compose.prebuilt.yaml)
 [ "$LOWMEM" = "1" ] && FILES+=(-f compose.lowmem.yaml)
@@ -196,14 +204,32 @@ if [ "$SKIP_BUILD" != "1" ]; then
   bash "$REMOTE_DIR/deploy/scripts/compose-build.sh"
 fi
 
+HTTP_PORT="$(grep -E '^HTTP_PORT=' .env 2>/dev/null | cut -d= -f2- || true)"
+HTTP_PORT="${HTTP_PORT:-80}"
+# Host nginx (or anything else) binding HTTP_PORT makes frontend restart-loop; detect before up.
+if command -v ss >/dev/null 2>&1; then
+  BUSY="$(ss -ltnp "sport = :${HTTP_PORT}" 2>/dev/null || true)"
+elif command -v netstat >/dev/null 2>&1; then
+  BUSY="$(netstat -ltnp 2>/dev/null | grep -E ":${HTTP_PORT}\\s" || true)"
+else
+  BUSY=""
+fi
+if [ -n "$BUSY" ] && ! echo "$BUSY" | grep -qiE 'docker-proxy|archops-frontend'; then
+  echo "ERROR: host port ${HTTP_PORT} is already in use (often system nginx)." >&2
+  echo "$BUSY" >&2
+  echo "Fix: sudo systemctl stop nginx && sudo systemctl disable nginx" >&2
+  echo "  or change HTTP_PORT in deploy/compose/.env" >&2
+  exit 1
+fi
+
 docker compose "${FILES[@]}" --env-file .env up -d
 docker compose "${FILES[@]}" ps
 echo "Health (liveness — matches Compose healthcheck; overall /actuator/health may include optional deps):"
 for i in $(seq 1 40); do
-  if curl -fsS http://127.0.0.1/actuator/health/liveness >/dev/null 2>&1; then
-    curl -fsS http://127.0.0.1/actuator/health/liveness || true
+  if curl -fsS "http://127.0.0.1:${HTTP_PORT}/actuator/health/liveness" >/dev/null 2>&1; then
+    curl -fsS "http://127.0.0.1:${HTTP_PORT}/actuator/health/liveness" || true
     echo
-    curl -fsS http://127.0.0.1/actuator/health/readiness || true
+    curl -fsS "http://127.0.0.1:${HTTP_PORT}/actuator/health/readiness" || true
     echo
     exit 0
   fi

@@ -7,10 +7,8 @@ WORKDIR /app
 #   --build-arg NPM_REGISTRY=https://registry.npmmirror.com
 ARG NPM_REGISTRY=https://registry.npmjs.org
 COPY package*.json ./
-RUN npm config set registry "$NPM_REGISTRY" \
-    && npm config set supportedArchitectures.os linux \
-    && npm config set supportedArchitectures.cpu x64 \
-    && npm config set supportedArchitectures.libc musl \
+# npm 11+ rejects `npm config set supportedArchitectures.*`; alpine is already linux/musl/x64.
+RUN echo "registry=$NPM_REGISTRY" > .npmrc \
     && npm ci --no-audit --no-fund
 
 COPY . .

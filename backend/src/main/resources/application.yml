@@ -106,6 +106,6 @@ archops:
     enabled: ${ARCHOPS_GRAPH_ENABLED:false}
     uri: ${NEO4J_URI:bolt://localhost:7687}
     username: ${NEO4J_USERNAME:neo4j}
-    password: ${NEO4J_PASSWORD:archops}
+    password: ${NEO4J_PASSWORD:archopsneo4j}
     database: ${NEO4J_DATABASE:neo4j}
     credential-staging-ttl: ${ARCHOPS_CREDENTIAL_STAGING_TTL:1h}

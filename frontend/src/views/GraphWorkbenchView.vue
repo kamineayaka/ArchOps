@@ -37,6 +37,7 @@ import {
   listAssetTypes,
 } from '@/assetTypes/registry'
 import { useAuthStore } from '@/stores/auth'
+import { newId } from '@/utils/id'
 import { isOperatorOrAdmin } from '@/utils/roles'
 
 interface NodeSelection {
@@ -619,7 +620,7 @@ async function addDraftNode() {
   addBusy.value = true
   try {
     const tempId = `tmp:node:${Date.now()}`
-    const elementId = crypto.randomUUID()
+    const elementId = newId()
     const props: Record<string, unknown> = {
       elementId,
       name: addForm.value.name.trim(),
@@ -666,6 +667,8 @@ async function addDraftNode() {
     addForm.value = emptyNodeForm()
     planWarnings.value = []
     message.success(t('graph.draftAdded'))
+  } catch (e) {
+    message.error(e instanceof Error ? e.message : t('common.failed'))
   } finally {
     addBusy.value = false
   }
@@ -678,7 +681,7 @@ function addDraftEdge(fromId: string, toId: string, type: string) {
     from: { elementId: fromId },
     to: { elementId: toId },
     properties: {
-      elementId: crypto.randomUUID(),
+      elementId: newId(),
       ...(type === 'CONNECTS_VIA' ? { order: 0, protocol: 'ssh' } : {}),
     },
   }
