@@ -252,10 +252,6 @@ public class ArchitectureProposalService {
             throw new BusinessException(
                     HttpStatus.CONFLICT, "PROPOSAL_NOT_PENDING", "提案不在待审状态");
         }
-        if (reviewerId.equals(proposal.getRequesterId())) {
-            throw new BusinessException(
-                    HttpStatus.FORBIDDEN, "PROPOSAL_SELF_REVIEW", "批准者不能与提案者相同");
-        }
 
         String decision = request.decision() != null
                 ? request.decision().trim().toUpperCase(Locale.ROOT)
@@ -265,6 +261,14 @@ public class ArchitectureProposalService {
         if (!approve && !reject) {
             throw new BusinessException(
                     HttpStatus.BAD_REQUEST, "INVALID_DECISION", "decision 必须是 APPROVE 或 REJECT");
+        }
+
+        // Reject/withdraw is allowed for the requester; approve needs a different reviewer
+        // unless the reviewer is ADMIN (solo-admin / ops bootstrap).
+        boolean selfReview = reviewerId.equals(proposal.getRequesterId());
+        if (approve && selfReview && !hasAdmin(reviewerId, authorities)) {
+            throw new BusinessException(
+                    HttpStatus.FORBIDDEN, "PROPOSAL_SELF_REVIEW", "批准者不能与提案者相同");
         }
 
         ArchitecturePartition partition = partitionRepository

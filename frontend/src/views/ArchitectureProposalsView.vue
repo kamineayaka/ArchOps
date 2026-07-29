@@ -22,7 +22,8 @@ import {
 import EmptyState from '@/components/EmptyState.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import { useAuthStore } from '@/stores/auth'
-import { isOperatorOrAdmin } from '@/utils/roles'
+import { apiErrorMessage } from '@/utils/apiError'
+import { isAdmin, isOperatorOrAdmin } from '@/utils/roles'
 
 const message = useMessage()
 const authStore = useAuthStore()
@@ -35,6 +36,19 @@ const detail = ref<ProposalResponse | null>(null)
 const deciding = ref(false)
 
 const canDecide = computed(() => isOperatorOrAdmin(authStore.user?.roles))
+
+const isOwnPending = computed(
+  () =>
+    detail.value?.status === 'PENDING_REVIEW' &&
+    detail.value.requesterId != null &&
+    detail.value.requesterId === authStore.user?.id,
+)
+
+const canApprove = computed(() => {
+  if (!canDecide.value || detail.value?.status !== 'PENDING_REVIEW') return false
+  if (!isOwnPending.value) return true
+  return isAdmin(authStore.user?.roles)
+})
 
 const statusOptions = computed(() => [
   { label: t('proposals.statusAll'), value: '' },
@@ -51,6 +65,25 @@ function statusType(status: string) {
   if (status === 'APPROVED' || status === 'MERGED' || status === 'AUTO_MERGED') return 'success'
   if (status === 'REJECTED') return 'error'
   return 'default'
+}
+
+function formatJson(value: string | null | undefined): string {
+  if (value == null || value === '') return '—'
+  try {
+    return JSON.stringify(JSON.parse(value), null, 2)
+  } catch {
+    return value
+  }
+}
+
+function hasMeaningfulJson(value: string | null | undefined): boolean {
+  if (value == null || value === '') return false
+  const trimmed = value.trim()
+  return trimmed !== '[]' && trimmed !== '{}'
+}
+
+function hasChangeSet(p: ProposalResponse): boolean {
+  return hasMeaningfulJson(p.changeSet) && (p.changeSet?.includes('"ops"') ?? false)
 }
 
 const columns = computed<DataTableColumns<ProposalResponse>>(() => [
@@ -95,10 +128,16 @@ async function load() {
 }
 
 async function openDetail(id: number) {
-  const res = await getProposal(id)
-  if (res.success && res.data) {
-    detail.value = res.data
-    showDetail.value = true
+  try {
+    const res = await getProposal(id)
+    if (res.success && res.data) {
+      detail.value = res.data
+      showDetail.value = true
+    } else {
+      message.error(res.message || t('proposals.decideFailed'))
+    }
+  } catch (err) {
+    message.error(apiErrorMessage(err, t('proposals.decideFailed')))
   }
 }
 
@@ -114,6 +153,8 @@ async function handleDecide(decision: 'APPROVE' | 'REJECT') {
     } else {
       message.error(res.message || t('proposals.decideFailed'))
     }
+  } catch (err) {
+    message.error(apiErrorMessage(err, t('proposals.decideFailed')))
   } finally {
     deciding.value = false
   }
@@ -156,24 +197,44 @@ onMounted(load)
           <div class="meta-row">
             <NTag size="small" :type="statusType(detail.status)" round>{{ detail.status }}</NTag>
             <span>{{ detail.partitionKey }}</span>
+            <span v-if="detail.risk">{{ t('proposals.risk') }}: {{ detail.risk }}</span>
+            <span v-if="detail.source">{{ t('proposals.source') }}: {{ detail.source }}</span>
             <span v-if="detail.confidence != null">
               {{ t('proposals.confidence') }}: {{ detail.confidence }}
+            </span>
+            <span v-if="detail.baseGraphVersion != null">
+              {{ t('proposals.baseGraphVersion') }}: {{ detail.baseGraphVersion }}
             </span>
           </div>
           <section>
             <h3 class="section-title">{{ t('proposals.summary') }}</h3>
             <p class="body-text">{{ detail.summary || '—' }}</p>
           </section>
-          <section>
+          <section v-if="hasChangeSet(detail)">
+            <h3 class="section-title">{{ t('proposals.changeSet') }}</h3>
+            <pre class="code-block">{{ formatJson(detail.changeSet) }}</pre>
+          </section>
+          <section v-if="hasMeaningfulJson(detail.factOps)">
             <h3 class="section-title">{{ t('proposals.factOps') }}</h3>
-            <pre class="code-block">{{ detail.factOps || '—' }}</pre>
+            <pre class="code-block">{{ formatJson(detail.factOps) }}</pre>
           </section>
-          <section>
+          <section v-if="hasMeaningfulJson(detail.evidence)">
             <h3 class="section-title">{{ t('proposals.evidence') }}</h3>
-            <pre class="code-block">{{ detail.evidence || '—' }}</pre>
+            <pre class="code-block">{{ formatJson(detail.evidence) }}</pre>
           </section>
+          <section
+            v-if="!hasChangeSet(detail) && !hasMeaningfulJson(detail.factOps) && !hasMeaningfulJson(detail.evidence)"
+          >
+            <p class="body-text">{{ t('proposals.noOps') }}</p>
+          </section>
+          <p v-if="isOwnPending && !canApprove" class="hint-text">{{ t('proposals.selfReviewHint') }}</p>
           <NSpace v-if="canDecide && detail.status === 'PENDING_REVIEW'">
-            <NButton type="success" :loading="deciding" @click="handleDecide('APPROVE')">
+            <NButton
+              type="success"
+              :loading="deciding"
+              :disabled="!canApprove"
+              @click="handleDecide('APPROVE')"
+            >
               {{ t('proposals.approve') }}
             </NButton>
             <NButton type="error" :loading="deciding" @click="handleDecide('REJECT')">
@@ -214,6 +275,13 @@ onMounted(load)
   white-space: pre-wrap;
 }
 
+.hint-text {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--co-warning, #b45309);
+}
+
 .code-block {
   margin: 0;
   padding: var(--co-space-3);
@@ -225,7 +293,7 @@ onMounted(load)
   background: var(--co-bg-page);
   border: 1px solid var(--co-border);
   border-radius: var(--co-radius);
-  max-height: 240px;
+  max-height: 320px;
   overflow: auto;
 }
 </style>
