@@ -1,143 +1,61 @@
 # 部署指南
 
-## Docker Compose（推荐，单机）
+API 一览见 [api.md](./api.md)。
 
-低内存 VPS 的远程初始化与同步脚本用法，见 [test-deploy-server.md](./test-deploy-server.md)。API 一览见 [api.md](./api.md)。
+## 要求
 
-### 1. 服务器要求
+| 项 | 建议 |
+|---|---|
+| CPU | ≥2 核 |
+| 内存 | **≥4 GiB**（推荐 8 GiB） |
+| 软件 | Docker 24+、Compose v2 |
 
-| 用途 | CPU | 内存 | 说明 |
-|---|---|---|---|
-| **全栈运行**（含必选 Neo4j） | 2 核 | **≥4 GiB** 推荐 8 GiB | `<4 GiB` 部署脚本会拒绝 |
-| **本机构建**（Maven + npm） | 2 核 | **≥4 GiB** 推荐 8 GiB | 优先本机构建 + `PREBUILT=1` 同步 |
-| 推荐生产 / 默认验证（kamiserver） | 4 核 | 8 GiB | SSD ≥40 GB |
+Neo4j 与 Postgres、Redis 同级，为必选依赖。
 
-> Neo4j 是图库存 SSOT 的必选依赖，与 Postgres/Redis 同级启动。`LOWMEM=1` 仅收紧容器限额，**不会**关闭 Neo4j。
-
-
-### 2. 安装 Docker
+## 安装 Docker（若尚未安装）
 
 ```bash
 curl -fsSL https://get.docker.com | sh
 sudo usermod -aG docker $USER
 ```
 
-### 3. 配置环境变量
+## 配置与启动
 
 ```bash
-cp deploy/compose/.env.example deploy/compose/.env
-
-# JWT_SECRET 与 CREDENTIALS_MASTER_KEY 可留空：首次启动自动生成，
-# 并持久化到 archops_secrets 卷。
-
-# 可选：设置 OPENAI_API_KEY，用于一次性种子迁移默认 AI Provider。
-# 部署后也可在控制台「设置 → AI 设置」中配置。
-# 编辑 deploy/compose/.env，例如：
-# - CORS_ALLOWED_ORIGINS=http://你的服务器IP
-# - NEO4J_PASSWORD=archopsneo4j   # ≥8 字符，必填
-
-# 国内 / 慢网构建（推荐写入 .env；.env.example 已默认填国内镜像）：
-# NPM_REGISTRY=https://registry.npmmirror.com
-# MAVEN_MIRROR=https://maven.aliyun.com/repository/public
+cd deploy/compose
+cp .env.example .env
 ```
 
-### 4. 启动平台
+编辑 `.env`：
 
-优先用封装脚本（会预拉基础镜像并**失败即停**、可选国内源、可 `RESUME=` 续跑）：
+- `CORS_ALLOWED_ORIGINS` — 浏览器访问来源（含本机与服务器地址）
+- `NEO4J_PASSWORD` — ≥8 字符
+- `JWT_SECRET` / `CREDENTIALS_MASTER_KEY` — 可留空，首次启动自动生成并写入卷
+- 可选：`NPM_REGISTRY` / `MAVEN_MIRROR`（慢网构建加速）
+- 可选：`OPENAI_API_KEY`（种子 AI Provider；也可在控制台配置）
 
 ```bash
-# 国内 ECS / 推荐路径
-USE_CN_MIRRORS=1 bash deploy/scripts/compose-build.sh
-docker compose -f deploy/compose/compose.yaml --env-file deploy/compose/.env up -d
-
-# 可选：收紧容器限额（主机仍须 ≥4 GiB）
-USE_CN_MIRRORS=1 LOWMEM=1 PREBUILT=1 bash deploy/scripts/compose-build.sh
-docker compose -f deploy/compose/compose.yaml -f deploy/compose/compose.prebuilt.yaml \
-  -f deploy/compose/compose.lowmem.yaml --env-file deploy/compose/.env up -d
-
-# 半成功续跑（例如 backend 已成、frontend 失败）
-RESUME=frontend USE_CN_MIRRORS=1 bash deploy/scripts/compose-build.sh
+docker compose up -d --build
 ```
 
-#### 4a. 标准路径（≥4 GiB 内存，手写命令）
-
-```bash
-# 先用 dockerd 拉基础镜像（走 daemon.json registry-mirrors；
-# docker compose build / buildx 常常不继承该加速器）
-docker pull node:22-alpine nginx:1.27-alpine \
-  maven:3.9.9-eclipse-temurin-21 eclipse-temurin:21-jre neo4j:5.26-community
-
-# 关闭 BuildKit，复用 dockerd 本地层，避免 buildx 再慢吞吞拉一遍
-DOCKER_BUILDKIT=0 COMPOSE_DOCKER_CLI_BUILD=0 \
-  docker compose -f deploy/compose/compose.yaml --env-file deploy/compose/.env \
-  build --pull=false
-docker compose -f deploy/compose/compose.yaml --env-file deploy/compose/.env up -d
-```
-
-也可显式传 build arg（不必写进 .env）：
-
-```bash
-docker compose -f deploy/compose/compose.yaml --env-file deploy/compose/.env \
-  build --pull=false \
-  --build-arg NPM_REGISTRY=https://registry.npmmirror.com \
-  --build-arg MAVEN_MIRROR=https://maven.aliyun.com/repository/public
-docker compose -f deploy/compose/compose.yaml --env-file deploy/compose/.env up -d
-```
-
-#### 4b. 预构建（推荐用于验证机，避免在目标机冷 Maven/npm）
-
-```bash
-cd backend && ./mvnw -DskipTests package && cd ..
-cd frontend && npm ci && npm run build && cd ..
-USE_CN_MIRRORS=1 PREBUILT=1 ./deploy/scripts/compose-build.sh
-docker compose -f deploy/compose/compose.yaml \
-  -f deploy/compose/compose.prebuilt.yaml \
-  --env-file deploy/compose/.env up -d
-```
-
-健康检查（与 Compose `healthcheck` 对齐，用 **liveness / readiness**）：
+健康检查：
 
 ```bash
 curl -fsS http://localhost/actuator/health/liveness
 curl -fsS http://localhost/actuator/health/readiness
-# 整体 /actuator/health（Neo4j DOWN 时 readiness / 整体应失败）
-curl -fsS http://localhost/actuator/health
 ```
 
-### 5. 构建加速说明
+默认登录：`admin` / `admin123`（立即修改）。
 
-| 问题 | 做法 |
-|---|---|
-| npm / Maven 下载极慢（国内常见 30–60min） | `USE_CN_MIRRORS=1` 或 `.env` 已默认的 `NPM_REGISTRY` / `MAVEN_MIRROR` |
-| 配了 `registry-mirrors` 但 compose build 仍慢 | buildx 不继承 dockerd 加速器；先 `docker pull`（脚本会重试并失败即停），并用 `DOCKER_BUILDKIT=0` |
-| 目标机冷构建过慢 | **不要**在目标机构建；`PREBUILT=1` 或 `LOAD_IMAGES=1` |
-| 清空镜像后冷启动仅 prefetch 就 20min+ | 日常升级勿 `docker system prune -a`；可用 `docker save` / 私有 registry（见下） |
-| frontend 半失败 | `RESUME=frontend bash deploy/scripts/compose-build.sh` |
-| 主机 &lt;4 GiB | 不支持全栈；升级规格或换 kamiserver |
+## 上线检查清单
 
-#### 保存 / 加载镜像层（避免小 VPS 反复拉 Hub）
-
-```bash
-# 在已构建成功的机器上
-docker save archops-backend:latest archops-frontend:latest \
-  nginx:1.27-alpine eclipse-temurin:21-jre \
-  pgvector/pgvector:pg16 redis:7-alpine neo4j:5.26-community \
-  | gzip > /tmp/archops-images.tar.gz
-
-# 拷到目标机后
-docker load -i /tmp/archops-images.tar.gz
-LOAD_IMAGES=1 SKIP_BUILD=1 bash deploy/scripts/remote-deploy.sh root@HOST
-```
-
-### 6. 安装后检查清单
-
-- [ ] 登录并修改默认 `admin` 密码
-- [ ] 在 **资产管理** 中添加服务器资产
-- [ ] 为各资产配置 SSH 凭证
-- [ ] 配置 `OPENAI_API_KEY` 或接入 Ollama
-- [ ] 首次部署后以管理员 JWT 调用 `POST /api/knowledge/reindex` 初始化 RAG
-- [ ] 为 Nginx 配置 TLS（反向代理或云负载均衡）
-- [ ] 防火墙仅开放 80/443
+- [ ] 修改默认管理员密码
+- [ ] 配置 `CORS_ALLOWED_ORIGINS`
+- [ ] 确认 `NEO4J_PASSWORD` ≥8 字符
+- [ ] 在图编辑中录入资产与凭证，或导入现有数据
+- [ ] 配置 AI Provider（控制台或 `OPENAI_API_KEY`）
+- [ ] 管理员调用 `POST /api/knowledge/reindex` 初始化 RAG（如需）
+- [ ] 生产环境为 80/443 配置 TLS；限制 actuator 暴露面
 
 ## 备份
 
@@ -147,53 +65,33 @@ LOAD_IMAGES=1 SKIP_BUILD=1 bash deploy/scripts/remote-deploy.sh root@HOST
 docker exec archops-postgres pg_dump -U archops archops > backup_$(date +%Y%m%d).sql
 ```
 
-### Redis
+### Redis / Neo4j
 
-Redis 使用 AOF（`appendonly yes`），数据在 Docker 卷 `redis_data` 中。
+数据在 Docker 卷 `redis_data`、`neo4j_data` 中；密钥在 `archops_secrets`。
 
 ### 恢复
 
 ```bash
-cat backup_20260101.sql | docker exec -i archops-postgres psql -U archops archops
+cat backup_YYYYMMDD.sql | docker exec -i archops-postgres psql -U archops archops
 ```
 
 ## 密钥轮换（`JWT_SECRET` / `CREDENTIALS_MASTER_KEY`）
 
-平台密钥解析优先级：环境变量 → 密钥文件（`archops.secrets.path`，Compose 下默认 `./data/secrets.properties`）→ 首次启动自动生成。
-
-### 影响说明
+解析优先级：环境变量 → 密钥文件（`archops.secrets.path`）→ 首次启动自动生成。
 
 | 密钥 | 保护内容 | 轮换影响 |
-|--------|------------------|-----------------|
-| `JWT_SECRET` | 签发 access/refresh JWT | **全部会话立即失效**，用户需重新登录。 |
-| `CREDENTIALS_MASTER_KEY` | 加密 SSH 凭证与 AI Provider API Key | **旧密文无法解密**，需重新录入凭证与 Provider Key。库中已有 RAG embedding 不受影响。 |
+|---|---|---|
+| `JWT_SECRET` | access/refresh JWT | 全部会话失效，需重新登录 |
+| `CREDENTIALS_MASTER_KEY` | SSH / Provider 密文 | 旧密文无法解密，需重新录入 |
 
-自动生成的密钥会写入 secrets 卷一次；之后手动轮换效果相同。
-
-### 推荐步骤
-
-1. **安排维护窗口** — 需重启后端并重新登录。
-2. **备份 PostgreSQL**（见上文）再轮换 `CREDENTIALS_MASTER_KEY`。
-3. **生成新值**（至少 32 随机字节，可用 base64），例如 `openssl rand -base64 32`。
-4. **更新配置：** 在 `deploy/compose/.env` 设置，或编辑 `archops_secrets` 卷中的 `jwt.secret` / `credentials.master-key`。
-5. **重启后端**（`docker compose up -d`）。
-6. **轮换 `CREDENTIALS_MASTER_KEY` 后：**
-   - 在 **资产管理** 中重新录入 SSH 凭证
-   - 在 **设置 → AI 设置** 中重新录入 Provider API Key
-   - 若同时更换了 embedding 模型/维度，再执行 `POST /api/knowledge/reindex`
-7. **通知用户** `JWT_SECRET` 变更后需重新登录。
-
-### 无需重做的事项
-
-- Flyway 迁移
-- 资产主机/端口清单（仍在 PostgreSQL）
-- 平台 AI 设置行（Provider ID、RAG 开关等）— 仅加密字段需重录
+推荐：维护窗口内备份 PostgreSQL → 生成新密钥（如 `openssl rand -base64 32`）→ 写入 `.env` 或 secrets 卷 → `docker compose up -d` → 重新录入凭证并通知用户重新登录。
 
 ## 升级
 
 ```bash
-git pull
-docker compose -f deploy/compose/compose.yaml --env-file deploy/compose/.env up -d --build
+cd deploy/compose
+git pull   # 或同步新版本源码
+docker compose up -d --build
 ```
 
-后端启动时会自动执行 Flyway 迁移。
+Flyway 会在后端启动时自动迁移；**不要改已有** `V{N}__*.sql`，只新增下一个版本。

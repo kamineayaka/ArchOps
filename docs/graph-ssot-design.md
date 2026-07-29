@@ -99,7 +99,6 @@ docker compose -f compose.yaml --env-file .env up -d
 ```
 
 - `backend` 对 `neo4j`：`depends_on: condition: service_healthy`（必选）
-- lowmem overlay 可收紧 Neo4j heap（≥256m）与容器 limit；主机仍需 ≥4 GiB
 - 后端镜像构建用基础镜像自带 `mvn`（不用 `./mvnw`，避免绕过 `MAVEN_MIRROR` 拉 Maven 本体）
 
 ## 8. 非目标（后续）

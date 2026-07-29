@@ -4,8 +4,6 @@
 
 **ArchOps AI Platform** 是一套面向 Linux 集群的云原生智能运维控制平面（B/S）。统一 Web 控制台集成：**图拓扑库存（Neo4j SSOT）**、AI 运维 Agent、Web SSH 操作台、架构事实 / Hybrid RAG、分级审批与防篡改审计。
 
-适用于单台 VPS 到小规模生产主机；仓库内远程脚本可复用到**你自己的** Linux 主机（需 SSH 密钥），不绑定某一台固定机器。
-
 ## 功能模块
 
 | 模块 | 说明 |
@@ -26,58 +24,39 @@
 ### 环境要求
 
 - Docker 24+ 与 Docker Compose v2
-- 最低 2 核、**≥4 GB 内存**（建议 8 GB）。Neo4j 为必选依赖；`<4 GB` 主机部署脚本会拒绝
-- OpenAI 兼容 / Ollama 等（可在「AI 设置」配置；也可用 `OPENAI_API_KEY` 种子迁移）
-- 前端开发：Node.js 22+
+- 建议 2 核、**≥4 GB 内存**（推荐 8 GB；Neo4j 为必选依赖）
+- 可选：OpenAI 兼容 / Ollama（可在「AI 设置」配置）
+- 前端本地开发：Node.js 22+
 
-### 本机 / 单机部署
+### 部署
 
 ```bash
 git clone https://github.com/kamineayaka/ArchOps.git
-cd ArchOps
+cd ArchOps/deploy/compose
 
-cp deploy/compose/.env.example deploy/compose/.env
+cp .env.example .env
 # 编辑 CORS_ALLOWED_ORIGINS=http://你的主机IP,http://localhost
 # 确认 NEO4J_PASSWORD（≥8 字符）
-# 国内/慢网建议在 .env 中设置 NPM_REGISTRY / MAVEN_MIRROR，或构建时加 USE_CN_MIRRORS=1
+# 慢网可选：取消注释 NPM_REGISTRY / MAVEN_MIRROR
 
-USE_CN_MIRRORS=1 bash deploy/scripts/compose-build.sh
-docker compose -f deploy/compose/compose.yaml --env-file deploy/compose/.env up -d
+docker compose up -d --build
 ```
 
-默认验证机为 **kamiserver**（见 `.cursor/rules/remote-kamiserver.mdc`）。远程部署细节见 [docs/deployment.md](docs/deployment.md)、[docs/test-deploy-server.md](docs/test-deploy-server.md)。
+浏览器访问 **http://你的服务器IP**，默认账号 `admin` / `admin123`（**首次登录后请立即修改密码**）。
 
-浏览器访问 **http://你的服务器IP**，默认账号：
-
-- 用户名：`admin`
-- 密码：`admin123`
-
-**首次登录后请立即修改密码。**
-
-建议管理员执行一次 `POST /api/knowledge/reindex` 初始化文本记忆索引。API：[docs/api.md](docs/api.md)。图设计：[docs/graph-ssot-design.md](docs/graph-ssot-design.md)。
-
-### 远程 VPS 部署（给其他克隆者）
-
-脚本是**通用的**，参数换成你自己的 `user@host` 即可（需已配置 SSH 公钥，不支持交互密码）。主机内存需 **≥4 GiB**：
-
-```bash
-# 一次性：Docker、/opt/archops
-./deploy/scripts/remote-provision.sh user@YOUR_HOST
-
-# 推荐：本机构建后再同步
-USE_CN_MIRRORS=1 PREBUILT=1 ./deploy/scripts/remote-deploy.sh user@YOUR_HOST
-```
+建议管理员执行一次 `POST /api/knowledge/reindex` 初始化文本记忆索引。  
+更多说明：[docs/deployment.md](docs/deployment.md)、[docs/api.md](docs/api.md)、[docs/graph-ssot-design.md](docs/graph-ssot-design.md)。
 
 ### 图与操作台快速路径
 
 1. 在 **图编辑** 中添加 SERVER 节点并暂存凭证，提交提案并合并。  
 2. 在 **拓扑图** 双击或右键「连接」跳转 **操作台**。  
-3. 在 **Agent** 中选择目标资产后自然语言提问；拓扑类问题优先看图上下文 / `graph_*` 工具。
+3. 在 **Agent** 中选择目标资产后自然语言提问。
 
 ## 本地开发
 
 ```bash
-# 依赖（Postgres + Redis + Neo4j）
+# 依赖
 docker compose -f deploy/compose/compose.yaml up -d postgres redis neo4j
 
 cd backend && ./mvnw spring-boot:run   # :8080
@@ -89,20 +68,10 @@ cd frontend && npm install && npm run dev   # :5173
 ```
 ArchOps/
 ├── backend/           Spring Boot 3（Java 21）+ Flyway + Neo4j
-├── frontend/          Vue 3 + Naive UI（拓扑图 / 图编辑 / 操作台 / Agent）
-├── deploy/
-│   ├── compose/       Docker Compose（含 lowmem / prebuilt）
-│   └── scripts/       本机构建与远程 provision/deploy
+├── frontend/          Vue 3 + Naive UI
+├── deploy/compose/    Docker Compose
 └── docs/              部署、API、图 SSOT 设计
 ```
-
-## 部署方式
-
-| 方式 | 适用场景 | 文档 |
-|---|---|---|
-| Docker Compose | 单机 / MVP / 小规模生产（≥4 GiB） | [docs/deployment.md](docs/deployment.md) |
-| 远程脚本 | 任意可 SSH 的 Linux（推荐 kamiserver 级规格） | [docs/test-deploy-server.md](docs/test-deploy-server.md) |
-| API 速查 | 集成 / 排查 | [docs/api.md](docs/api.md) |
 
 ## 技术栈
 

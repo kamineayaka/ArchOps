@@ -42,9 +42,6 @@ dist/
 secrets/
 credentials.json
 
-# 本机部署备注（含真实主机名/IP 时勿提交）
-docs/test-deploy-server.local.md
-
 # Logs
 *.log
 logs/

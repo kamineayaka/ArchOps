@@ -1,14 +1,12 @@
 # syntax=docker/dockerfile:1
 
-FROM node:22-alpine AS build
+FROM node:22-bookworm-slim AS build
 WORKDIR /app
 
-# Override for slow networks, e.g. China:
-#   --build-arg NPM_REGISTRY=https://registry.npmmirror.com
+# Optional: --build-arg NPM_REGISTRY=https://registry.npmmirror.com
 ARG NPM_REGISTRY=https://registry.npmjs.org
 COPY package*.json ./
-# npm 11+ rejects `npm config set supportedArchitectures.*`; alpine is already linux/musl/x64.
-RUN echo "registry=$NPM_REGISTRY" > .npmrc \
+RUN npm config set registry "$NPM_REGISTRY" \
     && npm ci --no-audit --no-fund
 
 COPY . .

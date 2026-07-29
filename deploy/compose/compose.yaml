@@ -34,8 +34,6 @@ services:
     build:
       context: ../../backend
       dockerfile: Dockerfile
-      # Prefer locally prefetched layers; buildx often ignores dockerd registry-mirrors.
-      pull: false
       args:
         # Optional: https://maven.aliyun.com/repository/public
         MAVEN_MIRROR: ${MAVEN_MIRROR:-}
@@ -120,7 +118,6 @@ services:
     build:
       context: ../../frontend
       dockerfile: Dockerfile
-      pull: false
       args:
         # Optional: https://registry.npmmirror.com
         NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmjs.org}
