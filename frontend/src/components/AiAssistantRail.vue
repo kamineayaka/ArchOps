@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { t } from '@/messages'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -433,37 +433,37 @@ onBeforeUnmount(() => {
   flex-direction: column;
   height: 100%;
   min-height: 0;
-  background: var(--co-bg-card);
+  background: var(--ao-bg-card);
 }
 
 .ai-rail__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--co-space-2);
-  padding: var(--co-space-3) var(--co-space-3) var(--co-space-3) var(--co-space-4);
-  border-bottom: 1px solid var(--co-border);
+  gap: var(--ao-space-2);
+  padding: var(--ao-space-3) var(--ao-space-3) var(--ao-space-3) var(--ao-space-4);
+  border-bottom: 1px solid var(--ao-border);
   flex-shrink: 0;
 }
 
 .ai-rail__setup,
 .ai-rail__provider {
   padding: 0.5rem 0.75rem;
-  border-bottom: 1px solid var(--co-border);
+  border-bottom: 1px solid var(--ao-border);
   flex-shrink: 0;
 }
 
 .ai-rail__setup p {
   margin: 0 0 0.5rem;
   font-size: 0.75rem;
-  color: var(--co-text-secondary);
+  color: var(--ao-text-secondary);
   line-height: 1.4;
 }
 
 .ai-rail__title {
   font-size: 0.8125rem;
   font-weight: 600;
-  color: var(--co-text);
+  color: var(--ao-text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -479,21 +479,21 @@ onBeforeUnmount(() => {
 .ai-rail__messages {
   flex: 1;
   overflow-y: auto;
-  padding: var(--co-space-3);
+  padding: var(--ao-space-3);
   min-height: 0;
 }
 
 .ai-rail__empty {
-  margin: var(--co-space-6) var(--co-space-2);
+  margin: var(--ao-space-6) var(--ao-space-2);
   font-size: 0.8125rem;
-  color: var(--co-text-muted);
+  color: var(--ao-text-muted);
   text-align: center;
   line-height: 1.5;
 }
 
 .ai-rail__row {
   display: flex;
-  margin-bottom: var(--co-space-3);
+  margin-bottom: var(--ao-space-3);
 }
 
 .ai-rail__row.user {
@@ -506,23 +506,25 @@ onBeforeUnmount(() => {
 
 .ai-rail__bubble {
   max-width: 95%;
-  padding: var(--co-space-2) var(--co-space-3);
-  border-radius: var(--co-radius);
-  background: var(--co-bg-page);
-  border: 1px solid var(--co-border);
+  padding: var(--ao-space-2) var(--ao-space-3);
+  border-radius: var(--ao-radius);
+  background: var(--ao-bg-page);
+  border: 1px solid var(--ao-border);
 }
 
 .ai-rail__row.user .ai-rail__bubble {
-  background: color-mix(in srgb, var(--co-primary) 12%, var(--co-bg-card));
-  border-color: transparent;
+  background: color-mix(in srgb, var(--ao-blueprint) 14%, var(--ao-bg-card));
+  border-color: color-mix(in srgb, var(--ao-blueprint) 30%, transparent);
 }
 
 .ai-rail__role {
   display: block;
   font-size: 0.6875rem;
   font-weight: 600;
-  color: var(--co-text-muted);
+  color: var(--ao-text-muted);
   margin-bottom: 4px;
+  font-family: var(--ao-font-mono);
+  letter-spacing: 0.03em;
 }
 
 .ai-rail__content {
@@ -532,36 +534,36 @@ onBeforeUnmount(() => {
 }
 
 .ai-rail__content :deep(.chat-code) {
-  margin: var(--co-space-2) 0;
-  padding: var(--co-space-2);
+  margin: var(--ao-space-2) 0;
+  padding: var(--ao-space-2);
   overflow-x: auto;
   font-size: 0.75rem;
-  background: var(--co-bg-page);
-  border-radius: var(--co-radius);
+  background: var(--ao-bg-page);
+  border-radius: var(--ao-radius);
 }
 
 .ai-rail__content :deep(.chat-inline-code) {
   font-size: 0.75rem;
   padding: 0 3px;
-  background: var(--co-bg-page);
+  background: var(--ao-bg-page);
   border-radius: 2px;
 }
 
 .ai-rail__loading {
   display: flex;
   align-items: center;
-  gap: var(--co-space-2);
+  gap: var(--ao-space-2);
   font-size: 0.75rem;
-  color: var(--co-text-muted);
-  padding: var(--co-space-2);
+  color: var(--ao-text-muted);
+  padding: var(--ao-space-2);
 }
 
 .ai-rail__composer {
   display: flex;
   flex-direction: column;
-  gap: var(--co-space-2);
-  padding: var(--co-space-3);
-  border-top: 1px solid var(--co-border);
+  gap: var(--ao-space-2);
+  padding: var(--ao-space-3);
+  border-top: 1px solid var(--ao-border);
   flex-shrink: 0;
 }
 </style>

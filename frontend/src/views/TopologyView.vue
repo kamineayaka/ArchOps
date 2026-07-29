@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { t } from '@/messages'
 import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
@@ -11,11 +11,12 @@ import {
   type DropdownOption,
 } from 'naive-ui'
 import cytoscape, { type Core, type ElementDefinition } from 'cytoscape'
-import PageHeader from '@/components/PageHeader.vue'
 import { getGraphSnapshot, touchTerminalDock, type GraphEdge, type GraphNode } from '@/api/graph'
 import { useAgentUiSelection } from '@/composables/useAgentUiSelection'
 import { useAuthStore } from '@/stores/auth'
 import { isOperatorOrAdmin } from '@/utils/roles'
+import { createGraphStylesheet } from '@/theme/graphStyles'
+import { aoColors } from '@/theme/tokens'
 
 const { setNodeSelection, clearSelection } = useAgentUiSelection()
 
@@ -220,64 +221,7 @@ function initCy(elements: ElementDefinition[]) {
   cy = cytoscape({
     container: containerRef.value,
     elements,
-    style: [
-      {
-        selector: 'node',
-        style: {
-          label: 'data(label)',
-          'text-wrap': 'wrap',
-          'text-valign': 'center',
-          'text-halign': 'center',
-          'font-size': 12,
-          color: '#e8eef7',
-          'background-color': '#3b82f6',
-          'border-width': 2,
-          'border-color': '#93c5fd',
-          width: 64,
-          height: 64,
-          'text-outline-width': 2,
-          'text-outline-color': '#0f172a',
-        },
-      },
-      {
-        selector: 'node[kind = "CLUSTER"]',
-        style: { 'background-color': '#a855f7', shape: 'round-rectangle', width: 80, height: 52 },
-      },
-      {
-        selector: 'node[kind = "SERVICE"]',
-        style: { 'background-color': '#6366f1' },
-      },
-      {
-        selector: 'node[kind = "TAG"]',
-        style: { 'background-color': '#14b8a6', shape: 'diamond', width: 48, height: 48 },
-      },
-      {
-        selector: 'node[kind = "ENVIRONMENT"]',
-        style: { 'background-color': '#22c55e', shape: 'round-rectangle', width: 72, height: 48 },
-      },
-      {
-        selector: 'node[kind = "DATABASE"]',
-        style: { 'background-color': '#f59e0b' },
-      },
-      {
-        selector: 'node[kind = "NETWORK"]',
-        style: { 'background-color': '#64748b', shape: 'hexagon', width: 52, height: 52 },
-      },
-      {
-        selector: 'edge',
-        style: {
-          width: 2,
-          'line-color': '#64748b',
-          'target-arrow-color': '#64748b',
-          'target-arrow-shape': 'triangle',
-          'curve-style': 'bezier',
-          label: 'data(label)',
-          'font-size': 10,
-          color: '#94a3b8',
-          'text-rotation': 'autorotate',
-        },
-      },
-    ],
+    style: createGraphStylesheet(),
     layout: { name: 'cose', animate: false, padding: 48 },
     userZoomingEnabled: true,
     userPanningEnabled: true,
@@ -340,21 +284,21 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="topology-page">
-    <PageHeader :title="t('topology.title')" :description="t('topology.subtitle')">
-      <template #extra>
-        <NSpace>
-          <NTag size="small">v{{ graphVersion }}</NTag>
-          <NButton :loading="loading" @click="loadSnapshot">{{ t('common.refresh') }}</NButton>
-          <NButton v-if="canEdit" @click="router.push({ name: 'graph' })">
-            {{ t('topology.openEditor') }}
-          </NButton>
-        </NSpace>
-      </template>
-    </PageHeader>
+    <div class="topology-toolbar">
+      <div class="topology-toolbar__meta">
+        <span class="topology-toolbar__title">{{ t('topology.title') }}</span>
+        <NTag size="small" :bordered="false">v{{ graphVersion }}</NTag>
+        <span class="topology-toolbar__hint">{{ t('topology.connectHint') }}</span>
+      </div>
+      <NSpace :size="8">
+        <NButton size="small" :loading="loading" @click="loadSnapshot">{{ t('common.refresh') }}</NButton>
+        <NButton v-if="canEdit" size="small" type="primary" @click="router.push({ name: 'graph' })">
+          {{ t('topology.openEditor') }}
+        </NButton>
+      </NSpace>
+    </div>
 
-    <p class="topology-hint">{{ t('topology.connectHint') }}</p>
-
-    <div ref="containerRef" class="topology-canvas" />
+    <div ref="containerRef" class="topology-canvas ao-blueprint-grid" />
 
     <NDropdown
       placement="bottom-start"
@@ -371,27 +315,57 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .topology-page {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: var(--co-space-3);
-  height: calc(100vh - var(--co-header-height) - var(--co-space-6) * 2);
+  height: calc(100vh - var(--ao-header-height));
   min-height: 480px;
+  background: v-bind('aoColors.ink');
 }
 
-.topology-hint {
-  margin: 0;
-  font-size: 0.8125rem;
-  color: var(--co-text-muted);
+.topology-toolbar {
+  position: absolute;
+  z-index: 2;
+  top: var(--ao-space-3);
+  left: var(--ao-space-3);
+  right: var(--ao-space-3);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ao-space-3);
+  padding: 8px 12px;
+  border: 1px solid var(--ao-border);
+  border-radius: var(--ao-radius);
+  background: color-mix(in srgb, var(--ao-slate) 92%, transparent);
+  backdrop-filter: blur(8px);
+}
+
+.topology-toolbar__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--ao-space-2);
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.topology-toolbar__title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #e8eef7;
+  letter-spacing: -0.01em;
+}
+
+.topology-toolbar__hint {
+  font-size: 0.75rem;
+  color: var(--ao-steel);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .topology-canvas {
   flex: 1;
   min-height: 0;
-  border: 1px solid var(--co-border);
-  border-radius: 8px;
-  background:
-    radial-gradient(circle at 18% 22%, rgba(59, 130, 246, 0.1), transparent 42%),
-    radial-gradient(circle at 82% 8%, rgba(20, 184, 166, 0.08), transparent 36%),
-    #0b1220;
+  width: 100%;
 }
 </style>

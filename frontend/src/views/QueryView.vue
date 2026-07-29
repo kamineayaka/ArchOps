@@ -194,8 +194,11 @@ watch(assetId, () => {
 .query-page {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  height: 100%;
+  gap: 12px;
+  height: calc(100vh - var(--ao-header-height));
+  padding: var(--ao-space-4);
+  box-sizing: border-box;
+  background: var(--ao-bg-page);
 }
 .query-meta {
   display: flex;
@@ -207,21 +210,31 @@ watch(assetId, () => {
   font-weight: 600;
 }
 .query-meta-host {
-  opacity: 0.7;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 13px;
+  opacity: 0.85;
+  font-family: var(--ao-font-mono);
+  font-size: 12px;
+  color: var(--ao-text-secondary);
 }
 .query-sql :deep(textarea) {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 13px;
+  font-family: var(--ao-font-mono) !important;
+  font-size: 13px !important;
+  background: var(--ao-ink) !important;
+  color: #e8eef7 !important;
 }
 .query-result {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  flex: 1;
+  min-height: 0;
 }
 .query-result-bar {
-  font-size: 13px;
-  opacity: 0.85;
+  font-size: 12px;
+  color: var(--ao-text-secondary);
+  font-family: var(--ao-font-mono);
+}
+.query-result :deep(.n-data-table) {
+  font-family: var(--ao-font-mono);
+  font-size: 12px;
 }
 </style>

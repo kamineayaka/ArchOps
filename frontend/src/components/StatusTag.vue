@@ -17,6 +17,7 @@ const tagType = computed(() => {
   if (props.kind === 'status') {
     if (v === 'SUCCESS' || v === 'APPROVED') return 'success'
     if (v === 'FAILURE' || v === 'REJECTED' || v === 'ERROR') return 'error'
+    if (v === 'PENDING') return 'warning'
     return 'default'
   }
   if (props.kind === 'credential') {
@@ -27,5 +28,5 @@ const tagType = computed(() => {
 </script>
 
 <template>
-  <NTag :type="tagType" size="small" round>{{ value }}</NTag>
+  <NTag :type="tagType" size="small">{{ value }}</NTag>
 </template>

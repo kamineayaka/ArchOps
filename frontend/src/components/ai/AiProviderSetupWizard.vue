@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { t } from '@/messages'
 import { computed, nextTick, ref, watch } from 'vue'
 import {
@@ -490,14 +490,14 @@ async function handleFinish() {
 
 <style scoped>
 .wizard-desc {
-  margin: 0 0 var(--co-space-4);
-  color: var(--co-text-secondary);
+  margin: 0 0 var(--ao-space-4);
+  color: var(--ao-text-secondary);
   font-size: 0.875rem;
   line-height: 1.5;
 }
 
 .wizard-steps {
-  margin-bottom: var(--co-space-4);
+  margin-bottom: var(--ao-space-4);
 }
 
 .wizard-body {
@@ -505,32 +505,32 @@ async function handleFinish() {
 }
 
 .wizard-hint {
-  margin: 0 0 var(--co-space-3);
-  color: var(--co-text-secondary);
+  margin: 0 0 var(--ao-space-3);
+  color: var(--ao-text-secondary);
   font-size: 0.875rem;
 }
 
 .wizard-alert {
-  margin-bottom: var(--co-space-3);
+  margin-bottom: var(--ao-space-3);
 }
 
 .wizard-actions {
-  margin-top: var(--co-space-4);
+  margin-top: var(--ao-space-4);
 }
 
 .type-label {
   font-weight: 600;
-  margin-right: var(--co-space-2);
+  margin-right: var(--ao-space-2);
 }
 
 .type-hint {
-  color: var(--co-text-muted);
+  color: var(--ao-text-muted);
   font-size: 0.8125rem;
 }
 
 .field-hint {
-  margin: -0.5rem 0 var(--co-space-3);
-  color: var(--co-text-muted);
+  margin: -0.5rem 0 var(--ao-space-3);
+  color: var(--ao-text-muted);
   font-size: 0.75rem;
   line-height: 1.4;
 }

@@ -1,39 +1,52 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 :root {
-  --co-primary: #0f766e;
-  --co-primary-hover: #0d9488;
-  --co-bg-page: #f1f5f9;
-  --co-bg-card: #ffffff;
-  --co-bg-elevated: #ffffff;
-  --co-text: #0f172a;
-  --co-text-secondary: #64748b;
-  --co-text-muted: #94a3b8;
-  --co-border: #e2e8f0;
-  --co-success: #16a34a;
-  --co-warning: #d97706;
-  --co-error: #dc2626;
-  --co-info: #2563eb;
-  --co-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
-  --co-shadow-lg: 0 4px 12px rgba(15, 23, 42, 0.08);
-  --co-radius-sm: 6px;
-  --co-radius: 8px;
-  --co-radius-lg: 12px;
-  --co-space-1: 4px;
-  --co-space-2: 8px;
-  --co-space-3: 12px;
-  --co-space-4: 16px;
-  --co-space-5: 20px;
-  --co-space-6: 24px;
-  --co-space-8: 32px;
-  --co-header-height: 56px;
-  --co-sider-width: 232px;
-  --co-content-max-width: 1280px;
-  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --ao-ink: #0b1220;
+  --ao-slate: #152033;
+  --ao-steel: #8ba3c7;
+  --ao-blueprint: #3d8bff;
+  --ao-blueprint-hover: #5ba0ff;
+  --ao-blueprint-pressed: #2b6fd9;
+  --ao-signal: #e8a317;
+  --ao-live: #2bb673;
+  --ao-error: #e5484d;
+  --ao-info: #3d8bff;
+
+  --ao-primary: var(--ao-blueprint);
+  --ao-primary-hover: var(--ao-blueprint-hover);
+  --ao-bg-page: #eef2f7;
+  --ao-bg-card: #ffffff;
+  --ao-bg-elevated: #f7f9fc;
+  --ao-text: #0b1220;
+  --ao-text-secondary: #4a5d78;
+  --ao-text-muted: #7a8fa8;
+  --ao-border: #d4dde8;
+  --ao-success: var(--ao-live);
+  --ao-warning: var(--ao-signal);
+  --ao-shadow: 0 1px 2px rgba(11, 18, 32, 0.05);
+  --ao-shadow-lg: 0 4px 12px rgba(11, 18, 32, 0.08);
+  --ao-radius-sm: 4px;
+  --ao-radius: 6px;
+  --ao-radius-lg: 8px;
+  --ao-space-1: 4px;
+  --ao-space-2: 8px;
+  --ao-space-3: 12px;
+  --ao-space-4: 16px;
+  --ao-space-5: 20px;
+  --ao-space-6: 24px;
+  --ao-space-8: 32px;
+  --ao-header-height: 48px;
+  --ao-sider-width: 212px;
+  --ao-content-max-width: 1280px;
+  --ao-font-sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --ao-font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', Menlo, monospace;
+  --ao-focus-ring: 0 0 0 2px var(--ao-bg-page), 0 0 0 4px var(--ao-blueprint);
+
+  font-family: var(--ao-font-sans);
   line-height: 1.5;
   font-weight: 400;
-  color: var(--co-text);
-  background-color: var(--co-bg-page);
+  color: var(--ao-text);
+  background-color: var(--ao-bg-page);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -42,15 +55,16 @@
 }
 
 html.dark {
-  --co-bg-page: #0f172a;
-  --co-bg-card: #1e293b;
-  --co-bg-elevated: #334155;
-  --co-text: #f1f5f9;
-  --co-text-secondary: #94a3b8;
-  --co-text-muted: #64748b;
-  --co-border: #334155;
-  --co-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-  --co-shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --ao-bg-page: var(--ao-ink);
+  --ao-bg-card: var(--ao-slate);
+  --ao-bg-elevated: #1c2a40;
+  --ao-text: #e8eef7;
+  --ao-text-secondary: var(--ao-steel);
+  --ao-text-muted: #6b7f99;
+  --ao-border: #243247;
+  --ao-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  --ao-shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.35);
+  --ao-focus-ring: 0 0 0 2px var(--ao-bg-page), 0 0 0 4px var(--ao-blueprint);
   color-scheme: dark;
 }
 
@@ -73,32 +87,43 @@ a {
   text-decoration: none;
 }
 
+:focus-visible {
+  outline: none;
+  box-shadow: var(--ao-focus-ring);
+}
+
 .skip-link {
   position: absolute;
   top: -100px;
-  left: var(--co-space-4);
+  left: var(--ao-space-4);
   z-index: 9999;
-  padding: var(--co-space-2) var(--co-space-4);
-  background: var(--co-primary);
+  padding: var(--ao-space-2) var(--ao-space-4);
+  background: var(--ao-primary);
   color: #fff;
-  border-radius: var(--co-radius-sm);
+  border-radius: var(--ao-radius-sm);
   font-size: 0.875rem;
   font-weight: 500;
 }
 
 .skip-link:focus {
-  top: var(--co-space-4);
-  outline: 2px solid var(--co-primary-hover);
-  outline-offset: 2px;
+  top: var(--ao-space-4);
+  box-shadow: var(--ao-focus-ring);
 }
 
 .page-shell {
-  max-width: var(--co-content-max-width);
+  max-width: var(--ao-content-max-width);
   margin: 0 auto;
 }
 
+.page-shell--flush {
+  max-width: none;
+  margin: 0;
+  height: 100%;
+}
+
 .page-card {
-  box-shadow: var(--co-shadow);
+  box-shadow: none;
+  border: 1px solid var(--ao-border);
 }
 
 .modal-md {
@@ -117,23 +142,37 @@ a {
   width: 320px;
 }
 
+.ao-mono {
+  font-family: var(--ao-font-mono);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.ao-blueprint-grid {
+  background-color: var(--ao-ink);
+  background-image:
+    linear-gradient(var(--ao-canvas-grid, rgba(61, 139, 255, 0.07)) 1px, transparent 1px),
+    linear-gradient(90deg, var(--ao-canvas-grid, rgba(61, 139, 255, 0.07)) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
 .chat-inline-code {
   padding: 0.1em 0.35em;
-  border-radius: 4px;
-  background: var(--co-bg-page);
+  border-radius: 3px;
+  background: var(--ao-bg-page);
   font-size: 0.875em;
-  font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, monospace;
+  font-family: var(--ao-font-mono);
 }
 
 .chat-code {
-  margin: var(--co-space-2) 0;
-  padding: var(--co-space-3);
-  border-radius: var(--co-radius-sm);
-  background: var(--co-bg-page);
+  margin: var(--ao-space-2) 0;
+  padding: var(--ao-space-3);
+  border-radius: var(--ao-radius-sm);
+  background: var(--ao-bg-page);
   overflow-x: auto;
   font-size: 0.8125rem;
   line-height: 1.5;
-  font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, monospace;
+  font-family: var(--ao-font-mono);
 }
 
 @media (prefers-reduced-motion: reduce) {

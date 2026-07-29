@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { t } from '@/messages'
 import { computed, h, onMounted, ref } from 'vue'
-import { NButton, NCard, NDataTable, NTag, NSpace, useMessage } from 'naive-ui'
+import { NButton, NCard, NDataTable, NSpace, useMessage } from 'naive-ui'
 import client from '@/api/client'
 import type { ApiResponse } from '@/api/types'
 import EmptyState from '@/components/EmptyState.vue'
 import PageHeader from '@/components/PageHeader.vue'
+import StatusTag from '@/components/StatusTag.vue'
 import { formatDateTime } from '@/utils/format'
 
 const message = useMessage()
@@ -26,19 +27,34 @@ const loading = ref(false)
 const columns = computed(() => [
   { title: t('common.id'), key: 'id', width: 70 },
   { title: t('audit.actor'), key: 'actorName' },
-  { title: t('audit.action'), key: 'action' },
-  { title: t('audit.resource'), key: 'resource', ellipsis: { tooltip: true } },
-  { title: t('audit.risk'), key: 'riskLevel' },
+  {
+    title: t('audit.action'),
+    key: 'action',
+    render: (row: AuditLog) => h('code', { class: 'ao-mono' }, row.action),
+  },
+  {
+    title: t('audit.resource'),
+    key: 'resource',
+    ellipsis: { tooltip: true },
+    render: (row: AuditLog) =>
+      h('code', { class: 'ao-mono', style: 'font-size: 0.75rem' }, row.resource || '—'),
+  },
+  {
+    title: t('audit.risk'),
+    key: 'riskLevel',
+    render: (row: AuditLog) =>
+      row.riskLevel ? h(StatusTag, { kind: 'risk', value: row.riskLevel }) : '—',
+  },
   {
     title: t('audit.status'),
     key: 'status',
-    render: (row: AuditLog) =>
-      h(NTag, { type: row.status === 'SUCCESS' ? 'success' : 'error', size: 'small', round: true }, { default: () => row.status }),
+    render: (row: AuditLog) => h(StatusTag, { kind: 'status', value: row.status }),
   },
   {
     title: t('audit.time'),
     key: 'createdAt',
-    render: (row: AuditLog) => formatDateTime(row.createdAt),
+    render: (row: AuditLog) =>
+      h('span', { class: 'ao-mono', style: 'font-size: 0.75rem' }, formatDateTime(row.createdAt)),
   },
 ])
 
@@ -76,8 +92,8 @@ onMounted(load)
       </template>
     </PageHeader>
 
-    <NCard class="page-card" :bordered="false">
-      <NDataTable :columns="columns" :data="logs" :loading="loading" :bordered="false" />
+    <NCard class="page-card" size="small">
+      <NDataTable size="small" :columns="columns" :data="logs" :loading="loading" :bordered="false" />
       <EmptyState v-if="!loading && logs.length === 0" :message="t('audit.empty')" />
     </NCard>
   </NSpace>

@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { t } from '@/messages'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -640,10 +640,10 @@ onBeforeUnmount(() => {
 .agent-window {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - var(--co-header-height) - var(--co-space-6) * 2);
+  height: calc(100vh - var(--ao-header-height));
   min-height: 480px;
-  margin: calc(var(--co-space-6) * -1);
-  width: calc(100% + var(--co-space-6) * 2);
+  width: 100%;
+  background: var(--ao-bg-page);
 }
 
 .agent-window__main {
@@ -652,23 +652,24 @@ onBeforeUnmount(() => {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  padding: var(--co-space-6);
+  padding: var(--ao-space-4);
 }
 
 .target-tags {
-  margin-bottom: var(--co-space-2);
+  margin-bottom: var(--ao-space-2);
   flex-wrap: wrap;
 }
 
 .grant-strip {
-  margin-bottom: var(--co-space-2);
+  margin-bottom: var(--ao-space-2);
   flex-wrap: wrap;
   align-items: center;
 }
 
 .grant-strip__label {
   font-size: 0.75rem;
-  color: var(--co-text-muted);
+  color: var(--ao-text-muted);
+  font-family: var(--ao-font-mono);
 }
 
 .chat-card {
@@ -676,6 +677,8 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  border: 1px solid var(--ao-border) !important;
+  box-shadow: none !important;
 }
 
 .chat-card :deep(.n-card__content) {
@@ -689,13 +692,13 @@ onBeforeUnmount(() => {
 .chat-messages {
   flex: 1;
   overflow-y: auto;
-  padding: var(--co-space-4) 0;
+  padding: var(--ao-space-4) 0;
   min-height: 0;
 }
 
 .chat-row {
   display: flex;
-  margin-bottom: var(--co-space-4);
+  margin-bottom: var(--ao-space-3);
 }
 
 .chat-row.user {
@@ -707,35 +710,35 @@ onBeforeUnmount(() => {
 }
 
 .chat-bubble {
-  max-width: min(85%, 640px);
-  padding: var(--co-space-3) var(--co-space-4);
-  border-radius: var(--co-radius-lg);
-  border: 1px solid var(--co-border);
+  max-width: min(85%, 720px);
+  padding: var(--ao-space-3) var(--ao-space-4);
+  border-radius: var(--ao-radius);
+  border: 1px solid var(--ao-border);
 }
 
 .chat-row.user .chat-bubble {
-  background: rgba(15, 118, 110, 0.12);
-  border-color: rgba(15, 118, 110, 0.25);
+  background: color-mix(in srgb, var(--ao-blueprint) 14%, var(--ao-bg-card));
+  border-color: color-mix(in srgb, var(--ao-blueprint) 35%, var(--ao-border));
 }
 
 .chat-row.assistant .chat-bubble {
-  background: var(--co-bg-page);
+  background: var(--ao-bg-elevated);
 }
 
 .chat-bubble__role {
   display: block;
   font-size: 0.6875rem;
   font-weight: 600;
-  text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--co-text-muted);
-  margin-bottom: var(--co-space-2);
+  color: var(--ao-text-muted);
+  margin-bottom: var(--ao-space-2);
+  font-family: var(--ao-font-mono);
 }
 
 .chat-bubble__content {
   font-size: 0.875rem;
   line-height: 1.6;
-  color: var(--co-text);
+  color: var(--ao-text);
   word-break: break-word;
 }
 
@@ -744,30 +747,42 @@ onBeforeUnmount(() => {
     position: absolute;
     z-index: 5;
     height: 100%;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    box-shadow: var(--ao-shadow-lg);
   }
 }
 
 .tool-block {
-  margin-bottom: var(--co-space-3);
-  padding: var(--co-space-2) var(--co-space-3);
-  border-radius: var(--co-radius-md);
-  border: 1px dashed var(--co-border);
-  background: rgba(15, 118, 110, 0.04);
+  margin-bottom: var(--ao-space-3);
+  padding: var(--ao-space-2) var(--ao-space-3);
+  border-radius: var(--ao-radius-sm);
+  border: 1px solid var(--ao-border);
+  border-left: 3px solid var(--ao-blueprint);
+  background: var(--ao-bg-page);
+}
+
+.tool-block[data-risk='HIGH'],
+.tool-block[data-risk='high'] {
+  border-left-color: var(--ao-error);
+}
+
+.tool-block[data-risk='MEDIUM'],
+.tool-block[data-risk='medium'] {
+  border-left-color: var(--ao-signal);
 }
 
 .tool-block__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--co-space-2);
-  margin-bottom: var(--co-space-2);
+  gap: var(--ao-space-2);
+  margin-bottom: var(--ao-space-2);
 }
 
 .tool-block__name {
   font-size: 0.75rem;
   font-weight: 600;
-  font-family: var(--co-font-mono, monospace);
+  font-family: var(--ao-font-mono);
+  color: var(--ao-blueprint);
 }
 
 .tool-block__output {
@@ -776,41 +791,42 @@ onBeforeUnmount(() => {
   line-height: 1.5;
   white-space: pre-wrap;
   word-break: break-word;
-  color: var(--co-text-secondary);
+  color: var(--ao-text-secondary);
   max-height: 200px;
   overflow-y: auto;
+  font-family: var(--ao-font-mono);
 }
 
 .approval-alert {
-  margin-bottom: var(--co-space-3);
+  margin-bottom: var(--ao-space-3);
 }
 
 .approval-hint {
-  margin-top: var(--co-space-2);
+  margin-top: var(--ao-space-2);
   font-size: 0.75rem;
-  color: var(--co-text-muted);
+  color: var(--ao-text-muted);
 }
 
 .hint-link {
   display: inline-block;
-  margin-top: var(--co-space-2);
+  margin-top: var(--ao-space-2);
   font-size: 0.8125rem;
-  color: var(--co-primary);
+  color: var(--ao-primary);
   text-decoration: underline;
 }
 
 .chat-loading {
   display: flex;
   align-items: center;
-  gap: var(--co-space-2);
-  padding: var(--co-space-2) 0;
+  gap: var(--ao-space-2);
+  padding: var(--ao-space-2) 0;
   font-size: 0.8125rem;
-  color: var(--co-text-secondary);
+  color: var(--ao-text-secondary);
 }
 
 .chat-input {
-  border-top: 1px solid var(--co-border);
-  padding-top: var(--co-space-4);
+  border-top: 1px solid var(--ao-border);
+  padding-top: var(--ao-space-3);
   margin-top: auto;
 }
 
@@ -822,13 +838,13 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: var(--co-space-3);
-  gap: var(--co-space-4);
+  margin-top: var(--ao-space-3);
+  gap: var(--ao-space-4);
 }
 
 .chat-input__hint {
   font-size: 0.75rem;
-  color: var(--co-text-muted);
+  color: var(--ao-text-muted);
 }
 
 .select-lg {

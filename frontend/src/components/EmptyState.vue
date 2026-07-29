@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 defineProps<{
   message: string
   hint?: string
@@ -17,23 +17,27 @@ defineProps<{
 
 <style scoped>
 .empty-state {
-  padding: var(--co-space-8) var(--co-space-4);
+  padding: var(--ao-space-8) var(--ao-space-4);
   text-align: center;
+  border: 1px dashed var(--ao-border);
+  border-radius: var(--ao-radius);
+  background: var(--ao-bg-elevated);
 }
 
 .empty-state__message {
   margin: 0;
-  font-size: 0.9375rem;
-  color: var(--co-text-secondary);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--ao-text-secondary);
 }
 
 .empty-state__hint {
-  margin: var(--co-space-2) 0 0;
+  margin: var(--ao-space-2) 0 0;
   font-size: 0.8125rem;
-  color: var(--co-text-muted);
+  color: var(--ao-text-muted);
 }
 
 .empty-state__action {
-  margin-top: var(--co-space-4);
+  margin-top: var(--ao-space-4);
 }
 </style>

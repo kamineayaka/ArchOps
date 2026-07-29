@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { t } from '@/messages'
 import { computed, h } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -37,6 +37,8 @@ import { useAuthStore } from '@/stores/auth'
 import { useTheme } from '@/composables/useTheme'
 import { isAdmin as roleIsAdmin, isOperatorOrAdmin } from '@/utils/roles'
 
+const FLUSH_ROUTES = new Set(['topology', 'graph', 'terminal', 'ai', 'agent', 'query'])
+
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
@@ -56,6 +58,7 @@ const userInitial = computed(() => (username.value ? username.value.charAt(0).to
 
 const isAdmin = computed(() => roleIsAdmin(authStore.user?.roles))
 const canEditGraph = computed(() => isOperatorOrAdmin(authStore.user?.roles))
+const flushContent = computed(() => FLUSH_ROUTES.has(String(route.name)))
 
 const pageTitle = computed(() => {
   const key = route.meta.titleKey as string | undefined
@@ -123,19 +126,25 @@ async function handleLogout() {
       class="app-sider"
       bordered
       collapse-mode="width"
-      :collapsed-width="64"
-      :width="232"
+      :collapsed-width="56"
+      :width="212"
       show-trigger
     >
       <div class="brand">
-        <div class="brand__mark" aria-hidden="true">CO</div>
+        <div class="brand__mark" aria-hidden="true">AO</div>
         <div class="brand__text">
           <span class="brand__name">{{ t('common.appName') }}</span>
           <span class="brand__tag">{{ t('common.appTagline') }}</span>
         </div>
       </div>
       <nav :aria-label="t('common.mainNav')">
-        <NMenu :value="activeKey" :options="menuOptions" @update:value="handleMenu" />
+        <NMenu
+          class="app-menu"
+          :value="activeKey"
+          :options="menuOptions"
+          :indent="18"
+          @update:value="handleMenu"
+        />
       </nav>
     </NLayoutSider>
     <NLayout>
@@ -144,12 +153,13 @@ async function handleLogout() {
           <div class="header__title">
             <h2 class="header__page-title">{{ pageTitle }}</h2>
           </div>
-          <NSpace align="center" :size="12">
+          <NSpace align="center" :size="8">
             <template v-if="railAllowed">
               <NTooltip :show-arrow="false">
                 <template #trigger>
                   <NButton
                     quaternary
+                    size="small"
                     :type="open || pinned ? 'primary' : 'default'"
                     :aria-label="t('workbench.toggleAiRail')"
                     @click="toggleOpen"
@@ -163,7 +173,13 @@ async function handleLogout() {
             </template>
             <NTooltip :show-arrow="false">
               <template #trigger>
-                <NButton quaternary circle :aria-label="isDark ? t('common.lightMode') : t('common.darkMode')" @click="toggle">
+                <NButton
+                  quaternary
+                  circle
+                  size="small"
+                  :aria-label="isDark ? t('common.lightMode') : t('common.darkMode')"
+                  @click="toggle"
+                >
                   <template #icon>
                     <NIcon :component="isDark ? SunnyOutline : MoonOutline" />
                   </template>
@@ -175,7 +191,7 @@ async function handleLogout() {
               <NAvatar round size="small" class="user-avatar">{{ userInitial }}</NAvatar>
               <NText class="user-name">{{ username }}</NText>
             </NSpace>
-            <NButton quaternary @click="handleLogout">
+            <NButton quaternary size="small" @click="handleLogout">
               <template #icon><NIcon :component="LogOutOutline" /></template>
               {{ t('common.logout') }}
             </NButton>
@@ -183,8 +199,13 @@ async function handleLogout() {
         </div>
       </NLayoutHeader>
       <NLayout has-sider class="workbench">
-        <NLayoutContent id="main-content" class="content" tag="main">
-          <div class="page-shell">
+        <NLayoutContent
+          id="main-content"
+          class="content"
+          :class="{ 'content--flush': flushContent }"
+          tag="main"
+        >
+          <div class="page-shell" :class="{ 'page-shell--flush': flushContent }">
             <RouterView />
           </div>
         </NLayoutContent>
@@ -237,6 +258,10 @@ async function handleLogout() {
   min-height: 100vh;
 }
 
+.app-sider {
+  background: var(--ao-bg-card);
+}
+
 .app-sider :deep(.n-layout-sider-scroll-container) {
   display: flex;
   flex-direction: column;
@@ -245,23 +270,24 @@ async function handleLogout() {
 .brand {
   display: flex;
   align-items: center;
-  gap: var(--co-space-3);
-  padding: var(--co-space-5) var(--co-space-4) var(--co-space-4);
-  border-bottom: 1px solid var(--co-border);
+  gap: var(--ao-space-2);
+  padding: var(--ao-space-4) var(--ao-space-3) var(--ao-space-3);
+  border-bottom: 1px solid var(--ao-border);
 }
 
 .brand__mark {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: var(--co-radius);
-  background: var(--co-primary);
+  width: 32px;
+  height: 32px;
+  border-radius: var(--ao-radius-sm);
+  background: var(--ao-blueprint);
   color: #fff;
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   font-weight: 700;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.04em;
+  font-family: var(--ao-font-mono);
   flex-shrink: 0;
 }
 
@@ -273,26 +299,51 @@ async function handleLogout() {
 
 .brand__name {
   font-weight: 600;
-  font-size: 0.875rem;
-  color: var(--co-text);
-  line-height: 1.3;
+  font-size: 0.8125rem;
+  color: var(--ao-text);
+  line-height: 1.25;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .brand__tag {
-  font-size: 0.6875rem;
-  color: var(--co-text-muted);
+  font-size: 0.625rem;
+  color: var(--ao-text-muted);
   line-height: 1.3;
+  letter-spacing: 0.02em;
+}
+
+.app-menu {
+  padding: var(--ao-space-2);
+}
+
+.app-menu :deep(.n-menu-item-content) {
+  border-radius: var(--ao-radius-sm) !important;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.app-menu :deep(.n-menu-item-content--selected) {
+  position: relative;
+}
+
+.app-menu :deep(.n-menu-item-content--selected::before) {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
+  border-radius: 0 2px 2px 0;
+  background: var(--ao-blueprint);
 }
 
 .header {
-  height: var(--co-header-height);
+  height: var(--ao-header-height);
   display: flex;
   align-items: center;
-  padding: 0 var(--co-space-6);
-  background: var(--co-bg-card);
+  padding: 0 var(--ao-space-4);
+  background: var(--ao-bg-card);
 }
 
 .header__inner {
@@ -300,39 +351,46 @@ async function handleLogout() {
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  gap: var(--co-space-4);
+  gap: var(--ao-space-3);
 }
 
 .header__page-title {
   margin: 0;
-  font-size: 1rem;
+  font-size: 0.9375rem;
   font-weight: 600;
-  color: var(--co-text);
+  color: var(--ao-text);
+  letter-spacing: -0.01em;
 }
 
 .user-name {
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
+  color: var(--ao-text-secondary);
 }
 
 .user-avatar {
-  background: var(--co-primary) !important;
+  background: var(--ao-blueprint) !important;
   color: #fff !important;
   font-size: 0.75rem;
   font-weight: 600;
 }
 
 .workbench {
-  min-height: calc(100vh - var(--co-header-height));
+  min-height: calc(100vh - var(--ao-header-height));
 }
 
 .content {
-  padding: var(--co-space-6);
-  min-height: calc(100vh - var(--co-header-height));
-  background: var(--co-bg-page);
+  padding: var(--ao-space-5);
+  min-height: calc(100vh - var(--ao-header-height));
+  background: var(--ao-bg-page);
+}
+
+.content--flush {
+  padding: 0;
 }
 
 .ai-rail-sider {
-  background: var(--co-bg-card);
+  background: var(--ao-bg-card);
+  border-left: 1px solid var(--ao-border);
 }
 
 .ai-rail-sider :deep(.n-layout-sider-scroll-container) {
@@ -342,7 +400,7 @@ async function handleLogout() {
 .ai-rail-collapsed {
   display: flex;
   justify-content: center;
-  padding-top: var(--co-space-4);
+  padding-top: var(--ao-space-3);
 }
 
 @media (max-width: 900px) {
@@ -357,11 +415,11 @@ async function handleLogout() {
   }
 
   .header {
-    padding: 0 var(--co-space-4);
+    padding: 0 var(--ao-space-3);
   }
 
-  .content {
-    padding: var(--co-space-4);
+  .content:not(.content--flush) {
+    padding: var(--ao-space-3);
   }
 }
 </style>

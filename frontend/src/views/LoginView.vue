@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { t } from '@/messages'
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
@@ -32,11 +32,13 @@ async function handleSubmit() {
 
 <template>
   <div class="login-page">
-    <div class="login-backdrop" aria-hidden="true" />
-    <NCard class="login-card page-card" :bordered="false">
+    <div class="login-backdrop ao-blueprint-grid" aria-hidden="true" />
+    <div class="login-glow" aria-hidden="true" />
+    <NCard class="login-card" :bordered="true">
       <div class="login-brand">
-        <div class="login-brand__mark">CO</div>
+        <div class="login-brand__mark">AO</div>
         <div>
+          <p class="login-brand__product">{{ t('common.appName') }}</p>
           <h1 class="login-brand__title">{{ t('auth.title') }}</h1>
           <p class="login-brand__subtitle">{{ t('auth.subtitle') }}</p>
         </div>
@@ -60,7 +62,7 @@ async function handleSubmit() {
             @keyup.enter="handleSubmit"
           />
         </NFormItem>
-        <NSpace vertical :size="16">
+        <NSpace vertical :size="12">
           <NButton type="primary" block :loading="authStore.loading" attr-type="submit" @click="handleSubmit">
             {{ t('common.login') }}
           </NButton>
@@ -78,32 +80,49 @@ async function handleSubmit() {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: var(--co-space-6);
-  background: #0f172a;
+  padding: var(--ao-space-6);
+  background: var(--ao-ink);
   overflow: hidden;
 }
 
 .login-backdrop {
   position: absolute;
   inset: 0;
+  opacity: 1;
+}
+
+.login-glow {
+  position: absolute;
+  inset: 0;
   background:
-    radial-gradient(ellipse 80% 60% at 20% 20%, rgba(15, 118, 110, 0.35), transparent),
-    radial-gradient(ellipse 60% 50% at 80% 80%, rgba(30, 41, 59, 0.8), transparent),
-    linear-gradient(160deg, #0f172a 0%, #1e293b 45%, #0f766e 100%);
+    radial-gradient(ellipse 70% 50% at 15% 20%, rgba(61, 139, 255, 0.18), transparent 55%),
+    radial-gradient(ellipse 50% 40% at 85% 80%, rgba(232, 163, 23, 0.08), transparent 50%);
+  pointer-events: none;
 }
 
 .login-card {
   position: relative;
   width: 100%;
-  max-width: 420px;
+  max-width: 400px;
   z-index: 1;
+  background: var(--ao-slate) !important;
+  border-color: var(--ao-border) !important;
+  color: var(--ao-text);
+}
+
+.login-card :deep(.n-card__content) {
+  color: #e8eef7;
+}
+
+.login-card :deep(.n-form-item-label) {
+  color: #8ba3c7 !important;
 }
 
 .login-brand {
   display: flex;
-  gap: var(--co-space-4);
+  gap: var(--ao-space-3);
   align-items: flex-start;
-  margin-bottom: var(--co-space-6);
+  margin-bottom: var(--ao-space-5);
 }
 
 .login-brand__mark {
@@ -112,34 +131,46 @@ async function handleSubmit() {
   justify-content: center;
   width: 44px;
   height: 44px;
-  border-radius: var(--co-radius);
-  background: var(--co-primary);
+  border-radius: var(--ao-radius-sm);
+  background: var(--ao-blueprint);
   color: #fff;
   font-size: 0.8125rem;
   font-weight: 700;
+  letter-spacing: 0.04em;
+  font-family: var(--ao-font-mono);
   flex-shrink: 0;
+}
+
+.login-brand__product {
+  margin: 0 0 4px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ao-blueprint);
 }
 
 .login-brand__title {
   margin: 0;
-  font-size: 1.25rem;
+  font-size: 1.375rem;
   font-weight: 600;
-  color: var(--co-text);
-  line-height: 1.3;
+  color: #e8eef7;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
   text-wrap: balance;
 }
 
 .login-brand__subtitle {
-  margin: var(--co-space-2) 0 0;
+  margin: var(--ao-space-2) 0 0;
   font-size: 0.875rem;
-  color: var(--co-text-secondary);
+  color: #8ba3c7;
   line-height: 1.5;
 }
 
 .hint {
   margin: 0;
   font-size: 0.75rem;
-  color: var(--co-text-muted);
+  color: #6b7f99;
   text-align: center;
   line-height: 1.5;
 }

@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 defineProps<{
   title: string
   description?: string
@@ -22,24 +22,25 @@ defineProps<{
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: var(--co-space-4);
-  margin-bottom: var(--co-space-4);
+  gap: var(--ao-space-3);
+  margin-bottom: var(--ao-space-4);
 }
 
 .page-header__title {
   margin: 0;
-  font-size: 1.375rem;
+  font-size: 1.25rem;
   font-weight: 600;
-  line-height: 1.3;
-  color: var(--co-text);
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  color: var(--ao-text);
   text-wrap: balance;
 }
 
 .page-header__desc {
-  margin: var(--co-space-2) 0 0;
-  font-size: 0.875rem;
+  margin: var(--ao-space-1) 0 0;
+  font-size: 0.8125rem;
   line-height: 1.5;
-  color: var(--co-text-secondary);
+  color: var(--ao-text-secondary);
   max-width: 52rem;
 }
 

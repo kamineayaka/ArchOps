@@ -4,7 +4,7 @@ export type ThemeMode = 'light' | 'dark' | 'system'
 
 const STORAGE_KEY = 'archops-theme'
 
-const stored = (localStorage.getItem(STORAGE_KEY) as ThemeMode | null) ?? 'system'
+const stored = (localStorage.getItem(STORAGE_KEY) as ThemeMode | null) ?? 'dark'
 const mode = ref<ThemeMode>(stored)
 
 function systemPrefersDark() {

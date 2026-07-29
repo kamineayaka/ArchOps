@@ -454,7 +454,7 @@ onMounted(async () => {
       {{ reindexAlertText }}
     </NAlert>
 
-    <NCard v-if="!loading && showSetupPrompt" class="page-card setup-prompt" :bordered="false">
+    <NCard v-if="!loading && showSetupPrompt" class="page-card setup-prompt" size="small">
       <NSpace vertical :size="12">
         <div>
           <h3 class="setup-prompt__title">
@@ -471,7 +471,7 @@ onMounted(async () => {
       </NSpace>
     </NCard>
 
-    <NCard class="page-card" :title="t('aiSettings.providersTitle')" :bordered="false">
+    <NCard class="page-card" size="small" :title="t('aiSettings.providersTitle')">
       <template #header-extra>
         <NSpace>
           <NButton v-if="needsFirstRun || needsDefault" @click="showWizard = true">
@@ -488,7 +488,7 @@ onMounted(async () => {
       </EmptyState>
     </NCard>
 
-    <NCard class="page-card" :title="t('aiSettings.platformTitle')" :bordered="false">
+    <NCard class="page-card" size="small" :title="t('aiSettings.platformTitle')">
       <NForm label-placement="left" label-width="180">
         <NFormItem :label="t('aiSettings.defaultChat')">
           <NSelect v-model:value="settings.defaultChatProviderId" :options="chatProviderOptions" clearable />
@@ -607,7 +607,7 @@ onMounted(async () => {
 
 <style scoped>
 .hint {
-  color: var(--co-text-secondary);
+  color: var(--ao-text-secondary);
   font-size: 0.8125rem;
   margin: 0;
   line-height: 1.5;
@@ -618,8 +618,8 @@ onMounted(async () => {
 }
 
 .field-hint {
-  margin: -0.5rem 0 var(--co-space-3);
-  color: var(--co-text-muted);
+  margin: -0.5rem 0 var(--ao-space-3);
+  color: var(--ao-text-muted);
   font-size: 0.75rem;
   line-height: 1.4;
 }
@@ -629,14 +629,14 @@ onMounted(async () => {
 }
 
 .setup-prompt__title {
-  margin: 0 0 var(--co-space-2);
+  margin: 0 0 var(--ao-space-2);
   font-size: 1rem;
   font-weight: 600;
 }
 
 .setup-prompt__desc {
   margin: 0;
-  color: var(--co-text-secondary);
+  color: var(--ao-text-secondary);
   font-size: 0.875rem;
   line-height: 1.5;
 }

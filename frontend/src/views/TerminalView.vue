@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { t } from '@/messages'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -13,6 +13,7 @@ import { useAiWorkbenchShell } from '@/composables/useAiWorkbenchShell'
 import { useTerminalSessions } from '@/composables/useTerminalSessions'
 import { useTheme } from '@/composables/useTheme'
 import TerminalSessionDock from '@/components/TerminalSessionDock.vue'
+import { xtermTheme } from '@/theme/tokens'
 import '@xterm/xterm/css/xterm.css'
 
 interface LiveSession {
@@ -65,11 +66,7 @@ const statusDetail = computed(() => {
 })
 
 function terminalTheme() {
-  return {
-    background: isDark.value ? '#0f172a' : '#1e293b',
-    foreground: '#e2e8f0',
-    cursor: '#14b8a6',
-  }
+  return { ...xtermTheme }
 }
 
 function setPaneRef(assetId: number, el: unknown) {
@@ -351,23 +348,25 @@ onBeforeUnmount(() => {
 .terminal-ide {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - var(--co-header-height) - var(--co-space-6) * 2);
+  height: calc(100vh - var(--ao-header-height));
   min-height: 420px;
   gap: 0;
+  background: var(--ao-ink);
 }
 
 .terminal-ide__dock {
-  margin: 0 var(--co-space-3) var(--co-space-2);
+  margin: 0;
+  border-bottom: 1px solid var(--ao-border);
 }
 
 .terminal-ide__tabs {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
   padding: 0 4px;
-  border-bottom: 1px solid var(--co-border);
-  background: color-mix(in srgb, var(--co-surface) 92%, transparent);
-  min-height: 40px;
+  border-bottom: 1px solid var(--ao-border);
+  background: var(--ao-slate);
+  min-height: 36px;
   flex-shrink: 0;
 }
 
@@ -376,39 +375,41 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 6px;
   max-width: 200px;
-  padding: 8px 10px;
+  padding: 7px 10px;
   border: 0;
-  border-radius: 8px 8px 0 0;
+  border-radius: var(--ao-radius-sm) var(--ao-radius-sm) 0 0;
   background: transparent;
-  color: var(--co-text-muted);
+  color: var(--ao-steel);
   cursor: pointer;
   font: inherit;
+  font-size: 0.8125rem;
+  font-family: var(--ao-font-mono);
 }
 
 .terminal-tab--active {
-  background: var(--co-surface);
-  color: var(--co-text);
-  box-shadow: inset 0 -2px 0 var(--co-accent, #0d9488);
+  background: var(--ao-ink);
+  color: #e8eef7;
+  box-shadow: inset 0 -2px 0 var(--ao-blueprint);
 }
 
 .terminal-tab__dot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  background: #94a3b8;
+  background: var(--ao-steel);
   flex-shrink: 0;
 }
 
 .terminal-tab__dot[data-status='connected'] {
-  background: #10b981;
+  background: var(--ao-live);
 }
 
 .terminal-tab__dot[data-status='connecting'] {
-  background: #f59e0b;
+  background: var(--ao-signal);
 }
 
 .terminal-tab__dot[data-status='error'] {
-  background: #ef4444;
+  background: var(--ao-error);
 }
 
 .terminal-tab__label {
@@ -424,7 +425,7 @@ onBeforeUnmount(() => {
   color: inherit;
   cursor: pointer;
   padding: 2px;
-  border-radius: 4px;
+  border-radius: 3px;
   opacity: 0.7;
 }
 
@@ -441,14 +442,16 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--co-border);
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--ao-border);
   flex-shrink: 0;
-  font-size: 13px;
+  font-size: 12px;
+  background: var(--ao-slate);
+  font-family: var(--ao-font-mono);
 }
 
 .terminal-ide__status-text {
-  color: var(--co-text-muted);
+  color: var(--ao-steel);
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -461,6 +464,8 @@ onBeforeUnmount(() => {
   min-height: 0;
   display: flex;
   flex-direction: column;
+  background: var(--ao-ink) !important;
+  border-radius: 0 !important;
 }
 
 .terminal-ide__stage :deep(.n-card__content) {
@@ -475,9 +480,10 @@ onBeforeUnmount(() => {
   place-items: center;
   height: 100%;
   min-height: 280px;
-  color: var(--co-text-muted);
+  color: var(--ao-steel);
   padding: 24px;
   text-align: center;
+  font-size: 0.875rem;
 }
 
 .terminal-pane {
@@ -485,6 +491,7 @@ onBeforeUnmount(() => {
   inset: 0;
   display: none;
   padding: 8px;
+  background: var(--ao-ink);
 }
 
 .terminal-pane--active {

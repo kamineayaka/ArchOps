@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { t } from '@/messages'
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
@@ -80,51 +80,61 @@ defineExpose({ reload: load })
 <style scoped>
 .session-dock {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 8px;
-  border: 1px solid var(--co-border);
-  border-radius: 8px;
-  background: var(--co-bg-elevated, rgba(255, 255, 255, 0.03));
-  max-height: 240px;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 0;
+  background: var(--ao-slate);
+  max-height: 88px;
   overflow: auto;
 }
 
 .session-dock__title {
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   font-weight: 600;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--co-text-muted);
+  color: var(--ao-steel);
+  margin-right: 4px;
 }
 
 .session-dock__item {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  gap: 6px;
+  padding: 4px 8px;
+  border: 1px solid var(--ao-border);
+  border-radius: var(--ao-radius-sm);
+  background: var(--ao-ink);
 }
 
 .session-dock__open {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 2px;
+  gap: 1px;
   border: 0;
   background: transparent;
   color: inherit;
   cursor: pointer;
   text-align: left;
   min-width: 0;
+  padding: 0;
 }
 
 .session-dock__open .name {
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   font-weight: 600;
+  color: #e8eef7;
+  font-family: var(--ao-font-mono);
 }
 
 .session-dock__open .meta {
-  font-size: 0.75rem;
-  color: var(--co-text-muted);
+  font-size: 0.6875rem;
+  color: var(--ao-steel);
+  font-family: var(--ao-font-mono);
 }
 </style>

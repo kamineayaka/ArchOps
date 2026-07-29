@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { t } from '@/messages'
 import { computed, h, onMounted, ref } from 'vue'
-import { NButton, NCard, NCheckbox, NDataTable, NPopconfirm, NSpace, NTag, useMessage } from 'naive-ui'
+import { NButton, NCard, NCheckbox, NDataTable, NPopconfirm, NSpace, useMessage } from 'naive-ui'
 import { decideApproval, listPendingApprovals, type Approval } from '@/api/approvals'
 import EmptyState from '@/components/EmptyState.vue'
 import PageHeader from '@/components/PageHeader.vue'
+import StatusTag from '@/components/StatusTag.vue'
 
 const message = useMessage()
 
@@ -12,12 +13,6 @@ const approvals = ref<Approval[]>([])
 const loading = ref(false)
 /** Per-approval "remember for this session" checkbox state */
 const rememberById = ref<Record<number, boolean>>({})
-
-function riskType(level: string) {
-  if (level === 'HIGH') return 'error'
-  if (level === 'MEDIUM') return 'warning'
-  return 'info'
-}
 
 function payloadHasConversationId(payload: string | null | undefined): boolean {
   if (!payload) return false
@@ -35,10 +30,16 @@ const columns = computed(() => [
   {
     title: t('approvals.risk'),
     key: 'riskLevel',
-    render: (row: Approval) => h(NTag, { type: riskType(row.riskLevel), size: 'small', round: true }, { default: () => row.riskLevel }),
+    render: (row: Approval) => h(StatusTag, { kind: 'risk', value: row.riskLevel }),
   },
   { title: t('common.resource'), key: 'resource' },
-  { title: t('common.payload'), key: 'payload', ellipsis: { tooltip: true } },
+  {
+    title: t('common.payload'),
+    key: 'payload',
+    ellipsis: { tooltip: true },
+    render: (row: Approval) =>
+      h('code', { class: 'ao-mono', style: 'font-size: 0.75rem' }, row.payload || '—'),
+  },
   {
     title: t('common.actions'),
     key: 'actions',
@@ -116,8 +117,8 @@ onMounted(load)
       </template>
     </PageHeader>
 
-    <NCard class="page-card" :bordered="false">
-      <NDataTable :columns="columns" :data="approvals" :loading="loading" :bordered="false" />
+    <NCard class="page-card" size="small">
+      <NDataTable size="small" :columns="columns" :data="approvals" :loading="loading" :bordered="false" />
       <EmptyState v-if="!loading && approvals.length === 0" :message="t('approvals.empty')" />
     </NCard>
   </NSpace>

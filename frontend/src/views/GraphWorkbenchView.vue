@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { t } from '@/messages'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
@@ -38,6 +38,7 @@ import {
 } from '@/assetTypes/registry'
 import { useAgentUiSelection } from '@/composables/useAgentUiSelection'
 import { useAuthStore } from '@/stores/auth'
+import { createWorkbenchStylesheet } from '@/theme/graphStyles'
 import { newId } from '@/utils/id'
 import { isOperatorOrAdmin } from '@/utils/roles'
 
@@ -319,106 +320,7 @@ function initCy(elements: ElementDefinition[]) {
   cy = cytoscape({
     container: containerRef.value,
     elements,
-    style: [
-      {
-        selector: 'node',
-        style: {
-          label: 'data(label)',
-          'text-wrap': 'wrap',
-          'text-valign': 'center',
-          'text-halign': 'center',
-          'font-size': 11,
-          color: '#e8eef7',
-          'background-color': '#3b82f6',
-          'border-width': 2,
-          'border-color': '#93c5fd',
-          width: 56,
-          height: 56,
-          'text-outline-width': 2,
-          'text-outline-color': '#0f172a',
-        },
-      },
-      {
-        selector: 'node[kind = "CLUSTER"]',
-        style: { 'background-color': '#a855f7', shape: 'round-rectangle', width: 70, height: 48 },
-      },
-      {
-        selector: 'node[kind = "SERVICE"]',
-        style: { 'background-color': '#6366f1' },
-      },
-      {
-        selector: 'node[kind = "TAG"]',
-        style: { 'background-color': '#14b8a6', shape: 'diamond', width: 44, height: 44 },
-      },
-      {
-        selector: 'node[kind = "ENVIRONMENT"]',
-        style: { 'background-color': '#22c55e', shape: 'round-rectangle', width: 64, height: 44 },
-      },
-      {
-        selector: 'node[kind = "DATABASE"]',
-        style: { 'background-color': '#f59e0b' },
-      },
-      {
-        selector: 'node[kind = "NETWORK"]',
-        style: { 'background-color': '#64748b', shape: 'hexagon', width: 48, height: 48 },
-      },
-      {
-        selector: 'edge',
-        style: {
-          width: 2,
-          'line-color': '#64748b',
-          'target-arrow-color': '#64748b',
-          'target-arrow-shape': 'triangle',
-          'curve-style': 'bezier',
-          label: 'data(label)',
-          'font-size': 9,
-          color: '#94a3b8',
-          'text-rotation': 'autorotate',
-        },
-      },
-      {
-        selector: '.dimmed',
-        style: { opacity: 0.18 },
-      },
-      {
-        selector: '.highlighted',
-        style: {
-          opacity: 1,
-          'border-width': 4,
-          'border-color': '#fbbf24',
-          'line-color': '#fbbf24',
-          'target-arrow-color': '#fbbf24',
-          'z-index': 999,
-        },
-      },
-      {
-        selector: '.selected',
-        style: {
-          'border-width': 4,
-          'border-color': '#38bdf8',
-          'line-color': '#38bdf8',
-          'target-arrow-color': '#38bdf8',
-          'z-index': 1000,
-        },
-      },
-      {
-        selector: '.draft',
-        style: {
-          'border-style': 'dashed',
-          'border-color': '#34d399',
-          'line-style': 'dashed',
-          'line-color': '#34d399',
-        },
-      },
-      {
-        selector: '.pending-delete',
-        style: {
-          opacity: 0.45,
-          'border-color': '#f87171',
-          'line-color': '#f87171',
-        },
-      },
-    ],
+    style: createWorkbenchStylesheet(),
     layout: { name: 'cose', animate: false, padding: 40 },
   })
 
@@ -1066,7 +968,7 @@ onBeforeUnmount(() => {
     </div>
 
     <div class="graph-workbench">
-      <div ref="containerRef" class="graph-canvas" />
+      <div ref="containerRef" class="graph-canvas ao-blueprint-grid" />
 
       <div v-if="selection" class="graph-float">
         <template v-if="selectedNode">
@@ -1289,18 +1191,45 @@ onBeforeUnmount(() => {
 .graph-page {
   display: flex;
   flex-direction: column;
-  gap: var(--co-space-3);
-  min-height: calc(100vh - 120px);
+  height: calc(100vh - var(--ao-header-height));
+  min-height: 480px;
+  background: var(--ao-ink);
+  color: #e8eef7;
+}
+
+.graph-page :deep(.page-header) {
+  margin: 0;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--ao-border);
+  background: var(--ao-slate);
+}
+
+.graph-page :deep(.page-header__title) {
+  font-size: 0.9375rem;
+  color: #e8eef7;
+}
+
+.graph-page :deep(.page-header__desc) {
+  font-size: 0.75rem;
+  color: var(--ao-steel);
 }
 
 .graph-alert {
-  margin-bottom: 0;
+  margin: 8px 12px 0;
 }
 
 .graph-cypher {
   display: flex;
   flex-direction: column;
-  gap: var(--co-space-2);
+  gap: 6px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--ao-border);
+  background: var(--ao-slate);
+}
+
+.graph-cypher :deep(textarea) {
+  font-family: var(--ao-font-mono) !important;
+  font-size: 0.8125rem !important;
 }
 
 .graph-cypher__actions {
@@ -1308,26 +1237,20 @@ onBeforeUnmount(() => {
 }
 
 .hint {
-  color: var(--co-text-muted);
-  font-size: 0.8rem;
+  color: var(--ao-steel);
+  font-size: 0.75rem;
 }
 
 .graph-workbench {
   position: relative;
   flex: 1;
-  min-height: 520px;
+  min-height: 0;
 }
 
 .graph-canvas {
   width: 100%;
   height: 100%;
-  min-height: 520px;
-  border: 1px solid var(--co-border);
-  border-radius: 8px;
-  background:
-    radial-gradient(circle at 20% 20%, rgba(59, 130, 246, 0.08), transparent 40%),
-    radial-gradient(circle at 80% 0%, rgba(168, 85, 247, 0.06), transparent 35%),
-    #0b1220;
+  min-height: 360px;
 }
 
 .graph-float {
@@ -1342,11 +1265,10 @@ onBeforeUnmount(() => {
   align-items: center;
   max-width: calc(100% - 24px);
   padding: 10px 14px;
-  border-radius: 10px;
-  border: 1px solid var(--co-border);
-  background: color-mix(in srgb, var(--co-bg-card) 92%, transparent);
+  border-radius: var(--ao-radius);
+  border: 1px solid var(--ao-border);
+  background: color-mix(in srgb, var(--ao-slate) 94%, transparent);
   backdrop-filter: blur(8px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
 }
 
 .graph-float__meta {
@@ -1354,16 +1276,18 @@ onBeforeUnmount(() => {
   flex-wrap: wrap;
   gap: 8px 12px;
   font-size: 0.8125rem;
-  color: var(--co-text-secondary);
+  color: var(--ao-steel);
+  font-family: var(--ao-font-mono);
 }
 
 .graph-float__meta strong {
-  color: var(--co-text);
+  color: #e8eef7;
+  font-family: var(--ao-font-sans);
 }
 
 .graph-panel__empty {
   margin: 0;
-  color: var(--co-text-muted);
+  color: var(--ao-text-muted);
   font-size: 0.8125rem;
 }
 
@@ -1386,8 +1310,9 @@ onBeforeUnmount(() => {
   font-size: 0.8125rem;
   line-height: 1.4;
   padding: 6px 8px;
-  border-radius: 6px;
-  background: var(--co-bg-page);
+  border-radius: var(--ao-radius-sm);
+  background: var(--ao-bg-page);
+  font-family: var(--ao-font-mono);
 }
 
 .plan-warnings {

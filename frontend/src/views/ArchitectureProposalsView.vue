@@ -181,7 +181,7 @@ onMounted(load)
       </template>
     </PageHeader>
 
-    <NCard class="page-card" :bordered="false">
+    <NCard class="page-card" size="small">
       <NDataTable :columns="columns" :data="proposals" :loading="loading" :bordered="false" />
       <EmptyState v-if="!loading && proposals.length === 0" :message="t('proposals.empty')" />
     </NCard>
@@ -256,13 +256,13 @@ onMounted(load)
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--co-space-3);
+  gap: var(--ao-space-3);
   font-size: 0.875rem;
-  color: var(--co-text-secondary);
+  color: var(--ao-text-secondary);
 }
 
 .section-title {
-  margin: 0 0 var(--co-space-2);
+  margin: 0 0 var(--ao-space-2);
   font-size: 0.9375rem;
   font-weight: 600;
 }
@@ -271,7 +271,7 @@ onMounted(load)
   margin: 0;
   font-size: 0.875rem;
   line-height: 1.5;
-  color: var(--co-text-secondary);
+  color: var(--ao-text-secondary);
   white-space: pre-wrap;
 }
 
@@ -279,21 +279,23 @@ onMounted(load)
   margin: 0;
   font-size: 0.8125rem;
   line-height: 1.45;
-  color: var(--co-warning, #b45309);
+  color: var(--ao-warning, #b45309);
 }
 
 .code-block {
   margin: 0;
-  padding: var(--co-space-3);
+  padding: var(--ao-space-3);
   font-size: 0.75rem;
   line-height: 1.5;
   white-space: pre-wrap;
   word-break: break-word;
-  color: var(--co-text-secondary);
-  background: var(--co-bg-page);
-  border: 1px solid var(--co-border);
-  border-radius: var(--co-radius);
+  color: var(--ao-text-secondary);
+  background: var(--ao-bg-page);
+  border: 1px solid var(--ao-border);
+  border-left: 3px solid var(--ao-signal);
+  border-radius: var(--ao-radius-sm);
   max-height: 320px;
   overflow: auto;
+  font-family: var(--ao-font-mono);
 }
 </style>

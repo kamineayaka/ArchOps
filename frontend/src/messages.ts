@@ -2,8 +2,8 @@
 export const messages = 
 {
   common: {
-    appName: 'ArchOps AI Platform',
-    appTagline: '智能运维控制平面',
+    appName: 'ArchOps',
+    appTagline: '架构 × 运维控制平面',
     login: '登录',
     logout: '退出登录',
     username: '用户名',
@@ -49,13 +49,13 @@ export const messages =
     aiSettings: 'AI 设置',
   },
   auth: {
-    title: '云原生智能运维平台',
-    subtitle: '登录后开始管理你的 Linux 服务器集群',
+    title: '进入控制平面',
+    subtitle: '拓扑、Agent、终端与审批门控，统一管理 Linux 集群',
     defaultAccount: '默认账号：admin / admin123（首次登录后请立即修改密码）',
   },
   dashboard: {
     title: '控制台',
-    description: 'ArchOps AI Platform 统一控制平面，管理服务器集群、AI 运维对话、Web SSH 终端与审批工作流。',
+    description: 'ArchOps 统一控制平面：架构图 SSOT、AI 运维对话、Web SSH 与审批工作流。',
     profile: '当前用户',
     rbacTier: '权限等级',
     approvalPolicy: '审批策略',
