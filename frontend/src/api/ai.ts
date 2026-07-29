@@ -5,7 +5,6 @@ export interface Conversation {
   id: number
   title: string
   targetAssetIds: number[]
-  targetGroupIds: number[]
   resolvedAssetIds: number[]
   createdAt: string
   updatedAt: string
@@ -15,6 +14,8 @@ export interface ChatMessage {
   role: string
   content: string
   createdAt: string
+  /** JSON string of tool call/result blocks when present (from AiMessage.toolCalls). */
+  toolCalls?: string | null
 }
 
 export async function listConversations() {
@@ -61,6 +62,24 @@ export async function updateConversationTargets(conversationId: number, targetAs
   const { data } = await client.put<ApiResponse<Conversation>>(
     `/api/ai/conversations/${conversationId}/targets`,
     { targetAssetIds },
+  )
+  return data
+}
+
+export interface ConversationGrant {
+  id: number
+  conversationId: number
+  toolName: string
+  assetId: number | null
+  riskLevel: string
+  pattern: string | null
+  expiresAt: string
+  createdAt: string
+}
+
+export async function listConversationGrants(conversationId: number) {
+  const { data } = await client.get<ApiResponse<ConversationGrant[]>>(
+    `/api/ai/conversations/${conversationId}/grants`,
   )
   return data
 }

@@ -7,7 +7,6 @@ public record ConversationResponse(
         Long id,
         String title,
         List<Long> targetAssetIds,
-        List<Long> targetGroupIds,
         List<Long> resolvedAssetIds,
         Instant createdAt,
         Instant updatedAt) {}

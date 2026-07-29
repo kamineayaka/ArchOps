@@ -44,4 +44,16 @@ public interface ExecutionGrantRepository extends JpaRepository<ExecutionGrant, 
             @Param("toolName") String toolName,
             @Param("riskLevel") RiskLevel riskLevel,
             @Param("now") Instant now);
+
+    @Query("""
+            SELECT g FROM ExecutionGrant g
+            WHERE g.userId = :userId
+              AND g.conversationId = :conversationId
+              AND g.expiresAt > :now
+            ORDER BY g.createdAt DESC
+            """)
+    List<ExecutionGrant> findActiveForConversation(
+            @Param("userId") Long userId,
+            @Param("conversationId") Long conversationId,
+            @Param("now") Instant now);
 }

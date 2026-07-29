@@ -7,8 +7,10 @@ import {
   createConversation,
   getConversationTargets,
   getMessages,
+  listConversationGrants,
   updateConversationTargets,
   type ChatMessage,
+  type ConversationGrant,
 } from '@/api/ai'
 import { createAiStreamClient, type AiStreamEvent, type UiContext } from '@/api/aiStream'
 import { listChatProviders, type AiProvider } from '@/api/ai-providers'
@@ -59,12 +61,15 @@ const poolEntries = ref<SshPoolEntry[]>([])
 const selectedProviderId = ref<number | undefined>(undefined)
 const targetAssetIds = ref<number[]>([])
 const resolvedAssetIds = ref<number[]>([])
+const conversationGrants = ref<ConversationGrant[]>([])
 const chatBottomRef = ref<HTMLDivElement | null>(null)
 const streamingIndex = ref<number | null>(null)
 const showWizard = ref(false)
 
+const LOGICAL_KINDS = new Set(['TAG', 'ENVIRONMENT'])
+
 const needsProvider = computed(() => providers.value.length === 0)
-const hasAssets = computed(() => assets.value.length > 0)
+const hasAssets = computed(() => assets.value.some((a) => !LOGICAL_KINDS.has(a.kind)))
 
 const providerOptions = computed(() =>
   providers.value.map((p) => ({
@@ -74,10 +79,16 @@ const providerOptions = computed(() =>
 )
 
 const assetOptions = computed(() =>
-  assets.value.map((a) => ({
-    label: a.host ? `${a.name} (${a.host})` : a.name,
-    value: a.id,
-  })),
+  assets.value
+    .filter((a) => !LOGICAL_KINDS.has(a.kind))
+    .map((a) => {
+      const host = a.host ? ` · ${a.host}` : ''
+      const cred = a.hasSshCredential ? '' : ` · ${t('ai.noCredential')}`
+      return {
+        label: `${a.name} [${a.kind}]${host}${cred}`,
+        value: a.id,
+      }
+    }),
 )
 
 const displayTargetAssetIds = computed(() =>
@@ -98,6 +109,34 @@ function messageKey(msg: DisplayMessage, index: number) {
 
 function roleLabel(role: string) {
   return role === 'user' ? t('ai.roleUser') : t('ai.roleAssistant')
+}
+
+function parseToolBlocks(raw: string | null | undefined): ToolBlock[] {
+  if (!raw || raw === '[]') return []
+  try {
+    const parsed = JSON.parse(raw) as unknown
+    if (!Array.isArray(parsed)) return []
+    return parsed
+      .map((item) => {
+        if (!item || typeof item !== 'object') return null
+        const obj = item as Record<string, unknown>
+        const tool = String(obj.tool ?? obj.name ?? '')
+        if (!tool) return null
+        const status = String(obj.status ?? 'DONE')
+        const output = String(obj.output ?? obj.arguments ?? '')
+        return { tool, status, output } satisfies ToolBlock
+      })
+      .filter((b): b is ToolBlock => b != null)
+  } catch {
+    return []
+  }
+}
+
+function hydrateMessages(rows: ChatMessage[]): DisplayMessage[] {
+  return rows.map((row) => ({
+    ...row,
+    tools: parseToolBlocks(row.toolCalls),
+  }))
 }
 
 function ensureStreamingMessage(): number {
@@ -224,6 +263,7 @@ function handleStreamEvent(event: AiStreamEvent) {
     streamingIndex.value = null
     loading.value = false
     void refreshPool()
+    void loadGrants()
     return
   }
 
@@ -297,7 +337,22 @@ async function loadTargets() {
 async function loadMessages() {
   if (!conversationId.value) return
   const res = await getMessages(conversationId.value)
-  if (res.success && res.data) messages.value = res.data
+  if (res.success && res.data) messages.value = hydrateMessages(res.data)
+}
+
+async function loadGrants() {
+  if (!conversationId.value) {
+    conversationGrants.value = []
+    return
+  }
+  try {
+    const res = await listConversationGrants(conversationId.value)
+    if (res.success && res.data) {
+      conversationGrants.value = res.data
+    }
+  } catch {
+    conversationGrants.value = []
+  }
 }
 
 async function persistTargets(nextAssets: number[]) {
@@ -354,6 +409,7 @@ async function handleNewChat() {
   messages.value = []
   targetAssetIds.value = []
   resolvedAssetIds.value = []
+  conversationGrants.value = []
   streamingIndex.value = null
   await ensureConversation()
   await applyQueryAsset()
@@ -378,6 +434,9 @@ watch(conversationId, async (id) => {
   if (id) {
     await loadTargets()
     await loadMessages()
+    await loadGrants()
+  } else {
+    conversationGrants.value = []
   }
 })
 
@@ -455,6 +514,13 @@ onBeforeUnmount(() => {
         </NTag>
       </NSpace>
 
+      <NSpace v-if="conversationGrants.length" size="small" class="grant-strip">
+        <span class="grant-strip__label">{{ t('ai.grantsTitle') }}</span>
+        <NTag v-for="g in conversationGrants" :key="g.id" size="small" type="info">
+          {{ g.toolName }}{{ g.assetId != null ? t('ai.grantAsset', { id: g.assetId }) : '' }}
+        </NTag>
+      </NSpace>
+
       <NCard class="chat-card page-card" :bordered="false">
         <div class="chat-messages" aria-live="polite">
           <EmptyState
@@ -493,7 +559,13 @@ onBeforeUnmount(() => {
                   ({{ msg.pendingApproval.risk }})
                 </template>
                 {{ msg.pendingApproval.message }}
-                <div class="approval-hint">{{ t('ai.approvalResume') }}</div>
+                <div class="approval-hint">
+                  {{ t('ai.approvalResume') }}
+                  · {{ t('ai.approvalRisk') }}: {{ msg.pendingApproval.risk }}
+                </div>
+                <RouterLink class="hint-link" :to="{ name: 'approvals' }">
+                  {{ t('ai.approvalGoDecide') }}
+                </RouterLink>
               </NAlert>
               <NAlert
                 v-if="msg.architectureProposal"
@@ -586,6 +658,17 @@ onBeforeUnmount(() => {
 .target-tags {
   margin-bottom: var(--co-space-2);
   flex-wrap: wrap;
+}
+
+.grant-strip {
+  margin-bottom: var(--co-space-2);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.grant-strip__label {
+  font-size: 0.75rem;
+  color: var(--co-text-muted);
 }
 
 .chat-card {

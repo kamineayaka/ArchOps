@@ -45,12 +45,15 @@ public class AgentContextAssembler {
             1. Prefer Graph neighborhood and Active Architecture facts before probing hosts or text memory.
             2. Scoped text memory is unstructured long-tail recall (work logs / manuals / prose) — not topology SSOT.
             3. L0 read-only diagnostics (df/free/uptime/ps/ls/…): do NOT write architecture.
-            4. When you discover durable facts (roles like namenode/datanode/hive/spark, topology),
+            4. When you discover durable facts (roles like namenode/datanode/hive/spark, topology roles),
                you MUST call propose_architecture_update — never claim SSOT was updated directly.
-            5. partitionKey (scope) rules: graph:global | cluster:{elementId} | tag:{slug} | asset:{id}.
+            5. To change inventory topology (nodes/edges/credentials), call propose_graph_change with GraphOps;
+               never claim the graph was merged — a human must approve the proposal.
+            6. partitionKey (scope) rules: graph:global | cluster:{elementId} | tag:{slug} | asset:{elementId}.
                Prefer asset / tag / cluster scopes over graph:global when evidence is local.
                Legacy global | asset:{numericId} still accepted during migration.
-            6. Use graph_neighborhood / graph_path tools for deeper topology beyond the seeded neighborhood.
+            7. Use graph_neighborhood / graph_path tools for deeper topology beyond the seeded neighborhood.
+               list_assets is a flat inventory helper, not the graph.
 
             Always prefer safe read-only diagnostics first. Respond in the same language the user writes in.
             """;
@@ -151,7 +154,7 @@ public class AgentContextAssembler {
             maxChars = architectureProperties.stream()
                     .findFirst()
                     .map(ArchitectureProperties::getContextMaxChars)
-                    .orElse(4000);
+                    .orElse(6000);
         }
         if (maxChars <= 0 || result.length() <= maxChars) {
             return result;

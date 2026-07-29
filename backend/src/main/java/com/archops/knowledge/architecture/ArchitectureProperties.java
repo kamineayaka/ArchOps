@@ -8,7 +8,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class ArchitectureProperties {
 
     private AutoMerge autoMerge = new AutoMerge();
-    private int contextMaxChars = 4000;
+    private int contextMaxChars = 6000;
 
     public AutoMerge getAutoMerge() {
         return autoMerge;

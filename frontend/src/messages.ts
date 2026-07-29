@@ -278,6 +278,15 @@ export const messages =
     sendHint: 'Ctrl + Enter 发送',
     approvalRequired: '等待人工审批',
     approvalResume: '审批通过后 Agent 将自动继续',
+    approvalGoDecide: '前往审批',
+    approvalRisk: '风险',
+    grantsTitle: '本会话已授权',
+    grantEntry: '{tool}{asset}',
+    grantAsset: ' @ 资产 {id}',
+    grantExpires: '过期 {time}',
+    noCredential: '无凭证',
+    setSelectionAsTargets: '将拓扑选中设为目标',
+    selectionAsTargetsHint: '使用当前拓扑/图编辑选中的节点作为对话目标',
     toolRunning: '执行中',
     proposalCreated: '架构提案已创建',
     proposalCreatedHint: '前往提案台审阅',
@@ -493,6 +502,7 @@ export const messages =
     closeRail: '关闭侧轨',
     expandRail: '展开 AI 对话',
     openFullAi: '打开 Agent 窗口',
+    setSelectionAsTargets: '设为对话目标',
   },
 }
 

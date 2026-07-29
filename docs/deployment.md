@@ -47,6 +47,8 @@ curl -fsS http://localhost/actuator/health/readiness
 
 默认登录：`admin` / `admin123`（立即修改）。
 
+Agent：默认管理员审批策略 `MANUAL_A`（连 LOW 工具也需审批）；运维账号建议 `RISK_BASED_B`。会话授权不含 `propose_*` 提案工具。
+
 ## 上线检查清单
 
 - [ ] 修改默认管理员密码
@@ -54,6 +56,7 @@ curl -fsS http://localhost/actuator/health/readiness
 - [ ] 确认 `NEO4J_PASSWORD` ≥8 字符
 - [ ] 在图编辑中录入资产与凭证，或导入现有数据
 - [ ] 配置 AI Provider（控制台或 `OPENAI_API_KEY`）
+- [ ] 确认运维账号审批策略（建议 `RISK_BASED_B`）
 - [ ] 管理员调用 `POST /api/knowledge/reindex` 初始化 RAG（如需）
 - [ ] 生产环境为 80/443 配置 TLS；限制 actuator 暴露面
 

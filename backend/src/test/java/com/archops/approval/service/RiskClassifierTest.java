@@ -41,4 +41,14 @@ class RiskClassifierTest {
         assertEquals(RiskLevel.HIGH, classifier.classify("db_query", "{\"sql\":\"DELETE FROM t\"}"));
         assertEquals(RiskLevel.HIGH, classifier.classify("db_query", "{}"));
     }
+
+    @Test
+    void classifiesGraphChangeByOps() {
+        assertEquals(
+                RiskLevel.HIGH,
+                classifier.classify("propose_graph_change", "{\"ops\":[{\"op\":\"NODE_CREATE\"}]}"));
+        assertEquals(
+                RiskLevel.MEDIUM,
+                classifier.classify("propose_graph_change", "{\"ops\":[{\"op\":\"EDGE_UPDATE\"}]}"));
+    }
 }

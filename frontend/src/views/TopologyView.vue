@@ -13,8 +13,11 @@ import {
 import cytoscape, { type Core, type ElementDefinition } from 'cytoscape'
 import PageHeader from '@/components/PageHeader.vue'
 import { getGraphSnapshot, touchTerminalDock, type GraphEdge, type GraphNode } from '@/api/graph'
+import { useAgentUiSelection } from '@/composables/useAgentUiSelection'
 import { useAuthStore } from '@/stores/auth'
 import { isOperatorOrAdmin } from '@/utils/roles'
+
+const { setNodeSelection, clearSelection } = useAgentUiSelection()
 
 const message = useMessage()
 const router = useRouter()
@@ -288,8 +291,18 @@ function initCy(elements: ElementDefinition[]) {
     openCtxMenu(evt)
   })
 
-  cy.on('tap', () => {
+  cy.on('tap', 'node', (evt) => {
+    const data = evt.target.data()
+    const pgAssetId = data.pgAssetId != null ? Number(data.pgAssetId) : null
+    const elementId = data.id != null ? String(data.id) : null
+    setNodeSelection(pgAssetId, elementId)
+  })
+
+  cy.on('tap', (evt) => {
     hideCtxMenu()
+    if (evt.target === cy) {
+      clearSelection()
+    }
   })
 }
 
@@ -317,6 +330,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  clearSelection()
   window.removeEventListener('click', hideCtxMenu)
   window.removeEventListener('scroll', hideCtxMenu, true)
   cy?.destroy()

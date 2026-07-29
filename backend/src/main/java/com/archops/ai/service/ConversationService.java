@@ -74,7 +74,11 @@ public class ConversationService {
     @Transactional(readOnly = true)
     public List<ChatMessageResponse> history(Long conversationId) {
         return messageRepository.findByConversationIdOrderByCreatedAtAsc(conversationId).stream()
-                .map(m -> new ChatMessageResponse(m.getRole(), m.getContent(), m.getCreatedAt()))
+                .map(m -> new ChatMessageResponse(
+                        m.getRole(),
+                        m.getContent(),
+                        m.getCreatedAt(),
+                        m.getToolCalls() != null ? m.getToolCalls() : "[]"))
                 .toList();
     }
 
@@ -126,7 +130,6 @@ public class ConversationService {
                 conversation.getId(),
                 conversation.getTitle(),
                 conversation.getTargetAssetIds() != null ? conversation.getTargetAssetIds() : List.of(),
-                List.of(),
                 resolved,
                 conversation.getCreatedAt(),
                 conversation.getUpdatedAt());

@@ -128,6 +128,7 @@ public class GraphContextRetriever {
                         asText(rec, "n1Name"),
                         asText(rec, "n1Kind"),
                         asLong(rec, "n1PgId"),
+                        asText(rec, "n1ElementId"),
                         asText(rec, "n1Host"));
                 if (rel1 != null && n1Label != null) {
                     Long r1From = asLong(rec, "r1From");
@@ -154,6 +155,7 @@ public class GraphContextRetriever {
                         asText(rec, "n2Name"),
                         asText(rec, "n2Kind"),
                         asLong(rec, "n2PgId"),
+                        asText(rec, "n2ElementId"),
                         asText(rec, "n2Host"));
                 if (rel2 != null && n2Label != null && relatedPgIds.size() < safeMax) {
                     lines.add(String.format(
@@ -275,6 +277,7 @@ public class GraphContextRetriever {
                         asText(rec, "name"),
                         asText(rec, "kind"),
                         asLong(rec, "pgId"),
+                        asText(rec, "elementId"),
                         asText(rec, "host"))));
     }
 
@@ -298,16 +301,17 @@ public class GraphContextRetriever {
             String elementId,
             String kind,
             String slug) {
-        if (pgId != null) {
-            relatedPgIds.add(pgId);
-            partitionKeys.add(PartitionKeys.asset(pgId));
-        }
         if (elementId != null && !elementId.isBlank()) {
             elementIds.add(elementId);
             partitionKeys.add("asset:" + elementId);
             if ("CLUSTER".equalsIgnoreCase(kind)) {
                 partitionKeys.add("cluster:" + elementId);
             }
+        }
+        if (pgId != null) {
+            relatedPgIds.add(pgId);
+            // Legacy numeric scope kept as secondary for migration-era facts
+            partitionKeys.add(PartitionKeys.asset(pgId));
         }
         if ("TAG".equalsIgnoreCase(kind) && slug != null && !slug.isBlank()) {
             try {
@@ -318,8 +322,8 @@ public class GraphContextRetriever {
         }
     }
 
-    private static String nodeLabel(String name, String kind, Long pgId, String host) {
-        if (name == null && pgId == null) {
+    private static String nodeLabel(String name, String kind, Long pgId, String elementId, String host) {
+        if (name == null && pgId == null && elementId == null) {
             return null;
         }
         StringBuilder sb = new StringBuilder();
@@ -328,11 +332,14 @@ public class GraphContextRetriever {
         if (kind != null) {
             sb.append("kind=").append(kind);
         }
-        if (pgId != null) {
+        if (elementId != null && !elementId.isBlank()) {
             if (kind != null) {
                 sb.append(' ');
             }
-            sb.append("id=").append(pgId);
+            sb.append("elementId=").append(elementId);
+        }
+        if (pgId != null) {
+            sb.append(" id=").append(pgId);
         }
         if (host != null && !host.isBlank()) {
             sb.append(" host=").append(host);

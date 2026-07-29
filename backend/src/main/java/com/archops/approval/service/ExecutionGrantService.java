@@ -4,11 +4,13 @@ import com.archops.approval.ApprovalProperties;
 import com.archops.approval.domain.Approval;
 import com.archops.approval.domain.ExecutionGrant;
 import com.archops.approval.domain.RiskLevel;
+import com.archops.approval.dto.ExecutionGrantResponse;
 import com.archops.approval.repository.ExecutionGrantRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import org.slf4j.Logger;
@@ -18,17 +20,19 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Session-scoped execution grants. Covers EXECUTION tools only — never
- * {@code propose_architecture_update} (Architecture Proposal gate must not be bypassed).
+ * {@code propose_architecture_update} or {@code propose_graph_change}
+ * (Architecture / graph proposal gates must not be bypassed).
  */
 @Service
 public class ExecutionGrantService {
 
     private static final Logger log = LoggerFactory.getLogger(ExecutionGrantService.class);
 
-    /** Tools eligible for session grants. Knowledge proposal tools are intentionally excluded. */
+    /** Tools eligible for session grants. Proposal tools are intentionally excluded. */
     private static final Set<String> GRANTABLE_TOOLS = Set.of("ssh_exec", "list_assets", "db_query");
 
     private static final String PROPOSE_ARCHITECTURE_UPDATE = "propose_architecture_update";
+    private static final String PROPOSE_GRAPH_CHANGE = "propose_graph_change";
 
     private final ExecutionGrantRepository grantRepository;
     private final ApprovalProperties properties;
@@ -44,9 +48,25 @@ public class ExecutionGrantService {
     }
 
     public boolean isGrantableTool(String toolName) {
-        return toolName != null
-                && GRANTABLE_TOOLS.contains(toolName)
-                && !PROPOSE_ARCHITECTURE_UPDATE.equals(toolName);
+        return toolName != null && GRANTABLE_TOOLS.contains(toolName);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ExecutionGrantResponse> listActiveForConversation(Long userId, Long conversationId) {
+        if (userId == null || conversationId == null) {
+            return List.of();
+        }
+        return grantRepository.findActiveForConversation(userId, conversationId, Instant.now()).stream()
+                .map(g -> new ExecutionGrantResponse(
+                        g.getId(),
+                        g.getConversationId(),
+                        g.getToolName(),
+                        g.getAssetId(),
+                        g.getRiskLevel() != null ? g.getRiskLevel().name() : null,
+                        g.getPattern(),
+                        g.getExpiresAt(),
+                        g.getCreatedAt()))
+                .toList();
     }
 
     public boolean canGrantRisk(RiskLevel risk) {
@@ -114,7 +134,9 @@ public class ExecutionGrantService {
         if (userId == null || conversationId == null || toolName == null || risk == null) {
             return Optional.empty();
         }
-        if (PROPOSE_ARCHITECTURE_UPDATE.equals(toolName) || !isGrantableTool(toolName)) {
+        if (PROPOSE_ARCHITECTURE_UPDATE.equals(toolName)
+                || PROPOSE_GRAPH_CHANGE.equals(toolName)
+                || !isGrantableTool(toolName)) {
             return Optional.empty();
         }
         if (!canGrantRisk(risk)) {

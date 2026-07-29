@@ -56,6 +56,9 @@ public class RiskClassifier {
         if ("db_query".equals(toolName)) {
             return classifyDbQuery(arguments);
         }
+        if ("propose_graph_change".equals(toolName)) {
+            return classifyGraphChange(arguments);
+        }
         String text = ((toolName != null ? toolName : "") + " " + (arguments != null ? arguments : ""))
                 .toLowerCase(Locale.ROOT);
         for (Pattern pattern : HIGH) {
@@ -69,6 +72,23 @@ public class RiskClassifier {
             }
         }
         return RiskLevel.LOW;
+    }
+
+    private RiskLevel classifyGraphChange(String arguments) {
+        String text = arguments != null ? arguments.toUpperCase(Locale.ROOT) : "";
+        if (text.contains("NODE_SOFT_DELETE")
+                || text.contains("NODE_DELETE")
+                || text.contains("EDGE_SOFT_DELETE")
+                || text.contains("NODE_CREATE")
+                || text.contains("CREDENTIAL")) {
+            return RiskLevel.HIGH;
+        }
+        if (text.contains("EDGE_CREATE")
+                || text.contains("NODE_UPDATE")
+                || text.contains("EDGE_UPDATE")) {
+            return RiskLevel.MEDIUM;
+        }
+        return RiskLevel.MEDIUM;
     }
 
     private RiskLevel classifyDbQuery(String arguments) {

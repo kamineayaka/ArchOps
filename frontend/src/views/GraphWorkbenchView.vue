@@ -36,9 +36,12 @@ import {
   getAssetType,
   listAssetTypes,
 } from '@/assetTypes/registry'
+import { useAgentUiSelection } from '@/composables/useAgentUiSelection'
 import { useAuthStore } from '@/stores/auth'
 import { newId } from '@/utils/id'
 import { isOperatorOrAdmin } from '@/utils/roles'
+
+const { setNodeSelection, clearSelection: clearAgentUiSelection } = useAgentUiSelection()
 
 interface NodeSelection {
   type: 'node'
@@ -284,6 +287,7 @@ function selectNodeFromEle(ele: cytoscape.NodeSingular) {
     draft: Boolean(data.draft),
   }
   applyCySelection(selection.value)
+  setNodeSelection(selection.value.pgAssetId, selection.value.elementId)
 }
 
 function selectEdgeFromEle(ele: cytoscape.EdgeSingular) {
@@ -297,11 +301,13 @@ function selectEdgeFromEle(ele: cytoscape.EdgeSingular) {
     draft: Boolean(data.draft),
   }
   applyCySelection(selection.value)
+  clearAgentUiSelection()
 }
 
 function clearSelection() {
   selection.value = null
   clearCySelectionClasses()
+  clearAgentUiSelection()
 }
 
 function initCy(elements: ElementDefinition[]) {
@@ -999,6 +1005,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  clearAgentUiSelection()
   cy?.destroy()
   cy = null
 })

@@ -9,11 +9,17 @@ import {
   PinOutline,
   RefreshOutline,
 } from '@vicons/ionicons5'
-import { createConversation, getMessages, type ChatMessage } from '@/api/ai'
+import {
+  createConversation,
+  getMessages,
+  updateConversationTargets,
+  type ChatMessage,
+} from '@/api/ai'
 import { createAiStreamClient, type AiStreamEvent, type UiContext } from '@/api/aiStream'
 import { listChatProviders, type AiProvider } from '@/api/ai-providers'
 import AiProviderSetupWizard from '@/components/ai/AiProviderSetupWizard.vue'
 import { useAiWorkbenchShell } from '@/composables/useAiWorkbenchShell'
+import { useAgentUiSelection } from '@/composables/useAgentUiSelection'
 import { renderChatContent } from '@/utils/format'
 import { useAuthStore } from '@/stores/auth'
 import { isAdmin as roleIsAdmin } from '@/utils/roles'
@@ -43,6 +49,8 @@ const {
   readConversationId,
   writeConversationId,
 } = useAiWorkbenchShell()
+const { selectedPgAssetIds, selection } = useAgentUiSelection()
+const applyingSelection = ref(false)
 
 const conversationId = ref<number | null>(readConversationId())
 const input = ref('')
@@ -64,15 +72,12 @@ const providerOptions = computed(() =>
 )
 
 function buildUiContext(): UiContext {
-  const assetParam = route.params.assetId
-  const selectedAssetId =
-    typeof assetParam === 'string' && assetParam
-      ? Number(assetParam)
-      : undefined
+  const ids = selectedPgAssetIds.value
   return {
     route: typeof route.name === 'string' ? route.name : String(route.name ?? ''),
-    surface: surface.value ?? 'assets',
-    selectedAssetId: Number.isFinite(selectedAssetId) ? selectedAssetId : undefined,
+    surface: surface.value ?? (typeof route.name === 'string' ? route.name : 'unknown'),
+    selectedAssetId: ids[0],
+    selectedAssetIds: ids.length ? [...ids] : undefined,
   }
 }
 
@@ -209,10 +214,32 @@ async function handleNewChat() {
   await ensureConversation()
 }
 
+async function applySelectionAsTargets() {
+  const ids = selectedPgAssetIds.value
+  if (!ids.length) {
+    message.warning(t('ai.selectionAsTargetsHint'))
+    return
+  }
+  applyingSelection.value = true
+  try {
+    await ensureConversation()
+    if (!conversationId.value) return
+    const res = await updateConversationTargets(conversationId.value, ids)
+    if (res.success) {
+      message.success(t('ai.targetsSaved'))
+    } else {
+      message.error(res.message || t('ai.targetsSaveFailed'))
+    }
+  } catch {
+    message.error(t('ai.targetsSaveFailed'))
+  } finally {
+    applyingSelection.value = false
+  }
+}
+
 /** Jump to Agent window (not the Ops Console AI rail). */
 function openAgentWindow() {
-  const raw = route.params.assetId
-  const id = Number(Array.isArray(raw) ? raw[0] : raw)
+  const id = selectedPgAssetIds.value[0]
   if (Number.isFinite(id) && id > 0) {
     void router.push({ name: 'ai', query: { assetId: String(id) } })
   } else {
@@ -255,6 +282,20 @@ onBeforeUnmount(() => {
     <header class="ai-rail__header">
       <span class="ai-rail__title">{{ title }}</span>
       <div class="ai-rail__actions">
+        <NTooltip v-if="selection.pgAssetIds.length" :show-arrow="false">
+          <template #trigger>
+            <NButton
+              quaternary
+              size="tiny"
+              :loading="applyingSelection"
+              :aria-label="t('workbench.setSelectionAsTargets')"
+              @click="applySelectionAsTargets"
+            >
+              {{ t('workbench.setSelectionAsTargets') }}
+            </NButton>
+          </template>
+          {{ t('ai.selectionAsTargetsHint') }}
+        </NTooltip>
         <NTooltip :show-arrow="false">
           <template #trigger>
             <NButton quaternary circle size="tiny" :aria-label="t('ai.newChat')" @click="handleNewChat">

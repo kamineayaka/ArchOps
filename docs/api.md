@@ -61,11 +61,15 @@ PG `assets` 仅为图节点锚点 / 凭证宿主；**不再提供直写 CRUD**�
 |---|---|---|
 | POST | `/api/ai/chat` | 发起对话（流式见 WebSocket） |
 | GET | `/api/ai/conversations` | 会话列表 |
+| GET | `/api/ai/conversations/{id}/messages` | 消息历史（含 `toolCalls`） |
 | PUT | `/api/ai/conversations/{id}/targets` | 设置目标资产（仅 `targetAssetIds`） |
+| GET | `/api/ai/conversations/{id}/grants` | 当前会话有效执行授权 |
 | GET/PUT | `/api/ai/providers` | Provider 管理（ADMIN） |
 | GET/PUT | `/api/ai/settings` | 平台 AI 设置（ADMIN） |
 
-WebSocket 流式：见前端 `AiView` / 后端 `AiStreamWebSocketHandler`（路径以源码为准）。
+Agent 工具（进程内）：`list_assets`、`ssh_exec`、`db_query`、`graph_neighborhood`、`graph_path`、`propose_architecture_update`、`propose_graph_change`。
+
+WebSocket 流式：见前端 `AiChatView` / 后端 `AiStreamWebSocketHandler`（路径以源码为准）。
 
 ## 审批 / 知识库 / 审计
 

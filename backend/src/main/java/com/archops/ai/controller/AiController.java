@@ -6,6 +6,8 @@ import com.archops.ai.dto.ConversationResponse;
 import com.archops.ai.dto.ConversationTargetsRequest;
 import com.archops.ai.service.AiAgentService;
 import com.archops.ai.service.ConversationService;
+import com.archops.approval.dto.ExecutionGrantResponse;
+import com.archops.approval.service.ExecutionGrantService;
 import com.archops.common.dto.ApiResponse;
 import com.archops.common.security.AuthUserPrincipal;
 import jakarta.validation.Valid;
@@ -28,10 +30,15 @@ public class AiController {
 
     private final ConversationService conversationService;
     private final AiAgentService aiAgentService;
+    private final ExecutionGrantService executionGrantService;
 
-    public AiController(ConversationService conversationService, AiAgentService aiAgentService) {
+    public AiController(
+            ConversationService conversationService,
+            AiAgentService aiAgentService,
+            ExecutionGrantService executionGrantService) {
         this.conversationService = conversationService;
         this.aiAgentService = aiAgentService;
+        this.executionGrantService = executionGrantService;
     }
 
     @PostMapping("/conversations")
@@ -68,6 +75,14 @@ public class AiController {
                 id,
                 principal.getUserId(),
                 request.targetAssetIds()));
+    }
+
+    @GetMapping("/conversations/{id}/grants")
+    public ApiResponse<List<ExecutionGrantResponse>> grants(
+            @PathVariable Long id,
+            @AuthenticationPrincipal AuthUserPrincipal principal) {
+        conversationService.requireOwned(id, principal.getUserId());
+        return ApiResponse.ok(executionGrantService.listActiveForConversation(principal.getUserId(), id));
     }
 
     @PostMapping("/chat")

@@ -13,7 +13,7 @@
 | **凭证与连接** | SSH 等凭证 AES-256-GCM 加密；跳板语义由图边 `CONNECTS_VIA` 表达 |
 | **SSH 连接池** | 按用户/资产复用会话；终端与 `ssh_exec` 共用 |
 | **Web 操作台** | 浏览器终端（xterm.js + MINA SSHD）+ 会话坞 |
-| **AI Agent** | ReAct 工具循环；可固定对话目标资产；只读图工具 `graph_neighborhood` / `graph_path` |
+| **AI Agent** | ReAct 工具循环；目标资产上下文；只读图工具 + `propose_graph_change` / `propose_architecture_update`（提案审批） |
 | **Hybrid RAG** | 以 Neo4j 邻域 + 架构事实为主，pgvector 文本记忆为辅 |
 | **架构知识** | 分区事实 SSOT、提案审批合并（含图 ChangeSet） |
 | **审批工作流** | 风险分级（LOW / MEDIUM / HIGH）与人工门控 |
@@ -43,6 +43,8 @@ docker compose up -d --build
 ```
 
 浏览器访问 **http://你的服务器IP**，默认账号 `admin` / `admin123`（**首次登录后请立即修改密码**）。
+
+默认管理员审批策略为 `MANUAL_A`（连 LOW 风险工具也需审批）。运维账号建议改为 `RISK_BASED_B`（LOW 自动、MEDIUM/HIGH 人工）。
 
 建议管理员执行一次 `POST /api/knowledge/reindex` 初始化文本记忆索引。  
 更多说明：[docs/deployment.md](docs/deployment.md)、[docs/api.md](docs/api.md)、[docs/graph-ssot-design.md](docs/graph-ssot-design.md)。

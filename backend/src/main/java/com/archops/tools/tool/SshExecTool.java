@@ -39,7 +39,7 @@ public class SshExecTool implements AgentTool {
     public String description() {
         return "Execute a shell command on managed Linux assets via SSH and return combined stdout/stderr. "
                 + "If assetId is omitted, runs the command on each conversation target asset sequentially. "
-                + "assetId must be within the conversation target assets/groups when targets are set. "
+                + "assetId must be within the conversation target assets when targets are set. "
                 + "Use for read-only diagnostics like df, free, docker ps, kubectl get. "
                 + "Destructive commands require prior approval.";
     }
@@ -112,6 +112,6 @@ public class SshExecTool implements AgentTool {
             return new ArrayList<>(targets);
         }
         throw new IllegalArgumentException(
-                "No target asset specified. Set conversation target assets/groups or pass assetId.");
+                "No target asset specified. Set conversation target assets or pass assetId.");
     }
 }

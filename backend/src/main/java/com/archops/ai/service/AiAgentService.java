@@ -16,6 +16,7 @@ import com.archops.ai.repository.AiMessageRepository;
 import com.archops.approval.domain.Approval;
 import com.archops.approval.domain.ApprovalStatus;
 import com.archops.approval.service.ApprovalService;
+import com.archops.common.config.AiProperties;
 import com.archops.common.exception.BusinessException;
 import com.archops.knowledge.architecture.PartitionKeys;
 import com.archops.knowledge.architecture.domain.ArchitectureProposal;
@@ -50,7 +51,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class AiAgentService {
 
     private static final Logger log = LoggerFactory.getLogger(AiAgentService.class);
-    private static final int MAX_ITERATIONS = 5;
     private static final String PROPOSE_TOOL = "propose_architecture_update";
 
     private final LlmRuntimeResolver llmRuntimeResolver;
@@ -65,6 +65,7 @@ public class AiAgentService {
     private final WorkLogWriter workLogWriter;
     private final ArchitectureProposalService proposalService;
     private final ObjectMapper objectMapper;
+    private final AiProperties aiProperties;
 
     public AiAgentService(
             LlmRuntimeResolver llmRuntimeResolver,
@@ -78,7 +79,8 @@ public class AiAgentService {
             ToolExecutionEventService toolExecutionEventService,
             WorkLogWriter workLogWriter,
             ArchitectureProposalService proposalService,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            AiProperties aiProperties) {
         this.llmRuntimeResolver = llmRuntimeResolver;
         this.toolRegistry = toolRegistry;
         this.toolExecutorService = toolExecutorService;
@@ -91,6 +93,7 @@ public class AiAgentService {
         this.workLogWriter = workLogWriter;
         this.proposalService = proposalService;
         this.objectMapper = objectMapper;
+        this.aiProperties = aiProperties;
     }
 
     @Transactional
@@ -241,7 +244,8 @@ public class AiAgentService {
         List<ToolDefinition> tools = toolRegistry.definitions();
         String finalAnswer = "";
 
-        for (int i = 0; i < MAX_ITERATIONS; i++) {
+        int maxIterations = aiProperties.clampedMaxIterations();
+        for (int i = 0; i < maxIterations; i++) {
             CompletionResult result = completeLlm(llm, messages, tools, onEvent);
 
             if (result.toolCalls() == null || result.toolCalls().isEmpty()) {

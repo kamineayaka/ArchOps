@@ -69,6 +69,8 @@ archops:
       base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
       model: ${OLLAMA_MODEL:qwen2.5:14b}
       timeout-ms: ${OLLAMA_TIMEOUT_MS:120000}
+    # ReAct tool loop cap (clamped 3–15)
+    max-iterations: ${AI_MAX_ITERATIONS:8}
   rag:
     enabled: ${RAG_ENABLED:true}
     provider: ${RAG_PROVIDER:openai-compat}
@@ -98,7 +100,7 @@ archops:
       require-command: true
       require-stdout-hash: true
       require-asset-id: true
-    context-max-chars: ${ARCH_CONTEXT_MAX_CHARS:4000}
+    context-max-chars: ${ARCH_CONTEXT_MAX_CHARS:6000}
   approval:
     grant-ttl-minutes: ${APPROVAL_GRANT_TTL_MINUTES:60}
     allow-high-grants: ${APPROVAL_ALLOW_HIGH_GRANTS:false}
