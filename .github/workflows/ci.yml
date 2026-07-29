@@ -37,5 +37,5 @@ jobs:
           distribution: temurin
           java-version: "21"
           cache: maven
-      - name: Compile
-        run: ./mvnw -B -DskipTests compile
+      - name: Compile and unit tests
+        run: ./mvnw -B test

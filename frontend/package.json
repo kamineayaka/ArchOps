@@ -11,6 +11,7 @@
     "build": "vue-tsc -b && vite build",
     "preview": "vite preview",
     "test": "node --experimental-strip-types --test scripts/roles.test.ts",
+    "smoke": "node ../deploy/scripts/smoke-functional.mjs",
     "check:nginx": "bash scripts/check-nginx-spa.sh"
   },
   "dependencies": {
