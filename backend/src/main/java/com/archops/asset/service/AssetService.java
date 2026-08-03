@@ -5,13 +5,14 @@ import com.archops.asset.domain.SshCredential;
 import com.archops.asset.dto.AssetResponse;
 import com.archops.asset.repository.AssetRepository;
 import com.archops.asset.repository.SshCredentialRepository;
-import com.archops.audit.service.AuditService;
 import com.archops.common.exception.BusinessException;
 import com.archops.common.security.CredentialCipher;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.time.Instant;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,49 +23,45 @@ public class AssetService {
     private final AssetRepository assetRepository;
     private final SshCredentialRepository sshCredentialRepository;
     private final CredentialCipher credentialCipher;
-    private final AuditService auditService;
     private final ObjectMapper objectMapper;
 
     public AssetService(
             AssetRepository assetRepository,
             SshCredentialRepository sshCredentialRepository,
             CredentialCipher credentialCipher,
-            AuditService auditService,
             ObjectMapper objectMapper) {
         this.assetRepository = assetRepository;
         this.sshCredentialRepository = sshCredentialRepository;
         this.credentialCipher = credentialCipher;
-        this.auditService = auditService;
         this.objectMapper = objectMapper;
     }
 
     @Transactional(readOnly = true)
     public List<AssetResponse> list() {
-        return assetRepository.findByDeletedAtIsNull().stream().map(this::toResponse).toList();
+        List<Asset> assets = assetRepository.findByDeletedAtIsNull();
+        Set<Long> withCred = activeCredentialAssetIds(
+                assets.stream().map(Asset::getId).collect(Collectors.toSet()));
+        return assets.stream().map(asset -> toResponse(asset, withCred.contains(asset.getId()))).toList();
     }
 
     @Transactional(readOnly = true)
     public AssetResponse get(Long id) {
-        return toResponse(findAssetOrThrow(id));
+        Asset asset = findAssetOrThrow(id);
+        boolean hasCred = sshCredentialRepository.findByAssetIdAndDeletedAtIsNull(id).isPresent();
+        return toResponse(asset, hasCred);
     }
 
+    /**
+     * @deprecated Direct PG soft-delete bypasses Neo4j SSOT. Use graph {@code NODE_SOFT_DELETE}
+     *             via proposal merge ({@link com.archops.graph.service.GraphPgAnchorService}).
+     */
+    @Deprecated
     @Transactional
     public void delete(Long id, Long actorId, String actorName) {
-        Asset asset = findAssetOrThrow(id);
-        Instant now = Instant.now();
-        asset.setDeletedAt(now);
-        asset.setDeletedBy(actorId);
-        asset.setDeleteReason("api.delete");
-        asset.setEnabled(false);
-        assetRepository.save(asset);
-        sshCredentialRepository.findByAssetIdAndDeletedAtIsNull(id).ifPresent(cred -> {
-            cred.setDeletedAt(now);
-            cred.setDeletedBy(actorId);
-            sshCredentialRepository.save(cred);
-        });
-        auditService.record(new AuditService.AuditEntry(
-                actorId, actorName, "asset.soft_delete", "asset:" + id,
-                "MEDIUM", "SUCCESS", "{\"elementId\":\"" + asset.getElementId() + "\"}", null, null));
+        throw new BusinessException(
+                HttpStatus.METHOD_NOT_ALLOWED,
+                "GRAPH_WRITE_REQUIRED",
+                "资产删除须经图工作台草稿 / Proposal 合并（NODE_SOFT_DELETE），禁止直写 PG 以免与 Neo4j 分叉");
     }
 
     @Transactional(readOnly = true)
@@ -76,6 +73,13 @@ public class AssetService {
 
     public String decryptSecret(SshCredential credential) {
         return credentialCipher.decrypt(credential.getSecretCipher(), credential.getSecretIv());
+    }
+
+    private Set<Long> activeCredentialAssetIds(Set<Long> assetIds) {
+        if (assetIds == null || assetIds.isEmpty()) {
+            return Set.of();
+        }
+        return new HashSet<>(sshCredentialRepository.findAssetIdsWithActiveCredential(assetIds));
     }
 
     private String readDescription(String metadata) {
@@ -97,8 +101,7 @@ public class AssetService {
                         HttpStatus.NOT_FOUND, "ASSET_NOT_FOUND", "资产不存在"));
     }
 
-    private AssetResponse toResponse(Asset asset) {
-        boolean hasCred = sshCredentialRepository.findByAssetIdAndDeletedAtIsNull(asset.getId()).isPresent();
+    private AssetResponse toResponse(Asset asset, boolean hasCred) {
         return new AssetResponse(
                 asset.getId(),
                 asset.getElementId(),

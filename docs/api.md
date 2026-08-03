@@ -33,9 +33,9 @@ PG `assets` 仅为图节点锚点 / 凭证宿主；**不再提供直写 CRUD**�
 
 | 方法 | 路径 | 角色 | 说明 |
 |---|---|---|---|
-| GET | `/api/assets` | VIEWER+ | 活跃资产列表 |
+| GET | `/api/assets` | VIEWER+ | 活跃资产列表（PG 锚点投影） |
 | GET | `/api/assets/{id}` | VIEWER+ | 单资产 |
-| DELETE | `/api/assets/{id}` | ADMIN | 软删 |
+| DELETE | `/api/assets/{id}` | — | **已停用**（返回 `GRAPH_WRITE_REQUIRED`）；软删须经图工作台 `NODE_SOFT_DELETE` Proposal |
 | POST | `/api/assets/{id}/test-connection` | OPERATOR+ | 对已保存资产做连通性测试 |
 | GET | `/api/asset-types` | 登录用户 | 资产类型描述 |
 

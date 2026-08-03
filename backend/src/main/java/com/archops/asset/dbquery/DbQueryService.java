@@ -109,7 +109,7 @@ public class DbQueryService {
             User user, Long assetId, String sql, SqlAccessKind access, RiskLevel risk) {
         long started = System.nanoTime();
         try {
-            DbEngine.DbQueryResult result = executeJdbc(assetId, sql);
+            DbEngine.DbQueryResult result = executeJdbc(assetId, sql, access);
             long elapsedMs = (System.nanoTime() - started) / 1_000_000L;
             String msg = result.truncated()
                     ? "结果已截断至 " + DEFAULT_MAX_ROWS + " 行"
@@ -139,7 +139,7 @@ public class DbQueryService {
         }
     }
 
-    private DbEngine.DbQueryResult executeJdbc(Long assetId, String sql) throws Exception {
+    private DbEngine.DbQueryResult executeJdbc(Long assetId, String sql, SqlAccessKind access) throws Exception {
         Asset asset = loadDatabaseAsset(assetId);
         SshCredential credential = sshCredentialRepository
                 .findByAssetIdAndDeletedAtIsNull(assetId)
@@ -147,6 +147,13 @@ public class DbQueryService {
                         HttpStatus.BAD_REQUEST, "CREDENTIAL_REQUIRED", "请先为该 DATABASE 资产配置凭证"));
         if (!StringUtils.hasText(credential.getUsername())) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "CREDENTIAL_REQUIRED", "数据库用户名未配置");
+        }
+        if (credential.getAuthType() != null
+                && credential.getAuthType() != com.archops.asset.domain.SshAuthType.PASSWORD) {
+            throw new BusinessException(
+                    HttpStatus.BAD_REQUEST,
+                    "DB_AUTH_UNSUPPORTED",
+                    "DATABASE 仅支持 PASSWORD 认证，请更新凭证");
         }
         if (!StringUtils.hasText(asset.getHost())) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "ASSET_NO_HOST", "请填写主机地址");
@@ -159,6 +166,10 @@ public class DbQueryService {
 
         try (Connection connection = engine.open(
                 asset.getHost().trim(), port, database, credential.getUsername().trim(), secret)) {
+            // Defense in depth: mark READ sessions read-only so mutations fail even if classifier misses.
+            if (access == SqlAccessKind.READ) {
+                connection.setReadOnly(true);
+            }
             return engine.execute(connection, sql, DEFAULT_MAX_ROWS, DEFAULT_TIMEOUT_SEC);
         }
     }

@@ -9,6 +9,8 @@ import { FitAddon } from '@xterm/addon-fit'
 import { listAssets, type Asset } from '@/api/assets'
 import { touchTerminalDock } from '@/api/graph'
 import { listSshPool, warmSshPool, type SshPoolEntry } from '@/api/sshPool'
+import { connectActionFor } from '@/assetTypes/registry'
+import '@/assetTypes'
 import { useAiWorkbenchShell } from '@/composables/useAiWorkbenchShell'
 import { useTerminalSessions } from '@/composables/useTerminalSessions'
 import { useTheme } from '@/composables/useTheme'
@@ -84,7 +86,9 @@ function isPooled(assetId: number) {
 async function loadAssets() {
   const res = await listAssets()
   if (res.success && res.data) {
-    assets.value = res.data.filter((a) => a.hasSshCredential)
+    assets.value = res.data.filter(
+      (a) => a.hasSshCredential && connectActionFor(a.kind) === 'terminal',
+    )
   }
 }
 

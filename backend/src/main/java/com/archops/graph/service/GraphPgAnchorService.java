@@ -82,7 +82,12 @@ public class GraphPgAnchorService {
     }
 
     @Transactional
-    public void applySideEffects(List<PgSideEffect> effects, GraphTempBinder binder, Long actorId, Long proposalId) {
+    public void applySideEffects(
+            List<PgSideEffect> effects,
+            GraphTempBinder binder,
+            Long actorId,
+            Long proposalId,
+            Long proposalRequesterId) {
         if (effects == null) {
             return;
         }
@@ -93,7 +98,8 @@ public class GraphPgAnchorService {
             }
             String type = effect.effect().trim().toUpperCase(Locale.ROOT);
             switch (type) {
-                case "CREDENTIAL_UPSERT_REF" -> consumeCredentialStaging(effect, binder, actorId, proposalId, now);
+                case "CREDENTIAL_UPSERT_REF" -> consumeCredentialStaging(
+                        effect, binder, actorId, proposalId, proposalRequesterId, now);
                 case "CREDENTIAL_SOFT_DELETE" -> softDeleteCredential(effect, binder, actorId, now);
                 case "ASSET_SOFT_DELETE" -> softDeleteAsset(effect, binder, actorId, now, "pgSideEffect");
                 case "ASSET_ROW_ENSURE" -> {
@@ -156,7 +162,11 @@ public class GraphPgAnchorService {
             if (set.containsKey("enabled")) {
                 asset.setEnabled(Boolean.TRUE.equals(set.get("enabled")));
             }
-            if (set.containsKey("metadata") || set.containsKey("slug") || set.containsKey("description")) {
+            if (set.containsKey("metadata")
+                    || set.containsKey("slug")
+                    || set.containsKey("description")
+                    || set.containsKey("database")
+                    || set.containsKey("engine")) {
                 asset.setMetadata(mergeMetadataUpdate(asset.getMetadata(), set, asset.getKind()));
             }
             asset.setGraphSyncedAt(Instant.now());
@@ -165,7 +175,12 @@ public class GraphPgAnchorService {
     }
 
     private void consumeCredentialStaging(
-            PgSideEffect effect, GraphTempBinder binder, Long actorId, Long proposalId, Instant now) {
+            PgSideEffect effect,
+            GraphTempBinder binder,
+            Long actorId,
+            Long proposalId,
+            Long proposalRequesterId,
+            Instant now) {
         if (effect.credentialStagingId() == null || effect.credentialStagingId().isBlank()) {
             throw new BusinessException(
                     HttpStatus.BAD_REQUEST, "STAGING_ID_REQUIRED", "credentialStagingId 不能为空");
@@ -178,6 +193,24 @@ public class GraphPgAnchorService {
         if (staging.getExpiresAt().isBefore(now)) {
             throw new BusinessException(HttpStatus.GONE, "STAGING_EXPIRED", "凭证暂存已过期");
         }
+        if (proposalRequesterId != null
+                && staging.getRequesterId() != null
+                && !proposalRequesterId.equals(staging.getRequesterId())) {
+            throw new BusinessException(
+                    HttpStatus.FORBIDDEN,
+                    "STAGING_OWNER_MISMATCH",
+                    "凭证暂存不属于该 Proposal 发起人");
+        }
+        if (staging.getTempRef() != null
+                && !staging.getTempRef().isBlank()
+                && effect.tempId() != null
+                && !staging.getTempRef().equals(effect.tempId())) {
+            throw new BusinessException(
+                    HttpStatus.BAD_REQUEST,
+                    "STAGING_TEMP_MISMATCH",
+                    "凭证暂存 tempRef 与 side effect 不匹配");
+        }
+
         Long assetId = effect.pgAssetId();
         if (assetId == null && effect.tempId() != null) {
             assetId = binder.requireTemp(effect.tempId()).pgAssetId();
@@ -188,15 +221,37 @@ public class GraphPgAnchorService {
         if (assetId == null) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "ASSET_ID_REQUIRED", "无法解析凭证所属资产");
         }
+        final Long resolvedAssetId = assetId;
+        if (staging.getAssetId() != null && !staging.getAssetId().equals(resolvedAssetId)) {
+            throw new BusinessException(
+                    HttpStatus.BAD_REQUEST,
+                    "STAGING_ASSET_MISMATCH",
+                    "凭证暂存 assetId 与目标资产不匹配");
+        }
 
-        sshCredentialRepository.findByAssetIdAndDeletedAtIsNull(assetId).ifPresent(old -> {
+        Asset asset = assetRepository.findById(resolvedAssetId)
+                .orElseThrow(() -> new BusinessException(
+                        HttpStatus.NOT_FOUND, "ASSET_NOT_FOUND", "凭证目标资产不存在: " + resolvedAssetId));
+        if (asset.getDeletedAt() != null) {
+            throw new BusinessException(HttpStatus.CONFLICT, "ASSET_DELETED", "凭证目标资产已软删");
+        }
+        if (asset.getKind() == AssetKind.DATABASE
+                && staging.getAuthType() != null
+                && staging.getAuthType() != com.archops.asset.domain.SshAuthType.PASSWORD) {
+            throw new BusinessException(
+                    HttpStatus.BAD_REQUEST,
+                    "DB_AUTH_UNSUPPORTED",
+                    "DATABASE 资产仅支持 PASSWORD 凭证");
+        }
+
+        sshCredentialRepository.findByAssetIdAndDeletedAtIsNull(resolvedAssetId).ifPresent(old -> {
             old.setDeletedAt(now);
             old.setDeletedBy(actorId);
             sshCredentialRepository.save(old);
         });
 
         SshCredential credential = new SshCredential();
-        credential.setAssetId(assetId);
+        credential.setAssetId(resolvedAssetId);
         credential.setUsername(staging.getUsername());
         credential.setAuthType(staging.getAuthType());
         credential.setSecretCipher(staging.getSecretCipher());
@@ -207,7 +262,7 @@ public class GraphPgAnchorService {
 
         staging.setConsumedAt(now);
         staging.setProposalId(proposalId);
-        staging.setAssetId(assetId);
+        staging.setAssetId(resolvedAssetId);
         credentialStagingRepository.save(staging);
     }
 
@@ -245,6 +300,11 @@ public class GraphPgAnchorService {
         asset.setDeleteReason(reason);
         asset.setEnabled(false);
         assetRepository.save(asset);
+        sshCredentialRepository.findByAssetIdAndDeletedAtIsNull(asset.getId()).ifPresent(cred -> {
+            cred.setDeletedAt(now);
+            cred.setDeletedBy(actorId);
+            sshCredentialRepository.save(cred);
+        });
     }
 
     private String buildMetadata(Map<String, Object> props, AssetKind kind) {
@@ -274,6 +334,9 @@ public class GraphPgAnchorService {
             if (props.get("description") != null) {
                 node.put("description", String.valueOf(props.get("description")));
             }
+            // DATABASE logical db / engine live in metadata (not SSOT columns).
+            copyPropIfPresent(props, node, "database");
+            copyPropIfPresent(props, node, "engine");
             return objectMapper.writeValueAsString(node);
         } catch (BusinessException ex) {
             throw ex;
@@ -305,11 +368,34 @@ public class GraphPgAnchorService {
             if (kind == AssetKind.TAG && set.containsKey("slug")) {
                 node.put("slug", PartitionKeys.normalizeSlug(String.valueOf(set.get("slug"))));
             }
+            if (set.containsKey("database")) {
+                Object db = set.get("database");
+                if (db == null || String.valueOf(db).isBlank()) {
+                    node.remove("database");
+                } else {
+                    node.put("database", String.valueOf(db).trim());
+                }
+            }
+            if (set.containsKey("engine")) {
+                Object engine = set.get("engine");
+                if (engine == null || String.valueOf(engine).isBlank()) {
+                    node.remove("engine");
+                } else {
+                    node.put("engine", String.valueOf(engine).trim());
+                }
+            }
             return objectMapper.writeValueAsString(node);
         } catch (BusinessException ex) {
             throw ex;
         } catch (Exception ex) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "ASSET_METADATA_INVALID", "metadata 无效");
+        }
+    }
+
+    private static void copyPropIfPresent(Map<String, Object> props, ObjectNode node, String key) {
+        Object value = props.get(key);
+        if (value != null && StringUtils.hasText(String.valueOf(value))) {
+            node.put(key, String.valueOf(value).trim());
         }
     }
 

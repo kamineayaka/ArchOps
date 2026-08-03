@@ -55,6 +55,7 @@ interface NodeSelection {
   hasCredential: boolean
   pgAssetId: number | null
   slug: string | null
+  databaseName: string | null
   draft: boolean
 }
 
@@ -102,6 +103,7 @@ const emptyNodeForm = () => ({
   host: '',
   port: 22 as number | null,
   slug: '',
+  databaseName: '',
   enabled: true,
   withCredential: false,
   username: '',
@@ -137,16 +139,35 @@ const kindOptions = computed(() =>
 
 const draftCount = computed(() => draftOps.value.length)
 
-const authTypeOptions = [
-  { label: t('assets.password'), value: 'PASSWORD' },
-  { label: t('assets.privateKey'), value: 'PRIVATE_KEY' },
-]
-
 const addTypeDef = computed(() => getAssetType(addForm.value.kind))
 const editTypeDef = computed(() => getAssetType(editForm.value.kind))
+
+const authTypeOptions = computed(() => {
+  const mode = addTypeDef.value?.authMode
+  if (mode === 'password') {
+    return [{ label: t('assets.password'), value: 'PASSWORD' }]
+  }
+  return [
+    { label: t('assets.password'), value: 'PASSWORD' },
+    { label: t('assets.privateKey'), value: 'PRIVATE_KEY' },
+  ]
+})
+
+const credAuthTypeOptions = computed(() => {
+  const mode = selectedNode.value ? getAssetType(selectedNode.value.kind)?.authMode : undefined
+  if (mode === 'password') {
+    return [{ label: t('assets.password'), value: 'PASSWORD' }]
+  }
+  return [
+    { label: t('assets.password'), value: 'PASSWORD' },
+    { label: t('assets.privateKey'), value: 'PRIVATE_KEY' },
+  ]
+})
+
 const showAddHost = computed(() => Boolean(addTypeDef.value?.showHost))
 const showAddPort = computed(() => Boolean(addTypeDef.value?.showPort && (addTypeDef.value.defaultPort ?? 0) > 0))
 const showAddSlug = computed(() => addForm.value.kind === 'TAG')
+const showAddDatabaseName = computed(() => Boolean(addTypeDef.value?.showDatabaseName))
 const addNeedsCredential = computed(() => {
   const mode = addTypeDef.value?.authMode
   return mode === 'ssh' || mode === 'password'
@@ -160,6 +181,7 @@ const showEditPortFields = computed(
   () => Boolean(editTypeDef.value?.showPort && (editTypeDef.value.defaultPort ?? 0) > 0),
 )
 const showEditSlug = computed(() => editForm.value.kind === 'TAG')
+const showEditDatabaseName = computed(() => Boolean(editTypeDef.value?.showDatabaseName))
 
 const selectedNode = computed(() => (selection.value?.type === 'node' ? selection.value : null))
 const selectedEdge = computed(() => (selection.value?.type === 'edge' ? selection.value : null))
@@ -169,6 +191,7 @@ const canOpenTerminal = computed(
     selectedNode.value &&
     !selectedNode.value.draft &&
     selectedNode.value.pgAssetId &&
+    selectedNode.value.hasCredential &&
     connectActionFor(selectedNode.value.kind) === 'terminal',
 )
 const canTestConnection = computed(
@@ -202,6 +225,12 @@ watch(
     if (!addNeedsCredential.value) {
       addForm.value.withCredential = false
     }
+    if (getAssetType(kind)?.authMode === 'password') {
+      addForm.value.authType = 'PASSWORD'
+    }
+    if (!getAssetType(kind)?.showDatabaseName) {
+      addForm.value.databaseName = ''
+    }
   },
 )
 
@@ -223,6 +252,7 @@ function toElements(nodes: GraphNode[], edges: GraphEdge[]): ElementDefinition[]
       port: n.port,
       enabled: n.enabled,
       slug: n.slug,
+      database: n.properties?.database != null ? String(n.properties.database) : null,
       draft: false,
     },
   }))
@@ -285,6 +315,7 @@ function selectNodeFromEle(ele: cytoscape.NodeSingular) {
     hasCredential: Boolean(data.hasCredential),
     pgAssetId: data.pgAssetId != null ? Number(data.pgAssetId) : null,
     slug: data.slug != null ? String(data.slug) : null,
+    databaseName: data.database != null ? String(data.database) : null,
     draft: Boolean(data.draft),
   }
   applyCySelection(selection.value)
@@ -356,9 +387,11 @@ function initCy(elements: ElementDefinition[]) {
 
   cy.on('cxttap', 'node', (evt) => {
     const data = evt.target.data()
-    if (data.kind === 'SERVER' && data.pgAssetId) {
+    if (!data.pgAssetId) return
+    const action = connectActionFor(String(data.kind || ''))
+    if (action === 'terminal') {
       void openTerminal(Number(data.pgAssetId), String(data.id))
-    } else if (data.kind === 'DATABASE' && data.pgAssetId) {
+    } else if (action === 'query') {
       void router.push({ name: 'query', params: { assetId: String(data.pgAssetId) } })
     }
   })
@@ -404,6 +437,7 @@ function overlayDraftOp(op: Record<string, unknown>) {
         enabled: props.enabled !== false,
         hasCredential: Boolean(props.hasCredential),
         slug: props.slug != null ? String(props.slug) : null,
+        database: props.database != null ? String(props.database) : null,
         pgAssetId: null,
         draft: true,
       },
@@ -453,6 +487,7 @@ function overlayDraftOp(op: Record<string, unknown>) {
     if ('port' in set) data.port = set.port == null ? null : Number(set.port)
     if ('enabled' in set) data.enabled = Boolean(set.enabled)
     if ('slug' in set) data.slug = set.slug == null ? null : String(set.slug)
+    if ('database' in set) data.database = set.database == null ? null : String(set.database)
     if ('hasCredential' in set) data.hasCredential = Boolean(set.hasCredential)
     el.data(data)
     el.addClass('draft')
@@ -543,6 +578,9 @@ async function addDraftNode() {
     if (showAddSlug.value) {
       props.slug = addForm.value.slug.trim().toLowerCase()
     }
+    if (showAddDatabaseName.value && addForm.value.databaseName.trim()) {
+      props.database = addForm.value.databaseName.trim()
+    }
     const op = {
       op: 'NODE_CREATE',
       tempId,
@@ -607,6 +645,7 @@ function openEditModal() {
     host: node.host || '',
     port: node.port,
     slug: node.slug || '',
+    databaseName: node.databaseName || '',
     enabled: node.enabled,
   }
   showEditNode.value = true
@@ -638,6 +677,9 @@ function saveEditDraft() {
     if (showEditSlug.value) {
       set.slug = editForm.value.slug.trim().toLowerCase()
     }
+    if (showEditDatabaseName.value) {
+      set.database = editForm.value.databaseName.trim() || null
+    }
     const op = {
       op: 'NODE_UPDATE',
       ref: { elementId: node.elementId },
@@ -654,6 +696,7 @@ function saveEditDraft() {
       port: 'port' in set ? (set.port as number | null) : node.port,
       enabled: Boolean(set.enabled),
       slug: 'slug' in set ? (set.slug as string | null) : node.slug,
+      databaseName: 'database' in set ? (set.database as string | null) : node.databaseName,
     }
     message.success(t('graph.draftAdded'))
   } finally {
@@ -1100,6 +1143,12 @@ onBeforeUnmount(() => {
         <NFormItem v-if="showAddPort" :label="t('assets.port')">
           <NInputNumber v-model:value="addForm.port" :min="0" :max="65535" style="width: 100%" />
         </NFormItem>
+        <NFormItem v-if="showAddDatabaseName" :label="t('assets.databaseName')">
+          <NInput
+            v-model:value="addForm.databaseName"
+            :placeholder="t('assets.databaseNamePlaceholder')"
+          />
+        </NFormItem>
         <NFormItem v-if="addNeedsCredential" :label="t('graph.attachCredential')">
           <NButton
             size="small"
@@ -1148,6 +1197,12 @@ onBeforeUnmount(() => {
         <NFormItem v-if="showEditPortFields" :label="t('assets.port')">
           <NInputNumber v-model:value="editForm.port" :min="0" :max="65535" style="width: 100%" />
         </NFormItem>
+        <NFormItem v-if="showEditDatabaseName" :label="t('assets.databaseName')">
+          <NInput
+            v-model:value="editForm.databaseName"
+            :placeholder="t('assets.databaseNamePlaceholder')"
+          />
+        </NFormItem>
         <NFormItem :label="t('graph.enabledFlag')">
           <NSwitch v-model:value="editForm.enabled" />
         </NFormItem>
@@ -1166,7 +1221,7 @@ onBeforeUnmount(() => {
           <NInput v-model:value="credForm.username" />
         </NFormItem>
         <NFormItem :label="t('assets.authType')">
-          <NSelect v-model:value="credForm.authType" :options="authTypeOptions" />
+          <NSelect v-model:value="credForm.authType" :options="credAuthTypeOptions" />
         </NFormItem>
         <NFormItem :label="t('assets.sshSecret')">
           <NInput
