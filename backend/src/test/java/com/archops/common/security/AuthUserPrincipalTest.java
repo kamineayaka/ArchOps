@@ -22,5 +22,6 @@ class AuthUserPrincipalTest {
                 .map(GrantedAuthority::getAuthority)
                 .toList()
                 .containsAll(List.of("ROLE_ADMIN", "ROLE_OPERATOR")));
+        assertTrue(principal.roleNames().containsAll(List.of("ADMIN", "OPERATOR")));
     }
 }
