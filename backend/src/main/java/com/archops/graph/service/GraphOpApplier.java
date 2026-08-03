@@ -161,7 +161,10 @@ public class GraphOpApplier {
         assertNodeActive(tx, elementId);
 
         Map<String, Object> set = sanitizeProps(op.set());
-        List<String> unset = mutablePropertyKeys(op.unset(), true);
+        set.remove("description"); // node description retired; use edge.description
+        List<String> unset = mutablePropertyKeys(op.unset(), true).stream()
+                .filter(k -> !"description".equals(k))
+                .toList();
         Set<String> beforeKeys = new LinkedHashSet<>(set.keySet());
         Set<String> setKeys = new LinkedHashSet<>(set.keySet());
         if (!set.isEmpty()) {
