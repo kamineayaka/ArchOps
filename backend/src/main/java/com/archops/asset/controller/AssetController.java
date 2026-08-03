@@ -12,7 +12,6 @@ import java.util.List;
 import java.util.Map;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -47,19 +46,6 @@ public class AssetController {
     public ApiResponse<AssetResponse> get(
             @PathVariable Long id, @AuthenticationPrincipal AuthUserPrincipal principal) {
         return ApiResponse.ok(assetService.get(id, principal.getUserId(), principal.roleNames()));
-    }
-
-    /**
-     * Direct asset delete is retired under graph SSOT. Soft-delete must go through
-     * graph workbench draft → plan → architecture proposal → merge ({@code NODE_SOFT_DELETE}).
-     */
-    @DeleteMapping("/{id}")
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
-    public ApiResponse<Void> delete(@PathVariable Long id) {
-        throw new com.archops.common.exception.BusinessException(
-                org.springframework.http.HttpStatus.METHOD_NOT_ALLOWED,
-                "GRAPH_WRITE_REQUIRED",
-                "资产删除须经图工作台草稿 / Proposal 合并（NODE_SOFT_DELETE），禁止直写 PG 以免与 Neo4j 分叉");
     }
 
     @PostMapping("/{id}/test-connection")

@@ -15,7 +15,8 @@ import org.springframework.stereotype.Service;
 
 /**
  * Resolves SSH jump hops from Neo4j {@code CONNECTS_VIA} (semantic B: target fans out ordered edges).
- * Returns empty when no edges exist or Neo4j is temporarily unreachable — callers fall back to legacy credential jumps.
+ * Returns empty when no edges exist or Neo4j is temporarily unreachable — callers dial the target directly.
+ * Legacy {@code ssh_credentials.jump_asset_ids} is not consulted.
  */
 @Service
 public class GraphConnectPathService {
@@ -32,7 +33,7 @@ public class GraphConnectPathService {
 
     /**
      * Ordered jump asset IDs for dialing {@code targetPgAssetId}.
-     * Empty list means direct dial (or caller should use legacy jumps).
+     * Empty list means direct dial (no CONNECTS_VIA hops).
      */
     public List<Long> resolveJumpAssetIds(Long targetPgAssetId) {
         if (targetPgAssetId == null) {

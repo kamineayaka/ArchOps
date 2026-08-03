@@ -19,6 +19,7 @@ import { listAssets, type Asset } from '@/api/assets'
 import { listSshPool, type SshPoolEntry } from '@/api/sshPool'
 import EmptyState from '@/components/EmptyState.vue'
 import PageHeader from '@/components/PageHeader.vue'
+import { useAgentUiSelection } from '@/composables/useAgentUiSelection'
 import { renderChatContent } from '@/utils/format'
 
 interface ToolBlock {
@@ -38,6 +39,8 @@ interface DisplayMessage extends ChatMessage {
 const message = useMessage()
 const route = useRoute()
 const router = useRouter()
+const { selectedPgAssetIds } = useAgentUiSelection()
+const applyingSelection = ref(false)
 
 /** Agent window only — never mount a Web terminal here. */
 function buildUiContext(): UiContext {
@@ -80,17 +83,26 @@ const providerOptions = computed(() =>
   })),
 )
 
-const assetOptions = computed(() =>
-  assets.value
+const assetOptions = computed(() => {
+  const selected = new Set(selectedPgAssetIds.value)
+  return assets.value
     .filter((a) => !LOGICAL_KINDS.has(a.kind) && (a.hasCredential ?? a.hasSshCredential))
     .map((a) => {
       const host = a.host ? ` · ${a.host}` : ''
+      const mark = selected.has(a.id) ? '★ ' : ''
       return {
-        label: `${a.name} [${a.kind}]${host}`,
+        label: `${mark}${a.name} [${a.kind}]${host}`,
         value: a.id,
       }
-    }),
-)
+    })
+    .sort((a, b) => {
+      const aSel = selected.has(a.value) ? 0 : 1
+      const bSel = selected.has(b.value) ? 0 : 1
+      return aSel - bSel
+    })
+})
+
+const hasTopologySelection = computed(() => selectedPgAssetIds.value.length > 0)
 
 const displayTargetAssetIds = computed(() =>
   resolvedAssetIds.value.length ? resolvedAssetIds.value : targetAssetIds.value,
@@ -356,7 +368,7 @@ async function loadGrants() {
   }
 }
 
-async function persistTargets(nextAssets: number[]) {
+async function persistTargets(nextAssets: number[], opts?: { silent?: boolean }) {
   if (!conversationId.value) return
   savingTargets.value = true
   try {
@@ -364,7 +376,9 @@ async function persistTargets(nextAssets: number[]) {
     if (res.success && res.data) {
       applyTargets(res.data)
       await refreshPool()
-      message.success(t('ai.targetsSaved'))
+      if (!opts?.silent) {
+        message.success(t('ai.targetsSaved'))
+      }
     }
   } catch {
     message.error(t('ai.targetsSaveFailed'))
@@ -375,6 +389,27 @@ async function persistTargets(nextAssets: number[]) {
 
 async function handleTargetsChange(value: number[]) {
   await persistTargets(value)
+}
+
+async function applySelectionAsTargets() {
+  const ids = selectedPgAssetIds.value
+  if (!ids.length) {
+    message.warning(t('ai.selectionEmpty'))
+    return
+  }
+  applyingSelection.value = true
+  try {
+    await ensureConversation()
+    await persistTargets(ids)
+  } finally {
+    applyingSelection.value = false
+  }
+}
+
+/** Prefer topology/graph selection when conversation has no targets yet. */
+async function preferTopologySelectionIfEmpty() {
+  if (targetAssetIds.value.length || !selectedPgAssetIds.value.length) return
+  await persistTargets([...selectedPgAssetIds.value], { silent: true })
 }
 
 async function scrollToBottom() {
@@ -455,6 +490,7 @@ onMounted(async () => {
   await ensureConversation()
   await loadTargets()
   await applyQueryAsset()
+  await preferTopologySelectionIfEmpty()
   await loadMessages()
   try {
     await streamClient.connect()
@@ -476,6 +512,15 @@ onBeforeUnmount(() => {
           <NSpace align="center" :size="12">
             <NButton v-if="needsProvider" type="warning" @click="showWizard = true">
               {{ t('aiSettings.startWizard') }}
+            </NButton>
+            <NButton
+              :disabled="!hasTopologySelection"
+              :loading="applyingSelection"
+              secondary
+              type="primary"
+              @click="applySelectionAsTargets"
+            >
+              {{ t('ai.setSelectionAsTargets') }}
             </NButton>
             <NSelect
               v-model:value="targetAssetIds"

@@ -14,27 +14,28 @@ import {
   type DataTableColumns,
 } from 'naive-ui'
 import PageHeader from '@/components/PageHeader.vue'
-import { listAssets, type Asset } from '@/api/assets'
+import { getAsset, type Asset } from '@/api/assets'
 import { runAssetQuery, type DbQueryResult } from '@/api/dbQuery'
+import { useAgentUiSelection } from '@/composables/useAgentUiSelection'
 import { apiErrorMessage } from '@/utils/apiError'
 
 const route = useRoute()
 const router = useRouter()
 const message = useMessage()
+const { selectedPgAssetIds } = useAgentUiSelection()
 
 const loading = ref(false)
-const assets = ref<Asset[]>([])
+const asset = ref<Asset | null>(null)
 const sql = ref('SELECT 1')
 const result = ref<DbQueryResult | null>(null)
 const pendingApprovalId = ref<number | null>(null)
+const selectionCandidate = ref<Asset | null>(null)
 
 const assetId = computed(() => {
   const raw = route.params.assetId
   const n = Number(Array.isArray(raw) ? raw[0] : raw)
   return Number.isFinite(n) && n > 0 ? n : null
 })
-
-const asset = computed(() => assets.value.find((a) => a.id === assetId.value) ?? null)
 
 const tableColumns = computed<DataTableColumns>(() => {
   const cols = result.value?.columns ?? []
@@ -60,15 +61,37 @@ const tableData = computed(() => {
   })
 })
 
-async function loadAssets() {
+async function loadAssetById(id: number): Promise<Asset | null> {
   try {
-    const res = await listAssets()
-    assets.value = (res.data ?? []).filter(
-      (a) => a.kind === 'DATABASE' && (a.hasCredential ?? a.hasSshCredential),
-    )
+    const res = await getAsset(id)
+    return res.success ? (res.data ?? null) : null
   } catch (err) {
     message.error(apiErrorMessage(err, t('query.loadFailed')))
+    return null
   }
+}
+
+async function refreshAsset() {
+  if (!assetId.value) {
+    asset.value = null
+    return
+  }
+  asset.value = await loadAssetById(assetId.value)
+}
+
+async function refreshSelectionCandidate() {
+  if (assetId.value || !selectedPgAssetIds.value.length) {
+    selectionCandidate.value = null
+    return
+  }
+  const id = selectedPgAssetIds.value[0]
+  const candidate = await loadAssetById(id)
+  selectionCandidate.value =
+    candidate &&
+    candidate.kind === 'DATABASE' &&
+    (candidate.hasCredential ?? candidate.hasSshCredential)
+      ? candidate
+      : null
 }
 
 async function run(withApproval = false) {
@@ -103,23 +126,56 @@ function goApprovals() {
   void router.push({ name: 'approvals' })
 }
 
-onMounted(() => {
-  void loadAssets()
+function goTopology() {
+  void router.push({ name: 'topology' })
+}
+
+function useTopologySelection() {
+  const id = selectionCandidate.value?.id
+  if (!id) return
+  void router.replace({ name: 'query', params: { assetId: String(id) } })
+}
+
+onMounted(async () => {
+  await refreshAsset()
+  await refreshSelectionCandidate()
 })
 
-watch(assetId, () => {
+watch(assetId, async () => {
   result.value = null
   pendingApprovalId.value = null
+  await refreshAsset()
+  await refreshSelectionCandidate()
+})
+
+watch(selectedPgAssetIds, () => {
+  void refreshSelectionCandidate()
 })
 </script>
 
 <template>
   <div class="query-page">
-    <PageHeader :title="t('query.title')" :subtitle="t('query.subtitle')" />
+    <PageHeader :title="t('query.title')" :description="t('query.subtitle')">
+      <template #extra>
+        <NButton size="small" @click="goTopology">{{ t('query.goTopology') }}</NButton>
+      </template>
+    </PageHeader>
 
     <NSpin :show="loading">
       <NSpace vertical :size="16">
-        <NAlert v-if="!assetId" type="warning" :title="t('query.needAsset')" />
+        <NAlert v-if="!assetId" type="warning" :title="t('query.needAsset')">
+          <NSpace :size="8" style="margin-top: 8px">
+            <NButton
+              v-if="selectionCandidate"
+              size="small"
+              type="primary"
+              @click="useTopologySelection"
+            >
+              {{ t('query.useTopologySelection') }}: {{ selectionCandidate.name }}
+            </NButton>
+            <NButton size="small" @click="goTopology">{{ t('query.goTopology') }}</NButton>
+          </NSpace>
+        </NAlert>
         <NAlert
           v-else-if="asset && !(asset.hasCredential ?? asset.hasSshCredential)"
           type="warning"

@@ -50,15 +50,9 @@ public class AssetSshDialer {
 
     public ClientSession dial(Long assetId, Long userId, Collection<String> roles) throws Exception {
         assetAclService.requireAssetAccess(userId, roles, assetId);
+        // Jump hops are graph SSOT only — never read legacy credential.jumpAssetIds.
         List<Long> jumps = graphConnectPathService.resolveJumpAssetIds(assetId);
         if (jumps == null || jumps.isEmpty()) {
-            SshCredential credential = requireCredential(assetId);
-            if (credential.getJumpAssetIds() != null && !credential.getJumpAssetIds().isEmpty()) {
-                throw new BusinessException(
-                        HttpStatus.CONFLICT,
-                        "SSH_JUMP_LEGACY",
-                        "SSH 凭证仍使用旧版 jumpAssetIds，请迁移为图中的 CONNECTS_VIA 关系");
-            }
             return dialAssetDirect(assetId);
         }
         validateJumpChain(jumps, assetId);
@@ -69,15 +63,15 @@ public class AssetSshDialer {
     }
 
     /**
-     * Detects cycles in {@code jumpAssetIds + targetAssetId}.
+     * Detects cycles in {@code CONNECTS_VIA hops + targetAssetId}.
      * Package-visible for unit tests.
      */
-    static void validateJumpChain(List<Long> jumpAssetIds, Long targetAssetId) {
-        if (jumpAssetIds == null || jumpAssetIds.isEmpty()) {
+    static void validateJumpChain(List<Long> jumpHops, Long targetAssetId) {
+        if (jumpHops == null || jumpHops.isEmpty()) {
             return;
         }
         Set<Long> seen = new HashSet<>();
-        List<Long> path = new ArrayList<>(jumpAssetIds);
+        List<Long> path = new ArrayList<>(jumpHops);
         path.add(targetAssetId);
         for (Long id : path) {
             if (id == null) {
@@ -96,9 +90,10 @@ public class AssetSshDialer {
     /**
      * Multi-hop dial: connect first jump directly, then for each next hop open a
      * local port forward and authenticate with that hop's credentials.
+     * {@code jumpHops} come from Neo4j {@code CONNECTS_VIA} only.
      */
-    ClientSession dialViaJumpChain(List<Long> jumpAssetIds, Long targetAssetId) throws Exception {
-        List<Long> path = new ArrayList<>(jumpAssetIds);
+    ClientSession dialViaJumpChain(List<Long> jumpHops, Long targetAssetId) throws Exception {
+        List<Long> path = new ArrayList<>(jumpHops);
         path.add(targetAssetId);
 
         List<ClientSession> hopSessions = new ArrayList<>();

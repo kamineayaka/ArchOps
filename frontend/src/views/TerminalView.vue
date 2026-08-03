@@ -6,7 +6,7 @@ import { NButton, NCard, NIcon, NTag, useMessage } from 'naive-ui'
 import { ChatbubbleEllipsesOutline, CloseOutline, RefreshOutline } from '@vicons/ionicons5'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
-import { listAssets, type Asset } from '@/api/assets'
+import { listAssets, getAsset, type Asset } from '@/api/assets'
 import { touchTerminalDock } from '@/api/graph'
 import { listSshPool, warmSshPool, type SshPoolEntry } from '@/api/sshPool'
 import { connectActionFor } from '@/assetTypes/registry'
@@ -90,6 +90,28 @@ async function loadAssets() {
       (a) => (a.hasCredential ?? a.hasSshCredential) && connectActionFor(a.kind) === 'terminal',
     )
   }
+}
+
+async function resolveConnectableAsset(assetId: number): Promise<Asset | null> {
+  const cached = assets.value.find((a) => a.id === assetId)
+  if (cached) return cached
+  try {
+    const res = await getAsset(assetId)
+    const asset = res.success ? res.data : null
+    if (
+      asset &&
+      (asset.hasCredential ?? asset.hasSshCredential) &&
+      connectActionFor(asset.kind) === 'terminal'
+    ) {
+      if (!assets.value.some((a) => a.id === asset.id)) {
+        assets.value = [...assets.value, asset]
+      }
+      return asset
+    }
+  } catch {
+    // fall through
+  }
+  return null
 }
 
 async function refreshPool() {
@@ -178,8 +200,8 @@ async function connectSession(assetId: number) {
   }
 }
 
-function openAssetById(assetId: number) {
-  const asset = assets.value.find((a) => a.id === assetId)
+async function openAssetById(assetId: number) {
+  const asset = await resolveConnectableAsset(assetId)
   if (!asset) {
     message.warning(t('terminal.assetNotConnectable'))
     return
@@ -231,6 +253,10 @@ function openInAgent() {
   }
 }
 
+function goTopology() {
+  void router.push({ name: 'topology' })
+}
+
 function tickElapsed() {
   const tab = activeTab.value
   if (!tab?.connectedAt || tab.status !== 'connected') {
@@ -254,17 +280,17 @@ watch(
   (raw) => {
     const id = Number(raw)
     if (!Number.isFinite(id) || id <= 0) return
-    if (!assets.value.length) return
-    openAssetById(id)
+    void openAssetById(id)
   },
 )
 
 onMounted(async () => {
+  // Session dock + route param are primary; flat list is metadata fallback only.
   await Promise.all([loadAssets(), refreshPool()])
   elapsedTimer = setInterval(tickElapsed, 1000)
   const paramId = Number(route.params.assetId)
   if (Number.isFinite(paramId) && paramId > 0) {
-    openAssetById(paramId)
+    await openAssetById(paramId)
   }
 })
 
@@ -335,7 +361,10 @@ onBeforeUnmount(() => {
 
     <NCard class="terminal-ide__stage" :bordered="false">
       <div v-if="!tabs.length" class="terminal-ide__empty">
-        {{ t('terminal.hintSelectTree') }}
+        <p>{{ t('terminal.hintSelectTree') }}</p>
+        <NButton size="small" type="primary" @click="goTopology">
+          {{ t('terminal.goTopology') }}
+        </NButton>
       </div>
       <div
         v-for="tab in tabs"
@@ -480,14 +509,21 @@ onBeforeUnmount(() => {
 }
 
 .terminal-ide__empty {
-  display: grid;
-  place-items: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
   height: 100%;
   min-height: 280px;
   color: var(--ao-steel);
   padding: 24px;
   text-align: center;
   font-size: 0.875rem;
+}
+
+.terminal-ide__empty p {
+  margin: 0;
 }
 
 .terminal-pane {

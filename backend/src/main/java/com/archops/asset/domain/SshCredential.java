@@ -42,8 +42,8 @@ public class SshCredential {
     private String passphraseHash;
 
     /**
-     * Ordered jump asset IDs (legacy connection topology).
-     * Prefer Neo4j {@code CONNECTS_VIA}; column kept for migration / rollback.
+     * Legacy column — dialer reads Neo4j {@code CONNECTS_VIA} only.
+     * Kept for migration importer / rollback; merges clear it to empty.
      */
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "jump_asset_ids", nullable = false)
