@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
- * ArchOps functional smoke tests against a running stack (local Compose or kamiserver).
+ * ArchOps functional smoke tests against a running stack (e.g. local Compose).
  *
  * Usage:
  *   node deploy/scripts/smoke-functional.mjs
- *   ARCHOPS_BASE_URL=http://<kami-ip> node deploy/scripts/smoke-functional.mjs
+ *   ARCHOPS_BASE_URL=http://127.0.0.1 node deploy/scripts/smoke-functional.mjs
  *
  * Env:
  *   ARCHOPS_BASE_URL   default http://127.0.0.1

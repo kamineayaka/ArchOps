@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Wrapper: run functional smoke against a host (default kamiserver via BASE_URL).
+# Wrapper: run functional smoke against a host (default http://127.0.0.1).
 # Examples:
 #   bash deploy/scripts/smoke-functional.sh
 #   ARCHOPS_BASE_URL=http://10.0.0.2 bash deploy/scripts/smoke-functional.sh
