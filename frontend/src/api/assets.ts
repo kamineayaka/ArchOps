@@ -29,6 +29,12 @@ export async function listAssets() {
   return data
 }
 
+/** Single-asset projection (PG anchor). Prefer topology selection / dock for picking. */
+export async function getAsset(assetId: number) {
+  const { data } = await client.get<ApiResponse<Asset>>(`/api/assets/${assetId}`)
+  return data
+}
+
 export async function testSavedAssetConnection(assetId: number) {
   const { data } = await client.post<ApiResponse<TestConnectionResponse>>(
     `/api/assets/${assetId}/test-connection`,

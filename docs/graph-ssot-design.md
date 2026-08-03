@@ -37,7 +37,7 @@ asset:{elementId}          # 新写用 UUID；迁移期兼容 asset:{numericId}
 `MEMBER_OF` · `RUNS_ON` · `DEPENDS_ON` · `CONNECTS_VIA` · `HAS_TAG`
 
 - 跳板语义（迁移默认）：目标资产扇出有序 `CONNECTS_VIA{order}`（语义 B）
-- 旧 `jump_asset_ids` / `parent_id` / 分组：迁移后停写
+- Dialer **只**读 `CONNECTS_VIA`；遗留 `jump_asset_ids` / `parent_id` 迁移后停写、不再参与拨号（列可后续 DROP，见 §8）
 
 ## 4. ChangeSet / Proposal
 
@@ -72,7 +72,7 @@ asset:{elementId}          # 新写用 UUID；迁移期兼容 asset:{numericId}
 | V16 | 凭证软删、`credential_staging` |
 | V17 | `terminal_session_dock` |
 | V18 | 删除 `asset_group` / `asset_group_member`（分组迁图标签） |
-| P2+ 清理 | Dialer 仅 `CONNECTS_VIA`；移除资产树/分组 UI 与直写资产 API；凭证 staging |
+| P2+ 清理 | Dialer 仅 `CONNECTS_VIA`（已落地）；移除资产树/分组 UI 与直写资产 API（已落地）；凭证 staging |
 | P3 工作台 | 选中详情侧栏；编辑 / 软删 / 删边 / 更新凭证入草稿；开终端与测连；草稿列表与 plan warnings |
 
 ### 前端入口（P0–P3）

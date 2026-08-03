@@ -86,19 +86,6 @@ public class AssetService {
         return toResponse(asset, hasCred);
     }
 
-    /**
-     * @deprecated Direct PG soft-delete bypasses Neo4j SSOT. Use graph {@code NODE_SOFT_DELETE}
-     *             via proposal merge ({@link com.archops.graph.service.GraphPgAnchorService}).
-     */
-    @Deprecated
-    @Transactional
-    public void delete(Long id, Long actorId, String actorName) {
-        throw new BusinessException(
-                HttpStatus.METHOD_NOT_ALLOWED,
-                "GRAPH_WRITE_REQUIRED",
-                "资产删除须经图工作台草稿 / Proposal 合并（NODE_SOFT_DELETE），禁止直写 PG 以免与 Neo4j 分叉");
-    }
-
     @Transactional(readOnly = true)
     public SshCredential getSshCredential(Long assetId, Long userId, Collection<String> roles) {
         assetAclService.requireAssetAccess(userId, roles, assetId);

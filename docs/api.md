@@ -29,13 +29,13 @@
 
 ## 资产锚点（Postgres）
 
-PG `assets` 仅为图节点锚点 / 凭证宿主；**不再提供直写 CRUD**（创建/更新走图提案）。
+PG `assets` 仅为图节点锚点 / 凭证宿主；**不提供写 CRUD**。创建 / 更新 / 软删一律走图工作台草稿 → `POST /api/graph/plan` → 架构 Proposal → Merge（含 `NODE_SOFT_DELETE`）。
+SSH 跳板只认 Neo4j `CONNECTS_VIA`（不读遗留 `jump_asset_ids`）。
 
 | 方法 | 路径 | 角色 | 说明 |
 |---|---|---|---|
-| GET | `/api/assets` | VIEWER+ | 活跃资产列表（PG 锚点投影） |
+| GET | `/api/assets` | VIEWER+ | 活跃资产列表（PG 锚点投影；选机辅助，非库存管理入口） |
 | GET | `/api/assets/{id}` | VIEWER+ | 单资产 |
-| DELETE | `/api/assets/{id}` | — | **已停用**（返回 `GRAPH_WRITE_REQUIRED`）；软删须经图工作台 `NODE_SOFT_DELETE` Proposal |
 | POST | `/api/assets/{id}/test-connection` | OPERATOR+ | 对已保存资产做连通性测试 |
 | GET | `/api/asset-types` | 登录用户 | 资产类型描述 |
 

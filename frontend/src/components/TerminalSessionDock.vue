@@ -63,7 +63,13 @@ defineExpose({ reload: load })
 <template>
   <div class="session-dock">
     <div class="session-dock__title">{{ t('terminal.sessionDock') }}</div>
-    <NEmpty v-if="!loading && !items.length" size="small" :description="t('terminal.sessionDockEmpty')" />
+    <NEmpty v-if="!loading && !items.length" size="small" :description="t('terminal.sessionDockEmpty')">
+      <template #extra>
+        <NButton size="tiny" type="primary" @click="router.push({ name: 'topology' })">
+          {{ t('terminal.goTopology') }}
+        </NButton>
+      </template>
+    </NEmpty>
     <div v-for="item in items" :key="item.elementId" class="session-dock__item">
       <button type="button" class="session-dock__open" @click="openItem(item)">
         <span class="name">{{ item.name }}</span>
