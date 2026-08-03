@@ -2,6 +2,7 @@ package com.archops.knowledge.architecture.service;
 
 import com.archops.audit.service.AuditService;
 import com.archops.common.exception.BusinessException;
+import com.archops.graph.semantics.TopologyProseDetector;
 import com.archops.knowledge.acl.AssetAclService;
 import com.archops.knowledge.architecture.ArchitectureMetrics;
 import com.archops.knowledge.architecture.ArchitectureProperties;
@@ -78,6 +79,14 @@ public class ArchitectureProposalService {
         partitionService.getOrCreate(scopeKey);
 
         List<FactOpRequest> ops = resolveFactOps(request);
+        rejectTopologyEncodedFacts(ops);
+        TopologyProseDetector.Result summaryScan = TopologyProseDetector.scan(request.summary());
+        if (summaryScan.isHard()) {
+            throw new BusinessException(
+                    HttpStatus.BAD_REQUEST,
+                    "TOPOLOGY_PROSE_FORBIDDEN",
+                    "提案摘要禁止编码拓扑（跳板/依赖等）。请用 propose_graph_change / 图编辑画边。");
+        }
         String factOpsJson = mergeEngine.writeFactOps(ops);
         String evidenceJson = request.evidenceJson() != null && !request.evidenceJson().isBlank()
                 ? request.evidenceJson()
@@ -181,6 +190,14 @@ public class ArchitectureProposalService {
                         asDouble(fact.get("confidence")),
                         provenance));
             }
+        }
+        rejectTopologyEncodedFacts(ops);
+        TopologyProseDetector.Result summaryScan = TopologyProseDetector.scan(summary);
+        if (summaryScan.isHard()) {
+            throw new BusinessException(
+                    HttpStatus.BAD_REQUEST,
+                    "TOPOLOGY_PROSE_FORBIDDEN",
+                    "架构提案摘要禁止编码拓扑。跳板/依赖/归属请调用 propose_graph_change。");
         }
 
         long baseVersion = partitionService.currentVersion(partitionKey);
@@ -339,6 +356,17 @@ public class ArchitectureProposalService {
             if (!allowed.contains(op.factType() != null ? op.factType().toUpperCase(Locale.ROOT) : "")) {
                 return false;
             }
+            if (TopologyProseDetector.isTopologyEdgePredicate(op.predicate())) {
+                return false;
+            }
+            String blob = String.join(
+                    " ",
+                    nullSafe(op.subject()),
+                    nullSafe(op.predicate()),
+                    nullSafe(op.object()));
+            if (TopologyProseDetector.scan(blob).blocksAutoMerge()) {
+                return false;
+            }
             double conf = op.confidence() != null
                     ? op.confidence()
                     : (proposalConfidence != null ? proposalConfidence : 0.0);
@@ -353,6 +381,36 @@ public class ArchitectureProposalService {
             }
         }
         return true;
+    }
+
+    private static void rejectTopologyEncodedFacts(List<FactOpRequest> ops) {
+        if (ops == null) {
+            return;
+        }
+        for (FactOpRequest op : ops) {
+            if (TopologyProseDetector.isTopologyEdgePredicate(op.predicate())) {
+                throw new BusinessException(
+                        HttpStatus.BAD_REQUEST,
+                        "TOPOLOGY_FACT_FORBIDDEN",
+                        "事实 predicate「" + op.predicate() + "」属于图边语义，请使用 propose_graph_change / 图编辑。");
+            }
+            String blob = String.join(
+                    " ",
+                    nullSafe(op.subject()),
+                    nullSafe(op.predicate()),
+                    nullSafe(op.object()));
+            TopologyProseDetector.Result scan = TopologyProseDetector.scan(blob);
+            if (scan.isHard()) {
+                throw new BusinessException(
+                        HttpStatus.BAD_REQUEST,
+                        "TOPOLOGY_PROSE_FORBIDDEN",
+                        "事实文本禁止硬编码拓扑（跳板/DEPENDS_ON/CONNECTS_VIA 等）。请画边。");
+            }
+        }
+    }
+
+    private static String nullSafe(String value) {
+        return value == null ? "" : value;
     }
 
     private boolean evidenceComplete(

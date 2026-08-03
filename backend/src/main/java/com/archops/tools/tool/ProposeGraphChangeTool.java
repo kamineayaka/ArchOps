@@ -46,9 +46,12 @@ public class ProposeGraphChangeTool implements AgentTool {
     @Override
     public String description() {
         return "Propose an inventory topology change (nodes/edges/credentials) for human review. "
-                + "Pass GraphOp ops (NODE_CREATE, NODE_UPDATE, NODE_SOFT_DELETE, EDGE_CREATE, EDGE_SOFT_DELETE, "
-                + "CREDENTIAL_UPSERT_REF, etc.). Compiles a ChangeSet via plan mode and creates a PENDING "
-                + "architecture proposal — never merges directly. "
+                + "Pass GraphOp ops (NODE_CREATE, NODE_UPDATE, NODE_SOFT_DELETE, REL_CREATE, REL_UPDATE, REL_DELETE, "
+                + "TAG_ADD/REMOVE, plus pgSideEffects like CREDENTIAL_UPSERT_REF). "
+                + "REL_CREATE types: MEMBER_OF, RUNS_ON, DEPENDS_ON, CONNECTS_VIA, HAS_TAG — "
+                + "endpoint kinds are validated (e.g. CONNECTS_VIA requires SERVER→SERVER). "
+                + "Optional edge properties.description is a hover remark, not topology SSOT. "
+                + "Compiles a ChangeSet via plan mode and creates a PENDING architecture proposal — never merges directly. "
                 + "For knowledge facts/roles use propose_architecture_update instead.";
     }
 

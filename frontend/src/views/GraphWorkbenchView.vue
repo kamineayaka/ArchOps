@@ -25,6 +25,7 @@ import {
   queryGraph,
   stageCredential,
   touchTerminalDock,
+  auditTopologyProse,
   type GraphEdge,
   type GraphNode,
 } from '@/api/graph'
@@ -40,7 +41,7 @@ import { useAgentUiSelection } from '@/composables/useAgentUiSelection'
 import { useAuthStore } from '@/stores/auth'
 import { createWorkbenchStylesheet } from '@/theme/graphStyles'
 import { newId } from '@/utils/id'
-import { isOperatorOrAdmin } from '@/utils/roles'
+import { isAdmin, isOperatorOrAdmin } from '@/utils/roles'
 
 const { setNodeSelection, clearSelection: clearAgentUiSelection } = useAgentUiSelection()
 
@@ -65,6 +66,8 @@ interface EdgeSelection {
   relType: string
   source: string
   target: string
+  description: string | null
+  order: number | null
   draft: boolean
 }
 
@@ -74,6 +77,7 @@ const message = useMessage()
 const router = useRouter()
 const auth = useAuthStore()
 const canEdit = computed(() => isOperatorOrAdmin(auth.user?.roles))
+const canAudit = computed(() => isAdmin(auth.user?.roles))
 
 const loading = ref(false)
 const graphVersion = ref(0)
@@ -85,6 +89,12 @@ const draftSideEffects = ref<Record<string, unknown>[]>([])
 const planWarnings = ref<string[]>([])
 const edgeMode = ref(false)
 const edgeType = ref('MEMBER_OF')
+const showAddEdge = ref(false)
+const showEditEdge = ref(false)
+const edgeDraftFrom = ref('')
+const edgeDraftTo = ref('')
+const edgeForm = ref({ description: '', order: 0 })
+const edgeTip = ref({ show: false, x: 0, y: 0, text: '' })
 const showAddNode = ref(false)
 const showQuickAdd = ref(false)
 const showEditNode = ref(false)
@@ -286,6 +296,14 @@ function toElements(nodes: GraphNode[], edges: GraphEdge[]): ElementDefinition[]
     },
   }))
   for (const e of edges) {
+    const desc =
+      e.properties?.description != null && String(e.properties.description).trim()
+        ? String(e.properties.description)
+        : ''
+    const order =
+      e.properties?.order != null && Number.isFinite(Number(e.properties.order))
+        ? Number(e.properties.order)
+        : null
     els.push({
       group: 'edges',
       data: {
@@ -294,6 +312,8 @@ function toElements(nodes: GraphNode[], edges: GraphEdge[]): ElementDefinition[]
         target: e.toElementId,
         label: e.type,
         type: e.type,
+        description: desc,
+        order,
         draft: false,
       },
     })
@@ -359,6 +379,8 @@ function selectEdgeFromEle(ele: cytoscape.EdgeSingular) {
     relType: String(data.type || data.label || ''),
     source: String(data.source),
     target: String(data.target),
+    description: data.description != null && String(data.description).trim() ? String(data.description) : null,
+    order: data.order != null && Number.isFinite(Number(data.order)) ? Number(data.order) : null,
     draft: Boolean(data.draft),
   }
   applyCySelection(selection.value)
@@ -396,7 +418,7 @@ function initCy(elements: ElementDefinition[]) {
         edgeSourceId = null
         return
       }
-      addDraftEdge(edgeSourceId, id, edgeType.value)
+      openAddEdgeModal(edgeSourceId, id)
       edgeSourceId = null
       return
     }
@@ -406,6 +428,27 @@ function initCy(elements: ElementDefinition[]) {
   cy.on('tap', 'edge', (evt) => {
     if (edgeMode.value) return
     selectEdgeFromEle(evt.target)
+  })
+
+  cy.on('mouseover', 'edge', (evt) => {
+    const data = evt.target.data()
+    const desc = data.description != null ? String(data.description).trim() : ''
+    if (!desc) {
+      edgeTip.value = { show: false, x: 0, y: 0, text: '' }
+      return
+    }
+    const rendered = evt.renderedPosition || evt.target.midpoint()
+    const container = containerRef.value?.getBoundingClientRect()
+    edgeTip.value = {
+      show: true,
+      x: (container?.left ?? 0) + (rendered?.x ?? 0),
+      y: (container?.top ?? 0) + (rendered?.y ?? 0) - 12,
+      text: `${data.type || data.label}: ${desc}`,
+    }
+  })
+
+  cy.on('mouseout', 'edge', () => {
+    edgeTip.value = { show: false, x: 0, y: 0, text: '' }
   })
 
   cy.on('tap', (evt) => {
@@ -489,6 +532,8 @@ function overlayDraftOp(op: Record<string, unknown>) {
         target,
         label: String(op.type),
         type: String(op.type),
+        description: props.description != null ? String(props.description) : '',
+        order: props.order != null ? Number(props.order) : null,
         draft: true,
       },
       classes: 'draft',
@@ -778,21 +823,122 @@ async function submitQuickAdd() {
   }
 }
 
-function addDraftEdge(fromId: string, toId: string, type: string) {
+function openAddEdgeModal(fromId: string, toId: string) {
+  edgeDraftFrom.value = fromId
+  edgeDraftTo.value = toId
+  edgeForm.value = { description: '', order: 0 }
+  showAddEdge.value = true
+}
+
+function confirmAddEdge() {
+  addDraftEdge(edgeDraftFrom.value, edgeDraftTo.value, edgeType.value, {
+    description: edgeForm.value.description.trim(),
+    order: edgeType.value === 'CONNECTS_VIA' ? edgeForm.value.order : undefined,
+  })
+  showAddEdge.value = false
+}
+
+function addDraftEdge(
+  fromId: string,
+  toId: string,
+  type: string,
+  opts?: { description?: string; order?: number },
+) {
+  const props: Record<string, unknown> = {
+    elementId: newId(),
+  }
+  if (type === 'CONNECTS_VIA') {
+    props.order = opts?.order ?? 0
+    props.protocol = 'ssh'
+  }
+  if (opts?.description) {
+    props.description = opts.description
+  }
   const op = {
     op: 'REL_CREATE',
     type,
     from: { elementId: fromId },
     to: { elementId: toId },
-    properties: {
-      elementId: newId(),
-      ...(type === 'CONNECTS_VIA' ? { order: 0, protocol: 'ssh' } : {}),
-    },
+    properties: props,
   }
   draftOps.value.push(op)
   overlayDraftOp(op)
   planWarnings.value = []
   message.success(t('graph.edgeDrafted', { type }))
+}
+
+function openEditEdgeModal() {
+  const edge = selectedEdge.value
+  if (!edge || edge.draft) return
+  edgeForm.value = {
+    description: edge.description || '',
+    order: edge.order ?? 0,
+  }
+  showEditEdge.value = true
+}
+
+function saveEdgeDescriptionDraft() {
+  const edge = selectedEdge.value
+  if (!edge || edge.draft) return
+  const set: Record<string, unknown> = {
+    description: edgeForm.value.description.trim() || null,
+  }
+  if (edge.relType === 'CONNECTS_VIA') {
+    set.order = edgeForm.value.order
+  }
+  const op = {
+    op: 'REL_UPDATE',
+    ref: { elementId: edge.elementId },
+    set,
+  }
+  draftOps.value.push(op)
+  if (cy) {
+    const el = cy.$id(edge.elementId)
+    if (el.nonempty()) {
+      el.data('description', edgeForm.value.description.trim())
+      if (edge.relType === 'CONNECTS_VIA') el.data('order', edgeForm.value.order)
+    }
+  }
+  selection.value = {
+    ...edge,
+    description: edgeForm.value.description.trim() || null,
+    order: edge.relType === 'CONNECTS_VIA' ? edgeForm.value.order : edge.order,
+  }
+  showEditEdge.value = false
+  planWarnings.value = []
+  message.success(t('graph.draftAdded'))
+}
+
+async function runTopologyProseAudit() {
+  try {
+    const res = await auditTopologyProse()
+    if (!res.success || !res.data) {
+      message.error(res.message || t('common.failed'))
+      return
+    }
+    const { findingCount, hardCount, warnCount, suggestedOps } = res.data
+    message.info(
+      t('graph.auditProseResult', {
+        findings: findingCount,
+        hard: hardCount,
+        warn: warnCount,
+        ops: suggestedOps?.length ?? 0,
+      }),
+    )
+    if (suggestedOps?.length) {
+      for (const op of suggestedOps) {
+        draftOps.value.push(op)
+        overlayDraftOp(op)
+      }
+      planWarnings.value = [
+        t('graph.auditProseDraftHint'),
+        ...(planWarnings.value || []),
+      ]
+      showDraftPanel.value = true
+    }
+  } catch (error) {
+    message.error(error instanceof Error ? error.message : t('common.failed'))
+  }
 }
 
 function openEditModal() {
@@ -1142,6 +1288,9 @@ onBeforeUnmount(() => {
             style="width: 160px"
             size="small"
           />
+          <NButton v-if="canAudit" secondary @click="runTopologyProseAudit">
+            {{ t('graph.auditProse') }}
+          </NButton>
           <NButton v-if="draftCount" @click="showDraftPanel = true">
             {{ t('graph.draftTitle') }} ({{ draftCount }})
           </NButton>
@@ -1237,8 +1386,18 @@ onBeforeUnmount(() => {
         <template v-else-if="selectedEdge">
           <div class="graph-float__meta">
             <strong>{{ selectedEdge.relType }}</strong>
+            <span v-if="selectedEdge.order != null">order={{ selectedEdge.order }}</span>
+            <span v-if="selectedEdge.description" class="graph-float__desc">{{ selectedEdge.description }}</span>
+            <span v-else class="graph-float__desc graph-float__desc--empty">{{ t('graph.edgeDescEmpty') }}</span>
           </div>
           <NSpace size="small">
+            <NButton
+              v-if="canEdit && !selectedEdge.draft"
+              size="small"
+              @click="openEditEdgeModal"
+            >
+              {{ t('graph.editEdgeDesc') }}
+            </NButton>
             <NButton
               v-if="canEdit"
               size="small"
@@ -1251,6 +1410,13 @@ onBeforeUnmount(() => {
             <NButton size="small" quaternary @click="clearSelection">{{ t('common.cancel') }}</NButton>
           </NSpace>
         </template>
+      </div>
+      <div
+        v-if="edgeTip.show"
+        class="edge-tip"
+        :style="{ left: `${edgeTip.x}px`, top: `${edgeTip.y}px` }"
+      >
+        {{ edgeTip.text }}
       </div>
     </div>
 
@@ -1444,6 +1610,54 @@ onBeforeUnmount(() => {
         </NSpace>
       </template>
     </NModal>
+
+    <NModal v-model:show="showAddEdge" preset="card" :title="t('graph.addEdgeTitle')" style="width: 480px">
+      <NForm label-placement="left" label-width="100">
+        <NFormItem :label="t('graph.edgeType')">
+          <NTag size="small">{{ edgeType }}</NTag>
+          <span class="hint">{{ t('graph.edgeKindHint') }}</span>
+        </NFormItem>
+        <NFormItem v-if="edgeType === 'CONNECTS_VIA'" :label="t('graph.edgeOrder')">
+          <NInputNumber v-model:value="edgeForm.order" :min="0" :max="99" />
+        </NFormItem>
+        <NFormItem :label="t('graph.edgeDescription')">
+          <NInput
+            v-model:value="edgeForm.description"
+            type="textarea"
+            :rows="3"
+            :placeholder="t('graph.edgeDescriptionPlaceholder')"
+          />
+        </NFormItem>
+      </NForm>
+      <template #footer>
+        <NSpace justify="end">
+          <NButton @click="showAddEdge = false">{{ t('common.cancel') }}</NButton>
+          <NButton type="primary" @click="confirmAddEdge">{{ t('graph.addToDraft') }}</NButton>
+        </NSpace>
+      </template>
+    </NModal>
+
+    <NModal v-model:show="showEditEdge" preset="card" :title="t('graph.editEdgeDesc')" style="width: 480px">
+      <NForm label-placement="left" label-width="100">
+        <NFormItem v-if="selectedEdge?.relType === 'CONNECTS_VIA'" :label="t('graph.edgeOrder')">
+          <NInputNumber v-model:value="edgeForm.order" :min="0" :max="99" />
+        </NFormItem>
+        <NFormItem :label="t('graph.edgeDescription')">
+          <NInput
+            v-model:value="edgeForm.description"
+            type="textarea"
+            :rows="3"
+            :placeholder="t('graph.edgeDescriptionPlaceholder')"
+          />
+        </NFormItem>
+      </NForm>
+      <template #footer>
+        <NSpace justify="end">
+          <NButton @click="showEditEdge = false">{{ t('common.cancel') }}</NButton>
+          <NButton type="primary" @click="saveEdgeDescriptionDraft">{{ t('graph.addToDraft') }}</NButton>
+        </NSpace>
+      </template>
+    </NModal>
   </div>
 </template>
 
@@ -1543,6 +1757,35 @@ onBeforeUnmount(() => {
 .graph-float__meta strong {
   color: #e8eef7;
   font-family: var(--ao-font-sans);
+}
+
+.graph-float__desc {
+  max-width: 420px;
+  color: var(--ao-steel);
+  font-size: 0.75rem;
+  line-height: 1.35;
+  text-align: center;
+}
+
+.graph-float__desc--empty {
+  opacity: 0.7;
+  font-style: italic;
+}
+
+.edge-tip {
+  position: fixed;
+  z-index: 40;
+  max-width: 320px;
+  padding: 6px 10px;
+  border-radius: var(--ao-radius-sm);
+  border: 1px solid var(--ao-border);
+  background: rgba(15, 23, 36, 0.96);
+  color: #e8eef7;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  pointer-events: none;
+  transform: translate(-50%, -100%);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
 }
 
 .graph-panel__empty {

@@ -38,6 +38,9 @@ asset:{elementId}          # 新写用 UUID；迁移期兼容 asset:{numericId}
 
 - 跳板语义（迁移默认）：目标资产扇出有序 `CONNECTS_VIA{order}`（语义 B）
 - Dialer **只**读 `CONNECTS_VIA`；遗留 `jump_asset_ids` / `parent_id` 迁移后停写、不再参与拨号（列可后续 DROP，见 §8）
+- 端点 kind：`CONNECTS_VIA` SERVER→SERVER；`RUNS_ON` SERVICE|DATABASE|NETWORK→SERVER|CLUSTER；`DEPENDS_ON` 非 TAG/ENVIRONMENT；`MEMBER_OF`→CLUSTER；`HAS_TAG`→TAG
+- 备注写在边 `properties.description`（悬停可见）；**节点 description 禁止编码拓扑**，写入会被剥离/硬拒
+- 架构事实 / `body_md` 硬编码拓扑 → 拒绝；自动合并遇拓扑口语 → 跳过
 
 ## 4. ChangeSet / Proposal
 

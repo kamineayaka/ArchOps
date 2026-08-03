@@ -337,9 +337,7 @@ public class GraphPgAnchorService {
                 }
                 node.put("slug", String.valueOf(slug));
             }
-            if (props.get("description") != null) {
-                node.put("description", String.valueOf(props.get("description")));
-            }
+            // Node description is retired as a topology side-channel — do not project to metadata.
             // DATABASE logical db / engine live in metadata (not SSOT columns).
             copyPropIfPresent(props, node, "database");
             copyPropIfPresent(props, node, "engine");
@@ -364,12 +362,8 @@ public class GraphPgAnchorService {
                 node = objectMapper.valueToTree(map);
             }
             if (set.containsKey("description")) {
-                Object d = set.get("description");
-                if (d == null || String.valueOf(d).isBlank()) {
-                    node.remove("description");
-                } else {
-                    node.put("description", String.valueOf(d));
-                }
+                // Ignore node description writes; keep historical metadata until audit cleanup.
+                node.remove("description");
             }
             if (kind == AssetKind.TAG && set.containsKey("slug")) {
                 node.put("slug", PartitionKeys.normalizeSlug(String.valueOf(set.get("slug"))));

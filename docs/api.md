@@ -23,8 +23,9 @@
 | GET | `/api/graph/meta` | VIEWER+ | 图元信息 / 版本 |
 | GET | `/api/graph/snapshot` | VIEWER+ | 全图快照 |
 | POST | `/api/graph/query` | VIEWER+ | 只读 Cypher |
-| POST | `/api/graph/plan` | OPERATOR+ | 编译 ChangeSet 计划 |
+| POST | `/api/graph/plan` | OPERATOR+ | 编译 ChangeSet 计划（校验边端点 kind；拒绝节点 description 拓扑散文） |
 | POST | `/api/graph/credential-staging` | OPERATOR+ | 凭证短期暂存（提案仅引用 staging id） |
+| POST | `/api/graph/topology-prose-audit` | ADMIN | 扫描 description / facts / body_md 中的拓扑散文并建议 REL_CREATE |
 | GET/PUT/DELETE | `/api/terminal/dock` | OPERATOR+ | 操作台会话坞 |
 
 ## 资产锚点（Postgres）

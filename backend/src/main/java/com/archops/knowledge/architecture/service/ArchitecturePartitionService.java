@@ -2,6 +2,7 @@ package com.archops.knowledge.architecture.service;
 
 import com.archops.audit.service.AuditService;
 import com.archops.common.exception.BusinessException;
+import com.archops.graph.semantics.TopologyProseDetector;
 import com.archops.knowledge.acl.AssetAclService;
 import com.archops.knowledge.architecture.ArchitectureMetrics;
 import com.archops.knowledge.architecture.PartitionKeys;
@@ -125,6 +126,27 @@ public class ArchitecturePartitionService {
         List<FactCreateRequest> facts = request.facts() != null ? request.facts() : List.of();
         for (FactCreateRequest fact : facts) {
             validateActiveProvenance(fact.provenanceJson());
+            if (TopologyProseDetector.isTopologyEdgePredicate(fact.predicate())) {
+                throw new BusinessException(
+                        HttpStatus.BAD_REQUEST,
+                        "TOPOLOGY_FACT_FORBIDDEN",
+                        "事实 predicate「" + fact.predicate() + "」属于图边语义，请在图编辑中画边。");
+            }
+            TopologyProseDetector.Result factScan = TopologyProseDetector.scan(
+                    String.join(" ", nullSafe(fact.subject()), nullSafe(fact.predicate()), nullSafe(fact.object())));
+            if (factScan.isHard()) {
+                throw new BusinessException(
+                        HttpStatus.BAD_REQUEST,
+                        "TOPOLOGY_PROSE_FORBIDDEN",
+                        "事实文本禁止硬编码拓扑；请用图边表达跳板/依赖/归属。");
+            }
+        }
+        TopologyProseDetector.Result bodyScan = TopologyProseDetector.scan(request.bodyMd());
+        if (bodyScan.isHard()) {
+            throw new BusinessException(
+                    HttpStatus.BAD_REQUEST,
+                    "TOPOLOGY_PROSE_FORBIDDEN",
+                    "分区 body_md 禁止硬编码拓扑（CONNECTS_VIA/跳板/DEPENDS_ON 等）。请用图边；散文仅作说明。");
         }
 
         ArchitectureRevision revision = new ArchitectureRevision();
@@ -408,5 +430,9 @@ public class ArchitecturePartitionService {
             return "Asset " + partitionKey.substring(6);
         }
         return partitionKey;
+    }
+
+    private static String nullSafe(String value) {
+        return value == null ? "" : value;
     }
 }
