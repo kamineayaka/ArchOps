@@ -124,3 +124,26 @@ export async function removeTerminalDock(elementId: string) {
   const { data } = await client.delete<ApiResponse<null>>(`/api/terminal/dock/${elementId}`)
   return data
 }
+
+export interface TopologyProseAuditResult {
+  findingCount: number
+  hardCount: number
+  warnCount: number
+  findings: Array<{
+    source: string
+    sourceId: number | null
+    sourceKey: string | null
+    title: string | null
+    level: string
+    excerpt: string | null
+    hits: string[]
+  }>
+  suggestedOps: Record<string, unknown>[]
+}
+
+export async function auditTopologyProse() {
+  const { data } = await client.post<ApiResponse<TopologyProseAuditResult>>(
+    '/api/graph/topology-prose-audit',
+  )
+  return data
+}

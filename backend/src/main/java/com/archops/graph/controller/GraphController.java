@@ -9,6 +9,8 @@ import com.archops.graph.dto.GraphPlanResponse;
 import com.archops.graph.dto.GraphQueryRequest;
 import com.archops.graph.dto.GraphQueryResponse;
 import com.archops.graph.dto.GraphSnapshotResponse;
+import com.archops.graph.semantics.TopologyProseAuditService;
+import com.archops.graph.semantics.TopologyProseAuditService.TopologyProseAuditResponse;
 import com.archops.graph.service.CredentialStagingService;
 import com.archops.graph.service.GraphPlanService;
 import com.archops.graph.service.GraphReadService;
@@ -31,16 +33,19 @@ public class GraphController {
     private final GraphPlanService graphPlanService;
     private final GraphVersionService graphVersionService;
     private final CredentialStagingService credentialStagingService;
+    private final TopologyProseAuditService topologyProseAuditService;
 
     public GraphController(
             GraphReadService graphReadService,
             GraphPlanService graphPlanService,
             GraphVersionService graphVersionService,
-            CredentialStagingService credentialStagingService) {
+            CredentialStagingService credentialStagingService,
+            TopologyProseAuditService topologyProseAuditService) {
         this.graphReadService = graphReadService;
         this.graphPlanService = graphPlanService;
         this.graphVersionService = graphVersionService;
         this.credentialStagingService = credentialStagingService;
+        this.topologyProseAuditService = topologyProseAuditService;
     }
 
     @GetMapping("/meta")
@@ -82,5 +87,15 @@ public class GraphController {
             @AuthenticationPrincipal AuthUserPrincipal principal) {
         return ApiResponse.ok(credentialStagingService.create(
                 request, principal.getUserId(), principal.roleNames()));
+    }
+
+    /**
+     * Scan asset description / architecture facts / body_md for topology prose
+     * and return suggested typed REL_CREATE ops.
+     */
+    @PostMapping("/topology-prose-audit")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    public ApiResponse<TopologyProseAuditResponse> topologyProseAudit() {
+        return ApiResponse.ok(topologyProseAuditService.audit());
     }
 }

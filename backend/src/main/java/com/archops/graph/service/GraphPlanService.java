@@ -5,6 +5,8 @@ import com.archops.graph.changeset.GraphChangeSet;
 import com.archops.graph.domain.GraphRelType;
 import com.archops.graph.dto.GraphPlanRequest;
 import com.archops.graph.dto.GraphPlanResponse;
+import com.archops.graph.semantics.GraphPlanKindResolver;
+import com.archops.graph.semantics.TopologyProseDetector;
 import com.archops.knowledge.architecture.PartitionKeys;
 import com.archops.knowledge.architecture.service.ArchitecturePartitionService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -22,14 +24,17 @@ public class GraphPlanService {
 
     private final GraphVersionService graphVersionService;
     private final ArchitecturePartitionService partitionService;
+    private final GraphPlanKindResolver kindResolver;
     private final ObjectMapper objectMapper;
 
     public GraphPlanService(
             GraphVersionService graphVersionService,
             ArchitecturePartitionService partitionService,
+            GraphPlanKindResolver kindResolver,
             ObjectMapper objectMapper) {
         this.graphVersionService = graphVersionService;
         this.partitionService = partitionService;
+        this.kindResolver = kindResolver;
         this.objectMapper = objectMapper;
     }
 
@@ -76,12 +81,23 @@ public class GraphPlanService {
                         throw new BusinessException(
                                 HttpStatus.BAD_REQUEST, "ASSET_NAME_REQUIRED", "NODE_CREATE 需要 properties.name");
                     }
+                    stripNodeDescription(props, warnings, i);
                     op.put("properties", props);
                     if (op.get("labels") == null) {
                         op.put("labels", List.of("Asset", titleCase(String.valueOf(props.get("kind")))));
                     }
                 }
-                case "NODE_UPDATE" -> risk = maxRisk(risk, "MEDIUM");
+                case "NODE_UPDATE" -> {
+                    risk = maxRisk(risk, "MEDIUM");
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> set = op.get("set") instanceof Map<?, ?> m
+                            ? new LinkedHashMap<>((Map<String, Object>) m)
+                            : null;
+                    if (set != null) {
+                        stripNodeDescription(set, warnings, i);
+                        op.put("set", set);
+                    }
+                }
                 case "NODE_SOFT_DELETE" -> risk = maxRisk(risk, "CRITICAL");
                 case "REL_CREATE" -> {
                     String type = str(op.get("type"));
@@ -103,16 +119,33 @@ public class GraphPlanService {
                     if (props.get("elementId") == null) {
                         props.put("elementId", UUID.randomUUID().toString());
                     }
-                    op.put("properties", props);
+                    normalizeEdgeDescription(props, warnings, i);
                     if ("CONNECTS_VIA".equals(op.get("type"))) {
+                        if (!props.containsKey("order")) {
+                            props.put("order", 0);
+                        }
+                        if (!props.containsKey("protocol")) {
+                            props.put("protocol", "ssh");
+                        }
                         risk = maxRisk(risk, "CRITICAL");
                     } else if ("DEPENDS_ON".equals(op.get("type"))) {
                         risk = maxRisk(risk, "HIGH");
                     } else {
                         risk = maxRisk(risk, "MEDIUM");
                     }
+                    op.put("properties", props);
                 }
-                case "REL_UPDATE" -> risk = maxRisk(risk, "MEDIUM");
+                case "REL_UPDATE" -> {
+                    risk = maxRisk(risk, "MEDIUM");
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> set = op.get("set") instanceof Map<?, ?> m
+                            ? new LinkedHashMap<>((Map<String, Object>) m)
+                            : null;
+                    if (set != null) {
+                        normalizeEdgeDescription(set, warnings, i);
+                        op.put("set", set);
+                    }
+                }
                 case "REL_DELETE" -> risk = maxRisk(risk, "HIGH");
                 case "TAG_ADD" -> risk = maxRisk(risk, "LOW");
                 case "TAG_REMOVE" -> risk = maxRisk(risk, "LOW");
@@ -120,6 +153,13 @@ public class GraphPlanService {
                         HttpStatus.BAD_REQUEST, "GRAPH_OP_UNKNOWN", "未知 GraphOp: " + kind);
             }
             normalized.add(op);
+        }
+
+        Map<String, com.archops.asset.domain.AssetKind> kindIndex = kindResolver.indexKinds(normalized);
+        for (Map<String, Object> op : normalized) {
+            if ("REL_CREATE".equals(op.get("op"))) {
+                kindResolver.validateRelCreate(kindIndex, op);
+            }
         }
 
         long graphVersion = graphVersionService.currentVersion();
@@ -136,7 +176,7 @@ public class GraphPlanService {
         changeSet.put(
                 "pgSideEffects",
                 request.pgSideEffects() != null ? request.pgSideEffects() : List.of());
-        changeSet.put("invariants", List.of());
+        changeSet.put("invariants", List.of("edge-endpoint-kinds", "no-node-description"));
         changeSet.put(
                 "stats",
                 Map.of(
@@ -151,10 +191,14 @@ public class GraphPlanService {
             warnings.add("含 CONNECTS_VIA 或软删等高风险操作，合并需人工审批");
         }
 
+        TopologyProseDetector.Result summaryScan = TopologyProseDetector.scan(request.summary());
+        if (summaryScan.blocksAutoMerge()) {
+            warnings.add("计划摘要含拓扑口语（跳板/依赖等）；拓扑必须用边表达，摘要仅作备注");
+        }
+
         String changeSetJson;
         try {
             changeSetJson = objectMapper.writeValueAsString(changeSet);
-            // validate round-trip
             objectMapper.readValue(changeSetJson, GraphChangeSet.class);
         } catch (Exception ex) {
             throw new BusinessException(
@@ -174,6 +218,53 @@ public class GraphPlanService {
                 risk,
                 warnings,
                 preview);
+    }
+
+    /**
+     * Node description is retired as a topology side-channel. Edge {@code description} is the remark field.
+     * HARD topology prose in node description → reject; otherwise strip with warning.
+     */
+    private static void stripNodeDescription(Map<String, Object> props, List<String> warnings, int index) {
+        if (props == null || !props.containsKey("description")) {
+            return;
+        }
+        Object raw = props.remove("description");
+        String text = raw == null ? null : String.valueOf(raw);
+        TopologyProseDetector.Result scan = TopologyProseDetector.scan(text);
+        if (scan.isHard()) {
+            throw new BusinessException(
+                    HttpStatus.BAD_REQUEST,
+                    "NODE_DESCRIPTION_TOPOLOGY_FORBIDDEN",
+                    "ops[" + index + "] 节点 description 禁止编码拓扑（跳板/依赖等）。请用 REL_CREATE 画边；边上可用 description 备注。");
+        }
+        warnings.add("ops[" + index + "] 已忽略节点 description；关系备注请写在边的 description（悬停可见）");
+    }
+
+    private static void normalizeEdgeDescription(Map<String, Object> props, List<String> warnings, int index) {
+        if (props == null || !props.containsKey("description")) {
+            return;
+        }
+        Object raw = props.get("description");
+        if (raw == null) {
+            props.remove("description");
+            return;
+        }
+        String text = String.valueOf(raw).trim();
+        if (text.isEmpty()) {
+            props.remove("description");
+            return;
+        }
+        if (text.length() > 500) {
+            throw new BusinessException(
+                    HttpStatus.BAD_REQUEST,
+                    "EDGE_DESCRIPTION_TOO_LONG",
+                    "ops[" + index + "] 边 description 最长 500 字符");
+        }
+        TopologyProseDetector.Result scan = TopologyProseDetector.scan(text);
+        if (scan.isHard()) {
+            warnings.add("ops[" + index + "] 边 description 含拓扑关键词；边类型本身已表达语义，备注请勿重复编码跳板/依赖");
+        }
+        props.put("description", text);
     }
 
     private static void ensureTempId(Map<String, Object> op, int index) {

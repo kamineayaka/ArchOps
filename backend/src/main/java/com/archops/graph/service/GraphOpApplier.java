@@ -8,6 +8,7 @@ import com.archops.graph.changeset.GraphChangeSet.GraphOp;
 import com.archops.graph.changeset.GraphChangeSet.GraphRef;
 import com.archops.graph.domain.GraphLabels;
 import com.archops.graph.domain.GraphRelType;
+import com.archops.graph.semantics.GraphRelEndpointRules;
 import com.archops.knowledge.architecture.PartitionKeys;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -277,7 +278,7 @@ public class GraphOpApplier {
         UUID toId = binder.resolveElementId(op.to());
         assertNodeActive(tx, fromId);
         assertNodeActive(tx, toId);
-        assertRelEndpoints(tx, type, toId);
+        assertRelEndpoints(tx, type, fromId, toId);
 
         Map<String, Object> props = sanitizeProps(op.properties());
         String elementId = op.properties() != null && op.properties().get("elementId") != null
@@ -568,13 +569,30 @@ public class GraphOpApplier {
         }
     }
 
-    private void assertRelEndpoints(TransactionContext tx, GraphRelType type, UUID toId) {
-        switch (type) {
-            case MEMBER_OF -> assertHasLabel(tx, toId, "Cluster");
-            case HAS_TAG -> assertHasLabel(tx, toId, "Tag");
-            default -> {
-            }
+    private void assertRelEndpoints(TransactionContext tx, GraphRelType type, UUID fromId, UUID toId) {
+        AssetKind fromKind = readNodeKind(tx, fromId);
+        AssetKind toKind = readNodeKind(tx, toId);
+        GraphRelEndpointRules.validate(type, fromKind, toKind);
+    }
+
+    private AssetKind readNodeKind(TransactionContext tx, UUID elementId) {
+        var result = tx.run(
+                """
+                MATCH (n:Asset {elementId: $elementId})
+                WHERE coalesce(n.deleted, false) = false
+                RETURN n.kind AS kind
+                """,
+                Values.parameters("elementId", elementId.toString()));
+        if (!result.hasNext()) {
+            throw new BusinessException(HttpStatus.NOT_FOUND, "GRAPH_NODE_NOT_FOUND", "图节点不存在: " + elementId);
         }
+        String kind = result.next().get("kind").asString(null);
+        AssetKind parsed = GraphRelEndpointRules.parseKind(kind);
+        if (parsed == null) {
+            throw new BusinessException(
+                    HttpStatus.BAD_REQUEST, "GRAPH_REL_ENDPOINT_KIND_UNKNOWN", "节点缺少有效 kind: " + elementId);
+        }
+        return parsed;
     }
 
     private Map<String, Object> baseNodeProps(
@@ -611,7 +629,9 @@ public class GraphOpApplier {
             if (!node.containsKey(e.getKey())
                     && !"metadata".equals(e.getKey())
                     && !"elementId".equals(e.getKey())
-                    && !"pgAssetId".equals(e.getKey())) {
+                    && !"pgAssetId".equals(e.getKey())
+                    && !"description".equals(e.getKey())) {
+                // Node description is retired; edge.description is the remark surface.
                 node.put(e.getKey(), e.getValue());
             }
         }

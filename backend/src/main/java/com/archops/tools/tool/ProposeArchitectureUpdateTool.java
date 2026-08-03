@@ -33,8 +33,9 @@ public class ProposeArchitectureUpdateTool implements AgentTool {
 
     @Override
     public String description() {
-        return "Propose an architecture knowledge update for review. Use when you discover roles "
-                + "(namenode/datanode/hive/spark), topology, or other durable facts. "
+        return "Propose an architecture knowledge update for review (roles/labels and other durable facts). "
+                + "Do NOT encode topology here (jumps, depends_on, runs_on, member_of, CONNECTS_VIA) — "
+                + "use propose_graph_change with typed edges instead. "
                 + "Never write architecture SSOT directly — always propose. "
                 + "partitionKey (scope) must be graph:global / cluster:{id} / tag:{slug} / asset:{id} "
                 + "(legacy global|asset:{numericId} accepted during migration).";

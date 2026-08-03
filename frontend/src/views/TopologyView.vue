@@ -30,6 +30,7 @@ const canEdit = isOperatorOrAdmin(auth.user?.roles)
 const loading = ref(false)
 const graphVersion = ref(0)
 const containerRef = ref<HTMLDivElement | null>(null)
+const edgeTip = ref({ show: false, x: 0, y: 0, text: '' })
 
 const ctxMenu = ref({
   show: false,
@@ -63,6 +64,10 @@ function toElements(nodes: GraphNode[], edges: GraphEdge[]): ElementDefinition[]
     },
   }))
   for (const e of edges) {
+    const desc =
+      e.properties?.description != null && String(e.properties.description).trim()
+        ? String(e.properties.description)
+        : ''
     els.push({
       group: 'edges',
       data: {
@@ -71,6 +76,7 @@ function toElements(nodes: GraphNode[], edges: GraphEdge[]): ElementDefinition[]
         target: e.toElementId,
         label: e.type,
         type: e.type,
+        description: desc,
       },
     })
   }
@@ -246,6 +252,27 @@ function initCy(elements: ElementDefinition[]) {
     setNodeSelection(pgAssetId, elementId)
   })
 
+  cy.on('mouseover', 'edge', (evt) => {
+    const data = evt.target.data()
+    const desc = data.description != null ? String(data.description).trim() : ''
+    if (!desc) {
+      edgeTip.value = { show: false, x: 0, y: 0, text: '' }
+      return
+    }
+    const rendered = evt.renderedPosition || evt.target.midpoint()
+    const box = containerRef.value?.getBoundingClientRect()
+    edgeTip.value = {
+      show: true,
+      x: (box?.left ?? 0) + (rendered?.x ?? 0),
+      y: (box?.top ?? 0) + (rendered?.y ?? 0) - 12,
+      text: `${data.type || data.label}: ${desc}`,
+    }
+  })
+
+  cy.on('mouseout', 'edge', () => {
+    edgeTip.value = { show: false, x: 0, y: 0, text: '' }
+  })
+
   cy.on('tap', (evt) => {
     hideCtxMenu()
     if (evt.target === cy) {
@@ -303,6 +330,13 @@ onBeforeUnmount(() => {
     </div>
 
     <div ref="containerRef" class="topology-canvas ao-blueprint-grid" />
+    <div
+      v-if="edgeTip.show"
+      class="edge-tip"
+      :style="{ left: `${edgeTip.x}px`, top: `${edgeTip.y}px` }"
+    >
+      {{ edgeTip.text }}
+    </div>
 
     <NDropdown
       placement="bottom-start"
@@ -371,5 +405,21 @@ onBeforeUnmount(() => {
   flex: 1;
   min-height: 0;
   width: 100%;
+}
+
+.edge-tip {
+  position: fixed;
+  z-index: 40;
+  max-width: 320px;
+  padding: 6px 10px;
+  border-radius: var(--ao-radius-sm);
+  border: 1px solid var(--ao-border);
+  background: rgba(15, 23, 36, 0.96);
+  color: #e8eef7;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  pointer-events: none;
+  transform: translate(-50%, -100%);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
 }
 </style>
