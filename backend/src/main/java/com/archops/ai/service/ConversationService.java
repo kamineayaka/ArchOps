@@ -63,12 +63,18 @@ public class ConversationService {
 
     @Transactional
     public AiMessage appendMessage(Long conversationId, String role, String content, String toolCallsJson) {
+        AiConversation conversation = conversationRepository.findById(conversationId)
+                .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "CONVERSATION_NOT_FOUND", "对话不存在"));
         AiMessage message = new AiMessage();
         message.setConversationId(conversationId);
         message.setRole(role);
         message.setContent(content);
         message.setToolCalls(toolCallsJson != null ? toolCallsJson : "[]");
-        return messageRepository.save(message);
+        AiMessage saved = messageRepository.save(message);
+        // Touch conversation so list ordering by updatedAt stays fresh.
+        conversation.touch();
+        conversationRepository.save(conversation);
+        return saved;
     }
 
     @Transactional(readOnly = true)

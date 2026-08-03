@@ -14,7 +14,9 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 
 public class AnthropicRuntime implements LlmRuntime {
@@ -82,9 +84,10 @@ public class AnthropicRuntime implements LlmRuntime {
     @Override
     public CompletionResult streamComplete(List<ChatMessage> messages, List<ToolDefinition> tools, Consumer<String> onToken) {
         StringBuilder content = new StringBuilder();
+        Map<Integer, ToolCallBuilder> toolBuilders = new LinkedHashMap<>();
         try {
             String body = buildRequestBody(messages, tools, true);
-            httpClient.send(
+            HttpResponse<java.util.stream.Stream<String>> response = httpClient.send(
                     HttpRequest.newBuilder(URI.create(baseUrl + "/v1/messages"))
                             .header("Content-Type", "application/json")
                             .header("x-api-key", apiKey)
@@ -92,54 +95,93 @@ public class AnthropicRuntime implements LlmRuntime {
                             .timeout(Duration.ofMillis(timeoutMs))
                             .POST(HttpRequest.BodyPublishers.ofString(body))
                             .build(),
-                    HttpResponse.BodyHandlers.ofLines())
-                    .body()
-                    .forEach(line -> {
-                        if (!line.startsWith("data: ")) {
-                            return;
-                        }
-                        try {
-                            JsonNode event = objectMapper.readTree(line.substring(6));
-                            if ("content_block_delta".equals(event.path("type").asText())) {
-                                String text = event.path("delta").path("text").asText("");
-                                if (!text.isBlank()) {
-                                    content.append(text);
-                                    onToken.accept(text);
-                                }
-                            }
-                        } catch (Exception ignored) {
-                        }
-                    });
-            if (!content.isEmpty()) {
-                return new CompletionResult(content.toString(), List.of());
+                    HttpResponse.BodyHandlers.ofLines());
+            if (response.statusCode() >= 400) {
+                String err = "[Anthropic stream error] " + response.statusCode();
+                onToken.accept(err);
+                return new CompletionResult(err, List.of());
             }
+            response.body().forEach(line -> {
+                if (!line.startsWith("data: ")) {
+                    return;
+                }
+                try {
+                    JsonNode event = objectMapper.readTree(line.substring(6));
+                    String type = event.path("type").asText();
+                    if ("content_block_start".equals(type)) {
+                        JsonNode block = event.path("content_block");
+                        if ("tool_use".equals(block.path("type").asText())) {
+                            int index = event.path("index").asInt(0);
+                            ToolCallBuilder builder = toolBuilders.computeIfAbsent(index, ToolCallBuilder::new);
+                            builder.id = block.path("id").asText();
+                            builder.name = block.path("name").asText();
+                        }
+                    } else if ("content_block_delta".equals(type)) {
+                        JsonNode delta = event.path("delta");
+                        String deltaType = delta.path("type").asText();
+                        if ("text_delta".equals(deltaType) || delta.hasNonNull("text")) {
+                            String text = delta.path("text").asText("");
+                            if (!text.isBlank()) {
+                                content.append(text);
+                                onToken.accept(text);
+                            }
+                        } else if ("input_json_delta".equals(deltaType)) {
+                            int index = event.path("index").asInt(0);
+                            ToolCallBuilder builder = toolBuilders.computeIfAbsent(index, ToolCallBuilder::new);
+                            builder.arguments.append(delta.path("partial_json").asText(""));
+                        }
+                    }
+                } catch (Exception ignored) {
+                }
+            });
+            List<ToolCall> toolCalls = toolBuilders.values().stream()
+                    .filter(builder -> builder.name != null && !builder.name.isBlank())
+                    .map(ToolCallBuilder::build)
+                    .toList();
+            return new CompletionResult(content.toString(), toolCalls);
         } catch (Exception ex) {
             String err = "[stream failed] " + ex.getMessage();
             onToken.accept(err);
             return new CompletionResult(err, List.of());
         }
-        CompletionResult result = complete(messages, tools);
-        if (result.content() != null && !result.content().isBlank()) {
-            onToken.accept(result.content());
+    }
+
+    private static final class ToolCallBuilder {
+        private final int index;
+        private String id;
+        private String name;
+        private final StringBuilder arguments = new StringBuilder();
+
+        private ToolCallBuilder(int index) {
+            this.index = index;
         }
-        return result;
+
+        private ToolCall build() {
+            String callId = id != null && !id.isBlank() ? id : "stream-call-" + index;
+            String args = arguments.length() > 0 ? arguments.toString() : "{}";
+            return new ToolCall(callId, name, args);
+        }
     }
 
     public List<String> listModels() {
         return KNOWN_MODELS;
     }
 
-    private String buildRequestBody(List<ChatMessage> messages, List<ToolDefinition> tools, boolean stream) throws Exception {
+    /** Package-visible for unit tests. */
+    String buildRequestBody(List<ChatMessage> messages, List<ToolDefinition> tools, boolean stream) throws Exception {
         ObjectNode root = objectMapper.createObjectNode();
         root.put("model", model);
-        root.put("max_tokens", generation.effectiveMaxTokens(4096));
+        int maxTokens = generation.effectiveMaxTokens(4096);
+        root.put("max_tokens", maxTokens);
         root.put("stream", stream);
         if (generation.reasoningEnabled()) {
             int budget = generation.reasoningEffort().anthropicBudgetTokens();
             if (budget > 0) {
+                // Anthropic requires budget_tokens < max_tokens
+                int safeBudget = Math.min(budget, Math.max(1, maxTokens - 1));
                 ObjectNode thinking = root.putObject("thinking");
                 thinking.put("type", "enabled");
-                thinking.put("budget_tokens", budget);
+                thinking.put("budget_tokens", safeBudget);
             }
         }
 
@@ -147,7 +189,7 @@ public class AnthropicRuntime implements LlmRuntime {
         ArrayNode anthropicMessages = objectMapper.createArrayNode();
         for (ChatMessage msg : messages) {
             if ("system".equals(msg.role())) {
-                system = msg.content();
+                system = msg.content() != null ? msg.content() : "";
                 continue;
             }
             if ("tool".equals(msg.role())) {
@@ -156,14 +198,37 @@ public class AnthropicRuntime implements LlmRuntime {
                 ArrayNode content = toolResult.putArray("content");
                 ObjectNode block = content.addObject();
                 block.put("type", "tool_result");
-                block.put("tool_use_id", "tool");
-                block.put("content", msg.content());
+                String toolUseId = msg.toolCallId() != null && !msg.toolCallId().isBlank()
+                        ? msg.toolCallId()
+                        : "tool";
+                block.put("tool_use_id", toolUseId);
+                block.put("content", msg.content() != null ? msg.content() : "");
                 anthropicMessages.add(toolResult);
+                continue;
+            }
+            List<ToolCall> toolCalls = msg.toolCalls();
+            if ("assistant".equals(msg.role()) && toolCalls != null && !toolCalls.isEmpty()) {
+                ObjectNode node = objectMapper.createObjectNode();
+                node.put("role", "assistant");
+                ArrayNode content = node.putArray("content");
+                if (msg.content() != null && !msg.content().isBlank()) {
+                    ObjectNode text = content.addObject();
+                    text.put("type", "text");
+                    text.put("text", msg.content());
+                }
+                for (ToolCall tc : toolCalls) {
+                    ObjectNode toolUse = content.addObject();
+                    toolUse.put("type", "tool_use");
+                    toolUse.put("id", tc.id() != null ? tc.id() : "");
+                    toolUse.put("name", tc.name());
+                    toolUse.set("input", parseToolArguments(tc.arguments()));
+                }
+                anthropicMessages.add(node);
                 continue;
             }
             ObjectNode node = objectMapper.createObjectNode();
             node.put("role", "assistant".equals(msg.role()) ? "assistant" : "user");
-            node.put("content", msg.content());
+            node.put("content", msg.content() != null ? msg.content() : "");
             anthropicMessages.add(node);
         }
         if (!system.isBlank()) {
@@ -181,6 +246,14 @@ public class AnthropicRuntime implements LlmRuntime {
             }
         }
         return objectMapper.writeValueAsString(root);
+    }
+
+    private JsonNode parseToolArguments(String arguments) {
+        try {
+            return objectMapper.readTree(arguments != null && !arguments.isBlank() ? arguments : "{}");
+        } catch (Exception ex) {
+            return objectMapper.createObjectNode();
+        }
     }
 
     private CompletionResult parseResponse(String body) throws Exception {

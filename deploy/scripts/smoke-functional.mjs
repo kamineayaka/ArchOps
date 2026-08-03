@@ -211,7 +211,7 @@ async function main() {
   })
 
   await check('ai/model-defaults', async () => {
-    const { json } = await request('/api/ai/model-defaults', { token: accessToken, expectStatus: 200 })
+    const { json } = await request('/api/ai/model-defaults?model=gpt-4o', { token: accessToken, expectStatus: 200 })
     assertApiOk(json, 'model-defaults')
   })
 

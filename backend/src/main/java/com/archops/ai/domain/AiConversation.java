@@ -70,4 +70,9 @@ public class AiConversation {
     }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
+
+    /** Force {@code updated_at} refresh when related messages change. */
+    public void touch() {
+        this.updatedAt = Instant.now();
+    }
 }

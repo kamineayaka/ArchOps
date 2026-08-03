@@ -6,6 +6,8 @@ import com.archops.ai.llm.LlmProvider.ToolCall;
 import com.archops.ai.llm.LlmProvider.ToolDefinition;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -77,47 +79,51 @@ public class OpenAiCompatRuntime implements LlmRuntime {
         Map<Integer, ToolCallBuilder> toolBuilders = new LinkedHashMap<>();
         try {
             String body = buildRequestBody(messages, tools, true);
-            httpClient.send(
+            HttpResponse<java.util.stream.Stream<String>> response = httpClient.send(
                     HttpRequest.newBuilder(URI.create(baseUrl + "/chat/completions"))
                             .header("Content-Type", "application/json")
                             .header("Authorization", "Bearer " + apiKey)
                             .timeout(Duration.ofMillis(timeoutMs))
                             .POST(HttpRequest.BodyPublishers.ofString(body))
                             .build(),
-                    HttpResponse.BodyHandlers.ofLines())
-                    .body()
-                    .forEach(line -> {
-                        if (!line.startsWith("data: ") || line.equals("data: [DONE]")) {
-                            return;
-                        }
-                        try {
-                            JsonNode delta = objectMapper.readTree(line.substring(6))
-                                    .path("choices").path(0).path("delta");
-                            String token = delta.path("content").asText("");
-                            if (!token.isBlank()) {
-                                content.append(token);
-                                onToken.accept(token);
+                    HttpResponse.BodyHandlers.ofLines());
+            if (response.statusCode() >= 400) {
+                String err = "[LLM stream error] " + response.statusCode();
+                onToken.accept(err);
+                return new CompletionResult(err, List.of());
+            }
+            response.body().forEach(line -> {
+                if (!line.startsWith("data: ") || line.equals("data: [DONE]")) {
+                    return;
+                }
+                try {
+                    JsonNode delta = objectMapper.readTree(line.substring(6))
+                            .path("choices").path(0).path("delta");
+                    String token = delta.path("content").asText("");
+                    if (!token.isBlank()) {
+                        content.append(token);
+                        onToken.accept(token);
+                    }
+                    JsonNode toolCalls = delta.path("tool_calls");
+                    if (toolCalls.isArray()) {
+                        for (JsonNode tc : toolCalls) {
+                            int index = tc.path("index").asInt(0);
+                            ToolCallBuilder builder = toolBuilders.computeIfAbsent(index, ToolCallBuilder::new);
+                            if (tc.hasNonNull("id")) {
+                                builder.id = tc.path("id").asText();
                             }
-                            JsonNode toolCalls = delta.path("tool_calls");
-                            if (toolCalls.isArray()) {
-                                for (JsonNode tc : toolCalls) {
-                                    int index = tc.path("index").asInt(0);
-                                    ToolCallBuilder builder = toolBuilders.computeIfAbsent(index, ToolCallBuilder::new);
-                                    if (tc.hasNonNull("id")) {
-                                        builder.id = tc.path("id").asText();
-                                    }
-                                    JsonNode fn = tc.path("function");
-                                    if (fn.hasNonNull("name")) {
-                                        builder.name = fn.path("name").asText();
-                                    }
-                                    if (fn.hasNonNull("arguments")) {
-                                        builder.arguments.append(fn.path("arguments").asText(""));
-                                    }
-                                }
+                            JsonNode fn = tc.path("function");
+                            if (fn.hasNonNull("name")) {
+                                builder.name = fn.path("name").asText();
                             }
-                        } catch (Exception ignored) {
+                            if (fn.hasNonNull("arguments")) {
+                                builder.arguments.append(fn.path("arguments").asText(""));
+                            }
                         }
-                    });
+                    }
+                } catch (Exception ignored) {
+                }
+            });
             List<ToolCall> toolCalls = toolBuilders.values().stream()
                     .filter(builder -> builder.name != null && !builder.name.isBlank())
                     .map(ToolCallBuilder::build)
@@ -219,8 +225,9 @@ public class OpenAiCompatRuntime implements LlmRuntime {
         }
     }
 
-    private String buildRequestBody(List<ChatMessage> messages, List<ToolDefinition> tools, boolean stream) throws Exception {
-        var root = objectMapper.createObjectNode();
+    /** Package-visible for unit tests. */
+    String buildRequestBody(List<ChatMessage> messages, List<ToolDefinition> tools, boolean stream) throws Exception {
+        ObjectNode root = objectMapper.createObjectNode();
         root.put("model", model);
         root.put("stream", stream);
         int maxTokens = generation.effectiveMaxTokens(0);
@@ -233,24 +240,54 @@ public class OpenAiCompatRuntime implements LlmRuntime {
                 root.put("reasoning_effort", effort);
             }
         }
-        var msgs = root.putArray("messages");
+        ArrayNode msgs = root.putArray("messages");
         for (ChatMessage msg : messages) {
-            var m = msgs.addObject();
-            m.put("role", msg.role());
-            m.put("content", msg.content());
+            msgs.add(serializeMessage(msg));
         }
         if (tools != null && !tools.isEmpty()) {
-            var toolsNode = root.putArray("tools");
+            ArrayNode toolsNode = root.putArray("tools");
             for (ToolDefinition tool : tools) {
-                var t = toolsNode.addObject();
+                ObjectNode t = toolsNode.addObject();
                 t.put("type", "function");
-                var fn = t.putObject("function");
+                ObjectNode fn = t.putObject("function");
                 fn.put("name", tool.name());
                 fn.put("description", tool.description());
                 fn.put("parameters", objectMapper.readTree(tool.parametersJson()));
             }
         }
         return objectMapper.writeValueAsString(root);
+    }
+
+    private ObjectNode serializeMessage(ChatMessage msg) {
+        ObjectNode m = objectMapper.createObjectNode();
+        m.put("role", msg.role());
+        if ("tool".equals(msg.role())) {
+            if (msg.toolCallId() != null && !msg.toolCallId().isBlank()) {
+                m.put("tool_call_id", msg.toolCallId());
+            }
+            m.put("content", msg.content() != null ? msg.content() : "");
+            return m;
+        }
+        List<ToolCall> toolCalls = msg.toolCalls();
+        if ("assistant".equals(msg.role()) && toolCalls != null && !toolCalls.isEmpty()) {
+            if (msg.content() != null && !msg.content().isBlank()) {
+                m.put("content", msg.content());
+            } else {
+                m.putNull("content");
+            }
+            ArrayNode tcArr = m.putArray("tool_calls");
+            for (ToolCall tc : toolCalls) {
+                ObjectNode tcNode = tcArr.addObject();
+                tcNode.put("id", tc.id() != null ? tc.id() : "");
+                tcNode.put("type", "function");
+                ObjectNode fn = tcNode.putObject("function");
+                fn.put("name", tc.name());
+                fn.put("arguments", tc.arguments() != null ? tc.arguments() : "{}");
+            }
+            return m;
+        }
+        m.put("content", msg.content() != null ? msg.content() : "");
+        return m;
     }
 
     private CompletionResult parseResponse(String body) throws Exception {

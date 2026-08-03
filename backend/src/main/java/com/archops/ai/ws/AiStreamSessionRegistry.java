@@ -51,7 +51,9 @@ public class AiStreamSessionRegistry {
             String payload = objectMapper.writeValueAsString(event);
             for (WebSocketSession session : Set.copyOf(sessions)) {
                 if (session.isOpen()) {
-                    session.sendMessage(new TextMessage(payload));
+                    synchronized (session) {
+                        session.sendMessage(new TextMessage(payload));
+                    }
                 } else {
                     unregister(userId, session);
                 }
