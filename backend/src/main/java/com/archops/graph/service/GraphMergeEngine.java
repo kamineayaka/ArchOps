@@ -121,7 +121,11 @@ public class GraphMergeEngine {
 
             try {
                 graphPgAnchorService.applySideEffects(
-                        changeSet.pgSideEffects(), binder, actorId, proposal.getId());
+                        changeSet.pgSideEffects(),
+                        binder,
+                        actorId,
+                        proposal.getId(),
+                        proposal.getRequesterId());
                 graphPgAnchorService.applyNodeSoftDeletes(changeSet.ops(), binder, actorId);
                 graphPgAnchorService.syncProjections(changeSet.ops(), binder);
                 syncCredentialFlags(changeSet, binder);

@@ -19,7 +19,7 @@ public class SqlAccessClassifier {
     private static final Pattern LEADING_WITH = Pattern.compile("(?is)^with\\b");
 
     private static final Set<String> READ_HEADS = Set.of(
-            "select", "show", "explain", "values", "table", "with");
+            "select", "show", "values", "table", "with");
 
     private static final Set<String> WRITE_HEADS = Set.of(
             "insert",
@@ -66,6 +66,10 @@ public class SqlAccessClassifier {
         if (head == null) {
             return SqlAccessKind.WRITE;
         }
+        if ("explain".equals(head)) {
+            // EXPLAIN ANALYZE / EXPLAIN (ANALYZE …) executes the underlying statement.
+            return looksLikeExplainAnalyze(normalized) ? SqlAccessKind.WRITE : SqlAccessKind.READ;
+        }
         if ("with".equals(head)) {
             return classifyWithQuery(normalized);
         }
@@ -77,6 +81,13 @@ public class SqlAccessClassifier {
         }
         // Unknown → require approval
         return SqlAccessKind.WRITE;
+    }
+
+    private static boolean looksLikeExplainAnalyze(String sql) {
+        String lower = sql.toLowerCase(Locale.ROOT);
+        // EXPLAIN ANALYZE …  OR  EXPLAIN (ANALYZE …) / EXPLAIN (ANALYZE true, …)
+        return Pattern.compile("(?is)^explain\\s+analyze\\b").matcher(lower).find()
+                || Pattern.compile("(?is)^explain\\s*\\([^)]*\\banalyze\\b").matcher(lower).find();
     }
 
     private static SqlAccessKind classifyWithQuery(String sql) {

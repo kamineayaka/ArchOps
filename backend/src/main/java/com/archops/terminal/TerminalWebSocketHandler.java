@@ -44,6 +44,12 @@ public class TerminalWebSocketHandler extends TextWebSocketHandler {
             wsSession.close(CloseStatus.POLICY_VIOLATION);
             return;
         }
+        if (!hasOperatorAccess(wsSession)) {
+            wsSession.sendMessage(new TextMessage(
+                    "\r\n[ArchOps] Terminal requires ADMIN or OPERATOR role\r\n"));
+            wsSession.close(CloseStatus.POLICY_VIOLATION);
+            return;
+        }
 
         PooledSshHandle pooled = null;
         try {
@@ -140,6 +146,25 @@ public class TerminalWebSocketHandler extends TextWebSocketHandler {
         } catch (NumberFormatException ex) {
             return null;
         }
+    }
+
+    private static boolean hasOperatorAccess(WebSocketSession session) {
+        Object rolesAttr = session.getAttributes().get("roles");
+        if (rolesAttr instanceof java.util.Collection<?> roles) {
+            for (Object role : roles) {
+                if (role == null) {
+                    continue;
+                }
+                String name = String.valueOf(role).trim().toUpperCase();
+                if (name.startsWith("ROLE_")) {
+                    name = name.substring(5);
+                }
+                if ("ADMIN".equals(name) || "OPERATOR".equals(name)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private void closeQuietly(TerminalSession ts) {

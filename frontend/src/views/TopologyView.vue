@@ -17,6 +17,8 @@ import { useAuthStore } from '@/stores/auth'
 import { isOperatorOrAdmin } from '@/utils/roles'
 import { createGraphStylesheet } from '@/theme/graphStyles'
 import { aoColors } from '@/theme/tokens'
+import { connectActionFor } from '@/assetTypes/registry'
+import '@/assetTypes'
 
 const { setNodeSelection, clearSelection } = useAgentUiSelection()
 
@@ -102,7 +104,8 @@ function tryConnectFromData(data: Record<string, unknown>) {
     message.info(t('topology.connectOnlyServer'))
     return
   }
-  if (kind === 'DATABASE') {
+  const action = connectActionFor(kind)
+  if (action === 'query') {
     if (!data.hasCredential) {
       message.warning(t('topology.connectNeedsCredential'))
       if (canEdit) {
@@ -113,7 +116,7 @@ function tryConnectFromData(data: Record<string, unknown>) {
     openQuery(pgAssetId)
     return
   }
-  if (kind !== 'SERVER') {
+  if (action !== 'terminal') {
     message.info(t('topology.connectOnlyServer'))
     return
   }
@@ -133,8 +136,9 @@ function openCtxMenu(evt: cytoscape.EventObject) {
   const data = evt.target.data()
   const pgAssetId = data.pgAssetId != null ? Number(data.pgAssetId) : null
   const kind = String(data.kind || '')
-  const canConnect = kind === 'SERVER' && Boolean(pgAssetId)
-  const canQuery = kind === 'DATABASE' && Boolean(pgAssetId)
+  const action = connectActionFor(kind)
+  const canConnect = action === 'terminal' && Boolean(pgAssetId)
+  const canQuery = action === 'query' && Boolean(pgAssetId)
   ctxMenu.value = {
     show: true,
     x: original.clientX,

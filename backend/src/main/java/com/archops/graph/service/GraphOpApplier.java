@@ -160,7 +160,7 @@ public class GraphOpApplier {
         }
         if (op.unset() != null) {
             for (String key : op.unset()) {
-                if (!isAllowedPropKey(key)) {
+                if (!isAllowedPropKey(key) || isIdentityOrProtectedProp(key)) {
                     continue;
                 }
                 tx.run(
@@ -449,7 +449,7 @@ public class GraphOpApplier {
         }
         for (Map.Entry<String, Object> e : raw.entrySet()) {
             String key = e.getKey();
-            if (!isAllowedPropKey(key)) {
+            if (!isAllowedPropKey(key) || isIdentityOrProtectedProp(key)) {
                 continue;
             }
             String lower = key.toLowerCase(Locale.ROOT);
@@ -466,6 +466,23 @@ public class GraphOpApplier {
             out.put(key, value);
         }
         return out;
+    }
+
+    /** Identity / lifecycle fields must not be mutated via NODE_UPDATE / REL_UPDATE set maps. */
+    private static boolean isIdentityOrProtectedProp(String key) {
+        if (key == null) {
+            return true;
+        }
+        return switch (key) {
+            case "elementId",
+                    "pgAssetId",
+                    "kind",
+                    "deleted",
+                    "deletedAt",
+                    "deletedBy",
+                    "createdAt" -> true;
+            default -> false;
+        };
     }
 
     private static boolean isAllowedPropKey(String key) {

@@ -21,6 +21,13 @@ class SqlAccessClassifierTest {
         assertEquals(SqlAccessKind.READ, classifier.classify("SELECT id FROM assets"));
         assertEquals(SqlAccessKind.READ, classifier.classify("  -- comment\nSELECT 1;"));
         assertEquals(SqlAccessKind.READ, classifier.classify("WITH cte AS (SELECT 1) SELECT * FROM cte"));
+        assertEquals(SqlAccessKind.READ, classifier.classify("EXPLAIN SELECT 1"));
+    }
+
+    @Test
+    void treatsExplainAnalyzeAsWrite() {
+        assertEquals(SqlAccessKind.WRITE, classifier.classify("EXPLAIN ANALYZE DELETE FROM assets"));
+        assertEquals(SqlAccessKind.WRITE, classifier.classify("EXPLAIN (ANALYZE, BUFFERS) UPDATE assets SET name='x'"));
     }
 
     @Test

@@ -136,6 +136,12 @@ public class AssetSshDialer {
     /** Direct dial without reading jump chain again (used for first hop and empty chain). */
     ClientSession dialAssetDirect(Long assetId) throws Exception {
         AssetResponse asset = requireHost(assetId);
+        if (asset.kind() != com.archops.asset.domain.AssetKind.SERVER) {
+            throw new BusinessException(
+                    HttpStatus.BAD_REQUEST,
+                    "SSH_ASSET_KIND",
+                    "仅 SERVER 资产支持 SSH 连接: assetId=" + assetId + " kind=" + asset.kind());
+        }
         SshCredential credential;
         try {
             credential = assetService.getSshCredential(assetId);
