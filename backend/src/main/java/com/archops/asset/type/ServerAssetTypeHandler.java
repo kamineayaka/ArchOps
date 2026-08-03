@@ -44,7 +44,8 @@ public class ServerAssetTypeHandler extends AbstractAssetTypeHandler {
             if (ctx.assetId() == null) {
                 throw new BusinessException(HttpStatus.BAD_REQUEST, "ASSET_ID_REQUIRED", "请使用已保存资产测试连接");
             }
-            ClientSession session = assetSshDialer.dial(ctx.assetId());
+            ClientSession session =
+                    assetSshDialer.dial(ctx.assetId(), ctx.userId(), ctx.roles());
             try {
                 if (!session.isAuthenticated()) {
                     return new TestConnectionResponse(false, elapsedMs(started), "SSH 认证未完成");

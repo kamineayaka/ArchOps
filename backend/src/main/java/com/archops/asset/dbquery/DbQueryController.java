@@ -28,6 +28,11 @@ public class DbQueryController {
             @Valid @RequestBody DbQueryRequest request,
             @AuthenticationPrincipal AuthUserPrincipal principal) {
         return ApiResponse.ok(
-                dbQueryService.submit(principal.getUserId(), id, request.sql(), request.approvalId()));
+                dbQueryService.submit(
+                        principal.getUserId(),
+                        principal.roleNames(),
+                        id,
+                        request.sql(),
+                        request.approvalId()));
     }
 }

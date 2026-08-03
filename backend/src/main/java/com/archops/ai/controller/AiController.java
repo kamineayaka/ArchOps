@@ -48,7 +48,8 @@ public class AiController {
 
     @GetMapping("/conversations")
     public ApiResponse<List<ConversationResponse>> list(@AuthenticationPrincipal AuthUserPrincipal principal) {
-        return ApiResponse.ok(conversationService.list(principal.getUserId()));
+        return ApiResponse.ok(
+                conversationService.list(principal.getUserId(), principal.roleNames()));
     }
 
     @GetMapping("/conversations/{id}/messages")
@@ -63,7 +64,8 @@ public class AiController {
     public ApiResponse<ConversationResponse> targets(
             @PathVariable Long id,
             @AuthenticationPrincipal AuthUserPrincipal principal) {
-        return ApiResponse.ok(conversationService.getTargets(id, principal.getUserId()));
+        return ApiResponse.ok(
+                conversationService.getTargets(id, principal.getUserId(), principal.roleNames()));
     }
 
     @PutMapping("/conversations/{id}/targets")
@@ -74,6 +76,7 @@ public class AiController {
         return ApiResponse.ok(conversationService.updateTargets(
                 id,
                 principal.getUserId(),
+                principal.roleNames(),
                 request.targetAssetIds()));
     }
 

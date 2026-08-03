@@ -33,7 +33,7 @@ public class TerminalDockController {
     @GetMapping
     @PreAuthorize("hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_OPERATOR') or hasAuthority('ROLE_VIEWER')")
     public ApiResponse<List<TerminalDockItem>> list(@AuthenticationPrincipal AuthUserPrincipal principal) {
-        return ApiResponse.ok(terminalDockService.list(principal.getUserId()));
+        return ApiResponse.ok(terminalDockService.list(principal.getUserId(), principal.roleNames()));
     }
 
     @PostMapping("/touch")
@@ -41,7 +41,8 @@ public class TerminalDockController {
     public ApiResponse<TerminalDockItem> touch(
             @Valid @RequestBody TerminalDockUpsertRequest request,
             @AuthenticationPrincipal AuthUserPrincipal principal) {
-        return ApiResponse.ok(terminalDockService.touch(principal.getUserId(), request));
+        return ApiResponse.ok(
+                terminalDockService.touch(principal.getUserId(), principal.roleNames(), request));
     }
 
     @PutMapping("/{elementId}/pin")
@@ -51,14 +52,15 @@ public class TerminalDockController {
             @RequestBody Map<String, Boolean> body,
             @AuthenticationPrincipal AuthUserPrincipal principal) {
         boolean pinned = body != null && Boolean.TRUE.equals(body.get("pinned"));
-        return ApiResponse.ok(terminalDockService.setPinned(principal.getUserId(), elementId, pinned));
+        return ApiResponse.ok(terminalDockService.setPinned(
+                principal.getUserId(), principal.roleNames(), elementId, pinned));
     }
 
     @DeleteMapping("/{elementId}")
     @PreAuthorize("hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_OPERATOR')")
     public ApiResponse<Void> remove(
             @PathVariable UUID elementId, @AuthenticationPrincipal AuthUserPrincipal principal) {
-        terminalDockService.remove(principal.getUserId(), elementId);
+        terminalDockService.remove(principal.getUserId(), principal.roleNames(), elementId);
         return ApiResponse.ok("ok", null);
     }
 }

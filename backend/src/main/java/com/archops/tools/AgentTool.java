@@ -29,14 +29,33 @@ public interface AgentTool {
             String username,
             Long conversationId,
             List<Long> targetAssetIds,
-            Long providerId) {
+            Long providerId,
+            List<String> roles) {
+
+        public ExecutionContext {
+            targetAssetIds = targetAssetIds != null ? List.copyOf(targetAssetIds) : List.of();
+            roles = roles != null ? List.copyOf(roles) : List.of();
+        }
 
         public ExecutionContext(Long userId, String username) {
-            this(userId, username, null, List.of(), null);
+            this(userId, username, null, List.of(), null, List.of());
+        }
+
+        public ExecutionContext(Long userId, String username, List<String> roles) {
+            this(userId, username, null, List.of(), null, roles);
         }
 
         public ExecutionContext(Long userId, String username, Long conversationId, List<Long> targetAssetIds) {
-            this(userId, username, conversationId, targetAssetIds, null);
+            this(userId, username, conversationId, targetAssetIds, null, List.of());
+        }
+
+        public ExecutionContext(
+                Long userId,
+                String username,
+                Long conversationId,
+                List<Long> targetAssetIds,
+                Long providerId) {
+            this(userId, username, conversationId, targetAssetIds, providerId, List.of());
         }
     }
 }

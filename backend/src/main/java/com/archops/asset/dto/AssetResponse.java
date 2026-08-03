@@ -14,6 +14,8 @@ public record AssetResponse(
         String metadata,
         String description,
         boolean enabled,
+        @com.fasterxml.jackson.annotation.JsonProperty("hasCredential")
+        @com.fasterxml.jackson.annotation.JsonAlias({"hasSshCredential"})
         boolean hasSshCredential,
         Instant deletedAt,
         Instant createdAt,

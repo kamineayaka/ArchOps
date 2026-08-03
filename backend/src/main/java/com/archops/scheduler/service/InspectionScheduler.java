@@ -27,7 +27,7 @@ public class InspectionScheduler {
 
     @Scheduled(cron = "0 */5 * * * *")
     public void inspectAssets() {
-        var assets = assetService.list();
+        var assets = assetService.listAllForSystem();
         long servers = assets.stream().filter(a -> a.kind().name().equals("SERVER")).count();
         if (servers == 0) {
             return;
@@ -37,7 +37,7 @@ public class InspectionScheduler {
 
     @Scheduled(cron = "0 0 * * * *")
     public void hourlySummary() {
-        var assets = assetService.list();
+        var assets = assetService.listAllForSystem();
         long servers = assets.stream().filter(a -> a.kind().name().equals("SERVER")).count();
         if (servers == 0) {
             return;

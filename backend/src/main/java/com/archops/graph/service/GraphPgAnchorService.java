@@ -12,6 +12,7 @@ import com.archops.graph.changeset.GraphChangeSet;
 import com.archops.graph.changeset.GraphChangeSet.GraphOp;
 import com.archops.graph.changeset.GraphChangeSet.PgSideEffect;
 import com.archops.graph.domain.GraphLabels;
+import com.archops.knowledge.acl.AssetAclService;
 import com.archops.knowledge.architecture.PartitionKeys;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -34,20 +35,24 @@ public class GraphPgAnchorService {
     private final SshCredentialRepository sshCredentialRepository;
     private final CredentialStagingRepository credentialStagingRepository;
     private final ObjectMapper objectMapper;
+    private final AssetAclService assetAclService;
 
     public GraphPgAnchorService(
             AssetRepository assetRepository,
             SshCredentialRepository sshCredentialRepository,
             CredentialStagingRepository credentialStagingRepository,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            AssetAclService assetAclService) {
         this.assetRepository = assetRepository;
         this.sshCredentialRepository = sshCredentialRepository;
         this.credentialStagingRepository = credentialStagingRepository;
         this.objectMapper = objectMapper;
+        this.assetAclService = assetAclService;
     }
 
     @Transactional
-    public void prepareNodeCreates(List<GraphOp> ops, GraphTempBinder binder) {
+    public void prepareNodeCreates(
+            List<GraphOp> ops, GraphTempBinder binder, Long requesterId) {
         for (GraphOp op : ops) {
             if (!"NODE_CREATE".equalsIgnoreCase(safeOp(op))) {
                 continue;
@@ -72,6 +77,7 @@ public class GraphPgAnchorService {
             asset.setEnabled(props.get("enabled") == null || Boolean.TRUE.equals(props.get("enabled")));
             asset.setMetadata(buildMetadata(props, kind));
             asset = assetRepository.save(asset);
+            assetAclService.grant(requesterId, asset.getId());
 
             if (op.tempId() != null && !op.tempId().isBlank()) {
                 binder.bind(op.tempId(), asset.getElementId(), asset.getId());

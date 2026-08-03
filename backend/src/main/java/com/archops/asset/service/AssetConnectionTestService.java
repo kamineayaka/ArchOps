@@ -13,8 +13,11 @@ import com.archops.asset.type.AssetTypeRegistry;
 import com.archops.asset.type.ConnectivityContext;
 import com.archops.common.exception.BusinessException;
 import com.archops.common.security.CredentialCipher;
+import com.archops.knowledge.acl.AssetAclService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.Collection;
+import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
@@ -28,6 +31,7 @@ public class AssetConnectionTestService {
     private final AssetRepository assetRepository;
     private final SshCredentialRepository sshCredentialRepository;
     private final CredentialCipher credentialCipher;
+    private final AssetAclService assetAclService;
     private final ObjectMapper objectMapper;
 
     public AssetConnectionTestService(
@@ -35,17 +39,21 @@ public class AssetConnectionTestService {
             AssetRepository assetRepository,
             SshCredentialRepository sshCredentialRepository,
             CredentialCipher credentialCipher,
+            AssetAclService assetAclService,
             ObjectMapper objectMapper) {
         this.assetTypeRegistry = assetTypeRegistry;
         this.assetRepository = assetRepository;
         this.sshCredentialRepository = sshCredentialRepository;
         this.credentialCipher = credentialCipher;
+        this.assetAclService = assetAclService;
         this.objectMapper = objectMapper;
     }
 
-    public TestConnectionResponse test(TestConnectionRequest request) {
+    public TestConnectionResponse test(TestConnectionRequest request, Long userId, Collection<String> roles) {
+        // Fail closed on ACL before swallowing into ok=false responses.
+        assetAclService.requireAssetAccess(userId, roles, request.assetId());
         try {
-            ConnectivityContext ctx = buildContext(request.assetId());
+            ConnectivityContext ctx = buildContext(request.assetId(), userId, roles);
             AssetKind kind = assetRepository.findById(request.assetId())
                     .map(Asset::getKind)
                     .orElseThrow(() -> new BusinessException(
@@ -53,6 +61,9 @@ public class AssetConnectionTestService {
             AssetTypeHandler handler = assetTypeRegistry.findRequired(kind.name());
             return handler.testConnection(ctx);
         } catch (BusinessException e) {
+            if ("ASSET_ACCESS_DENIED".equals(e.getCode())) {
+                throw e;
+            }
             return new TestConnectionResponse(false, 0L, e.getMessage());
         } catch (Exception e) {
             String msg = e.getMessage() != null && !e.getMessage().isBlank()
@@ -62,7 +73,8 @@ public class AssetConnectionTestService {
         }
     }
 
-    private ConnectivityContext buildContext(Long assetId) {
+    private ConnectivityContext buildContext(
+            Long assetId, Long userId, Collection<String> roles) {
         Asset asset = assetRepository.findByIdAndDeletedAtIsNull(assetId)
                 .orElseThrow(() -> new BusinessException(
                         HttpStatus.NOT_FOUND, "ASSET_NOT_FOUND", "资产不存在"));
@@ -82,7 +94,9 @@ public class AssetConnectionTestService {
                 username,
                 authType,
                 secret,
-                readDatabase(asset.getMetadata()));
+                readDatabase(asset.getMetadata()),
+                userId,
+                roles != null ? List.copyOf(roles) : List.of());
     }
 
     private String readDatabase(String metadata) {

@@ -9,7 +9,9 @@ import com.archops.common.security.CredentialCipher.EncryptedSecret;
 import com.archops.graph.config.GraphProperties;
 import com.archops.graph.dto.CredentialStagingCreateRequest;
 import com.archops.graph.dto.CredentialStagingResponse;
+import com.archops.knowledge.acl.AssetAclService;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -22,18 +24,27 @@ public class CredentialStagingService {
     private final CredentialStagingRepository stagingRepository;
     private final CredentialCipher credentialCipher;
     private final GraphProperties graphProperties;
+    private final AssetAclService assetAclService;
 
     public CredentialStagingService(
             CredentialStagingRepository stagingRepository,
             CredentialCipher credentialCipher,
-            GraphProperties graphProperties) {
+            GraphProperties graphProperties,
+            AssetAclService assetAclService) {
         this.stagingRepository = stagingRepository;
         this.credentialCipher = credentialCipher;
         this.graphProperties = graphProperties;
+        this.assetAclService = assetAclService;
     }
 
     @Transactional
-    public CredentialStagingResponse create(CredentialStagingCreateRequest request, Long requesterId) {
+    public CredentialStagingResponse create(
+            CredentialStagingCreateRequest request,
+            Long requesterId,
+            Collection<String> roles) {
+        if (request.assetId() != null) {
+            assetAclService.requireAssetAccess(requesterId, roles, request.assetId());
+        }
         if (!StringUtils.hasText(request.secret())) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "SECRET_REQUIRED", "secret 不能为空");
         }

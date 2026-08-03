@@ -4,6 +4,7 @@ import com.archops.terminal.pool.PooledSshHandle;
 import com.archops.terminal.pool.SshConnectionPool;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -53,7 +54,7 @@ public class TerminalWebSocketHandler extends TextWebSocketHandler {
 
         PooledSshHandle pooled = null;
         try {
-            pooled = sshConnectionPool.acquire(userId, assetId);
+            pooled = sshConnectionPool.acquire(userId, roleNames(wsSession), assetId);
             ClientSession sshSession = pooled.session();
 
             ChannelShell channel = sshSession.createShellChannel();
@@ -149,8 +150,18 @@ public class TerminalWebSocketHandler extends TextWebSocketHandler {
     }
 
     private static boolean hasOperatorAccess(WebSocketSession session) {
+        for (String name : roleNames(session)) {
+            if ("ADMIN".equals(name) || "OPERATOR".equals(name)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static List<String> roleNames(WebSocketSession session) {
         Object rolesAttr = session.getAttributes().get("roles");
         if (rolesAttr instanceof java.util.Collection<?> roles) {
+            java.util.ArrayList<String> names = new java.util.ArrayList<>();
             for (Object role : roles) {
                 if (role == null) {
                     continue;
@@ -159,12 +170,11 @@ public class TerminalWebSocketHandler extends TextWebSocketHandler {
                 if (name.startsWith("ROLE_")) {
                     name = name.substring(5);
                 }
-                if ("ADMIN".equals(name) || "OPERATOR".equals(name)) {
-                    return true;
-                }
+                names.add(name);
             }
+            return List.copyOf(names);
         }
-        return false;
+        return List.of();
     }
 
     private void closeQuietly(TerminalSession ts) {

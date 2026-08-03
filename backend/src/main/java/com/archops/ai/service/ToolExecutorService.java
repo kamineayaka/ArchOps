@@ -135,7 +135,8 @@ public class ToolExecutorService {
                     user.getUsername(),
                     toolContext.conversationId(),
                     toolContext.targetAssetIds(),
-                    toolContext.providerId());
+                    toolContext.providerId(),
+                    user.getRoles().stream().map(role -> role.getName()).toList());
             String output = tool.execute(args, context);
             auditTool(user, toolCall, risk, "SUCCESS", decisionSource, toolCall.arguments());
             return ToolExecutionResult.success(output);

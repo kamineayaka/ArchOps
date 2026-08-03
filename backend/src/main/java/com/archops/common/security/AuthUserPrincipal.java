@@ -40,6 +40,14 @@ public class AuthUserPrincipal implements UserDetails {
         return sessionId;
     }
 
+    /** Role names without the {@code ROLE_} prefix (e.g. {@code ADMIN}, {@code OPERATOR}). */
+    public java.util.Set<String> roleNames() {
+        return authorities.stream()
+                .map(GrantedAuthority::getAuthority)
+                .map(auth -> auth != null && auth.startsWith("ROLE_") ? auth.substring(5) : auth)
+                .collect(Collectors.toSet());
+    }
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return authorities;

@@ -102,7 +102,8 @@ public class GraphMergeEngine {
         }
 
         GraphTempBinder binder = new GraphTempBinder();
-        graphPgAnchorService.prepareNodeCreates(changeSet.ops(), binder);
+        graphPgAnchorService.prepareNodeCreates(
+                changeSet.ops(), binder, proposal.getRequesterId());
 
         boolean neo4jCommitted = false;
         try (Session session = driver.session(SessionConfig.forDatabase(graphProperties.getDatabase()))) {

@@ -7,8 +7,10 @@ import com.archops.asset.repository.AssetRepository;
 import com.archops.asset.repository.SshCredentialRepository;
 import com.archops.common.exception.BusinessException;
 import com.archops.common.security.CredentialCipher;
+import com.archops.knowledge.acl.AssetAclService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -23,21 +25,42 @@ public class AssetService {
     private final AssetRepository assetRepository;
     private final SshCredentialRepository sshCredentialRepository;
     private final CredentialCipher credentialCipher;
+    private final AssetAclService assetAclService;
     private final ObjectMapper objectMapper;
 
     public AssetService(
             AssetRepository assetRepository,
             SshCredentialRepository sshCredentialRepository,
             CredentialCipher credentialCipher,
+            AssetAclService assetAclService,
             ObjectMapper objectMapper) {
         this.assetRepository = assetRepository;
         this.sshCredentialRepository = sshCredentialRepository;
         this.credentialCipher = credentialCipher;
+        this.assetAclService = assetAclService;
         this.objectMapper = objectMapper;
     }
 
+    /** ACL-aware list for interactive callers. */
     @Transactional(readOnly = true)
-    public List<AssetResponse> list() {
+    public List<AssetResponse> list(Long userId, Collection<String> roles) {
+        List<Asset> assets = assetRepository.findByDeletedAtIsNull();
+        if (!assetAclService.isAdmin(roles)) {
+            Set<Long> allowed = new HashSet<>(
+                    assetAclService.filterAssetIds(
+                            userId,
+                            roles,
+                            assets.stream().map(Asset::getId).toList()));
+            assets = assets.stream().filter(a -> allowed.contains(a.getId())).toList();
+        }
+        Set<Long> withCred = activeCredentialAssetIds(
+                assets.stream().map(Asset::getId).collect(Collectors.toSet()));
+        return assets.stream().map(asset -> toResponse(asset, withCred.contains(asset.getId()))).toList();
+    }
+
+    /** System/inspection path — no ACL. Prefer not to expose via controllers. */
+    @Transactional(readOnly = true)
+    public List<AssetResponse> listAllForSystem() {
         List<Asset> assets = assetRepository.findByDeletedAtIsNull();
         Set<Long> withCred = activeCredentialAssetIds(
                 assets.stream().map(Asset::getId).collect(Collectors.toSet()));
@@ -45,7 +68,19 @@ public class AssetService {
     }
 
     @Transactional(readOnly = true)
-    public AssetResponse get(Long id) {
+    public AssetResponse get(Long id, Long userId, Collection<String> roles) {
+        assetAclService.requireAssetAccess(userId, roles, id);
+        Asset asset = findAssetOrThrow(id);
+        boolean hasCred = sshCredentialRepository.findByAssetIdAndDeletedAtIsNull(id).isPresent();
+        return toResponse(asset, hasCred);
+    }
+
+    /**
+     * Trusted internal read used by graph/SSH plumbing after the caller already checked ACL
+     * (or is dialing a jump hop that was pre-authorized).
+     */
+    @Transactional(readOnly = true)
+    public AssetResponse getUnchecked(Long id) {
         Asset asset = findAssetOrThrow(id);
         boolean hasCred = sshCredentialRepository.findByAssetIdAndDeletedAtIsNull(id).isPresent();
         return toResponse(asset, hasCred);
@@ -65,7 +100,13 @@ public class AssetService {
     }
 
     @Transactional(readOnly = true)
-    public SshCredential getSshCredential(Long assetId) {
+    public SshCredential getSshCredential(Long assetId, Long userId, Collection<String> roles) {
+        assetAclService.requireAssetAccess(userId, roles, assetId);
+        return getSshCredentialUnchecked(assetId);
+    }
+
+    @Transactional(readOnly = true)
+    public SshCredential getSshCredentialUnchecked(Long assetId) {
         return sshCredentialRepository.findByAssetIdAndDeletedAtIsNull(assetId)
                 .orElseThrow(() -> new BusinessException(
                         HttpStatus.NOT_FOUND, "CREDENTIAL_NOT_FOUND", "该资产未配置 SSH 凭证"));
