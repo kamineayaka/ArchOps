@@ -5,11 +5,17 @@ import App from './App.vue'
 import router from './router'
 import './style.css'
 import './assetTypes'
+import { initializeAssetTypesFromApi } from './assetTypes/registry'
 
-const app = createApp(App)
+async function bootstrap() {
+  await initializeAssetTypesFromApi()
 
-app.use(createPinia())
-app.use(router)
-app.use(naive)
+  const app = createApp(App)
+  app.use(createPinia())
+  app.use(router)
+  app.use(naive)
 
-app.mount('#app')
+  app.mount('#app')
+}
+
+void bootstrap()

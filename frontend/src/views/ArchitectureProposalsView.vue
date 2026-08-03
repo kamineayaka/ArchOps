@@ -57,13 +57,16 @@ const statusOptions = computed(() => [
   { label: 'REJECTED', value: 'REJECTED' },
   { label: 'AUTO_MERGED', value: 'AUTO_MERGED' },
   { label: 'MERGED', value: 'MERGED' },
+  { label: 'CONFLICT', value: 'CONFLICT' },
+  { label: 'SUPERSEDED', value: 'SUPERSEDED' },
+  { label: 'MERGE_FAILED', value: 'MERGE_FAILED' },
   { label: 'DRAFT', value: 'DRAFT' },
 ])
 
 function statusType(status: string) {
-  if (status === 'PENDING_REVIEW') return 'warning'
+  if (status === 'PENDING_REVIEW' || status === 'SUPERSEDED') return 'warning'
   if (status === 'APPROVED' || status === 'MERGED' || status === 'AUTO_MERGED') return 'success'
-  if (status === 'REJECTED') return 'error'
+  if (status === 'REJECTED' || status === 'CONFLICT' || status === 'MERGE_FAILED') return 'error'
   return 'default'
 }
 
@@ -209,6 +212,10 @@ onMounted(load)
           <section>
             <h3 class="section-title">{{ t('proposals.summary') }}</h3>
             <p class="body-text">{{ detail.summary || '—' }}</p>
+          </section>
+          <section v-if="detail.conflictDetail">
+            <h3 class="section-title">冲突/失败详情</h3>
+            <p class="body-text">{{ detail.conflictDetail }}</p>
           </section>
           <section v-if="hasChangeSet(detail)">
             <h3 class="section-title">{{ t('proposals.changeSet') }}</h3>

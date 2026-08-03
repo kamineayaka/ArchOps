@@ -1,3 +1,5 @@
+import { listAssetTypesApi } from '@/api/assetTypes'
+
 export type AssetConnectAction = 'terminal' | 'query' | 'page' | 'none'
 
 /** How credentials are collected for this type (registry-driven, not switch(kind) in views). */
@@ -23,11 +25,45 @@ export function registerAssetType(def: AssetTypeDefinition): void {
   if (registry.has(def.kind)) {
     throw new Error(`Asset type already registered: ${def.kind}`)
   }
+  upsertAssetType(def)
+}
+
+export function clearAssetTypes(): void {
+  registry.clear()
+}
+
+export function upsertAssetType(def: AssetTypeDefinition): void {
   registry.set(def.kind, {
     supportsTest: false,
     showDatabaseName: false,
     ...def,
   })
+}
+
+export async function initializeAssetTypesFromApi(): Promise<void> {
+  const fallbackByKind = new Map(registry)
+  try {
+    const response = await listAssetTypesApi()
+    if (!response.success || !response.data) return
+
+    clearAssetTypes()
+    for (const descriptor of response.data) {
+      const fallback = fallbackByKind.get(descriptor.type)
+      upsertAssetType({
+        kind: descriptor.type,
+        labelKey: fallback?.labelKey ?? `assets.kind${descriptor.type}`,
+        defaultPort: descriptor.defaultPort,
+        connectAction: descriptor.connectAction,
+        authMode: descriptor.authMode,
+        showHost: descriptor.showHost,
+        showPort: descriptor.showPort,
+        showDatabaseName: descriptor.showDatabaseName,
+        supportsTest: descriptor.supportsTest,
+      })
+    }
+  } catch {
+    // Static registrations remain available when discovery is unavailable.
+  }
 }
 
 export function getAssetType(kind: string): AssetTypeDefinition | undefined {

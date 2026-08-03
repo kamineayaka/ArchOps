@@ -14,9 +14,11 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.neo4j.driver.Session;
 import org.neo4j.driver.TransactionContext;
@@ -35,16 +37,33 @@ public class GraphOpApplier {
         this.assetRepository = assetRepository;
     }
 
-    public void applyAll(Session session, List<GraphOp> ops, GraphTempBinder binder, Long proposalId) {
-        session.executeWrite(tx -> {
+    public GraphApplyJournal applyAll(Session session, List<GraphOp> ops, GraphTempBinder binder, Long proposalId) {
+        return session.executeWrite(tx -> {
+            GraphApplyJournal journal = new GraphApplyJournal();
             for (GraphOp op : ops) {
-                applyOne(tx, op, binder, proposalId);
+                applyOne(tx, op, binder, proposalId, journal);
             }
+            return journal;
+        });
+    }
+
+    /** Reverse committed Neo4j changes from their captured before-images. */
+    public void reverseAll(Session session, GraphApplyJournal journal) {
+        if (journal == null) {
+            return;
+        }
+        session.executeWrite(tx -> {
+            journal.reverse(tx);
             return null;
         });
     }
 
-    /** Best-effort reverse for compensation after Neo4j commit / PG failure. */
+    /**
+     * Legacy best-effort compensation for callers without a journal.
+     *
+     * @deprecated use {@link #reverseAll(Session, GraphApplyJournal)}
+     */
+    @Deprecated
     public void reverseAll(Session session, List<GraphOp> ops, GraphTempBinder binder) {
         List<GraphOp> reversed = new ArrayList<>(ops);
         java.util.Collections.reverse(reversed);
@@ -60,17 +79,22 @@ public class GraphOpApplier {
         });
     }
 
-    private void applyOne(TransactionContext tx, GraphOp op, GraphTempBinder binder, Long proposalId) {
+    private void applyOne(
+            TransactionContext tx,
+            GraphOp op,
+            GraphTempBinder binder,
+            Long proposalId,
+            GraphApplyJournal journal) {
         String kind = op.op().trim().toUpperCase(Locale.ROOT);
         switch (kind) {
-            case "NODE_CREATE" -> applyNodeCreate(tx, op, binder);
-            case "NODE_UPDATE" -> applyNodeUpdate(tx, op, binder);
-            case "NODE_SOFT_DELETE" -> applyNodeSoftDelete(tx, op, binder);
-            case "REL_CREATE" -> applyRelCreate(tx, op, binder, proposalId);
-            case "REL_UPDATE" -> applyRelUpdate(tx, op, binder);
-            case "REL_DELETE" -> applyRelDelete(tx, op, binder);
-            case "TAG_ADD" -> applyTagAdd(tx, op, binder, proposalId);
-            case "TAG_REMOVE" -> applyTagRemove(tx, op, binder);
+            case "NODE_CREATE" -> applyNodeCreate(tx, op, binder, journal);
+            case "NODE_UPDATE" -> applyNodeUpdate(tx, op, binder, journal);
+            case "NODE_SOFT_DELETE" -> applyNodeSoftDelete(tx, op, binder, journal);
+            case "REL_CREATE" -> applyRelCreate(tx, op, binder, proposalId, journal);
+            case "REL_UPDATE" -> applyRelUpdate(tx, op, binder, journal);
+            case "REL_DELETE" -> applyRelDelete(tx, op, binder, journal);
+            case "TAG_ADD" -> applyTagAdd(tx, op, binder, proposalId, journal);
+            case "TAG_REMOVE" -> applyTagRemove(tx, op, binder, journal);
             default -> throw new BusinessException(
                     HttpStatus.BAD_REQUEST, "GRAPH_OP_UNKNOWN", "未知 GraphOp: " + op.op());
         }
@@ -85,35 +109,22 @@ public class GraphOpApplier {
                         "MATCH (n:Asset {elementId: $elementId}) DETACH DELETE n",
                         Values.parameters("elementId", elementId.toString()));
             }
-            case "NODE_SOFT_DELETE" -> {
-                UUID elementId = binder.resolveElementId(op.ref());
-                tx.run(
-                        """
-                        MATCH (n:Asset {elementId: $elementId})
-                        SET n.deleted = false, n.deletedAt = null, n.enabled = true
-                        WITH n
-                        OPTIONAL MATCH (n)-[r]-()
-                        WHERE r.deleted = true
-                        SET r.deleted = false, r.deletedAt = null
-                        """,
-                        Values.parameters("elementId", elementId.toString()));
-            }
-            case "REL_CREATE", "TAG_ADD" -> {
-                // soft-delete or delete by elementId if present in props
+            case "REL_CREATE" -> {
                 String relId = relElementId(op);
                 if (relId != null) {
                     tx.run(
-                            "MATCH ()-[r {elementId: $elementId}]-() DELETE r",
+                            "MATCH ()-[r {elementId: $elementId}]->() DELETE r",
                             Values.parameters("elementId", relId));
                 }
             }
             default -> {
-                // NODE_UPDATE / REL_UPDATE / REL_DELETE / TAG_REMOVE: skip without before-snapshot
+                // No safe reversal is possible without a before-image.
             }
         }
     }
 
-    private void applyNodeCreate(TransactionContext tx, GraphOp op, GraphTempBinder binder) {
+    private void applyNodeCreate(
+            TransactionContext tx, GraphOp op, GraphTempBinder binder, GraphApplyJournal journal) {
         Map<String, Object> props = op.properties() != null ? new LinkedHashMap<>(op.properties()) : new LinkedHashMap<>();
         AssetKind kind = parseKind(props.get("kind"), op.labels());
         UUID elementId;
@@ -140,13 +151,26 @@ public class GraphOpApplier {
         String labelSuffix = GraphLabels.cypherLabelSuffix(labels);
         String cypher = "CREATE (n" + labelSuffix + ") SET n += $props";
         tx.run(cypher, Values.parameters("props", nodeProps)).consume();
+        journal.recordNodeCreate(elementId);
     }
 
-    private void applyNodeUpdate(TransactionContext tx, GraphOp op, GraphTempBinder binder) {
+    private void applyNodeUpdate(
+            TransactionContext tx, GraphOp op, GraphTempBinder binder, GraphApplyJournal journal) {
         UUID elementId = binder.resolveElementId(op.ref());
         assertNodeActive(tx, elementId);
 
         Map<String, Object> set = sanitizeProps(op.set());
+        List<String> unset = mutablePropertyKeys(op.unset(), true);
+        Set<String> beforeKeys = new LinkedHashSet<>(set.keySet());
+        Set<String> setKeys = new LinkedHashSet<>(set.keySet());
+        if (!set.isEmpty()) {
+            beforeKeys.add("updatedAt");
+            setKeys.add("updatedAt");
+        }
+        beforeKeys.addAll(unset);
+        PropertyBeforeImage before = readNodeProperties(tx, elementId, beforeKeys, setKeys);
+        journal.recordNodeUpdate(elementId, before.previousProps(), before.newlySetKeys());
+
         if (!set.isEmpty()) {
             tx.run(
                     """
@@ -158,15 +182,10 @@ public class GraphOpApplier {
                             "props", set,
                             "updatedAt", LocalDateTime.now(ZoneOffset.UTC)));
         }
-        if (op.unset() != null) {
-            for (String key : op.unset()) {
-                if (!isAllowedPropKey(key) || isIdentityOrProtectedProp(key)) {
-                    continue;
-                }
-                tx.run(
+        for (String key : unset) {
+            tx.run(
                         "MATCH (n:Asset {elementId: $elementId}) REMOVE n." + key,
                         Values.parameters("elementId", elementId.toString()));
-            }
         }
         if (op.addLabels() != null) {
             for (String label : op.addLabels()) {
@@ -193,8 +212,41 @@ public class GraphOpApplier {
         }
     }
 
-    private void applyNodeSoftDelete(TransactionContext tx, GraphOp op, GraphTempBinder binder) {
+    private void applyNodeSoftDelete(
+            TransactionContext tx, GraphOp op, GraphTempBinder binder, GraphApplyJournal journal) {
         UUID elementId = binder.resolveElementId(op.ref());
+        var nodeResult = tx.run(
+                """
+                MATCH (n:Asset {elementId: $elementId})
+                RETURN coalesce(n.enabled, true) AS enabled
+                """,
+                Values.parameters("elementId", elementId.toString()));
+        if (!nodeResult.hasNext()) {
+            throw new BusinessException(HttpStatus.NOT_FOUND, "GRAPH_NODE_NOT_FOUND", "图节点不存在: " + elementId);
+        }
+        boolean previousEnabled = nodeResult.single().get("enabled").asBoolean();
+        List<GraphApplyJournal.RelLifecycle> touchedRels = new ArrayList<>();
+        var relResult = tx.run(
+                """
+                MATCH (n:Asset {elementId: $elementId})-[r]-()
+                WHERE coalesce(r.deleted, false) = false
+                RETURN r.elementId AS elementId,
+                       coalesce(r.deleted, false) AS deleted,
+                       r.deletedAt AS deletedAt
+                """,
+                Values.parameters("elementId", elementId.toString()));
+        while (relResult.hasNext()) {
+            var row = relResult.next();
+            if (row.get("elementId").isNull()) {
+                continue;
+            }
+            touchedRels.add(new GraphApplyJournal.RelLifecycle(
+                    row.get("elementId").asString(),
+                    row.get("deleted").asBoolean(),
+                    row.get("deletedAt").isNull() ? null : row.get("deletedAt").asObject()));
+        }
+        journal.recordNodeSoftDelete(elementId, previousEnabled, touchedRels);
+
         tx.run(
                 """
                 MATCH (n:Asset {elementId: $elementId})
@@ -211,7 +263,12 @@ public class GraphOpApplier {
                         "deletedAt", LocalDateTime.now(ZoneOffset.UTC)));
     }
 
-    private void applyRelCreate(TransactionContext tx, GraphOp op, GraphTempBinder binder, Long proposalId) {
+    private void applyRelCreate(
+            TransactionContext tx,
+            GraphOp op,
+            GraphTempBinder binder,
+            Long proposalId,
+            GraphApplyJournal journal) {
         if (op.type() == null || op.type().isBlank()) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "GRAPH_REL_TYPE_REQUIRED", "REL_CREATE 需要 type");
         }
@@ -223,8 +280,8 @@ public class GraphOpApplier {
         assertRelEndpoints(tx, type, toId);
 
         Map<String, Object> props = sanitizeProps(op.properties());
-        String elementId = props.containsKey("elementId")
-                ? String.valueOf(props.get("elementId"))
+        String elementId = op.properties() != null && op.properties().get("elementId") != null
+                ? String.valueOf(op.properties().get("elementId"))
                 : UUID.randomUUID().toString();
         props.put("elementId", elementId);
         props.put("deleted", false);
@@ -249,15 +306,28 @@ public class GraphOpApplier {
                 "fromId", fromId.toString(),
                 "toId", toId.toString(),
                 "props", props)).consume();
+        journal.recordRelCreate(elementId);
     }
 
-    private void applyRelUpdate(TransactionContext tx, GraphOp op, GraphTempBinder binder) {
+    private void applyRelUpdate(
+            TransactionContext tx, GraphOp op, GraphTempBinder binder, GraphApplyJournal journal) {
         String elementId = resolveRelElementId(op);
         Map<String, Object> set = sanitizeProps(op.set());
+        List<String> unset = mutablePropertyKeys(op.unset(), false);
+        Set<String> beforeKeys = new LinkedHashSet<>(set.keySet());
+        Set<String> setKeys = new LinkedHashSet<>(set.keySet());
+        if (!set.isEmpty()) {
+            beforeKeys.add("updatedAt");
+            setKeys.add("updatedAt");
+        }
+        beforeKeys.addAll(unset);
+        PropertyBeforeImage before = readRelProperties(tx, elementId, beforeKeys, setKeys);
+        journal.recordRelUpdate(elementId, before.previousProps(), before.newlySetKeys());
+
         if (!set.isEmpty()) {
             tx.run(
                     """
-                    MATCH ()-[r {elementId: $elementId}]-()
+                    MATCH ()-[r {elementId: $elementId}]->()
                     WHERE coalesce(r.deleted, false) = false
                     SET r += $props, r.updatedAt = $updatedAt
                     """,
@@ -266,38 +336,64 @@ public class GraphOpApplier {
                             "props", set,
                             "updatedAt", LocalDateTime.now(ZoneOffset.UTC)));
         }
-        if (op.unset() != null) {
-            for (String key : op.unset()) {
-                if (!isAllowedPropKey(key) || "elementId".equals(key)) {
-                    continue;
-                }
-                tx.run(
-                        "MATCH ()-[r {elementId: $elementId}]-() REMOVE r." + key,
-                        Values.parameters("elementId", elementId));
-            }
+        for (String key : unset) {
+            tx.run(
+                    "MATCH ()-[r {elementId: $elementId}]->() REMOVE r." + key,
+                    Values.parameters("elementId", elementId));
         }
     }
 
-    private void applyRelDelete(TransactionContext tx, GraphOp op, GraphTempBinder binder) {
+    private void applyRelDelete(
+            TransactionContext tx, GraphOp op, GraphTempBinder binder, GraphApplyJournal journal) {
         String elementId = resolveRelElementId(op);
         boolean soft = op.soft() == null || Boolean.TRUE.equals(op.soft());
         if (soft) {
+            Set<String> lifecycleKeys = Set.of("deleted", "deletedAt", "updatedAt");
+            PropertyBeforeImage before = readRelProperties(tx, elementId, lifecycleKeys, lifecycleKeys);
+            journal.recordRelUpdate(elementId, before.previousProps(), before.newlySetKeys());
             tx.run(
                     """
-                    MATCH ()-[r {elementId: $elementId}]-()
+                    MATCH ()-[r {elementId: $elementId}]->()
                     SET r.deleted = true, r.deletedAt = $deletedAt, r.updatedAt = $deletedAt
                     """,
                     Values.parameters(
                             "elementId", elementId,
                             "deletedAt", LocalDateTime.now(ZoneOffset.UTC)));
         } else {
-            tx.run(
-                    "MATCH ()-[r {elementId: $elementId}]-() DELETE r",
+            var result = tx.run(
+                    """
+                    MATCH (a:Asset)-[r {elementId: $elementId}]->(b:Asset)
+                    RETURN type(r) AS type,
+                           a.elementId AS fromId,
+                           b.elementId AS toId,
+                           properties(r) AS props
+                    """,
                     Values.parameters("elementId", elementId));
+            RelBeforeImage before = null;
+            if (result.hasNext()) {
+                var row = result.single();
+                before = new RelBeforeImage(
+                        row.get("type").asString(),
+                        UUID.fromString(row.get("fromId").asString()),
+                        UUID.fromString(row.get("toId").asString()),
+                        row.get("props").asMap());
+            }
+            tx.run(
+                    "MATCH ()-[r {elementId: $elementId}]->() DELETE r",
+                    Values.parameters("elementId", elementId)).consume();
+            if (before != null) {
+                journal.recordRelDelete(
+                        elementId, before.type(), before.fromId(), before.toId(), before.props());
+            }
         }
     }
 
-    private void applyTagAdd(TransactionContext tx, GraphOp op, GraphTempBinder binder, Long proposalId) {
+    private void applyTagAdd(
+            TransactionContext tx,
+            GraphOp op,
+            GraphTempBinder binder,
+            Long proposalId,
+            GraphApplyJournal journal) {
         UUID assetId = binder.resolveElementId(op.ref());
         UUID tagId = resolveTagElementId(tx, op, binder);
         GraphOp rel = new GraphOp(
@@ -323,12 +419,41 @@ public class GraphOpApplier {
                 null,
                 null,
                 op.riskHint());
-        applyRelCreate(tx, rel, binder, proposalId);
+        applyRelCreate(tx, rel, binder, proposalId, journal);
     }
 
-    private void applyTagRemove(TransactionContext tx, GraphOp op, GraphTempBinder binder) {
+    private void applyTagRemove(
+            TransactionContext tx, GraphOp op, GraphTempBinder binder, GraphApplyJournal journal) {
         UUID assetId = binder.resolveElementId(op.ref());
         UUID tagId = resolveTagElementId(tx, op, binder);
+        var beforeResult = tx.run(
+                """
+                MATCH (a:Asset {elementId: $assetId})-[r:HAS_TAG]->(t:Asset:Tag {elementId: $tagId})
+                WHERE coalesce(r.deleted, false) = false
+                RETURN r.elementId AS elementId, properties(r) AS props
+                """,
+                Values.parameters("assetId", assetId.toString(), "tagId", tagId.toString()));
+        while (beforeResult.hasNext()) {
+            var row = beforeResult.next();
+            if (row.get("elementId").isNull()) {
+                continue;
+            }
+            String relId = row.get("elementId").asString();
+            Map<String, Object> props = row.get("props").asMap();
+            List<String> newlySet = new ArrayList<>();
+            for (String key : List.of("deleted", "deletedAt")) {
+                if (!props.containsKey(key)) {
+                    newlySet.add(key);
+                }
+            }
+            Map<String, Object> previous = new LinkedHashMap<>();
+            props.forEach((key, value) -> {
+                if ("deleted".equals(key) || "deletedAt".equals(key)) {
+                    previous.put(key, value);
+                }
+            });
+            journal.recordRelUpdate(relId, previous, newlySet);
+        }
         tx.run(
                 """
                 MATCH (a:Asset {elementId: $assetId})-[r:HAS_TAG]->(t:Asset:Tag {elementId: $tagId})
@@ -340,6 +465,57 @@ public class GraphOpApplier {
                         "tagId", tagId.toString(),
                         "deletedAt", LocalDateTime.now(ZoneOffset.UTC)));
     }
+
+    private PropertyBeforeImage readNodeProperties(
+            TransactionContext tx, UUID elementId, Set<String> keys, Set<String> setKeys) {
+        var result = tx.run(
+                "MATCH (n:Asset {elementId: $elementId}) RETURN properties(n) AS props",
+                Values.parameters("elementId", elementId.toString()));
+        if (!result.hasNext()) {
+            throw new BusinessException(HttpStatus.NOT_FOUND, "GRAPH_NODE_NOT_FOUND", "图节点不存在: " + elementId);
+        }
+        return propertyBeforeImage(result.single().get("props").asMap(), keys, setKeys);
+    }
+
+    private PropertyBeforeImage readRelProperties(
+            TransactionContext tx, String elementId, Set<String> keys, Set<String> setKeys) {
+        var result = tx.run(
+                "MATCH ()-[r {elementId: $elementId}]->() RETURN properties(r) AS props",
+                Values.parameters("elementId", elementId));
+        if (!result.hasNext()) {
+            throw new BusinessException(HttpStatus.NOT_FOUND, "GRAPH_REL_NOT_FOUND", "图关系不存在: " + elementId);
+        }
+        return propertyBeforeImage(result.single().get("props").asMap(), keys, setKeys);
+    }
+
+    private static PropertyBeforeImage propertyBeforeImage(
+            Map<String, Object> props, Set<String> keys, Set<String> setKeys) {
+        Map<String, Object> previous = new LinkedHashMap<>();
+        List<String> newlySet = new ArrayList<>();
+        for (String key : keys) {
+            if (props.containsKey(key)) {
+                previous.put(key, props.get(key));
+            } else if (setKeys.contains(key)) {
+                newlySet.add(key);
+            }
+        }
+        return new PropertyBeforeImage(previous, newlySet);
+    }
+
+    private static List<String> mutablePropertyKeys(List<String> raw, boolean node) {
+        if (raw == null) {
+            return List.of();
+        }
+        return raw.stream()
+                .filter(GraphOpApplier::isAllowedPropKey)
+                .filter(key -> node ? !isIdentityOrProtectedProp(key) : !"elementId".equals(key))
+                .distinct()
+                .toList();
+    }
+
+    private record PropertyBeforeImage(Map<String, Object> previousProps, List<String> newlySetKeys) {}
+
+    private record RelBeforeImage(String type, UUID fromId, UUID toId, Map<String, Object> props) {}
 
     private UUID resolveTagElementId(TransactionContext tx, GraphOp op, GraphTempBinder binder) {
         if (op.tagRef() != null) {

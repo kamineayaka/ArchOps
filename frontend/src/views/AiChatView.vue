@@ -69,7 +69,9 @@ const showWizard = ref(false)
 const LOGICAL_KINDS = new Set(['TAG', 'ENVIRONMENT'])
 
 const needsProvider = computed(() => providers.value.length === 0)
-const hasAssets = computed(() => assets.value.some((a) => !LOGICAL_KINDS.has(a.kind)))
+const hasAssets = computed(() =>
+  assets.value.some((a) => !LOGICAL_KINDS.has(a.kind) && (a.hasCredential ?? a.hasSshCredential)),
+)
 
 const providerOptions = computed(() =>
   providers.value.map((p) => ({
@@ -80,12 +82,11 @@ const providerOptions = computed(() =>
 
 const assetOptions = computed(() =>
   assets.value
-    .filter((a) => !LOGICAL_KINDS.has(a.kind))
+    .filter((a) => !LOGICAL_KINDS.has(a.kind) && (a.hasCredential ?? a.hasSshCredential))
     .map((a) => {
       const host = a.host ? ` · ${a.host}` : ''
-      const cred = a.hasSshCredential ? '' : ` · ${t('ai.noCredential')}`
       return {
-        label: `${a.name} [${a.kind}]${host}${cred}`,
+        label: `${a.name} [${a.kind}]${host}`,
         value: a.id,
       }
     }),

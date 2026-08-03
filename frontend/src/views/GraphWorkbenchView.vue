@@ -1,6 +1,6 @@
 ﻿<script setup lang="ts">
 import { t } from '@/messages'
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, h, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   NAlert,
@@ -86,6 +86,7 @@ const planWarnings = ref<string[]>([])
 const edgeMode = ref(false)
 const edgeType = ref('MEMBER_OF')
 const showAddNode = ref(false)
+const showQuickAdd = ref(false)
 const showEditNode = ref(false)
 const showCredential = ref(false)
 const selection = ref<Selection>(null)
@@ -93,6 +94,7 @@ const testBusy = ref(false)
 const showDraftPanel = ref(false)
 const submitBusy = ref(false)
 const addBusy = ref(false)
+const quickAddBusy = ref(false)
 const editBusy = ref(false)
 const credBusy = ref(false)
 const containerRef = ref<HTMLDivElement | null>(null)
@@ -112,6 +114,16 @@ const emptyNodeForm = () => ({
 })
 
 const addForm = ref(emptyNodeForm())
+const emptyQuickAddForm = () => ({
+  kind: 'SERVER' as 'SERVER' | 'DATABASE',
+  name: '',
+  host: '',
+  port: (defaultPortFor('SERVER') ?? 22) as number | null,
+  databaseName: '',
+  username: '',
+  password: '',
+})
+const quickAddForm = ref(emptyQuickAddForm())
 const editForm = ref(emptyNodeForm())
 const credForm = ref({
   username: '',
@@ -134,6 +146,13 @@ const kindOptions = computed(() =>
   listAssetTypes().map((def) => ({
     label: t(def.labelKey),
     value: def.kind,
+  })),
+)
+
+const quickAddKindOptions = computed(() =>
+  (['SERVER', 'DATABASE'] as const).map((kind) => ({
+    label: t(getAssetType(kind)?.labelKey ?? `assets.kind${kind}`),
+    value: kind,
   })),
 )
 
@@ -230,6 +249,16 @@ watch(
     }
     if (!getAssetType(kind)?.showDatabaseName) {
       addForm.value.databaseName = ''
+    }
+  },
+)
+
+watch(
+  () => quickAddForm.value.kind,
+  (kind) => {
+    quickAddForm.value.port = defaultPortFor(kind) ?? (kind === 'SERVER' ? 22 : 5432)
+    if (kind !== 'DATABASE') {
+      quickAddForm.value.databaseName = ''
     }
   },
 )
@@ -618,6 +647,137 @@ async function addDraftNode() {
   }
 }
 
+function openQuickAdd() {
+  quickAddForm.value = emptyQuickAddForm()
+  showQuickAdd.value = true
+}
+
+async function submitQuickAdd() {
+  const form = quickAddForm.value
+  if (!form.name.trim()) {
+    message.warning(t('graph.nameRequired'))
+    return
+  }
+  if (!form.host.trim()) {
+    message.warning(t('assets.hostRequired'))
+    return
+  }
+  if (form.port == null || form.port <= 0 || form.port > 65535) {
+    message.warning(t('assets.portRequired'))
+    return
+  }
+  if (!form.username.trim() || !form.password) {
+    message.warning(t('graph.credentialRequired'))
+    return
+  }
+
+  quickAddBusy.value = true
+  const tempId = `tmp:quick-node:${Date.now()}`
+  const props: Record<string, unknown> = {
+    elementId: newId(),
+    name: form.name.trim(),
+    kind: form.kind,
+    host: form.host.trim(),
+    port: form.port,
+    enabled: true,
+    hasCredential: true,
+  }
+  if (form.kind === 'DATABASE' && form.databaseName.trim()) {
+    props.database = form.databaseName.trim()
+  }
+  const op: Record<string, unknown> = {
+    op: 'NODE_CREATE',
+    tempId,
+    labels: ['Asset', kindLabel(form.kind)],
+    properties: props,
+  }
+  draftOps.value.push(op)
+  let sideEffect: Record<string, unknown> | null = null
+
+  try {
+    const stageRes = await stageCredential({
+      username: form.username.trim(),
+      authType: 'PASSWORD',
+      secret: form.password,
+      tempRef: tempId,
+    })
+    if (!stageRes.success || !stageRes.data) {
+      message.error(stageRes.message || t('common.failed'))
+      return
+    }
+
+    sideEffect = {
+      effect: 'CREDENTIAL_UPSERT_REF',
+      tempId,
+      credentialStagingId: stageRes.data.stagingId,
+    }
+    draftSideEffects.value.push(sideEffect)
+    overlayDraftOp(op)
+
+    const summary = `Quick-add ${form.kind}: ${form.name.trim()}`
+    const planRes = await planGraph({
+      summary,
+      ops: [op],
+      pgSideEffects: [sideEffect],
+    })
+    if (!planRes.success || !planRes.data) {
+      message.error(planRes.message || t('common.failed'))
+      return
+    }
+
+    const createRes = await createProposal({
+      partitionKey: planRes.data.partitionKey,
+      summary,
+      changeSetJson: planRes.data.changeSetJson,
+      risk: planRes.data.estimatedRisk,
+      baseVersion: planRes.data.partitionBaseVersion,
+      baseGraphVersion: planRes.data.baseGraphVersion,
+      source: 'ui_quick_add',
+      factOps: [],
+    })
+    if (!createRes.success || !createRes.data) {
+      message.error(createRes.message || t('common.failed'))
+      return
+    }
+
+    showQuickAdd.value = false
+    quickAddForm.value = emptyQuickAddForm()
+    clearSelection()
+    await loadSnapshot()
+
+    const proposalRoute = { name: 'architecture-proposals' as const }
+    message.success(() =>
+      h('span', null, [
+        `${t('graph.quickAddSubmitted', { id: createRes.data?.id })} `,
+        h(
+          'a',
+          {
+            href: router.resolve(proposalRoute).href,
+            onClick: (event: MouseEvent) => {
+              event.preventDefault()
+              void router.push(proposalRoute)
+            },
+          },
+          t('nav.proposals'),
+        ),
+      ]),
+    )
+  } catch (error) {
+    message.error(error instanceof Error ? error.message : t('common.failed'))
+  } finally {
+    draftOps.value = draftOps.value.filter((candidate) => candidate !== op)
+    if (sideEffect) {
+      draftSideEffects.value = draftSideEffects.value.filter((candidate) => candidate !== sideEffect)
+    }
+    const elementId = String(props.elementId)
+    cy?.$id(elementId).remove()
+    if (selectedNode.value?.elementId === elementId) {
+      clearSelection()
+    }
+    quickAddBusy.value = false
+  }
+}
+
 function addDraftEdge(fromId: string, toId: string, type: string) {
   const op = {
     op: 'REL_CREATE',
@@ -964,6 +1124,9 @@ onBeforeUnmount(() => {
           <NButton @click="router.push({ name: 'topology' })">{{ t('graph.backToTopology') }}</NButton>
           <NTag size="small">v{{ graphVersion }}</NTag>
           <NButton :loading="loading" @click="loadSnapshot">{{ t('common.refresh') }}</NButton>
+          <NButton v-if="canEdit" type="primary" secondary @click="openQuickAdd">
+            {{ t('graph.quickAdd') }}
+          </NButton>
           <NButton v-if="canEdit" @click="showAddNode = true">{{ t('graph.addNode') }}</NButton>
           <NButton
             v-if="canEdit"
@@ -1179,6 +1342,48 @@ onBeforeUnmount(() => {
         <NSpace justify="end">
           <NButton @click="showAddNode = false">{{ t('common.cancel') }}</NButton>
           <NButton type="primary" :loading="addBusy" @click="addDraftNode">{{ t('graph.addToDraft') }}</NButton>
+        </NSpace>
+      </template>
+    </NModal>
+
+    <NModal
+      v-model:show="showQuickAdd"
+      preset="card"
+      :title="t('graph.quickAddTitle')"
+      style="width: 480px"
+    >
+      <NForm label-placement="top">
+        <NFormItem :label="t('assets.kind')">
+          <NSelect v-model:value="quickAddForm.kind" :options="quickAddKindOptions" />
+        </NFormItem>
+        <NFormItem :label="t('assets.name')">
+          <NInput v-model:value="quickAddForm.name" />
+        </NFormItem>
+        <NFormItem :label="t('assets.host')">
+          <NInput v-model:value="quickAddForm.host" />
+        </NFormItem>
+        <NFormItem :label="t('assets.port')">
+          <NInputNumber v-model:value="quickAddForm.port" :min="1" :max="65535" style="width: 100%" />
+        </NFormItem>
+        <NFormItem v-if="quickAddForm.kind === 'DATABASE'" :label="t('assets.databaseName')">
+          <NInput
+            v-model:value="quickAddForm.databaseName"
+            :placeholder="t('assets.databaseNamePlaceholder')"
+          />
+        </NFormItem>
+        <NFormItem :label="t('assets.sshUser')">
+          <NInput v-model:value="quickAddForm.username" />
+        </NFormItem>
+        <NFormItem :label="t('assets.password')">
+          <NInput v-model:value="quickAddForm.password" type="password" />
+        </NFormItem>
+      </NForm>
+      <template #footer>
+        <NSpace justify="end">
+          <NButton @click="showQuickAdd = false">{{ t('common.cancel') }}</NButton>
+          <NButton type="primary" :loading="quickAddBusy" @click="submitQuickAdd">
+            {{ t('common.submit') }}
+          </NButton>
         </NSpace>
       </template>
     </NModal>

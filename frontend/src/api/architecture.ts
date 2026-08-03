@@ -8,6 +8,9 @@ export type ProposalStatus =
   | 'REJECTED'
   | 'AUTO_MERGED'
   | 'MERGED'
+  | 'CONFLICT'
+  | 'SUPERSEDED'
+  | 'MERGE_FAILED'
 
 export interface PartitionSummary {
   id: number
@@ -69,6 +72,7 @@ export interface ProposalResponse {
   mergedGraphVersion?: number | null
   source?: string | null
   relatedApprovalId: number | null
+  conflictDetail?: string | null
   createdAt: string
   decidedAt: string | null
 }

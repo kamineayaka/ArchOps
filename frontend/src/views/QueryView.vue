@@ -63,7 +63,9 @@ const tableData = computed(() => {
 async function loadAssets() {
   try {
     const res = await listAssets()
-    assets.value = (res.data ?? []).filter((a) => a.kind === 'DATABASE')
+    assets.value = (res.data ?? []).filter(
+      (a) => a.kind === 'DATABASE' && (a.hasCredential ?? a.hasSshCredential),
+    )
   } catch (err) {
     message.error(apiErrorMessage(err, t('query.loadFailed')))
   }
@@ -119,7 +121,7 @@ watch(assetId, () => {
       <NSpace vertical :size="16">
         <NAlert v-if="!assetId" type="warning" :title="t('query.needAsset')" />
         <NAlert
-          v-else-if="asset && !asset.hasSshCredential"
+          v-else-if="asset && !(asset.hasCredential ?? asset.hasSshCredential)"
           type="warning"
           :title="t('query.needCredential')"
         />

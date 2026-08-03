@@ -21,7 +21,10 @@ async function load() {
   loading.value = true
   try {
     const res = await listTerminalDock()
-    items.value = res.success && res.data ? res.data : []
+    items.value =
+      res.success && res.data
+        ? res.data.filter((item) => item.hasCredential ?? item.hasSshCredential)
+        : []
   } finally {
     loading.value = false
   }
