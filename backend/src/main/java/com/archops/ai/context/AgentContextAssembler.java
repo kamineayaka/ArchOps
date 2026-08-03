@@ -119,7 +119,7 @@ public class AgentContextAssembler {
 
         StringBuilder sb = new StringBuilder();
         appendSection(sb, HEADER_IDENTITY, IDENTITY_RULES.trim());
-        appendSection(sb, HEADER_TARGETS, formatTargets(assets));
+        appendSection(sb, HEADER_TARGETS, formatTargets(userId, roles, assets));
         appendSection(sb, HEADER_GRAPH, hybrid.graphNeighborhood());
         appendSection(sb, HEADER_ARCHITECTURE, hybrid.architectureFacts());
         appendSection(sb, HEADER_TEXT_MEMORY, hybrid.textMemory());
@@ -171,7 +171,7 @@ public class AgentContextAssembler {
         sb.append(header).append('\n').append(body.trim()).append("\n\n");
     }
 
-    private String formatTargets(List<Long> assetIds) {
+    private String formatTargets(Long userId, List<String> roles, List<Long> assetIds) {
         if (assetIds == null || assetIds.isEmpty()) {
             return "Active target assets: none. Ask the user to select target assets before running ssh_exec, "
                     + "or pass assetId explicitly after listing assets.";
@@ -180,7 +180,7 @@ public class AgentContextAssembler {
         sb.append("Active target assets. When ssh_exec omits assetId, the command runs on ALL targets sequentially:\n");
         for (Long assetId : assetIds) {
             try {
-                AssetResponse asset = assetService.get(assetId);
+                AssetResponse asset = assetService.get(assetId, userId, roles);
                 sb.append("- id=").append(asset.id())
                         .append(" elementId=").append(asset.elementId())
                         .append(" name=").append(asset.name())

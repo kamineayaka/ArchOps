@@ -30,6 +30,8 @@ import com.archops.knowledge.domain.WorkLog;
 import com.archops.knowledge.service.WorkLogWriter;
 import com.archops.tools.AgentTool;
 import com.archops.tools.ToolRegistry;
+import com.archops.user.domain.User;
+import com.archops.user.repository.UserRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
@@ -67,6 +69,7 @@ public class AiAgentService {
     private final ArchitectureProposalService proposalService;
     private final ObjectMapper objectMapper;
     private final AiProperties aiProperties;
+    private final UserRepository userRepository;
 
     public AiAgentService(
             LlmRuntimeResolver llmRuntimeResolver,
@@ -81,7 +84,8 @@ public class AiAgentService {
             WorkLogWriter workLogWriter,
             ArchitectureProposalService proposalService,
             ObjectMapper objectMapper,
-            AiProperties aiProperties) {
+            AiProperties aiProperties,
+            UserRepository userRepository) {
         this.llmRuntimeResolver = llmRuntimeResolver;
         this.toolRegistry = toolRegistry;
         this.toolExecutorService = toolExecutorService;
@@ -95,6 +99,7 @@ public class AiAgentService {
         this.proposalService = proposalService;
         this.objectMapper = objectMapper;
         this.aiProperties = aiProperties;
+        this.userRepository = userRepository;
     }
 
     @Transactional
@@ -135,9 +140,11 @@ public class AiAgentService {
 
         List<ChatMessage> messages =
                 buildContext(conversation, conversationId, userMessage, uiContext, resolved.providerId());
-        List<Long> effectiveTargets = conversationService.resolveEffectiveTargetAssetIds(conversation);
+        List<String> roles = loadRoles(userId);
+        List<Long> effectiveTargets =
+                conversationService.resolveEffectiveTargetAssetIds(conversation, userId, roles);
         AgentTool.ExecutionContext toolContext = new AgentTool.ExecutionContext(
-                userId, null, conversationId, effectiveTargets, resolved.providerId());
+                userId, null, conversationId, effectiveTargets, resolved.providerId(), roles);
 
         return runAgentLoop(
                 resolved.runtime(),
@@ -173,9 +180,11 @@ public class AiAgentService {
         Long userId = approval.getRequesterId();
 
         AiConversation conversation = conversationService.requireOwned(conversationId, userId);
-        List<Long> effectiveTargets = conversationService.resolveEffectiveTargetAssetIds(conversation);
+        List<String> roles = loadRoles(userId);
+        List<Long> effectiveTargets =
+                conversationService.resolveEffectiveTargetAssetIds(conversation, userId, roles);
         AgentTool.ExecutionContext toolContext = new AgentTool.ExecutionContext(
-                userId, null, conversationId, effectiveTargets, providerId);
+                userId, null, conversationId, effectiveTargets, providerId, roles);
         ToolCall toolCall = new ToolCall(toolCallId, toolName, toolArgs);
 
         LlmRuntimeResolver.ResolvedRuntime resolved;
@@ -187,7 +196,7 @@ public class AiAgentService {
         }
         Long effectiveProviderId = resolved.providerId();
         toolContext = new AgentTool.ExecutionContext(
-                userId, null, conversationId, effectiveTargets, effectiveProviderId);
+                userId, null, conversationId, effectiveTargets, effectiveProviderId, roles);
 
         List<ChatMessage> messages = buildResumeContext(conversation, conversationId, null, effectiveProviderId);
         List<ToolExecutionSummary> toolSummaries = new ArrayList<>();
@@ -399,7 +408,8 @@ public class AiAgentService {
             List<ToolExecutionSummary> toolSummaries,
             Consumer<AgentEvent> onEvent) {
         try {
-            List<Long> targets = conversationService.resolveEffectiveTargetAssetIds(conversation);
+            List<Long> targets = conversationService.resolveEffectiveTargetAssetIds(
+                    conversation, userId, loadRoles(userId));
             String partitionKey = !targets.isEmpty()
                     ? PartitionKeys.asset(targets.getFirst())
                     : PartitionKeys.GLOBAL;
@@ -495,7 +505,8 @@ public class AiAgentService {
             String userQuery,
             UiContext uiContext,
             Long providerId) {
-        List<Long> assetIds = conversationService.resolveEffectiveTargetAssetIds(conversation);
+        List<Long> assetIds = conversationService.resolveEffectiveTargetAssetIds(
+                conversation, conversation.getUserId(), loadRoles(conversation.getUserId()));
         Integer contextBudget = null;
         try {
             AiProvider provider = llmRuntimeResolver.resolveProvider(providerId);
@@ -526,11 +537,22 @@ public class AiAgentService {
         } catch (Exception ignored) {
             // fall through
         }
-        return conversationService.resolveEffectiveTargetAssetIds(conversation);
+        return conversationService.resolveEffectiveTargetAssetIds(
+                conversation, conversation.getUserId(), loadRoles(conversation.getUserId()));
     }
 
     private ChatMessage toChatMessage(AiMessage message) {
         return new ChatMessage(message.getRole(), message.getContent(), readToolCalls(message.getToolCalls()));
+    }
+
+    private List<String> loadRoles(Long userId) {
+        if (userId == null) {
+            return List.of();
+        }
+        return userRepository.findById(userId)
+                .map(User::getRoles)
+                .map(roles -> roles.stream().map(role -> role.getName()).toList())
+                .orElse(List.of());
     }
 
     private List<ToolCall> readToolCalls(String json) {

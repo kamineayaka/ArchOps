@@ -90,6 +90,17 @@ public class GraphMergeEngine {
 
         GraphChangeSet changeSet = parseChangeSet(proposal.getChangeSet());
         validateStatic(changeSet);
+        if (changeSet.baseGraphVersion() != null
+                && proposal.getBaseGraphVersion() != null
+                && !changeSet.baseGraphVersion().equals(proposal.getBaseGraphVersion())) {
+            throw new BusinessException(
+                    HttpStatus.CONFLICT,
+                    "GRAPH_BASE_VERSION_MISMATCH",
+                    "ChangeSet baseGraphVersion 与提案不一致: changeSet="
+                            + changeSet.baseGraphVersion()
+                            + ", proposal="
+                            + proposal.getBaseGraphVersion());
+        }
 
         GraphMeta meta = graphVersionService.lockGlobal();
         long expected = proposal.getBaseGraphVersion() != null ? proposal.getBaseGraphVersion() : 0L;
@@ -102,12 +113,14 @@ public class GraphMergeEngine {
         }
 
         GraphTempBinder binder = new GraphTempBinder();
-        graphPgAnchorService.prepareNodeCreates(changeSet.ops(), binder);
+        graphPgAnchorService.prepareNodeCreates(
+                changeSet.ops(), binder, proposal.getRequesterId());
 
         boolean neo4jCommitted = false;
+        GraphApplyJournal applyJournal = null;
         try (Session session = driver.session(SessionConfig.forDatabase(graphProperties.getDatabase()))) {
             try {
-                graphOpApplier.applyAll(session, changeSet.ops(), binder, proposal.getId());
+                applyJournal = graphOpApplier.applyAll(session, changeSet.ops(), binder, proposal.getId());
                 neo4jCommitted = true;
             } catch (BusinessException ex) {
                 proposalStatusService.markMergeFailed(proposal.getId(), actorId, "NEO4J", ex.getMessage());
@@ -180,7 +193,7 @@ public class GraphMergeEngine {
             } catch (RuntimeException pgEx) {
                 log.error("PG side of graph merge failed after Neo4j commit; compensating", pgEx);
                 try {
-                    graphOpApplier.reverseAll(session, changeSet.ops(), binder);
+                    graphOpApplier.reverseAll(session, applyJournal);
                 } catch (Exception reverseEx) {
                     log.error("Neo4j compensation failed for proposal {}", proposal.getId(), reverseEx);
                 }

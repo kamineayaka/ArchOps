@@ -478,6 +478,7 @@ public class ArchitectureProposalService {
                 p.getMergedGraphVersion(),
                 p.getSource(),
                 p.getRelatedApprovalId(),
+                p.getConflictDetail(),
                 p.getCreatedAt(),
                 p.getDecidedAt());
     }

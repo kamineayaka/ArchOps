@@ -87,7 +87,7 @@ async function loadAssets() {
   const res = await listAssets()
   if (res.success && res.data) {
     assets.value = res.data.filter(
-      (a) => a.hasSshCredential && connectActionFor(a.kind) === 'terminal',
+      (a) => (a.hasCredential ?? a.hasSshCredential) && connectActionFor(a.kind) === 'terminal',
     )
   }
 }

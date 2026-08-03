@@ -50,7 +50,7 @@ public class ListAssetsTool implements AgentTool {
     @Override
     public String execute(Map<String, Object> arguments, ExecutionContext context) {
         boolean includeLogical = asBoolean(arguments != null ? arguments.get("includeLogical") : null);
-        List<AssetResponse> assets = assetService.list();
+        List<AssetResponse> assets = assetService.list(context.userId(), context.roles());
         Set<Long> allowed = ToolScope.allowedSet(context.targetAssetIds());
         if (!allowed.isEmpty()) {
             assets = assets.stream().filter(a -> allowed.contains(a.id())).toList();
@@ -67,7 +67,7 @@ public class ListAssetsTool implements AgentTool {
                         + " name=" + a.name()
                         + " kind=" + a.kind()
                         + " host=" + (a.host() != null ? a.host() : "n/a")
-                        + " hasSshCredential=" + a.hasSshCredential())
+                        + " hasCredential=" + a.hasSshCredential())
                 .collect(Collectors.joining("\n"));
     }
 

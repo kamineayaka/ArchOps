@@ -1,8 +1,10 @@
 package com.archops.terminal.pool;
 
 import com.archops.common.config.SshPoolProperties;
+import com.archops.knowledge.acl.AssetAclService;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -22,15 +24,23 @@ public class SshConnectionPool {
 
     private final AssetSshDialer dialer;
     private final SshPoolProperties properties;
+    private final AssetAclService assetAclService;
     private final ConcurrentMap<SshPoolKey, SshPoolEntry> entries = new ConcurrentHashMap<>();
 
-    public SshConnectionPool(AssetSshDialer dialer, SshPoolProperties properties, SshPoolCleanupScheduler cleanupScheduler) {
+    public SshConnectionPool(
+            AssetSshDialer dialer,
+            SshPoolProperties properties,
+            SshPoolCleanupScheduler cleanupScheduler,
+            AssetAclService assetAclService) {
         this.dialer = dialer;
         this.properties = properties;
+        this.assetAclService = assetAclService;
         cleanupScheduler.register(this);
     }
 
-    public PooledSshHandle acquire(Long userId, Long assetId) throws Exception {
+    public PooledSshHandle acquire(Long userId, Collection<String> roles, Long assetId) throws Exception {
+        // Always check, including cache hits, so ACL revocation takes effect immediately.
+        assetAclService.requireAssetAccess(userId, roles, assetId);
         SshPoolKey key = new SshPoolKey(userId, assetId);
         SshPoolEntry entry = entries.get(key);
 
@@ -42,7 +52,7 @@ public class SshConnectionPool {
             remove(userId, assetId);
         }
 
-        ClientSession session = dialer.dial(assetId);
+        ClientSession session = dialer.dial(assetId, userId, roles);
         SshPoolEntry created = new SshPoolEntry(session, assetId);
 
         SshPoolEntry existing = entries.putIfAbsent(key, created);
@@ -53,15 +63,15 @@ public class SshConnectionPool {
                 return new PooledSshHandle(existing.session(), userId, assetId, this);
             }
             remove(userId, assetId);
-            return acquire(userId, assetId);
+            return acquire(userId, roles, assetId);
         }
 
         log.info("SSH pool: opened connection user={} asset={}", userId, assetId);
         return new PooledSshHandle(session, userId, assetId, this);
     }
 
-    public void warm(Long userId, Long assetId) throws Exception {
-        try (PooledSshHandle ignored = acquire(userId, assetId)) {
+    public void warm(Long userId, Collection<String> roles, Long assetId) throws Exception {
+        try (PooledSshHandle ignored = acquire(userId, roles, assetId)) {
             log.debug("SSH pool warmed user={} asset={}", userId, assetId);
         }
     }
@@ -87,10 +97,14 @@ public class SshConnectionPool {
         }
     }
 
-    public List<SshPoolEntryResponse> listForUser(Long userId) {
+    public List<SshPoolEntryResponse> listForUser(
+            Long userId, Collection<String> roles) {
         List<SshPoolEntryResponse> result = new ArrayList<>();
         for (var e : entries.entrySet()) {
             if (!e.getKey().userId().equals(userId)) {
+                continue;
+            }
+            if (!assetAclService.canAccessAsset(userId, roles, e.getKey().assetId())) {
                 continue;
             }
             SshPoolEntry entry = e.getValue();

@@ -54,7 +54,8 @@ export interface TerminalDockItem {
   kind: string
   host: string | null
   pinned: boolean
-  hasSshCredential: boolean
+  hasCredential: boolean
+  hasSshCredential?: boolean
   lastOpenedAt: string
 }
 

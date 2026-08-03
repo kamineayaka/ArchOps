@@ -114,6 +114,37 @@ public class AssetAclService {
         }
     }
 
+    public void requireAssetAccess(Long userId, Collection<String> roles, Long assetId) {
+        if (!canAccessAsset(userId, roles, assetId)) {
+            throw new BusinessException(HttpStatus.FORBIDDEN, "ASSET_ACCESS_DENIED", "无权访问该资产");
+        }
+    }
+
+    /** Idempotent grant of asset visibility to a user. */
+    @org.springframework.transaction.annotation.Transactional
+    public void grant(Long userId, Long assetId) {
+        if (userId == null || assetId == null) {
+            return;
+        }
+        if (!userAssetRepository.existsByUserIdAndAssetId(userId, assetId)) {
+            userAssetRepository.save(new UserAsset(userId, assetId));
+        }
+    }
+
+    @org.springframework.transaction.annotation.Transactional
+    public void grantAll(Long userId, Collection<Long> assetIds) {
+        if (userId == null || assetIds == null || assetIds.isEmpty()) {
+            return;
+        }
+        for (Long assetId : assetIds) {
+            grant(userId, assetId);
+        }
+    }
+
+    public long countAssignments() {
+        return userAssetRepository.count();
+    }
+
     /**
      * Intersect a RAG scope with the caller's allowed assets.
      * ADMIN returns scope unchanged. Null/empty scope stays empty (no extra filter).

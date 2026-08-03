@@ -6,9 +6,11 @@ import com.archops.graph.dto.GraphQueryResponse;
 import com.archops.graph.dto.GraphSnapshotResponse;
 import com.archops.graph.dto.GraphSnapshotResponse.GraphEdgeDto;
 import com.archops.graph.dto.GraphSnapshotResponse.GraphNodeDto;
+import com.archops.knowledge.acl.AssetAclService;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -36,17 +38,20 @@ public class GraphReadService {
     private final GraphProperties properties;
     private final Driver neo4jDriver;
     private final GraphVersionService graphVersionService;
+    private final AssetAclService assetAclService;
 
     public GraphReadService(
             GraphProperties properties,
             Driver neo4jDriver,
-            GraphVersionService graphVersionService) {
+            GraphVersionService graphVersionService,
+            AssetAclService assetAclService) {
         this.properties = properties;
         this.neo4jDriver = neo4jDriver;
         this.graphVersionService = graphVersionService;
+        this.assetAclService = assetAclService;
     }
 
-    public GraphSnapshotResponse snapshot() {
+    public GraphSnapshotResponse snapshot(Long userId, Collection<String> roles) {
         long version = graphVersionService.currentVersion();
         try (Session session = neo4jDriver.session(SessionConfig.forDatabase(properties.getDatabase()))) {
             List<GraphNodeDto> nodes = new ArrayList<>();
@@ -57,8 +62,16 @@ public class GraphReadService {
                     RETURN n
                     """);
             while (nodeResult.hasNext()) {
-                nodes.add(toNodeDto(nodeResult.next().get("n").asNode()));
+                GraphNodeDto node = toNodeDto(nodeResult.next().get("n").asNode());
+                if (node.pgAssetId() == null
+                        || assetAclService.canAccessAsset(userId, roles, node.pgAssetId())) {
+                    nodes.add(node);
+                }
             }
+            Set<String> includedElementIds = nodes.stream()
+                    .map(GraphNodeDto::elementId)
+                    .filter(id -> id != null)
+                    .collect(java.util.stream.Collectors.toSet());
 
             List<GraphEdgeDto> edges = new ArrayList<>();
             Result edgeResult = session.run(
@@ -72,12 +85,16 @@ public class GraphReadService {
             while (edgeResult.hasNext()) {
                 Record rec = edgeResult.next();
                 Relationship rel = rec.get("rel").asRelationship();
-                edges.add(new GraphEdgeDto(
-                        asString(rel.get("elementId")),
-                        rec.get("type").asString(),
-                        rec.get("fromId").asString(),
-                        rec.get("toId").asString(),
-                        toMap(rel.asMap())));
+                String fromId = rec.get("fromId").asString();
+                String toId = rec.get("toId").asString();
+                if (includedElementIds.contains(fromId) && includedElementIds.contains(toId)) {
+                    edges.add(new GraphEdgeDto(
+                            asString(rel.get("elementId")),
+                            rec.get("type").asString(),
+                            fromId,
+                            toId,
+                            toMap(rel.asMap())));
+                }
             }
             return new GraphSnapshotResponse(version, nodes, edges);
         } catch (BusinessException ex) {
@@ -88,7 +105,7 @@ public class GraphReadService {
         }
     }
 
-    public GraphQueryResponse query(String cypher) {
+    public GraphQueryResponse query(String cypher, Long userId) {
         String trimmed = cypher != null ? cypher.trim() : "";
         if (trimmed.isEmpty()) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "CYPHER_REQUIRED", "Cypher 不能为空");

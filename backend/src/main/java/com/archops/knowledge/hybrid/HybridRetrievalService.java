@@ -59,7 +59,11 @@ public class HybridRetrievalService {
         // ACL-filter seeds before graph/fact expansion so inaccessible assets never enter the prompt.
         List<Long> seeds = assetAclService.filterAssetIds(userId, roles, rawSeeds);
 
-        GraphContextRetriever.NeighborhoodResult neighborhood = graphContextRetriever.neighborhood(seeds);
+        // Render the neighborhood with the same ACL boundary; filtering only the returned
+        // asset IDs would still leak unauthorized neighbor names/hosts through promptText.
+        List<Long> allowedAssetIds = assetAclService.allowedAssetIds(userId, roles);
+        GraphContextRetriever.NeighborhoodResult neighborhood =
+                graphContextRetriever.neighborhood(seeds, allowedAssetIds);
 
         Set<Long> scopedAssets = new LinkedHashSet<>(seeds);
         if (neighborhood.available() && neighborhood.relatedPgAssetIds() != null) {
@@ -76,7 +80,7 @@ public class HybridRetrievalService {
                 partitionKeys.add(assetKey);
             }
             try {
-                AssetResponse asset = assetService.get(id);
+                AssetResponse asset = assetService.get(id, userId, roles);
                 if (asset.elementId() != null) {
                     String elementKey = PartitionKeys.assetElement(asset.elementId());
                     if (assetAclService.canAccessPartition(userId, roles, elementKey)) {

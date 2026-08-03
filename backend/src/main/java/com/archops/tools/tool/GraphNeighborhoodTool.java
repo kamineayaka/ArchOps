@@ -1,5 +1,6 @@
 package com.archops.tools.tool;
 
+import com.archops.knowledge.acl.AssetAclService;
 import com.archops.knowledge.hybrid.GraphContextRetriever;
 import com.archops.tools.AgentTool;
 import com.archops.tools.ToolScope;
@@ -13,9 +14,13 @@ import org.springframework.stereotype.Component;
 public class GraphNeighborhoodTool implements AgentTool {
 
     private final GraphContextRetriever graphContextRetriever;
+    private final AssetAclService assetAclService;
 
-    public GraphNeighborhoodTool(GraphContextRetriever graphContextRetriever) {
+    public GraphNeighborhoodTool(
+            GraphContextRetriever graphContextRetriever,
+            AssetAclService assetAclService) {
         this.graphContextRetriever = graphContextRetriever;
+        this.assetAclService = assetAclService;
     }
 
     @Override
@@ -46,6 +51,7 @@ public class GraphNeighborhoodTool implements AgentTool {
                 Long id = asLong(item);
                 if (id != null) {
                     ToolScope.assertInScope(context.targetAssetIds(), id);
+                    assetAclService.requireAssetAccess(context.userId(), context.roles(), id);
                     seeds.add(id);
                 }
             }
@@ -53,6 +59,7 @@ public class GraphNeighborhoodTool implements AgentTool {
         Long single = asLong(arguments != null ? arguments.get("assetId") : null);
         if (single != null) {
             ToolScope.assertInScope(context.targetAssetIds(), single);
+            assetAclService.requireAssetAccess(context.userId(), context.roles(), single);
             seeds.add(single);
         }
         if (seeds.isEmpty() && context.targetAssetIds() != null) {
@@ -64,7 +71,11 @@ public class GraphNeighborhoodTool implements AgentTool {
 
         int hops = asInt(arguments != null ? arguments.get("hops") : null, GraphContextRetriever.DEFAULT_HOPS);
         int maxNodes = asInt(arguments != null ? arguments.get("maxNodes") : null, GraphContextRetriever.DEFAULT_MAX_NODES);
-        var result = graphContextRetriever.neighborhood(seeds, hops, maxNodes);
+        var result = graphContextRetriever.neighborhood(
+                seeds,
+                hops,
+                maxNodes,
+                assetAclService.allowedAssetIds(context.userId(), context.roles()));
         return result.promptText();
     }
 

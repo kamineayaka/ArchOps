@@ -30,14 +30,15 @@ public class SshPoolController {
 
     @GetMapping
     public ApiResponse<List<SshPoolEntryResponse>> list(@AuthenticationPrincipal AuthUserPrincipal principal) {
-        return ApiResponse.ok(sshConnectionPool.listForUser(principal.getUserId()));
+        return ApiResponse.ok(
+                sshConnectionPool.listForUser(principal.getUserId(), principal.roleNames()));
     }
 
     @PostMapping("/{assetId}/warm")
     public ApiResponse<Void> warm(
             @PathVariable Long assetId,
             @AuthenticationPrincipal AuthUserPrincipal principal) throws Exception {
-        sshConnectionPool.warm(principal.getUserId(), assetId);
+        sshConnectionPool.warm(principal.getUserId(), principal.roleNames(), assetId);
         auditService.record(new AuditService.AuditEntry(
                 principal.getUserId(),
                 principal.getUsername(),

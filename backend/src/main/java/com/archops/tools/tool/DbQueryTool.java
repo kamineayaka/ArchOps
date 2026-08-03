@@ -61,12 +61,13 @@ public class DbQueryTool implements AgentTool {
         }
         String sql = String.valueOf(rawSql);
 
-        AssetResponse asset = assetService.get(assetId);
+        AssetResponse asset = assetService.get(assetId, context.userId(), context.roles());
         if (!"DATABASE".equalsIgnoreCase(String.valueOf(asset.kind()))) {
             return "Error: asset " + assetId + " is not a DATABASE (kind=" + asset.kind() + ")";
         }
 
-        DbQueryResponse result = dbQueryService.runForTool(context.userId(), assetId, sql);
+        DbQueryResponse result =
+                dbQueryService.runForTool(context.userId(), context.roles(), assetId, sql);
         return format(asset, result);
     }
 

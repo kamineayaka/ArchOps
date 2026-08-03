@@ -8,8 +8,10 @@ import com.archops.ai.repository.AiConversationRepository;
 import com.archops.ai.repository.AiMessageRepository;
 import com.archops.asset.service.AssetService;
 import com.archops.common.exception.BusinessException;
+import com.archops.knowledge.acl.AssetAclService;
 import com.archops.terminal.pool.SshConnectionPool;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -23,16 +25,19 @@ public class ConversationService {
     private final AiConversationRepository conversationRepository;
     private final AiMessageRepository messageRepository;
     private final AssetService assetService;
+    private final AssetAclService assetAclService;
     private final SshConnectionPool sshConnectionPool;
 
     public ConversationService(
             AiConversationRepository conversationRepository,
             AiMessageRepository messageRepository,
             AssetService assetService,
+            AssetAclService assetAclService,
             SshConnectionPool sshConnectionPool) {
         this.conversationRepository = conversationRepository;
         this.messageRepository = messageRepository;
         this.assetService = assetService;
+        this.assetAclService = assetAclService;
         this.sshConnectionPool = sshConnectionPool;
     }
 
@@ -41,13 +46,13 @@ public class ConversationService {
         AiConversation conversation = new AiConversation();
         conversation.setUserId(userId);
         conversation.setTitle(title != null ? title : "新对话");
-        return toResponse(conversationRepository.save(conversation));
+        return toResponse(conversationRepository.save(conversation), userId, List.of());
     }
 
     @Transactional(readOnly = true)
-    public List<ConversationResponse> list(Long userId) {
+    public List<ConversationResponse> list(Long userId, Collection<String> roles) {
         return conversationRepository.findByUserIdOrderByUpdatedAtDesc(userId).stream()
-                .map(this::toResponse)
+                .map(conversation -> toResponse(conversation, userId, roles))
                 .toList();
     }
 
@@ -89,19 +94,25 @@ public class ConversationService {
     }
 
     @Transactional
-    public ConversationResponse updateTargets(Long conversationId, Long userId, List<Long> targetAssetIds) {
+    public ConversationResponse updateTargets(
+            Long conversationId,
+            Long userId,
+            Collection<String> roles,
+            List<Long> targetAssetIds) {
         AiConversation conversation = requireOwned(conversationId, userId);
         List<Long> assets = normalizeIds(targetAssetIds);
         for (Long assetId : assets) {
-            assetService.get(assetId);
+            // Reject the entire update rather than silently dropping explicitly requested targets.
+            assetService.get(assetId, userId, roles);
         }
 
         conversation.setTargetAssetIds(assets);
         conversation.setTargetGroupIds(List.of());
-        ConversationResponse response = toResponse(conversationRepository.save(conversation));
+        ConversationResponse response =
+                toResponse(conversationRepository.save(conversation), userId, roles);
         for (Long assetId : response.resolvedAssetIds()) {
             try {
-                sshConnectionPool.warm(userId, assetId);
+                sshConnectionPool.warm(userId, roles, assetId);
             } catch (Exception ignored) {
                 // Warm is best-effort; chat will retry on first tool call.
             }
@@ -110,17 +121,19 @@ public class ConversationService {
     }
 
     @Transactional(readOnly = true)
-    public ConversationResponse getTargets(Long conversationId, Long userId) {
-        return toResponse(requireOwned(conversationId, userId));
+    public ConversationResponse getTargets(
+            Long conversationId, Long userId, Collection<String> roles) {
+        return toResponse(requireOwned(conversationId, userId), userId, roles);
     }
 
     @Transactional(readOnly = true)
-    public List<Long> resolveEffectiveTargetAssetIds(AiConversation conversation) {
+    public List<Long> resolveEffectiveTargetAssetIds(
+            AiConversation conversation, Long userId, Collection<String> roles) {
         Set<Long> resolved = new LinkedHashSet<>();
         if (conversation.getTargetAssetIds() != null) {
             resolved.addAll(conversation.getTargetAssetIds());
         }
-        return new ArrayList<>(resolved);
+        return assetAclService.filterAssetIds(userId, roles, resolved);
     }
 
     private List<Long> normalizeIds(List<Long> ids) {
@@ -130,8 +143,9 @@ public class ConversationService {
         return new ArrayList<>(new LinkedHashSet<>(ids));
     }
 
-    private ConversationResponse toResponse(AiConversation conversation) {
-        List<Long> resolved = resolveEffectiveTargetAssetIds(conversation);
+    private ConversationResponse toResponse(
+            AiConversation conversation, Long userId, Collection<String> roles) {
+        List<Long> resolved = resolveEffectiveTargetAssetIds(conversation, userId, roles);
         return new ConversationResponse(
                 conversation.getId(),
                 conversation.getTitle(),

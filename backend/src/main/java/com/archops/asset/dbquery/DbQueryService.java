@@ -13,12 +13,14 @@ import com.archops.asset.repository.SshCredentialRepository;
 import com.archops.audit.service.AuditService;
 import com.archops.common.exception.BusinessException;
 import com.archops.common.security.CredentialCipher;
+import com.archops.knowledge.acl.AssetAclService;
 import com.archops.user.domain.User;
 import com.archops.user.repository.UserRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.sql.Connection;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
@@ -41,6 +43,7 @@ public class DbQueryService {
     private final UserRepository userRepository;
     private final AuditService auditService;
     private final ObjectMapper objectMapper;
+    private final AssetAclService assetAclService;
 
     public DbQueryService(
             AssetRepository assetRepository,
@@ -52,7 +55,8 @@ public class DbQueryService {
             ApprovalService approvalService,
             UserRepository userRepository,
             AuditService auditService,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            AssetAclService assetAclService) {
         this.assetRepository = assetRepository;
         this.sshCredentialRepository = sshCredentialRepository;
         this.credentialCipher = credentialCipher;
@@ -63,12 +67,16 @@ public class DbQueryService {
         this.userRepository = userRepository;
         this.auditService = auditService;
         this.objectMapper = objectMapper;
+        this.assetAclService = assetAclService;
     }
 
     /**
      * Query console entry: READ executes immediately; WRITE requires prior APPROVED approval.
      */
-    public DbQueryResponse submit(Long userId, Long assetId, String sql, Long approvalId) {
+    public DbQueryResponse submit(
+            Long userId, Collection<String> roles, Long assetId, String sql, Long approvalId) {
+        // Check before creating an approval so unauthorized assets cannot be probed.
+        assetAclService.requireAssetAccess(userId, roles, assetId);
         User user = userRepository
                 .findById(userId)
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "用户不存在"));
@@ -92,21 +100,30 @@ public class DbQueryService {
             assertApprovedWrite(userId, assetId, sql, approvalId);
         }
 
-        return executeAndAudit(user, assetId, sql, access, risk);
+        return executeAndAudit(user, roles, assetId, sql, access, risk);
     }
 
     /** Agent tool / post-approval execution (gate already applied by ToolExecutorService). */
-    public DbQueryResponse runForTool(Long userId, Long assetId, String sql) {
+    public DbQueryResponse runForTool(
+            Long userId, Collection<String> roles, Long assetId, String sql) {
+        assetAclService.requireAssetAccess(userId, roles, assetId);
         User user = userRepository
                 .findById(userId)
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "用户不存在"));
         SqlAccessKind access = sqlAccessClassifier.classify(sql);
         RiskLevel risk = riskClassifier.classify("db_query", argsJson(assetId, sql));
-        return executeAndAudit(user, assetId, sql, access, risk);
+        return executeAndAudit(user, roles, assetId, sql, access, risk);
     }
 
     private DbQueryResponse executeAndAudit(
-            User user, Long assetId, String sql, SqlAccessKind access, RiskLevel risk) {
+            User user,
+            Collection<String> roles,
+            Long assetId,
+            String sql,
+            SqlAccessKind access,
+            RiskLevel risk) {
+        // Re-check immediately before execution in case access changed while approval was pending.
+        assetAclService.requireAssetAccess(user.getId(), roles, assetId);
         long started = System.nanoTime();
         try {
             DbEngine.DbQueryResult result = executeJdbc(assetId, sql, access);

@@ -7,8 +7,10 @@ import com.archops.asset.service.AssetService;
 import com.archops.common.config.SshPoolProperties;
 import com.archops.common.exception.BusinessException;
 import com.archops.graph.service.GraphConnectPathService;
+import com.archops.knowledge.acl.AssetAclService;
 import java.security.KeyPair;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -31,24 +33,38 @@ public class AssetSshDialer {
     private final SshClient sshClient;
     private final SshPoolProperties properties;
     private final GraphConnectPathService graphConnectPathService;
+    private final AssetAclService assetAclService;
 
     public AssetSshDialer(
             @Lazy AssetService assetService,
             SshClient sshClient,
             SshPoolProperties properties,
-            GraphConnectPathService graphConnectPathService) {
+            GraphConnectPathService graphConnectPathService,
+            AssetAclService assetAclService) {
         this.assetService = assetService;
         this.sshClient = sshClient;
         this.properties = properties;
         this.graphConnectPathService = graphConnectPathService;
+        this.assetAclService = assetAclService;
     }
 
-    public ClientSession dial(Long assetId) throws Exception {
+    public ClientSession dial(Long assetId, Long userId, Collection<String> roles) throws Exception {
+        assetAclService.requireAssetAccess(userId, roles, assetId);
         List<Long> jumps = graphConnectPathService.resolveJumpAssetIds(assetId);
         if (jumps == null || jumps.isEmpty()) {
+            SshCredential credential = requireCredential(assetId);
+            if (credential.getJumpAssetIds() != null && !credential.getJumpAssetIds().isEmpty()) {
+                throw new BusinessException(
+                        HttpStatus.CONFLICT,
+                        "SSH_JUMP_LEGACY",
+                        "SSH 凭证仍使用旧版 jumpAssetIds，请迁移为图中的 CONNECTS_VIA 关系");
+            }
             return dialAssetDirect(assetId);
         }
         validateJumpChain(jumps, assetId);
+        for (Long jumpAssetId : jumps) {
+            assetAclService.requireAssetAccess(userId, roles, jumpAssetId);
+        }
         return dialViaJumpChain(jumps, assetId);
     }
 
@@ -142,26 +158,18 @@ public class AssetSshDialer {
                     "SSH_ASSET_KIND",
                     "仅 SERVER 资产支持 SSH 连接: assetId=" + assetId + " kind=" + asset.kind());
         }
-        SshCredential credential;
-        try {
-            credential = assetService.getSshCredential(assetId);
-        } catch (BusinessException e) {
-            if ("CREDENTIAL_NOT_FOUND".equals(e.getCode())) {
-                throw new BusinessException(
-                        HttpStatus.BAD_REQUEST,
-                        "SSH_JUMP_MISSING_CREDENTIAL",
-                        "跳板或目标资产未配置 SSH 凭证: assetId=" + assetId);
-            }
-            throw e;
-        }
+        SshCredential credential = requireCredential(assetId);
         int port = asset.port() != null ? asset.port() : 22;
         return connectAndAuth(assetId, asset.host(), port, credential);
     }
 
     private ClientSession connectAndAuth(Long assetId, String host, int port) throws Exception {
-        SshCredential credential;
+        return connectAndAuth(assetId, host, port, requireCredential(assetId));
+    }
+
+    private SshCredential requireCredential(Long assetId) {
         try {
-            credential = assetService.getSshCredential(assetId);
+            return assetService.getSshCredentialUnchecked(assetId);
         } catch (BusinessException e) {
             if ("CREDENTIAL_NOT_FOUND".equals(e.getCode())) {
                 throw new BusinessException(
@@ -171,7 +179,6 @@ public class AssetSshDialer {
             }
             throw e;
         }
-        return connectAndAuth(assetId, host, port, credential);
     }
 
     private ClientSession connectAndAuth(Long assetId, String host, int port, SshCredential credential)
@@ -212,7 +219,7 @@ public class AssetSshDialer {
     }
 
     private AssetResponse requireHost(Long assetId) {
-        AssetResponse asset = assetService.get(assetId);
+        AssetResponse asset = assetService.getUnchecked(assetId);
         if (asset.host() == null || asset.host().isBlank()) {
             throw new BusinessException(
                     HttpStatus.BAD_REQUEST,

@@ -61,7 +61,7 @@ public class SshExecTool implements AgentTool {
 
         StringBuilder combined = new StringBuilder();
         for (Long assetId : assetIds) {
-            AssetResponse asset = assetService.get(assetId);
+            AssetResponse asset = assetService.get(assetId, context.userId(), context.roles());
             combined.append("=== ")
                     .append(asset.name())
                     .append(" (id=")
@@ -80,12 +80,13 @@ public class SshExecTool implements AgentTool {
     }
 
     private String executeOnAsset(Long assetId, String command, ExecutionContext context) throws Exception {
-        AssetResponse asset = assetService.get(assetId);
+        AssetResponse asset = assetService.get(assetId, context.userId(), context.roles());
         if (asset.host() == null) {
             return "Error: asset has no host configured";
         }
 
-        try (PooledSshHandle pooled = sshConnectionPool.acquire(context.userId(), assetId)) {
+        try (PooledSshHandle pooled =
+                sshConnectionPool.acquire(context.userId(), context.roles(), assetId)) {
             try (ClientChannel channel = pooled.session().createExecChannel(command);
                  ByteArrayOutputStream out = new ByteArrayOutputStream()) {
                 channel.setOut(out);

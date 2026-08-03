@@ -8,7 +8,9 @@ import com.archops.graph.domain.TerminalSessionDock;
 import com.archops.graph.dto.TerminalDockItem;
 import com.archops.graph.dto.TerminalDockUpsertRequest;
 import com.archops.graph.repository.TerminalSessionDockRepository;
+import com.archops.knowledge.acl.AssetAclService;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
@@ -21,27 +23,33 @@ public class TerminalDockService {
     private final TerminalSessionDockRepository dockRepository;
     private final AssetRepository assetRepository;
     private final SshCredentialRepository sshCredentialRepository;
+    private final AssetAclService assetAclService;
 
     public TerminalDockService(
             TerminalSessionDockRepository dockRepository,
             AssetRepository assetRepository,
-            SshCredentialRepository sshCredentialRepository) {
+            SshCredentialRepository sshCredentialRepository,
+            AssetAclService assetAclService) {
         this.dockRepository = dockRepository;
         this.assetRepository = assetRepository;
         this.sshCredentialRepository = sshCredentialRepository;
+        this.assetAclService = assetAclService;
     }
 
     @Transactional(readOnly = true)
-    public List<TerminalDockItem> list(Long userId) {
+    public List<TerminalDockItem> list(Long userId, Collection<String> roles) {
         return dockRepository.findByUserIdOrderByPinnedDescLastOpenedAtDesc(userId).stream()
+                .filter(dock -> assetAclService.canAccessAsset(userId, roles, dock.getAssetId()))
                 .map(this::toItem)
                 .filter(item -> item != null)
                 .toList();
     }
 
     @Transactional
-    public TerminalDockItem touch(Long userId, TerminalDockUpsertRequest request) {
+    public TerminalDockItem touch(
+            Long userId, Collection<String> roles, TerminalDockUpsertRequest request) {
         Asset asset = resolveAsset(request);
+        assetAclService.requireAssetAccess(userId, roles, asset.getId());
         TerminalSessionDock dock = dockRepository
                 .findByUserIdAndElementId(userId, asset.getElementId())
                 .orElseGet(TerminalSessionDock::new);
@@ -57,18 +65,25 @@ public class TerminalDockService {
     }
 
     @Transactional
-    public TerminalDockItem setPinned(Long userId, UUID elementId, boolean pinned) {
+    public TerminalDockItem setPinned(
+            Long userId, Collection<String> roles, UUID elementId, boolean pinned) {
         TerminalSessionDock dock = dockRepository
                 .findByUserIdAndElementId(userId, elementId)
                 .orElseThrow(() -> new BusinessException(
                         HttpStatus.NOT_FOUND, "DOCK_NOT_FOUND", "会话坞条目不存在"));
+        assetAclService.requireAssetAccess(userId, roles, dock.getAssetId());
         dock.setPinned(pinned);
         dock = dockRepository.save(dock);
         return toItem(dock);
     }
 
     @Transactional
-    public void remove(Long userId, UUID elementId) {
+    public void remove(Long userId, Collection<String> roles, UUID elementId) {
+        TerminalSessionDock dock = dockRepository
+                .findByUserIdAndElementId(userId, elementId)
+                .orElseThrow(() -> new BusinessException(
+                        HttpStatus.NOT_FOUND, "DOCK_NOT_FOUND", "会话坞条目不存在"));
+        assetAclService.requireAssetAccess(userId, roles, dock.getAssetId());
         dockRepository.deleteByUserIdAndElementId(userId, elementId);
     }
 

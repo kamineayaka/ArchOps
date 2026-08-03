@@ -4,6 +4,7 @@ import com.archops.graph.config.GraphProperties;
 import com.archops.graph.service.GraphConnectPathService;
 import com.archops.knowledge.architecture.PartitionKeys;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -43,10 +44,23 @@ public class GraphContextRetriever {
     }
 
     public NeighborhoodResult neighborhood(List<Long> pgAssetIds) {
-        return neighborhood(pgAssetIds, DEFAULT_HOPS, DEFAULT_MAX_NODES);
+        return neighborhood(pgAssetIds, DEFAULT_HOPS, DEFAULT_MAX_NODES, null);
+    }
+
+    public NeighborhoodResult neighborhood(
+            List<Long> pgAssetIds, Collection<Long> allowedPgAssetIds) {
+        return neighborhood(pgAssetIds, DEFAULT_HOPS, DEFAULT_MAX_NODES, allowedPgAssetIds);
     }
 
     public NeighborhoodResult neighborhood(List<Long> pgAssetIds, int hops, int maxNodes) {
+        return neighborhood(pgAssetIds, hops, maxNodes, null);
+    }
+
+    public NeighborhoodResult neighborhood(
+            List<Long> pgAssetIds,
+            int hops,
+            int maxNodes,
+            Collection<Long> allowedPgAssetIds) {
         if (pgAssetIds == null || pgAssetIds.isEmpty()) {
             return NeighborhoodResult.unavailable("(no seed assets for graph neighborhood)");
         }
@@ -64,6 +78,10 @@ public class GraphContextRetriever {
         Set<String> partitionKeys = new LinkedHashSet<>();
         partitionKeys.add(PartitionKeys.GLOBAL);
         List<String> lines = new ArrayList<>();
+        boolean unrestricted = allowedPgAssetIds == null;
+        List<Long> allowedIds = unrestricted
+                ? List.of()
+                : allowedPgAssetIds.stream().filter(id -> id != null).distinct().toList();
 
         try (Session session = driver.session(SessionConfig.forDatabase(properties.getDatabase()))) {
             Result seedResult = session.run(
@@ -93,11 +111,13 @@ public class GraphContextRetriever {
                     MATCH (seed)-[r:MEMBER_OF|RUNS_ON|DEPENDS_ON|CONNECTS_VIA|HAS_TAG]-(n1:Asset)
                     WHERE coalesce(n1.deleted, false) = false
                       AND coalesce(r.deleted, false) = false
+                      AND ($unrestricted OR n1.pgAssetId IS NULL OR n1.pgAssetId IN $allowedIds)
                     OPTIONAL MATCH (n1)-[r2:MEMBER_OF|RUNS_ON|DEPENDS_ON|CONNECTS_VIA|HAS_TAG]-(n2:Asset)
                     WHERE $hops >= 2
                       AND coalesce(n2.deleted, false) = false
                       AND coalesce(r2.deleted, false) = false
                       AND n2.pgAssetId <> seed.pgAssetId
+                      AND ($unrestricted OR n2.pgAssetId IS NULL OR n2.pgAssetId IN $allowedIds)
                     RETURN seed.pgAssetId AS seedPgId,
                            seed.name AS seedName,
                            type(r) AS rel1,
@@ -117,7 +137,17 @@ public class GraphContextRetriever {
                            n2.slug AS n2Slug
                     LIMIT $limit
                     """,
-                    Values.parameters("ids", seeds, "hops", safeHops, "limit", safeMax * 3));
+                    Values.parameters(
+                            "ids",
+                            seeds,
+                            "hops",
+                            safeHops,
+                            "limit",
+                            safeMax * 3,
+                            "unrestricted",
+                            unrestricted,
+                            "allowedIds",
+                            allowedIds));
 
             int edgeLines = 0;
             while (edgeResult.hasNext() && relatedPgIds.size() < safeMax) {
@@ -218,10 +248,21 @@ public class GraphContextRetriever {
      * Prefer topology shortestPath; also append CONNECTS_VIA jump chain for {@code toPgAssetId}.
      */
     public String describePath(Long fromPgAssetId, Long toPgAssetId) {
+        return describePath(fromPgAssetId, toPgAssetId, null);
+    }
+
+    public String describePath(
+            Long fromPgAssetId,
+            Long toPgAssetId,
+            Collection<Long> allowedPgAssetIds) {
         if (fromPgAssetId == null || toPgAssetId == null) {
             return "(fromAssetId and toAssetId required)";
         }
         Driver driver = neo4jDriver;
+        boolean unrestricted = allowedPgAssetIds == null;
+        List<Long> allowedIds = unrestricted
+                ? List.of()
+                : allowedPgAssetIds.stream().filter(id -> id != null).distinct().toList();
 
         StringBuilder sb = new StringBuilder();
         try (Session session = driver.session(SessionConfig.forDatabase(properties.getDatabase()))) {
@@ -233,11 +274,21 @@ public class GraphContextRetriever {
                     MATCH p = shortestPath(
                       (a)-[:MEMBER_OF|RUNS_ON|DEPENDS_ON|CONNECTS_VIA|HAS_TAG*1..6]-(b))
                     WHERE all(n IN nodes(p) WHERE coalesce(n.deleted, false) = false)
+                      AND all(n IN nodes(p) WHERE
+                        $unrestricted OR n.pgAssetId IS NULL OR n.pgAssetId IN $allowedIds)
                     RETURN [n IN nodes(p) | coalesce(n.name, toString(n.pgAssetId))] AS names,
                            [r IN relationships(p) | type(r)] AS rels
                     LIMIT 1
                     """,
-                    Values.parameters("fromId", fromPgAssetId, "toId", toPgAssetId));
+                    Values.parameters(
+                            "fromId",
+                            fromPgAssetId,
+                            "toId",
+                            toPgAssetId,
+                            "unrestricted",
+                            unrestricted,
+                            "allowedIds",
+                            allowedIds));
             if (result.hasNext()) {
                 Record rec = result.next();
                 List<Object> names = rec.get("names").asList();
@@ -263,6 +314,8 @@ public class GraphContextRetriever {
         sb.append("CONNECTS_VIA jump chain for toAssetId=").append(toPgAssetId).append(": ");
         if (jumps.isEmpty()) {
             sb.append("(direct / none)");
+        } else if (!unrestricted && !allowedIds.containsAll(jumps)) {
+            sb.append("(contains inaccessible assets)");
         } else {
             sb.append(jumps);
         }

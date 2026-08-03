@@ -11,7 +11,8 @@ export interface Asset {
   metadata: string | null
   description: string | null
   enabled: boolean
-  hasSshCredential: boolean
+  hasCredential: boolean
+  hasSshCredential?: boolean
   deletedAt: string | null
   createdAt: string
   updatedAt: string

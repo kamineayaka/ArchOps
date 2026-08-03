@@ -11,5 +11,7 @@ public record TerminalDockItem(
         String kind,
         String host,
         boolean pinned,
+        @com.fasterxml.jackson.annotation.JsonProperty("hasCredential")
+        @com.fasterxml.jackson.annotation.JsonAlias({"hasSshCredential"})
         boolean hasSshCredential,
         Instant lastOpenedAt) {}

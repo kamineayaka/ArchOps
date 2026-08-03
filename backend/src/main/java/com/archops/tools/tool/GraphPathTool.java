@@ -1,5 +1,6 @@
 package com.archops.tools.tool;
 
+import com.archops.knowledge.acl.AssetAclService;
 import com.archops.knowledge.hybrid.GraphContextRetriever;
 import com.archops.tools.AgentTool;
 import com.archops.tools.ToolScope;
@@ -11,9 +12,13 @@ import org.springframework.stereotype.Component;
 public class GraphPathTool implements AgentTool {
 
     private final GraphContextRetriever graphContextRetriever;
+    private final AssetAclService assetAclService;
 
-    public GraphPathTool(GraphContextRetriever graphContextRetriever) {
+    public GraphPathTool(
+            GraphContextRetriever graphContextRetriever,
+            AssetAclService assetAclService) {
         this.graphContextRetriever = graphContextRetriever;
+        this.assetAclService = assetAclService;
     }
 
     @Override
@@ -43,7 +48,12 @@ public class GraphPathTool implements AgentTool {
         }
         ToolScope.assertInScope(context.targetAssetIds(), from);
         ToolScope.assertInScope(context.targetAssetIds(), to);
-        return graphContextRetriever.describePath(from, to);
+        assetAclService.requireAssetAccess(context.userId(), context.roles(), from);
+        assetAclService.requireAssetAccess(context.userId(), context.roles(), to);
+        return graphContextRetriever.describePath(
+                from,
+                to,
+                assetAclService.allowedAssetIds(context.userId(), context.roles()));
     }
 
     private static Long asLong(Object raw) {

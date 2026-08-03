@@ -53,14 +53,18 @@ public class GraphController {
 
     @GetMapping("/snapshot")
     @PreAuthorize("hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_OPERATOR') or hasAuthority('ROLE_VIEWER')")
-    public ApiResponse<GraphSnapshotResponse> snapshot() {
-        return ApiResponse.ok(graphReadService.snapshot());
+    public ApiResponse<GraphSnapshotResponse> snapshot(
+            @AuthenticationPrincipal AuthUserPrincipal principal) {
+        return ApiResponse.ok(
+                graphReadService.snapshot(principal.getUserId(), principal.roleNames()));
     }
 
     @PostMapping("/query")
-    @PreAuthorize("hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_OPERATOR') or hasAuthority('ROLE_VIEWER')")
-    public ApiResponse<GraphQueryResponse> query(@Valid @RequestBody GraphQueryRequest request) {
-        return ApiResponse.ok(graphReadService.query(request.cypher()));
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    public ApiResponse<GraphQueryResponse> query(
+            @Valid @RequestBody GraphQueryRequest request,
+            @AuthenticationPrincipal AuthUserPrincipal principal) {
+        return ApiResponse.ok(graphReadService.query(request.cypher(), principal.getUserId()));
     }
 
     @PostMapping("/plan")
@@ -76,6 +80,7 @@ public class GraphController {
     public ApiResponse<CredentialStagingResponse> stageCredential(
             @Valid @RequestBody CredentialStagingCreateRequest request,
             @AuthenticationPrincipal AuthUserPrincipal principal) {
-        return ApiResponse.ok(credentialStagingService.create(request, principal.getUserId()));
+        return ApiResponse.ok(credentialStagingService.create(
+                request, principal.getUserId(), principal.roleNames()));
     }
 }
