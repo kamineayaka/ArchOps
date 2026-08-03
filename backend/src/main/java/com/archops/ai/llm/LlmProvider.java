@@ -4,9 +4,8 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * Abstraction over LLM providers. Implementations include the OpenAI-compatible
- * API and a self-hosted Ollama backend. The platform picks the active provider
- * via {@code archops.ai.default-provider}.
+ * Shared LLM message / tool contracts used by {@link com.archops.ai.runtime.LlmRuntime}.
+ * Active provider selection is database-driven via {@link com.archops.ai.runtime.LlmRuntimeResolver}.
  */
 public interface LlmProvider {
 
@@ -26,11 +25,36 @@ public interface LlmProvider {
      */
     void streamComplete(List<ChatMessage> messages, List<ToolDefinition> tools, Consumer<String> onToken);
 
-    record ChatMessage(String role, String content, List<ToolCall> toolCalls) {
-        public static ChatMessage system(String content) { return new ChatMessage("system", content, List.of()); }
-        public static ChatMessage user(String content) { return new ChatMessage("user", content, List.of()); }
-        public static ChatMessage assistant(String content) { return new ChatMessage("assistant", content, List.of()); }
-        public static ChatMessage tool(String content) { return new ChatMessage("tool", content, List.of()); }
+    /**
+     * @param toolCallId required for {@code role=tool} so OpenAI/Anthropic can correlate
+     *                   the result with the assistant's prior tool request
+     */
+    record ChatMessage(String role, String content, List<ToolCall> toolCalls, String toolCallId) {
+        public ChatMessage(String role, String content, List<ToolCall> toolCalls) {
+            this(role, content, toolCalls, null);
+        }
+
+        public static ChatMessage system(String content) {
+            return new ChatMessage("system", content, List.of(), null);
+        }
+
+        public static ChatMessage user(String content) {
+            return new ChatMessage("user", content, List.of(), null);
+        }
+
+        public static ChatMessage assistant(String content) {
+            return new ChatMessage("assistant", content, List.of(), null);
+        }
+
+        /** @deprecated prefer {@link #tool(String, String)} with the model tool-call id */
+        @Deprecated
+        public static ChatMessage tool(String content) {
+            return new ChatMessage("tool", content, List.of(), null);
+        }
+
+        public static ChatMessage tool(String toolCallId, String content) {
+            return new ChatMessage("tool", content, List.of(), toolCallId);
+        }
     }
 
     record ToolDefinition(String name, String description, String parametersJson) {}

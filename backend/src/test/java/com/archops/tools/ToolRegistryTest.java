@@ -24,6 +24,18 @@ class ToolRegistryTest {
         assertEquals("list_assets", registry.definitions().get(0).name());
     }
 
+    @Test
+    void rejectsDuplicateToolNames() {
+        AgentTool first = stub("list_assets");
+        AgentTool duplicate = stub("list_assets");
+        try {
+            new ToolRegistry(List.of(first, duplicate));
+            throw new AssertionError("expected IllegalStateException");
+        } catch (IllegalStateException ex) {
+            assertTrue(ex.getMessage().contains("Duplicate agent tool name"));
+        }
+    }
+
     private static AgentTool stub(String name) {
         return new AgentTool() {
             @Override

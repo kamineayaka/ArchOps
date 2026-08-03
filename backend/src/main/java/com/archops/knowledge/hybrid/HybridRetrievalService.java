@@ -2,6 +2,7 @@ package com.archops.knowledge.hybrid;
 
 import com.archops.asset.dto.AssetResponse;
 import com.archops.asset.service.AssetService;
+import com.archops.knowledge.acl.AssetAclService;
 import com.archops.knowledge.architecture.PartitionKeys;
 import com.archops.knowledge.architecture.dto.ArchitectureViewResponse;
 import com.archops.knowledge.architecture.service.ArchitectureViewService;
@@ -31,6 +32,7 @@ public class HybridRetrievalService {
     private final ObjectProvider<ArchitectureViewService> architectureViewService;
     private final RagRetrievalService ragRetrievalService;
     private final AssetService assetService;
+    private final AssetAclService assetAclService;
     private final HybridRetrievalMetrics metrics;
 
     public HybridRetrievalService(
@@ -38,11 +40,13 @@ public class HybridRetrievalService {
             ObjectProvider<ArchitectureViewService> architectureViewService,
             RagRetrievalService ragRetrievalService,
             AssetService assetService,
+            AssetAclService assetAclService,
             HybridRetrievalMetrics metrics) {
         this.graphContextRetriever = graphContextRetriever;
         this.architectureViewService = architectureViewService;
         this.ragRetrievalService = ragRetrievalService;
         this.assetService = assetService;
+        this.assetAclService = assetAclService;
         this.metrics = metrics;
     }
 
@@ -51,24 +55,38 @@ public class HybridRetrievalService {
             List<Long> targetAssetIds,
             Long userId,
             Collection<String> roles) {
-        List<Long> seeds = resolveSeedAssetIds(userQuery, targetAssetIds);
+        List<Long> rawSeeds = resolveSeedAssetIds(userQuery, targetAssetIds);
+        // ACL-filter seeds before graph/fact expansion so inaccessible assets never enter the prompt.
+        List<Long> seeds = assetAclService.filterAssetIds(userId, roles, rawSeeds);
+
         GraphContextRetriever.NeighborhoodResult neighborhood = graphContextRetriever.neighborhood(seeds);
 
         Set<Long> scopedAssets = new LinkedHashSet<>(seeds);
         if (neighborhood.available() && neighborhood.relatedPgAssetIds() != null) {
-            scopedAssets.addAll(neighborhood.relatedPgAssetIds());
+            scopedAssets.addAll(assetAclService.filterAssetIds(userId, roles, neighborhood.relatedPgAssetIds()));
         }
 
         Set<String> partitionKeys = new LinkedHashSet<>();
-        partitionKeys.add(PartitionKeys.GLOBAL);
+        if (assetAclService.canAccessPartition(userId, roles, PartitionKeys.GLOBAL)) {
+            partitionKeys.add(PartitionKeys.GLOBAL);
+        }
         for (Long id : scopedAssets) {
-            partitionKeys.add(PartitionKeys.asset(id));
+            String assetKey = PartitionKeys.asset(id);
+            if (assetAclService.canAccessPartition(userId, roles, assetKey)) {
+                partitionKeys.add(assetKey);
+            }
             try {
                 AssetResponse asset = assetService.get(id);
                 if (asset.elementId() != null) {
-                    partitionKeys.add(PartitionKeys.assetElement(asset.elementId()));
+                    String elementKey = PartitionKeys.assetElement(asset.elementId());
+                    if (assetAclService.canAccessPartition(userId, roles, elementKey)) {
+                        partitionKeys.add(elementKey);
+                    }
                     if ("CLUSTER".equalsIgnoreCase(String.valueOf(asset.kind()))) {
-                        partitionKeys.add(PartitionKeys.cluster(asset.elementId()));
+                        String clusterKey = PartitionKeys.cluster(asset.elementId());
+                        if (assetAclService.canAccessPartition(userId, roles, clusterKey)) {
+                            partitionKeys.add(clusterKey);
+                        }
                     }
                 }
             } catch (Exception ignored) {
@@ -76,7 +94,11 @@ public class HybridRetrievalService {
             }
         }
         if (neighborhood.suggestedPartitionKeys() != null) {
-            partitionKeys.addAll(neighborhood.suggestedPartitionKeys());
+            for (String key : neighborhood.suggestedPartitionKeys()) {
+                if (assetAclService.canAccessPartition(userId, roles, key)) {
+                    partitionKeys.add(key);
+                }
+            }
         }
 
         String factsText = formatFacts(List.copyOf(scopedAssets), List.copyOf(partitionKeys));

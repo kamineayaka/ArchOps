@@ -52,6 +52,7 @@ public class AiAgentService {
 
     private static final Logger log = LoggerFactory.getLogger(AiAgentService.class);
     private static final String PROPOSE_TOOL = "propose_architecture_update";
+    private static final String PROPOSE_GRAPH_TOOL = "propose_graph_change";
 
     private final LlmRuntimeResolver llmRuntimeResolver;
     private final ToolRegistry toolRegistry;
@@ -166,13 +167,16 @@ public class AiAgentService {
         Long providerId = asLong(payload.get("providerId"));
         String toolName = String.valueOf(payload.get("tool"));
         String toolArgs = String.valueOf(payload.get("arguments"));
+        String toolCallId = payload.get("toolCallId") != null
+                ? String.valueOf(payload.get("toolCallId"))
+                : "approval-" + approvalId;
         Long userId = approval.getRequesterId();
 
         AiConversation conversation = conversationService.requireOwned(conversationId, userId);
         List<Long> effectiveTargets = conversationService.resolveEffectiveTargetAssetIds(conversation);
         AgentTool.ExecutionContext toolContext = new AgentTool.ExecutionContext(
                 userId, null, conversationId, effectiveTargets, providerId);
-        ToolCall toolCall = new ToolCall("approval-" + approvalId, toolName, toolArgs);
+        ToolCall toolCall = new ToolCall(toolCallId, toolName, toolArgs);
 
         LlmRuntimeResolver.ResolvedRuntime resolved;
         try {
@@ -215,7 +219,7 @@ public class AiAgentService {
         if (onEvent != null) {
             onEvent.accept(AgentEvent.toolResult(toolCall.name(), exec.status(), exec.output()));
         }
-        messages.add(ChatMessage.tool(toolResult));
+        messages.add(ChatMessage.tool(toolCall.id(), toolResult));
         postProcessToolResult(
                 toolCall, exec, userId, conversationId, conversation, toolSummaries, messages, onEvent, false);
 
@@ -256,7 +260,7 @@ public class AiAgentService {
             String assistantNote = result.content() != null ? result.content() : "";
             messages.add(new ChatMessage("assistant", assistantNote, result.toolCalls()));
 
-            boolean proposedInTurn = result.toolCalls().stream()
+            boolean architectureProposedInTurn = result.toolCalls().stream()
                     .anyMatch(tc -> PROPOSE_TOOL.equals(tc.name()));
             ChangeLevel highestLevel = ChangeLevel.L0;
 
@@ -287,7 +291,7 @@ public class AiAgentService {
                 if (onEvent != null) {
                     onEvent.accept(AgentEvent.toolResult(toolCall.name(), exec.status(), exec.output()));
                 }
-                messages.add(ChatMessage.tool(toolResult));
+                messages.add(ChatMessage.tool(toolCall.id(), toolResult));
 
                 if ("SUCCESS".equals(exec.status()) || exec.status() == null || "OK".equals(exec.status())) {
                     ChangeLevel level = postProcessToolResult(
@@ -296,21 +300,21 @@ public class AiAgentService {
                         highestLevel = level;
                     }
                     if (PROPOSE_TOOL.equals(toolCall.name())) {
-                        proposedInTurn = true;
+                        architectureProposedInTurn = true;
                         emitProposalCreatedEvent(exec.output(), onEvent);
                     }
                 }
             }
 
             if ((highestLevel == ChangeLevel.L1 || highestLevel == ChangeLevel.L2)
-                    && !proposedInTurn) {
+                    && !architectureProposedInTurn) {
                 String nudge = "System: Classification indicates "
                         + highestLevel
                         + ". Call propose_architecture_update with partitionKey/facts/evidence before concluding.";
                 messages.add(ChatMessage.system(nudge));
             }
 
-            if (highestLevel == ChangeLevel.L2 && !proposedInTurn) {
+            if (highestLevel == ChangeLevel.L2 && !architectureProposedInTurn) {
                 autoCreateDraftProposal(userId, conversationId, conversation, toolSummaries, onEvent);
             }
         }
@@ -377,7 +381,8 @@ public class AiAgentService {
 
         if (mayNudgeInline
                 && (classification.level() == ChangeLevel.L1 || classification.level() == ChangeLevel.L2)
-                && !PROPOSE_TOOL.equals(toolCall.name())) {
+                && !PROPOSE_TOOL.equals(toolCall.name())
+                && !PROPOSE_GRAPH_TOOL.equals(toolCall.name())) {
             messages.add(ChatMessage.system(
                     "System nudge (" + classification.level() + "): "
                             + classification.rationale()

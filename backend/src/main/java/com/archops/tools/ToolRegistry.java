@@ -17,7 +17,14 @@ public class ToolRegistry {
 
     public ToolRegistry(List<AgentTool> registered) {
         for (AgentTool tool : registered) {
-            tools.put(tool.name(), tool);
+            AgentTool previous = tools.put(tool.name(), tool);
+            if (previous != null) {
+                throw new IllegalStateException(
+                        "Duplicate agent tool name '" + tool.name() + "': "
+                                + previous.getClass().getName()
+                                + " and "
+                                + tool.getClass().getName());
+            }
         }
     }
 

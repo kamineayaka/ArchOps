@@ -102,15 +102,30 @@ public class AiProviderService {
     public String testConnection(Long id) {
         AiProvider provider = findOrThrow(id);
         try {
-            runtimeFactory.createChatRuntime(provider).complete(
+            var result = runtimeFactory.createChatRuntime(provider).complete(
                     List.of(com.archops.ai.llm.LlmProvider.ChatMessage.user("ping")),
                     List.of());
+            String content = result != null ? result.content() : null;
+            if (content != null && looksLikeProviderError(content)) {
+                return "failed: " + sanitizeError(content);
+            }
             return "ok";
         } catch (Exception ex) {
             String msg = ex.getMessage() != null ? ex.getMessage() : ex.getClass().getSimpleName();
             // Never log or echo API keys.
             return "failed: " + sanitizeError(msg);
         }
+    }
+
+    private static boolean looksLikeProviderError(String content) {
+        String lower = content.toLowerCase();
+        return lower.startsWith("[llm error]")
+                || lower.startsWith("[llm request failed]")
+                || lower.startsWith("[anthropic error]")
+                || lower.startsWith("[anthropic request failed]")
+                || lower.startsWith("[llm stream error]")
+                || lower.startsWith("[anthropic stream error]")
+                || lower.startsWith("[stream failed]");
     }
 
     @Transactional(readOnly = true)

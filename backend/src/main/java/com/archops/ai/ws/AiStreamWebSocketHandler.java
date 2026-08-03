@@ -67,6 +67,12 @@ public class AiStreamWebSocketHandler extends TextWebSocketHandler {
             session.close(CloseStatus.POLICY_VIOLATION);
             return;
         }
+        if (!hasOperatorAccess(session)) {
+            session.sendMessage(new TextMessage(
+                    "{\"type\":\"error\",\"content\":\"AI chat requires ADMIN or OPERATOR role\"}"));
+            session.close(CloseStatus.POLICY_VIOLATION);
+            return;
+        }
 
         JsonNode root = objectMapper.readTree(message.getPayload());
         String type = root.path("type").asText();
@@ -89,12 +95,33 @@ public class AiStreamWebSocketHandler extends TextWebSocketHandler {
         aiAgentService.chat(userId, finalConversationId, userMessage, providerId, uiContext, event -> {
             try {
                 if (session.isOpen()) {
-                    session.sendMessage(new TextMessage(objectMapper.writeValueAsString(event)));
+                    synchronized (session) {
+                        session.sendMessage(new TextMessage(objectMapper.writeValueAsString(event)));
+                    }
                 }
             } catch (Exception ex) {
                 log.warn("Failed to send AI stream event", ex);
             }
         });
+    }
+
+    private static boolean hasOperatorAccess(WebSocketSession session) {
+        Object rolesAttr = session.getAttributes().get("roles");
+        if (rolesAttr instanceof java.util.Collection<?> roles) {
+            for (Object role : roles) {
+                if (role == null) {
+                    continue;
+                }
+                String name = String.valueOf(role).trim().toUpperCase();
+                if (name.startsWith("ROLE_")) {
+                    name = name.substring(5);
+                }
+                if ("ADMIN".equals(name) || "OPERATOR".equals(name)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private UiContext parseUiContext(JsonNode node) {

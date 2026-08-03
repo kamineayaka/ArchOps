@@ -1,6 +1,7 @@
 package com.archops.knowledge.classifier;
 
 import java.util.Locale;
+import java.util.Set;
 import java.util.regex.Pattern;
 import org.springframework.stereotype.Service;
 
@@ -10,6 +11,11 @@ import org.springframework.stereotype.Service;
  */
 @Service
 public class ChangeClassifier {
+
+    private static final Set<String> READ_ONLY_TOOLS = Set.of(
+            "list_assets",
+            "graph_neighborhood",
+            "graph_path");
 
     private static final Pattern READ_ONLY_CMD = Pattern.compile(
             "\\b(df|free|uptime|top|ps|tail|cat|ls|head|hostname|uname|whoami|id|date|env|pwd|"
@@ -25,7 +31,9 @@ public class ChangeClassifier {
             "\\b(deploy|install|restart|scale)\\b|rm\\s+-rf|systemctl\\s+stop|kubectl\\s+apply",
             Pattern.CASE_INSENSITIVE);
 
-    private static final String PROPOSE_TOOL = "propose_architecture_update";
+    private static final Pattern SELECT_SQL = Pattern.compile(
+            "^\\s*(with\\b[\\s\\S]+?\\bselect\\b|select\\b|show\\b|describe\\b|explain\\b)",
+            Pattern.CASE_INSENSITIVE);
 
     public Classification classify(String toolName, String argumentsJson, String output) {
         String tool = toolName != null ? toolName.strip() : "";
@@ -33,8 +41,30 @@ public class ChangeClassifier {
         String out = output != null ? output : "";
         String combined = (args + "\n" + out).toLowerCase(Locale.ROOT);
 
-        if (PROPOSE_TOOL.equals(tool)) {
+        // Proposal tools are themselves the write-path; do not escalate to another propose nudge.
+        if ("propose_architecture_update".equals(tool)) {
             return new Classification(ChangeLevel.L1, "propose_architecture_update implies architecture discovery");
+        }
+        if ("propose_graph_change".equals(tool)) {
+            return new Classification(ChangeLevel.L0, "propose_graph_change is itself a graph proposal action");
+        }
+
+        if (READ_ONLY_TOOLS.contains(tool)) {
+            if (DISCOVERY_KEYWORDS.matcher(combined).find()) {
+                return new Classification(ChangeLevel.L1, "architecture / role discovery keywords in read tool output");
+            }
+            return new Classification(ChangeLevel.L0, tool + " is read-only inventory/topology");
+        }
+
+        if ("db_query".equals(tool)) {
+            String sql = extractSql(args);
+            if (sql != null && SELECT_SQL.matcher(sql).find() && !L2_KEYWORDS.matcher(sql).find()) {
+                return new Classification(ChangeLevel.L0, "db_query read-only SQL");
+            }
+            if (sql != null && looksMutating(sql)) {
+                return new Classification(ChangeLevel.L2, "db_query mutating SQL");
+            }
+            return new Classification(ChangeLevel.L1, "db_query uncertain; treating as potential change");
         }
 
         if (L2_KEYWORDS.matcher(combined).find() || L2_KEYWORDS.matcher(args).find()) {
@@ -67,18 +97,30 @@ public class ChangeClassifier {
     }
 
     private static String extractCommand(String argumentsJson) {
-        // lightweight parse: "command":"..."
-        int idx = argumentsJson.indexOf("\"command\"");
+        return extractJsonStringField(argumentsJson, "command");
+    }
+
+    private static String extractSql(String argumentsJson) {
+        String sql = extractJsonStringField(argumentsJson, "sql");
+        return sql != null ? sql : extractJsonStringField(argumentsJson, "query");
+    }
+
+    private static String extractJsonStringField(String argumentsJson, String field) {
+        if (argumentsJson == null || argumentsJson.isBlank()) {
+            return null;
+        }
+        String key = "\"" + field + "\"";
+        int idx = argumentsJson.indexOf(key);
         if (idx < 0) {
-            return argumentsJson;
+            return null;
         }
         int colon = argumentsJson.indexOf(':', idx);
         if (colon < 0) {
-            return argumentsJson;
+            return null;
         }
         int startQuote = argumentsJson.indexOf('"', colon + 1);
         if (startQuote < 0) {
-            return argumentsJson;
+            return null;
         }
         StringBuilder sb = new StringBuilder();
         for (int i = startQuote + 1; i < argumentsJson.length(); i++) {
@@ -104,7 +146,12 @@ public class ChangeClassifier {
                 || t.contains("restart")
                 || t.contains("deploy")
                 || t.contains("install ")
-                || t.contains(" scale");
+                || t.contains(" scale")
+                || t.contains("insert ")
+                || t.contains("update ")
+                || t.contains("delete ")
+                || t.contains("drop ")
+                || t.contains("alter ");
     }
 
     private static boolean looksReadOnly(String text) {

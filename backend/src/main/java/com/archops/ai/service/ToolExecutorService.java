@@ -92,6 +92,9 @@ public class ToolExecutorService {
                 Map<String, Object> payload = new HashMap<>();
                 payload.put("tool", toolCall.name());
                 payload.put("arguments", toolCall.arguments());
+                if (toolCall.id() != null && !toolCall.id().isBlank()) {
+                    payload.put("toolCallId", toolCall.id());
+                }
                 if (conversationId != null) {
                     payload.put("conversationId", conversationId);
                 }
