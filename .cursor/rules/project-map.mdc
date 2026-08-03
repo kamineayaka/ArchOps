@@ -1,0 +1,59 @@
+---
+description: ArchOps 项目地图与硬约束（每次对话默认生效）
+alwaysApply: true
+---
+
+# ArchOps 项目地图
+
+面向 Linux 集群的智能运维控制平面。改代码前先定位模块，优先复用现有抽象，禁止平行造轮子。
+
+## 技术栈与目录
+
+| 路径 | 栈 |
+|---|---|
+| `backend/` | Java 21、Spring Boot 3、Flyway、PostgreSQL+pgvector、Redis、**Neo4j（必选）** |
+| `frontend/` | Vue 3 + `<script setup>` + TS、Naive UI、Pinia、Vue Router（文案：`src/messages.ts`，无 i18n） |
+| `deploy/` | Docker Compose（`deploy/compose`） |
+| `docs/` | 部署文档 |
+
+后端包根：`com.archops.*`。前端源码：`frontend/src/`。
+
+## 模块边界（新功能落哪）
+
+| 模块 | 职责 |
+|---|---|
+| `user` | JWT 认证、RBAC（ADMIN/OPERATOR/VIEWER）、会话 |
+| `asset` | 资产/分组/凭证、资产类型 Handler |
+| `terminal` | SSH 连接池、Web 终端、预热 |
+| `ai` | 对话、Provider、ReAct 运行时、流式 WS |
+| `tools` | 进程内 AgentTool（非 MCP） |
+| `approval` | 风险分级与人工门控 |
+| `knowledge` | RAG、架构 SSOT / Proposal |
+| `graph` | Neo4j 图库存 SSOT、拓扑读写 / plan-merge |
+| `audit` | 追加审计 + 哈希链 |
+| `common` | ApiResponse、异常、安全、配置 |
+
+API 统一：`/api/...` + `ApiResponse<T>` + `@PreAuthorize`。业务错误抛 `BusinessException`。
+
+## 硬约束
+
+- SSH 执行走 `SshConnectionPool`，禁止另起直连客户端
+- 凭证必须加密存储；禁止明文落库、日志、响应
+- 破坏性/高风险操作必须走审批；Agent 工具不得绕过
+- **禁止修改**已有 Flyway 脚本；只新增下一个 `V{N}__*.sql`
+- 前端文案走 `frontend/src/messages.ts` 的 `t()`（已取消 vue-i18n）；API 封装放 `frontend/src/api/`
+- 不引入未使用的依赖；不写任务未要求的文档/测试膨胀
+
+## 跟谁学（黄金样板）
+
+- REST：`asset/controller/AssetController.java` + 对应 `service` / `dto`
+- Agent 工具：`tools/AgentTool.java`、`tools/tool/SshExecTool.java`
+- 资产类型：`asset/type/ServerAssetTypeHandler.java`
+- 前端 API：`frontend/src/api/auth.ts`；页面：`frontend/src/views/AssetsView.vue`
+- 细则：打开后端/前端文件时自动套用 `backend-java` / `frontend-vue` 规则
+- 工作流 Skill：`.cursor/skills/add-rest-api`、`add-agent-tool`、`add-frontend-page`
+
+## 运行与验证
+
+- 本机有 Docker 时：`cd deploy/compose && cp .env.example .env && docker compose up -d --build`；开发可只起 `postgres/redis/neo4j`，后端 `:8080`，前端 `:5173`（Node 22+）
+- 全栈建议 ≥4–8 GiB RAM；**冒烟验证默认 kamiserver**（见 `remote-kamiserver` 规则）

@@ -3,10 +3,17 @@
 Thumbs.db
 desktop.ini
 
-# IDE / Agent（克隆与部署不需要）
+# IDE / Agent（本机杂项忽略；rules/skills 入库供 Cloud Agent）
 .idea/
 .vscode/
-.cursor/
+.cursor/*
+!.cursor/rules/
+!.cursor/rules/**
+!.cursor/skills/
+!.cursor/skills/**
+!.cursor/CLOUD.md
+!.cursor/environment.json
+!.cursor/hooks.json
 *.iml
 *.swp
 *.swo
