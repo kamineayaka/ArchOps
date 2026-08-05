@@ -55,5 +55,6 @@ API 统一：`/api/...` + `ApiResponse<T>` + `@PreAuthorize`。业务错误抛 `
 
 ## 运行与验证
 
-- 本机有 Docker 时：`cd deploy/compose && cp .env.example .env && docker compose up -d --build`；开发可只起 `postgres/redis/neo4j`，后端 `:8080`，前端 `:5173`（Node 22+）
+- 唯一交付模式为镜像：`cd deploy/compose && cp .env.example .env && docker compose up -d`；开发可只起 `postgres/redis/neo4j`，后端 `:8080`，前端 `:5173`（Node 22+）
+- 发版打镜像：`bash deploy/scripts/build-images.sh` → `push-images.sh`（或 `package-offline.sh`）
 - 全栈建议 ≥4–8 GiB RAM；冒烟可用 `deploy/scripts/smoke-functional.sh`（默认 `http://127.0.0.1`）

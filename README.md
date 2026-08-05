@@ -21,6 +21,8 @@
 
 ## 快速开始（Docker Compose）
 
+默认交付方式为 **镜像即交付物**（唯一模式）：使用方只需 Compose + `.env`，拉取预构建镜像即可运行，无需源码与构建工具链。
+
 ### 环境要求
 
 - Docker 24+ 与 Docker Compose v2
@@ -28,7 +30,7 @@
 - 可选：OpenAI 兼容 / Ollama（可在「AI 设置」配置）
 - 前端本地开发：Node.js 22+
 
-### 部署
+### 部署（镜像交付）
 
 ```bash
 git clone https://github.com/kamineayaka/ArchOps.git
@@ -37,9 +39,9 @@ cd ArchOps/deploy/compose
 cp .env.example .env
 # 编辑 CORS_ALLOWED_ORIGINS=http://你的主机IP,http://localhost
 # 确认 NEO4J_PASSWORD（≥8 字符）
-# 慢网可选：取消注释 NPM_REGISTRY / MAVEN_MIRROR
+# 确认 ARCHOPS_IMAGE_PREFIX / ARCHOPS_VERSION 与已发布镜像一致
 
-docker compose up -d --build
+docker compose up -d
 ```
 
 浏览器访问 **http://你的服务器IP**，默认账号 `admin` / `admin123`（**首次登录后请立即修改密码**）。
@@ -47,7 +49,8 @@ docker compose up -d --build
 默认管理员审批策略为 `MANUAL_A`（连 LOW 风险工具也需审批）。运维账号建议改为 `RISK_BASED_B`（LOW 自动、MEDIUM/HIGH 人工）。
 
 建议管理员执行一次 `POST /api/knowledge/reindex` 初始化文本记忆索引。  
-更多说明：[docs/deployment.md](docs/deployment.md)、[docs/api.md](docs/api.md)、[docs/graph-ssot-design.md](docs/graph-ssot-design.md)。
+
+发布镜像 / 离线 tar：见 [docs/deployment.md](docs/deployment.md)。另见 [docs/api.md](docs/api.md)、[docs/graph-ssot-design.md](docs/graph-ssot-design.md)。
 
 ### 图与操作台快速路径
 
@@ -65,13 +68,21 @@ cd backend && ./mvnw spring-boot:run   # :8080
 cd frontend && npm install && npm run dev   # :5173
 ```
 
+全栈容器（先打镜像再 compose）：
+
+```bash
+bash deploy/scripts/build-images.sh
+cd deploy/compose && docker compose up -d
+```
+
 ## 项目结构
 
 ```
 ArchOps/
 ├── backend/           Spring Boot 3（Java 21）+ Flyway + Neo4j
 ├── frontend/          Vue 3 + Naive UI
-├── deploy/compose/    Docker Compose
+├── deploy/compose/    Compose（仅 image 交付）
+├── deploy/scripts/    构建 / 推送 / 离线打包与加载
 └── docs/              部署、API、图 SSOT 设计
 ```
 
@@ -82,7 +93,7 @@ ArchOps/
 | 后端 | Java 21、Spring Boot 3、Flyway、PostgreSQL + pgvector、Redis、Neo4j |
 | 前端 | Vue 3、Naive UI、Pinia、Cytoscape |
 | AI | OpenAI 兼容 / Ollama；进程内 Agent 工具；Hybrid RAG（图 + 事实 + 向量） |
-| 部署 | Docker Compose、Nginx |
+| 部署 | Docker Compose（镜像即交付物）、Nginx |
 
 ## 安全
 
