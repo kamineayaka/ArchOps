@@ -1,4 +1,7 @@
-# ArchOps AI Platform - Docker Compose (production-ready single-node)
+# ArchOps AI Platform - Docker Compose
+#
+# 默认：镜像即交付物（pull 预构建 backend/frontend，不依赖源码）。
+# 本机从源码构建：docker compose -f compose.yaml -f compose.build.yaml up -d --build
 
 services:
   postgres:
@@ -31,12 +34,7 @@ services:
       retries: 5
 
   backend:
-    build:
-      context: ../../backend
-      dockerfile: Dockerfile
-      args:
-        # Optional: https://maven.aliyun.com/repository/public
-        MAVEN_MIRROR: ${MAVEN_MIRROR:-}
+    image: ${ARCHOPS_IMAGE_PREFIX:-ghcr.io/kamineayaka/archops}/backend:${ARCHOPS_VERSION:-latest}
     container_name: archops-backend
     restart: unless-stopped
     environment:
@@ -115,12 +113,7 @@ services:
       start_period: 60s
 
   frontend:
-    build:
-      context: ../../frontend
-      dockerfile: Dockerfile
-      args:
-        # Optional: https://registry.npmmirror.com
-        NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmjs.org}
+    image: ${ARCHOPS_IMAGE_PREFIX:-ghcr.io/kamineayaka/archops}/frontend:${ARCHOPS_VERSION:-latest}
     container_name: archops-frontend
     restart: unless-stopped
     ports:
