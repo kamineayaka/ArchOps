@@ -2,7 +2,7 @@
 
 API 一览见 [api.md](./api.md)。
 
-ArchOps 默认按 **镜像即交付物** 部署：对方只需 Compose 与 `.env`，通过 `image:` 拉取（或离线 `load`）预构建镜像，**不需要**源码、JDK、Node、Maven。
+ArchOps **唯一交付模式**为镜像即交付物：使用方只需 Compose 与 `.env`，通过 `image:` 拉取（或离线 `load`）预构建镜像，**不支持**在目标机用 Compose 从源码 `build`。
 
 ## 要求
 
@@ -21,9 +21,9 @@ curl -fsSL https://get.docker.com | sh
 sudo usermod -aG docker $USER
 ```
 
-## 方式一：镜像交付（推荐）
+## 使用方：在线拉取
 
-发布方已将 `backend` / `frontend` 推到镜像仓库后，使用方：
+发布方已将 `backend` / `frontend` 推到镜像仓库后：
 
 ```bash
 # 只需 deploy/compose（无需整个 Git 仓库也可）
@@ -53,7 +53,7 @@ Compose 会拉取：
 | redis | `redis:7-alpine`（官方） |
 | neo4j | `neo4j:5.26-community`（官方） |
 
-## 方式二：离线 tar 包
+## 使用方：离线 tar 包
 
 目标机不能访问镜像仓库时：
 
@@ -78,31 +78,15 @@ docker compose up -d
 
 ## 发布方：构建与推送镜像
 
-在完整源码树中：
+仅在完整源码树中打镜像（交付产物），不是目标机部署路径：
 
 ```bash
 # 可选：写入 deploy/compose/.env 中的 ARCHOPS_VERSION / ARCHOPS_IMAGE_PREFIX
-# 慢网构建可设 NPM_REGISTRY / MAVEN_MIRROR
+# 慢网可设 NPM_REGISTRY / MAVEN_MIRROR
 
 bash deploy/scripts/build-images.sh
 docker login ghcr.io   # 或你的私有仓库
 bash deploy/scripts/push-images.sh
-```
-
-等价 Compose 命令：
-
-```bash
-cd deploy/compose
-docker compose -f compose.yaml -f compose.build.yaml build
-docker compose -f compose.yaml -f compose.build.yaml push
-```
-
-## 方式三：本机从源码构建（开发）
-
-```bash
-cd deploy/compose
-cp .env.example .env
-docker compose -f compose.yaml -f compose.build.yaml up -d --build
 ```
 
 ## 健康检查与登录
@@ -159,21 +143,11 @@ cat backup_YYYYMMDD.sql | docker exec -i archops-postgres psql -U archops archop
 
 ## 升级
 
-镜像交付：
-
 ```bash
 cd deploy/compose
 # 修改 .env 中 ARCHOPS_VERSION=新版本（或保持 latest 后 pull）
 docker compose pull
 docker compose up -d
-```
-
-源码构建：
-
-```bash
-cd deploy/compose
-git pull
-docker compose -f compose.yaml -f compose.build.yaml up -d --build
 ```
 
 Flyway 会在后端启动时自动迁移；**不要改已有** `V{N}__*.sql`，只新增下一个版本。

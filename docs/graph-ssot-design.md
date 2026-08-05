@@ -101,7 +101,7 @@ Neo4j 与 Postgres/Redis 同级，始终随主 `compose.yaml` 启动（无 profi
 docker compose -f compose.yaml --env-file .env up -d
 ```
 
-- 默认走镜像交付（`image:`）；本机源码构建叠加 `compose.build.yaml`
+- 交付仅走镜像（`image:`）；发布方用 `deploy/scripts/build-images.sh` 打镜像
 - `backend` 对 `neo4j`：`depends_on: condition: service_healthy`（必选）
 - 后端镜像构建用基础镜像自带 `mvn`（不用 `./mvnw`，避免绕过 `MAVEN_MIRROR` 拉 Maven 本体）
 

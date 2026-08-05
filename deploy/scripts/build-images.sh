@@ -1,17 +1,19 @@
 #!/usr/bin/env bash
-# 从源码构建 ArchOps backend/frontend 镜像并打上交付 tag。
+# 发布方：从源码构建 ArchOps backend/frontend 镜像并打上交付 tag。
+# 使用方不跑此脚本，只 docker compose up -d（或离线 load）。
 #
 # 用法（在仓库根目录）：
 #   bash deploy/scripts/build-images.sh
 #   ARCHOPS_VERSION=v1.0.0 bash deploy/scripts/build-images.sh
 #   ARCHOPS_IMAGE_PREFIX=ghcr.io/myorg/archops bash deploy/scripts/build-images.sh
+#   MAVEN_MIRROR=https://maven.aliyun.com/repository/public \
+#     NPM_REGISTRY=https://registry.npmmirror.com bash deploy/scripts/build-images.sh
 #
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 COMPOSE_DIR="$ROOT/deploy/compose"
 
-# shellcheck disable=SC1091
 if [[ -f "$COMPOSE_DIR/.env" ]]; then
   set -a
   # shellcheck disable=SC1090
@@ -19,15 +21,27 @@ if [[ -f "$COMPOSE_DIR/.env" ]]; then
   set +a
 fi
 
-export ARCHOPS_IMAGE_PREFIX="${ARCHOPS_IMAGE_PREFIX:-ghcr.io/kamineayaka/archops}"
-export ARCHOPS_VERSION="${ARCHOPS_VERSION:-latest}"
+PREFIX="${ARCHOPS_IMAGE_PREFIX:-ghcr.io/kamineayaka/archops}"
+VERSION="${ARCHOPS_VERSION:-latest}"
+BACKEND="${PREFIX}/backend:${VERSION}"
+FRONTEND="${PREFIX}/frontend:${VERSION}"
+
+MAVEN_MIRROR="${MAVEN_MIRROR:-}"
+NPM_REGISTRY="${NPM_REGISTRY:-https://registry.npmjs.org}"
 
 echo "==> Building images:"
-echo "    ${ARCHOPS_IMAGE_PREFIX}/backend:${ARCHOPS_VERSION}"
-echo "    ${ARCHOPS_IMAGE_PREFIX}/frontend:${ARCHOPS_VERSION}"
+echo "    $BACKEND"
+echo "    $FRONTEND"
 
-cd "$COMPOSE_DIR"
-docker compose -f compose.yaml -f compose.build.yaml build "$@"
+docker build \
+  --build-arg "MAVEN_MIRROR=${MAVEN_MIRROR}" \
+  -t "$BACKEND" \
+  "$ROOT/backend"
+
+docker build \
+  --build-arg "NPM_REGISTRY=${NPM_REGISTRY}" \
+  -t "$FRONTEND" \
+  "$ROOT/frontend"
 
 echo "==> Done. Next:"
 echo "    bash deploy/scripts/push-images.sh"

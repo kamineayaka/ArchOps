@@ -21,7 +21,7 @@
 
 ## 快速开始（Docker Compose）
 
-默认交付方式为 **镜像即交付物**：使用方只需 Compose + `.env`，拉取预构建镜像即可运行，无需源码与构建工具链。
+默认交付方式为 **镜像即交付物**（唯一模式）：使用方只需 Compose + `.env`，拉取预构建镜像即可运行，无需源码与构建工具链。
 
 ### 环境要求
 
@@ -50,7 +50,7 @@ docker compose up -d
 
 建议管理员执行一次 `POST /api/knowledge/reindex` 初始化文本记忆索引。  
 
-发布镜像 / 离线 tar / 源码构建：见 [docs/deployment.md](docs/deployment.md)。另见 [docs/api.md](docs/api.md)、[docs/graph-ssot-design.md](docs/graph-ssot-design.md)。
+发布镜像 / 离线 tar：见 [docs/deployment.md](docs/deployment.md)。另见 [docs/api.md](docs/api.md)、[docs/graph-ssot-design.md](docs/graph-ssot-design.md)。
 
 ### 图与操作台快速路径
 
@@ -68,11 +68,11 @@ cd backend && ./mvnw spring-boot:run   # :8080
 cd frontend && npm install && npm run dev   # :5173
 ```
 
-全栈容器（本机打镜像）：
+全栈容器（先打镜像再 compose）：
 
 ```bash
 bash deploy/scripts/build-images.sh
-cd deploy/compose && docker compose -f compose.yaml -f compose.build.yaml up -d
+cd deploy/compose && docker compose up -d
 ```
 
 ## 项目结构
@@ -81,7 +81,7 @@ cd deploy/compose && docker compose -f compose.yaml -f compose.build.yaml up -d
 ArchOps/
 ├── backend/           Spring Boot 3（Java 21）+ Flyway + Neo4j
 ├── frontend/          Vue 3 + Naive UI
-├── deploy/compose/    Compose（默认 image 交付；compose.build.yaml 源码构建）
+├── deploy/compose/    Compose（仅 image 交付）
 ├── deploy/scripts/    构建 / 推送 / 离线打包与加载
 └── docs/              部署、API、图 SSOT 设计
 ```

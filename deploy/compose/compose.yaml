@@ -1,7 +1,7 @@
 # ArchOps AI Platform - Docker Compose
 #
-# 默认：镜像即交付物（pull 预构建 backend/frontend，不依赖源码）。
-# 本机从源码构建：docker compose -f compose.yaml -f compose.build.yaml up -d --build
+# 唯一交付模式：镜像即交付物（pull / 离线 load 预构建 backend/frontend）。
+# 发布方打镜像：bash deploy/scripts/build-images.sh
 
 services:
   postgres:
