@@ -22,17 +22,15 @@ skills-lock.json
 # Editor 本地配置（可选留在本机）
 .editorconfig
 
-# Java / Maven
-target/
+# Java / Gradle
+.gradle/
+**/build/
 *.class
 *.war
-# Ignore JAR artifacts except the Maven Wrapper bootstrap
 *.jar
-!backend/.mvn/wrapper/maven-wrapper.jar
-backend/mvnwDebug
-backend/mvnwDebug.cmd
+!backend/gradle/wrapper/gradle-wrapper.jar
 
-# Node / Vue
+# Node
 node_modules/
 dist/
 *.local

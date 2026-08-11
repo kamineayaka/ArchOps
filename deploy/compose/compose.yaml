@@ -1,48 +1,44 @@
-# ArchOps AI Platform - Docker Compose
-#
-# 唯一交付模式：镜像即交付物（pull / 离线 load 预构建 backend/frontend）。
-# 发布方打镜像：bash deploy/scripts/build-images.sh
-
 services:
   postgres:
-    image: pgvector/pgvector:pg16
-    container_name: archops-postgres
-    restart: unless-stopped
+    image: postgres:16
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-archops}
       POSTGRES_USER: ${POSTGRES_USER:-archops}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-archops}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - archops_pg:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-archops} -d ${POSTGRES_DB:-archops}"]
-      interval: 10s
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
 
   redis:
     image: redis:7-alpine
-    container_name: archops-redis
-    restart: unless-stopped
-    command: redis-server --appendonly yes
-    volumes:
-      - redis_data:/data
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
-  backend:
-    image: ${ARCHOPS_IMAGE_PREFIX:-ghcr.io/kamineayaka/archops}/backend:${ARCHOPS_VERSION:-latest}
-    container_name: archops-backend
-    restart: unless-stopped
+  # Control plane: API + embedded React static (image: archops:latest).
+  # Design premise (ADR-0043): ≥2 replicas behind LB.
+  # Local Compose (non-Swarm): scale with
+  #   docker compose -f deploy/compose/compose.yaml up --scale archops=2
+  # Swarm/K8s replicas wiring is Later.
+  archops:
+    image: ${ARCHOPS_IMAGE:-archops:latest}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
-      SPRING_PROFILES_ACTIVE: compose
-      JAVA_OPTS: ${JAVA_OPTS:--XX:MaxRAMPercentage=75.0}
-      JWT_SECRET: ${JWT_SECRET:-}
-      CREDENTIALS_MASTER_KEY: ${CREDENTIALS_MASTER_KEY:-}
-      ARCHOPS_SECRETS_PATH: /data/archops/secrets.properties
+      SERVER_PORT: 8080
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
       POSTGRES_DB: ${POSTGRES_DB:-archops}
@@ -50,80 +46,9 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-archops}
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost}
-      AI_DEFAULT_PROVIDER: ${AI_DEFAULT_PROVIDER:-openai-compat}
-      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
-      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:14b}
-      RAG_ENABLED: ${RAG_ENABLED:-true}
-      RAG_PROVIDER: ${RAG_PROVIDER:-openai-compat}
-      RAG_EMBEDDING_MODEL: ${RAG_EMBEDDING_MODEL:-text-embedding-3-small}
-      RAG_EMBEDDING_DIMENSIONS: ${RAG_EMBEDDING_DIMENSIONS:-1536}
-      RAG_TOP_K: ${RAG_TOP_K:-5}
-      RAG_MIN_SIMILARITY: ${RAG_MIN_SIMILARITY:-0.35}
-      ARCH_AUTO_MERGE_ENABLED: ${ARCH_AUTO_MERGE_ENABLED:-false}
-      NEO4J_URI: ${NEO4J_URI:-bolt://neo4j:7687}
-      NEO4J_USERNAME: ${NEO4J_USERNAME:-neo4j}
-      NEO4J_PASSWORD: ${NEO4J_PASSWORD:-archopsneo4j}
-      NEO4J_DATABASE: ${NEO4J_DATABASE:-neo4j}
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      neo4j:
-        condition: service_healthy
-    # No curl in runtime image: TCP+HTTP via bash /dev/tcp (Ubuntu JRE has bash).
-    healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "bash -c 'exec 3<>/dev/tcp/127.0.0.1/8080 && printf \"GET /actuator/health/liveness HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n\" >&3 && timeout 4 cat <&3 | grep -qi UP'",
-        ]
-      interval: 15s
-      timeout: 5s
-      retries: 10
-      start_period: 90s
-    stop_grace_period: 30s
-    volumes:
-      - archops_secrets:/data/archops
-
-  neo4j:
-    image: neo4j:5.26-community
-    container_name: archops-neo4j
-    restart: unless-stopped
-    environment:
-      NEO4J_AUTH: ${NEO4J_USERNAME:-neo4j}/${NEO4J_PASSWORD:-archopsneo4j}
-      NEO4J_dbms_security_auth__minimum__password__length: "8"
-      NEO4J_server_memory_heap_initial__size: 256m
-      NEO4J_server_memory_heap_max__size: 256m
-      NEO4J_server_memory_pagecache_size: 64m
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
     ports:
-      - "${NEO4J_HTTP_PORT:-7474}:7474"
-      - "${NEO4J_BOLT_PORT:-7687}:7687"
-    volumes:
-      - neo4j_data:/data
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:7474 || exit 1"]
-      interval: 20s
-      timeout: 10s
-      retries: 10
-      start_period: 60s
-
-  frontend:
-    image: ${ARCHOPS_IMAGE_PREFIX:-ghcr.io/kamineayaka/archops}/frontend:${ARCHOPS_VERSION:-latest}
-    container_name: archops-frontend
-    restart: unless-stopped
-    ports:
-      - "${HTTP_PORT:-80}:80"
-    depends_on:
-      backend:
-        condition: service_healthy
+      - "${ARCHOPS_PORT:-8080}:8080"
 
 volumes:
-  postgres_data:
-  redis_data:
-  archops_secrets:
-  neo4j_data:
+  archops_pg:

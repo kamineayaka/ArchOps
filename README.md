@@ -1,104 +1,96 @@
-# ArchOps AI Platform
+# ArchOps
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+运维关系真相控制平面。领域合同已冻结（`CONTEXT.md`、ADR-0039）；技术栈已冻结（ADR-0043）。  
+实现策略：K1 推倒（ADR-0040）、同仓重写（ADR-0042）。
 
-**ArchOps AI Platform** 是一套面向 Linux 集群的云原生智能运维控制平面（B/S）。统一 Web 控制台集成：**图拓扑库存（Neo4j SSOT）**、AI 运维 Agent、Web SSH 操作台、架构事实 / Hybrid RAG、分级审批与防篡改审计。
+**脚手架状态**：已按 ADR-0043 重建可启动最小骨架。竖切按工单推进。  
+**AI Agent 入口**：[`AGENTS.md`](./AGENTS.md) · [`CLAUDE.md`](./CLAUDE.md)
 
-## 功能模块
+## 目录
 
-| 模块 | 说明 |
+| 路径 | 说明 |
 |---|---|
-| **用户与 RBAC** | JWT 认证、角色（ADMIN / OPERATOR / VIEWER）、单会话挤下 |
-| **拓扑图 / 图编辑** | Neo4j 为库存拓扑 SSOT；浏览全图、双击/右键连接进操作台；变更走草稿 → 提案 → 合并 |
-| **凭证与连接** | SSH 等凭证 AES-256-GCM 加密；跳板语义由图边 `CONNECTS_VIA` 表达 |
-| **SSH 连接池** | 按用户/资产复用会话；终端与 `ssh_exec` 共用 |
-| **Web 操作台** | 浏览器终端（xterm.js + MINA SSHD）+ 会话坞 |
-| **AI Agent** | ReAct 工具循环；目标资产上下文；只读图工具 + `propose_graph_change` / `propose_architecture_update`（提案审批） |
-| **Hybrid RAG** | 以 Neo4j 邻域 + 架构事实为主，pgvector 文本记忆为辅 |
-| **架构知识** | 分区事实 SSOT、提案审批合并（含图 ChangeSet） |
-| **审批工作流** | 风险分级（LOW / MEDIUM / HIGH）与人工门控 |
-| **审计中心** | 追加日志 + SHA-256 哈希链 |
-
-## 快速开始（Docker Compose）
-
-默认交付方式为 **镜像即交付物**（唯一模式）：使用方只需 Compose + `.env`，拉取预构建镜像即可运行，无需源码与构建工具链。
-
-### 环境要求
-
-- Docker 24+ 与 Docker Compose v2
-- 建议 2 核、**≥4 GB 内存**（推荐 8 GB；Neo4j 为必选依赖）
-- 可选：OpenAI 兼容 / Ollama（可在「AI 设置」配置）
-- 前端本地开发：Node.js 22+
-
-### 部署（镜像交付）
-
-```bash
-git clone https://github.com/kamineayaka/ArchOps.git
-cd ArchOps/deploy/compose
-
-cp .env.example .env
-# 编辑 CORS_ALLOWED_ORIGINS=http://你的主机IP,http://localhost
-# 确认 NEO4J_PASSWORD（≥8 字符）
-# 确认 ARCHOPS_IMAGE_PREFIX / ARCHOPS_VERSION 与已发布镜像一致
-
-docker compose up -d
-```
-
-浏览器访问 **http://你的服务器IP**，默认账号 `admin` / `admin123`（**首次登录后请立即修改密码**）。
-
-默认管理员审批策略为 `MANUAL_A`（连 LOW 风险工具也需审批）。运维账号建议改为 `RISK_BASED_B`（LOW 自动、MEDIUM/HIGH 人工）。
-
-建议管理员执行一次 `POST /api/knowledge/reindex` 初始化文本记忆索引。  
-
-发布镜像 / 离线 tar：见 [docs/deployment.md](docs/deployment.md)。另见 [docs/api.md](docs/api.md)、[docs/graph-ssot-design.md](docs/graph-ssot-design.md)。
-
-### 图与操作台快速路径
-
-1. 在 **图编辑** 中添加 SERVER 节点并暂存凭证，提交提案并合并。  
-2. 在 **拓扑图** 双击或右键「连接」跳转 **操作台**（会话坞会记住最近连接）。  
-3. 在 **Agent** 中将拓扑选中设为目标（或列表兜底），再自然语言提问。
+| `backend/` | Java 21 / Spring Boot 3 / Gradle / MyBatis-Plus / Flyway |
+| `frontend/` | React + TypeScript + Vite + Ant Design |
+| `agent/` | Python 心跳 stub（交付主推 systemd，见 `agent/README.md`） |
+| `deploy/` | Compose：`archops:latest` + Postgres 16 + Redis |
+| `docs/` | 合同、ADR、竖切、脚手架 prompt |
+| `Dockerfile` | 多阶段构建 → 镜像 tag `archops:latest` |
 
 ## 本地开发
 
-```bash
-# 依赖
-docker compose -f deploy/compose/compose.yaml up -d postgres redis neo4j
+### 1. 基础设施（Postgres + Redis）
 
-cd backend && ./mvnw spring-boot:run   # :8080
-cd frontend && npm install && npm run dev   # :5173
+```bash
+docker compose -f deploy/compose/compose.yaml up -d postgres redis
 ```
 
-全栈容器（先打镜像再 compose）：
+默认：`localhost:5432` / `localhost:6379`，库用户密码均为 `archops`（可用 `deploy/compose/.env.example`）。
+
+### 2. 后端
+
+需要 **JDK 21**。Windows 本机若遇 Gradle wrapper / Docker / TLS 问题，先跑：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\fix-windows-dev-env.ps1
+```
+
+（会对齐 `JAVA_HOME`、拉起 Docker Desktop、补齐 Gradle wrapper 缓存，并把 SteamTools/Watt Toolkit 的 MITM 根证书同步进用户级 Java truststore。）
+
+若 `./gradlew` 仍从 `services.gradle.org` 拉取失败，可将
+`backend/gradle/wrapper/gradle-wrapper.properties` 中的 `distributionUrl` 临时改为镜像，例如
+`https://mirrors.cloud.tencent.com/gradle/gradle-8.12.1-bin.zip`。
+
+Docker Hub 若因 DNS 污染拉不到镜像，确认 Docker Desktop → Docker Engine 已配置 registry-mirrors（脚本不改引擎 UI；本机可编辑 `%USERPROFILE%\.docker\daemon.json`），然后重启 Docker Desktop。
+
+```bash
+cd backend
+./gradlew bootRun
+# Windows: .\gradlew.bat bootRun
+```
+
+健康检查：`GET http://localhost:8080/api/health`  
+期望：`{"success":true,"code":"OK","message":"ok","data":{"status":"UP"}}`
+
+### 3. 前端
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+打开 Vite 提示的地址（默认 `http://localhost:5173`）。页面标题 **ArchOps**，并代理 `/api` → `:8080` 展示 health 结果。
+
+### 4. Agent stub（可选）
+
+```bash
+python agent/heartbeat.py --interval 0
+```
+
+当前无 ingest API，预期日志里出现 HTTP 404，属脚手架预期。
+
+## 镜像构建与整栈
 
 ```bash
 bash deploy/scripts/build-images.sh
-cd deploy/compose && docker compose up -d
+# 产出 archops:latest
+
+docker compose -f deploy/compose/compose.yaml up -d
 ```
 
-## 项目结构
+多副本设计前提（ADR-0043）：本地可用  
+`docker compose -f deploy/compose/compose.yaml up --scale archops=2`（端口映射冲突时需自行调整）。
 
-```
-ArchOps/
-├── backend/           Spring Boot 3（Java 21）+ Flyway + Neo4j
-├── frontend/          Vue 3 + Naive UI
-├── deploy/compose/    Compose（仅 image 交付）
-├── deploy/scripts/    构建 / 推送 / 离线打包与加载
-└── docs/              部署、API、图 SSOT 设计
-```
+> Windows 本机：Docker Desktop 路径多为 `%LOCALAPPDATA%\Programs\DockerDesktop\`。若 `docker.io` DNS 被污染，用 `scripts/fix-windows-dev-env.ps1` + DaoCloud 直拉镜像（见脚本末尾提示）。
 
-## 技术栈
+## 明确不做（脚手架）
 
-| 层级 | 技术选型 |
-|---|---|
-| 后端 | Java 21、Spring Boot 3、Flyway、PostgreSQL + pgvector、Redis、Neo4j |
-| 前端 | Vue 3、Naive UI、Pinia、Cytoscape |
-| AI | OpenAI 兼容 / Ollama；进程内 Agent 工具；Hybrid RAG（图 + 事实 + 向量） |
-| 部署 | Docker Compose（镜像即交付物）、Nginx |
+策展 / 观测 / 冲突 / 计划 / 协作 API、AI 出站业务、SSH 工作台、Neo4j、Maven、JPA 地基、Vue、LangChain。竖切见 `docs/mvp-vertical-slice.md`，另开对话实现。
 
-## 安全
+## 合同与接手
 
-见 [SECURITY.md](SECURITY.md)。生产请务必：修改默认密钥与管理员密码；仅暴露 80/443 并上 TLS；限制 actuator 暴露面。
-
-## 许可证
-
-[MIT](LICENSE)
+- 术语：`CONTEXT.md`
+- 栈真相：`docs/adr/0043-tech-stack.md`
+- 接手：`docs/dev-handoff.md`
+- 脚手架 prompt：`docs/scaffold-bootstrap-prompt.md`

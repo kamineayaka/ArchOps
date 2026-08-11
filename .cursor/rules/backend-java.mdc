@@ -1,53 +1,35 @@
 ---
-description: 后端 Java/Spring 编码约定（对齐 AssetController / AssetService）
+description: 后端 Java/Spring 编码约定（绿场；持久化以 MyBatis-Plus 为准）
 globs: backend/**/*.java
 alwaysApply: false
 ---
 
 # 后端 Java 约定
 
-包根 `com.archops.<模块>`。按现有模块落代码，不新建平行顶层包。
+包根 `com.archops.<模块>`。构建 **Gradle**；持久化 **MyBatis-Plus**（ADR-0043）。不以 JPA 为新代码默认。云端 Agent 另见根目录 `AGENTS.md`。
 
 ## 分层
 
 | 层 | 职责 | 禁止 |
 |---|---|---|
-| `controller` | HTTP、鉴权、校验、调 Service | 业务逻辑、直接 Repository |
-| `service` | 事务、领域规则、审计 | 拼 HTTP 状态细节到 Controller 外乱抛 |
-| `dto` | `record` 请求/响应 | 把 Entity 直接暴露给 API |
-| `repository` | Spring Data | 业务编排 |
-| `domain` | JPA / 枚举 | 当 DTO 用 |
+| `controller` | HTTP、鉴权、校验、调 Service | 业务逻辑、直接 Mapper |
+| `service` | 事务、领域规则 | 拼 HTTP 细节乱抛 |
+| `dto` | `record` 请求/响应 | Entity/DO 直接暴露 API |
+| `mapper` | MyBatis-Plus Mapper + SQL | 业务编排 |
+| `domain` / DO | 表映射对象 | 当 API DTO 用 |
 
-构造器注入；`@Service` / `@RestController` / `@Component`。写操作用 `@Transactional`，只读用 `@Transactional(readOnly = true)`。
+构造器注入；写操作事务边界在 service。
 
-## API 形状
+## API
 
-- 路径：`/api/...`；返回 `ApiResponse.ok(...)` / `ApiResponse.ok(msg, null)`
-- 入参 DTO：`record` + `jakarta.validation`；Controller 上 `@Valid`
-- 当前用户：`@AuthenticationPrincipal AuthUserPrincipal`
-- 每个映射必须有 `@PreAuthorize`（`ROLE_ADMIN` / `OPERATOR` / `VIEWER`）
+- `/api/...` + 统一响应体
+- 业务错误用 `BusinessException`（或等价）
+- 临时身份：`X-ArchOps-User-Id` → 后续 JWT；会话可落 Redis
 
-```java
-// ✅
-@PreAuthorize("hasAuthority('ROLE_ADMIN') or hasAuthority('ROLE_OPERATOR')")
-public ApiResponse<AssetResponse> create(@Valid @RequestBody AssetRequest request,
-        @AuthenticationPrincipal AuthUserPrincipal principal) {
-    return ApiResponse.ok(assetService.create(request, principal.getUserId(), principal.getUsername()));
-}
+## 其他
 
-// ❌ 无 PreAuthorize / 返回裸 Entity / 在 Controller 里写业务
-```
-
-## 错误与安全
-
-- 业务失败：`throw new BusinessException(HttpStatus.xxx, "CODE", "可读中文或英文消息")`
-- 凭证：只经 `CredentialCipher`；响应 DTO 不得含明文 secret
-- SSH：经 `SshConnectionPool` / 既有 Dialer，禁止新开直连客户端
-
-## Agent 工具
-
-实现 `AgentTool`，加 `@Component`；`name`/`description`/`parametersJson`/`execute`。尊重 `ExecutionContext.targetAssetIds`（参考 `ListAssetsTool`、`SshExecTool`）。高风险动作走审批，不得绕过。
-
-## 样板
-
-`AssetController`、`AssetService`、`AssetRequest`、`AgentTool`、`SshExecTool`、`ListAssetsTool`
+- Flyway 只增不改历史
+- Redis：队列/锁/会话/缓存；不作真相 SSOT
+- SSH：MINA SSHD；计划互斥用分布式锁
+- AI：WebClient + ADR-0041；无 LangChain 主干
+- 图库 Later；v1 邻域用 SQL/CTE

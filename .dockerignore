@@ -1,0 +1,13 @@
+# Build context exclusions for archops:latest
+.git
+.github
+.cursor
+**/node_modules
+**/dist
+**/.gradle
+**/build
+agent
+docs
+*.md
+!backend/src/main/resources/**
+deploy/scripts

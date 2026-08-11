@@ -1,46 +1,53 @@
 package com.archops.user.controller;
 
-import com.archops.common.dto.ApiResponse;
-import com.archops.user.dto.LoginRequest;
-import com.archops.user.dto.LoginResponse;
-import com.archops.user.dto.RefreshTokenRequest;
-import com.archops.user.dto.UserProfileResponse;
-import com.archops.user.service.AuthService;
-import jakarta.validation.Valid;
+import com.archops.common.api.ApiResponse;
+import com.archops.user.dto.CurrentUserResponse;
+import com.archops.user.security.AuthUserPrincipal;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
 
-    private final AuthService authService;
-
-    public AuthController(AuthService authService) {
-        this.authService = authService;
-    }
-
-    @PostMapping("/login")
-    public ApiResponse<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
-        return ApiResponse.ok(authService.login(request));
-    }
-
-    @PostMapping("/refresh")
-    public ApiResponse<LoginResponse> refresh(@Valid @RequestBody RefreshTokenRequest request) {
-        return ApiResponse.ok(authService.refresh(request));
-    }
-
-    @PostMapping("/logout")
-    public ApiResponse<Void> logout() {
-        authService.logout();
-        return ApiResponse.ok("已退出登录", null);
-    }
-
     @GetMapping("/me")
-    public ApiResponse<UserProfileResponse> me() {
-        return ApiResponse.ok(authService.currentUser());
+    public ApiResponse<CurrentUserResponse> me(@AuthenticationPrincipal AuthUserPrincipal principal) {
+        return ApiResponse.ok(CurrentUserResponse.from(
+                principal.getUserId(),
+                principal.getDisplayName(),
+                principal.getRole()
+        ));
+    }
+
+    /**
+     * Role gate probe: only 高级角色 (SENIOR) may pass.
+     * Used to prove role differentiation before collaboration rules land.
+     */
+    @GetMapping("/probes/senior")
+    @PreAuthorize("hasRole('SENIOR')")
+    public ApiResponse<Map<String, Object>> seniorProbe(@AuthenticationPrincipal AuthUserPrincipal principal) {
+        return ApiResponse.ok(Map.of(
+                "allowed", true,
+                "userId", principal.getUserId(),
+                "role", principal.getRole().name()
+        ));
+    }
+
+    /**
+     * Authenticated-any-role probe: both SENIOR and GENERAL may pass.
+     */
+    @GetMapping("/probes/authenticated")
+    @PreAuthorize("isAuthenticated()")
+    public ApiResponse<Map<String, Object>> authenticatedProbe(@AuthenticationPrincipal AuthUserPrincipal principal) {
+        return ApiResponse.ok(Map.of(
+                "allowed", true,
+                "userId", principal.getUserId(),
+                "role", principal.getRole().name()
+        ));
     }
 }

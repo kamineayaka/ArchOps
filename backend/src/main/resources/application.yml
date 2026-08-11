@@ -1,112 +1,30 @@
+server:
+  port: ${SERVER_PORT:8080}
+
 spring:
   application:
-    name: archops-backend
-  profiles:
-    active: ${SPRING_PROFILES_ACTIVE:dev}
-  jpa:
-    open-in-view: false
-    hibernate:
-      ddl-auto: validate
-    properties:
-      hibernate:
-        jdbc:
-          time_zone: UTC
+    name: archops
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5432}/${POSTGRES_DB:archops}
+    username: ${POSTGRES_USER:archops}
+    password: ${POSTGRES_PASSWORD:archops}
+    driver-class-name: org.postgresql.Driver
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
   flyway:
     enabled: true
     locations: classpath:db/migration
-    baseline-on-migrate: true
-  jackson:
-    time-zone: UTC
-    serialization:
-      write-dates-as-timestamps: false
 
-server:
-  port: 8080
-  shutdown: graceful
-  forward-headers-strategy: framework
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    banner: false
 
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,metrics,prometheus
-  endpoint:
-    health:
-      probes:
-        enabled: true
-      show-details: when_authorized
-  health:
-    livenessstate:
-      enabled: true
-    readinessstate:
-      enabled: true
-    # Graph uses a hand-rolled Driver bean + Neo4jHealthIndicator.
-    neo4j:
-      enabled: true
-  metrics:
-    tags:
-      application: ${spring.application.name}
-
-archops:
-  jwt:
-    secret: ${JWT_SECRET:dev-only-secret-change-in-production-must-be-at-least-256-bits!!}
-    access-token-expiration-ms: ${JWT_ACCESS_TOKEN_EXPIRATION_MS:900000}
-    refresh-token-expiration-ms: ${JWT_REFRESH_TOKEN_EXPIRATION_MS:604800000}
-  cors:
-    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost}
-  credentials:
-    master-key: ${CREDENTIALS_MASTER_KEY:}
-  secrets:
-    path: ${ARCHOPS_SECRETS_PATH:./data/secrets.properties}
-  ai:
-    default-provider: ${AI_DEFAULT_PROVIDER:openai-compat}
-    openai-compat:
-      base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
-      api-key: ${OPENAI_API_KEY:}
-      model: ${OPENAI_MODEL:gpt-4o-mini}
-      timeout-ms: ${OPENAI_TIMEOUT_MS:60000}
-    ollama:
-      base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
-      model: ${OLLAMA_MODEL:qwen2.5:14b}
-      timeout-ms: ${OLLAMA_TIMEOUT_MS:120000}
-    # ReAct tool loop cap (clamped 3–15)
-    max-iterations: ${AI_MAX_ITERATIONS:8}
-  rag:
-    enabled: ${RAG_ENABLED:true}
-    provider: ${RAG_PROVIDER:openai-compat}
-    top-k: ${RAG_TOP_K:5}
-    min-similarity: ${RAG_MIN_SIMILARITY:0.35}
-    chunk-size: ${RAG_CHUNK_SIZE:800}
-    chunk-overlap: ${RAG_CHUNK_OVERLAP:100}
-    openai-compat:
-      base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
-      api-key: ${OPENAI_API_KEY:}
-      model: ${RAG_EMBEDDING_MODEL:text-embedding-3-small}
-      dimensions: ${RAG_EMBEDDING_DIMENSIONS:1536}
-      timeout-ms: ${RAG_EMBEDDING_TIMEOUT_MS:30000}
-    ollama:
-      base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
-      model: ${RAG_OLLAMA_EMBEDDING_MODEL:nomic-embed-text}
-      dimensions: ${RAG_OLLAMA_EMBEDDING_DIMENSIONS:768}
-      timeout-ms: ${RAG_EMBEDDING_TIMEOUT_MS:60000}
-  ssh-pool:
-    idle-timeout: ${SSH_POOL_IDLE_TIMEOUT:5m}
-    connect-timeout: ${SSH_POOL_CONNECT_TIMEOUT:15s}
-  architecture:
-    auto-merge:
-      enabled: ${ARCH_AUTO_MERGE_ENABLED:false}
-      min-confidence: 0.9
-      allowed-fact-types: ROLE,LABEL
-      require-command: true
-      require-stdout-hash: true
-      require-asset-id: true
-    context-max-chars: ${ARCH_CONTEXT_MAX_CHARS:6000}
-  approval:
-    grant-ttl-minutes: ${APPROVAL_GRANT_TTL_MINUTES:60}
-    allow-high-grants: ${APPROVAL_ALLOW_HIGH_GRANTS:false}
-  graph:
-    uri: ${NEO4J_URI:bolt://localhost:7687}
-    username: ${NEO4J_USERNAME:neo4j}
-    password: ${NEO4J_PASSWORD:archopsneo4j}
-    database: ${NEO4J_DATABASE:neo4j}
-    credential-staging-ttl: ${ARCHOPS_CREDENTIAL_STAGING_TTL:1h}
+logging:
+  level:
+    root: INFO
+    com.archops: INFO

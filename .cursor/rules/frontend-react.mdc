@@ -1,0 +1,29 @@
+---
+description: 前端 React/Ant Design 编码约定（ADR-0043）
+globs: frontend/**/*.{tsx,ts,css}
+alwaysApply: false
+---
+
+# 前端 React 约定
+
+`React` + TypeScript + Vite + **Ant Design**（ADR-0043）。禁止把 Vue / Naive UI 当作现行前端栈重新引入。
+
+## 目录
+
+| 路径 | 用途 |
+|---|---|
+| `src/api/` | HTTP 封装（唯一出口） |
+| `src/` 页面组件 | 薄 UI；竖切未要求不做完整工作台 |
+| `src/App.tsx` | 根组件 |
+
+开发代理：`/api` → `http://127.0.0.1:8080`。生产静态资源嵌入控制面镜像。
+
+## API
+
+- 统一走 `src/api` 客户端；类型与 `ApiResponse` 对齐后端
+- 错误展示用 Ant Design 反馈组件，文案简洁
+
+## 风格
+
+- 函数组件 + hooks；避免为竖切引入过重状态管理（除非票明确要求）
+- 不引入未使用依赖；不做票外页面

@@ -1,0 +1,25 @@
+---
+description: 领域合同与防漂移（Cloud/本地 Agent 每次生效）
+alwaysApply: true
+---
+
+# 领域合同与防漂移
+
+编码前默认已读 `AGENTS.md`、`CONTEXT.md`、ADR-0039、ADR-0043。
+
+## 语义
+
+- 策展 = 理想；观测 = 实际；冲突 = 偏差（非对错）
+- 空洞 ≠ 冲突；升级/空洞作废活跃计划
+- 仅已接受处理人可开计划与确认关闭；计划冻结、失败作废
+- 改语义须新 ADR，禁止实现中偷改合同
+
+## 栈（ADR-0043）
+
+- Gradle + MyBatis-Plus + React/Ant + PG + Redis 多副本
+- 禁止：Maven、JPA 当地基、Vue 现行前端、v1 必选 Neo4j、LangChain 主干、Redis 当真相
+
+## 工作方式
+
+- 一次一张 `.scratch/vertical-slice-mvp/issues/` frontier 票
+- 不复活旧域包；不扩票外范围（自我迭代、可达矩阵、完整 xterm 等）

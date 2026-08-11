@@ -1,8 +1,0 @@
-target
-.cursor
-.git
-*.log
-.env
-.env.*
-.vscode
-.idea

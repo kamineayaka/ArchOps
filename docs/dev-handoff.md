@@ -1,0 +1,54 @@
+# 新对话接手指南
+
+领域合同（ADR-0039）与技术栈（ADR-0043）已冻结。  
+**Cloud / 任意 Agent 必读根目录 [`AGENTS.md`](../AGENTS.md)**（及 [`CLAUDE.md`](../CLAUDE.md)）。  
+**脚手架已按 ADR-0043 重建**：`backend/`、`frontend/`、`agent/`、`deploy/`、根 `Dockerfile` 为可启动最小骨架；竖切按工单推进。
+
+## 必读
+
+1. `CONTEXT.md`
+2. `docs/adr/0039` … `0043`（尤其 **0043**）
+3. `docs/mvp-vertical-slice.md`（竖切范围对照）
+4. `docs/specs/vertical-slice-mvp.md`（竖切 Spec；拆票主输入）
+5. `docs/scaffold-bootstrap-prompt.md`（脚手架专用；已完成后可作审计对照）
+6. `.cursor/rules/project-map.mdc`
+
+## 当前状态
+
+| 项 | 状态 |
+|---|---|
+| Gradle + Spring Boot + MyBatis-Plus + Flyway | 有；仅 `GET /api/health` + `app_meta` V1 |
+| React + Ant Design 薄页 | 有；展示 health |
+| Python agent 心跳 stub + systemd 说明 | 有 |
+| Compose + `archops:latest` 多阶段镜像 | 有 |
+| 策展 / 冲突 / 计划 / Agent ingest / SSH / AI | **未做**（按工单实现） |
+| 临时身份头 + 高级/一般角色门禁 | **已完成**（票 01） |
+| 竖切 Spec | 已发布 → [`docs/specs/vertical-slice-mvp.md`](specs/vertical-slice-mvp.md) |
+| 竖切工单 | 已本地发布 → [`.scratch/vertical-slice-mvp/issues/`](../.scratch/vertical-slice-mvp/issues/)（`ready-for-agent`；tracker 未配置） |
+
+## 下一对话建议
+
+1. ~~竖切 Spec~~：已发布  
+2. ~~拆票 / to-tickets~~：已发布至 `.scratch/vertical-slice-mvp/issues/`（01–13）  
+3. **实现 frontier**：下一张无 blocker 的票为 **[`02-curated-hosts-containers-runs-on.md`](../.scratch/vertical-slice-mvp/issues/02-curated-hosts-containers-runs-on.md)**（`01` 已完成）；完成后再取 blockers 均已完成的下一张（勿跳过 Tickets 直接铺全层业务）
+
+### 工单阻塞简图
+
+```
+01 → 02 → 03 → 04 → 05 → 07 → 08 → 09 → 12（最小演示 UI）
+                    ↘     ↑           ↘
+                     06 ──┘            10
+                     ↑                 ↓
+                     └── 13 ←──────────┘
+05 → 11（指派/拒绝/转让 Should，独立）
+```
+
+（编号为依赖序：`06` 诊断阻塞 `07` 选支；`12` UI 不阻塞 `13` HTTP 验收。）
+
+## 本地启动摘要
+
+见根 `README.md`：Compose 起 postgres/redis → `backend` `./gradlew bootRun` → `frontend` `npm run dev` → `GET /api/health`。
+
+## 栈摘要
+
+见 ADR-0043：Gradle / MyBatis-Plus / React+Ant / PG+Redis 多副本 / Python systemd Agent / `archops:latest`。MINA SSHD 与 WebClient 在 `build.gradle.kts` 中仅注释预留。
