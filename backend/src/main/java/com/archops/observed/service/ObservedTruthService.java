@@ -3,6 +3,7 @@ package com.archops.observed.service;
 import com.archops.agent.dto.AgentHeartbeatRequest;
 import com.archops.agent.dto.AgentHeartbeatResponse;
 import com.archops.common.exception.BusinessException;
+import com.archops.conflict.service.ConflictDetectionService;
 import com.archops.curated.CuratedObjectLabels;
 import com.archops.curated.domain.CuratedFact;
 import com.archops.curated.domain.CuratedObject;
@@ -47,6 +48,7 @@ public class ObservedTruthService {
     private final IdentityLostMarkMapper identityLostMarkMapper;
     private final CuratedObjectMapper curatedObjectMapper;
     private final CuratedFactMapper curatedFactMapper;
+    private final ConflictDetectionService conflictDetectionService;
     private final ObjectMapper objectMapper;
 
     public ObservedTruthService(
@@ -56,6 +58,7 @@ public class ObservedTruthService {
             IdentityLostMarkMapper identityLostMarkMapper,
             CuratedObjectMapper curatedObjectMapper,
             CuratedFactMapper curatedFactMapper,
+            ConflictDetectionService conflictDetectionService,
             ObjectMapper objectMapper
     ) {
         this.hostAgentMapper = hostAgentMapper;
@@ -64,6 +67,7 @@ public class ObservedTruthService {
         this.identityLostMarkMapper = identityLostMarkMapper;
         this.curatedObjectMapper = curatedObjectMapper;
         this.curatedFactMapper = curatedFactMapper;
+        this.conflictDetectionService = conflictDetectionService;
         this.objectMapper = objectMapper;
     }
 
@@ -302,6 +306,7 @@ public class ObservedTruthService {
             fact.setSourceAgentId(agentId);
             fact.setSourceHostId(host.getId());
             observedFactMapper.insert(fact);
+            conflictDetectionService.reconcileAfterObservedWrite(container.getId(), CuratedRelationType.RUNS_ON);
             return;
         }
         observedFactMapper.update(null, new LambdaUpdateWrapper<ObservedFact>()
@@ -311,6 +316,7 @@ public class ObservedTruthService {
                 .set(ObservedFact::getObservedAt, now)
                 .set(ObservedFact::getSourceAgentId, agentId)
                 .set(ObservedFact::getSourceHostId, host.getId()));
+        conflictDetectionService.reconcileAfterObservedWrite(container.getId(), CuratedRelationType.RUNS_ON);
     }
 
     private void upsertObservedAbsent(CuratedObject container, CuratedObject host, String agentId, Instant now) {
@@ -328,6 +334,7 @@ public class ObservedTruthService {
             fact.setSourceAgentId(agentId);
             fact.setSourceHostId(host.getId());
             observedFactMapper.insert(fact);
+            conflictDetectionService.reconcileAfterObservedWrite(container.getId(), CuratedRelationType.RUNS_ON);
             return;
         }
         // Explicit set null — updateById would skip null targetId under default FieldStrategy.
@@ -338,6 +345,7 @@ public class ObservedTruthService {
                 .set(ObservedFact::getObservedAt, now)
                 .set(ObservedFact::getSourceAgentId, agentId)
                 .set(ObservedFact::getSourceHostId, host.getId()));
+        conflictDetectionService.reconcileAfterObservedWrite(container.getId(), CuratedRelationType.RUNS_ON);
     }
 
     private AgentHeartbeatResponse.UnboundCandidate persistUnbound(
