@@ -1,0 +1,425 @@
+package com.archops.observed.service;
+
+import com.archops.agent.dto.AgentHeartbeatRequest;
+import com.archops.agent.dto.AgentHeartbeatResponse;
+import com.archops.common.exception.BusinessException;
+import com.archops.curated.CuratedObjectLabels;
+import com.archops.curated.domain.CuratedFact;
+import com.archops.curated.domain.CuratedObject;
+import com.archops.curated.domain.CuratedObjectKind;
+import com.archops.curated.domain.CuratedRelationType;
+import com.archops.curated.dto.CuratedObjectResponse;
+import com.archops.curated.mapper.CuratedFactMapper;
+import com.archops.curated.mapper.CuratedObjectMapper;
+import com.archops.observed.domain.HostAgent;
+import com.archops.observed.domain.IdentityLostMark;
+import com.archops.observed.domain.ObservedAvailability;
+import com.archops.observed.domain.ObservedFact;
+import com.archops.observed.domain.UnboundObservationCandidate;
+import com.archops.observed.domain.UnboundReason;
+import com.archops.observed.dto.ActualWhereResponse;
+import com.archops.observed.dto.AgentFreshnessResponse;
+import com.archops.observed.dto.IdentityLostResponse;
+import com.archops.observed.dto.UnboundCandidateResponse;
+import com.archops.observed.mapper.HostAgentMapper;
+import com.archops.observed.mapper.IdentityLostMarkMapper;
+import com.archops.observed.mapper.ObservedFactMapper;
+import com.archops.observed.mapper.UnboundObservationCandidateMapper;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+@Service
+public class ObservedTruthService {
+
+    private final HostAgentMapper hostAgentMapper;
+    private final ObservedFactMapper observedFactMapper;
+    private final UnboundObservationCandidateMapper unboundMapper;
+    private final IdentityLostMarkMapper identityLostMarkMapper;
+    private final CuratedObjectMapper curatedObjectMapper;
+    private final CuratedFactMapper curatedFactMapper;
+    private final ObjectMapper objectMapper;
+
+    public ObservedTruthService(
+            HostAgentMapper hostAgentMapper,
+            ObservedFactMapper observedFactMapper,
+            UnboundObservationCandidateMapper unboundMapper,
+            IdentityLostMarkMapper identityLostMarkMapper,
+            CuratedObjectMapper curatedObjectMapper,
+            CuratedFactMapper curatedFactMapper,
+            ObjectMapper objectMapper
+    ) {
+        this.hostAgentMapper = hostAgentMapper;
+        this.observedFactMapper = observedFactMapper;
+        this.unboundMapper = unboundMapper;
+        this.identityLostMarkMapper = identityLostMarkMapper;
+        this.curatedObjectMapper = curatedObjectMapper;
+        this.curatedFactMapper = curatedFactMapper;
+        this.objectMapper = objectMapper;
+    }
+
+    @Transactional
+    public AgentHeartbeatResponse ingestHeartbeat(AgentHeartbeatRequest request) {
+        String agentId = request.agentId().trim();
+        String hostId = request.hostId().trim();
+        CuratedObject host = requireHost(hostId);
+        Instant now = Instant.now();
+
+        upsertHostAgent(agentId, host.getId(), now, request.snapshot() != null);
+
+        List<AgentHeartbeatResponse.MatchedObserved> matched = new ArrayList<>();
+        List<AgentHeartbeatResponse.AbsentObserved> absent = new ArrayList<>();
+        List<AgentHeartbeatResponse.UnboundCandidate> unbound = new ArrayList<>();
+        List<AgentHeartbeatResponse.IdentityLost> identityLost = new ArrayList<>();
+
+        if (request.snapshot() != null) {
+            processSnapshot(request, host, now, matched, absent, unbound, identityLost);
+        }
+
+        HostAgent agent = hostAgentMapper.selectById(agentId);
+        return new AgentHeartbeatResponse(
+                agentId,
+                host.getId(),
+                now,
+                new AgentHeartbeatResponse.Freshness(agent.getLastHeartbeatAt(), agent.getLastSnapshotAt()),
+                matched,
+                absent,
+                unbound,
+                identityLost
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public AgentFreshnessResponse freshness(String agentId) {
+        HostAgent agent = hostAgentMapper.selectById(agentId);
+        if (agent == null) {
+            throw new BusinessException("AGENT_NOT_FOUND", "Unknown agent id: " + agentId);
+        }
+        return new AgentFreshnessResponse(
+                agent.getAgentId(),
+                agent.getHostId(),
+                agent.getLastHeartbeatAt(),
+                agent.getLastSnapshotAt()
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public ActualWhereResponse actualWhere(String containerId) {
+        CuratedObject container = requireContainer(containerId.trim());
+        CuratedFact curatedRunsOn = curatedFactMapper.selectOne(new LambdaQueryWrapper<CuratedFact>()
+                .eq(CuratedFact::getSubjectId, container.getId())
+                .eq(CuratedFact::getRelationType, CuratedRelationType.RUNS_ON));
+        if (curatedRunsOn == null) {
+            throw new BusinessException("CURATED_RUNS_ON_NOT_FOUND",
+                    "No curated 运行于 fact for container: " + container.getId());
+        }
+        CuratedObject curatedHost = curatedObjectMapper.selectById(curatedRunsOn.getTargetId());
+        if (curatedHost == null) {
+            throw new BusinessException("CURATED_HOST_NOT_FOUND",
+                    "Physical host not found: " + curatedRunsOn.getTargetId());
+        }
+
+        ObservedFact observed = observedFactMapper.selectOne(new LambdaQueryWrapper<ObservedFact>()
+                .eq(ObservedFact::getSubjectId, container.getId())
+                .eq(ObservedFact::getRelationType, CuratedRelationType.RUNS_ON));
+
+        ActualWhereResponse.ObservedValue observedValue;
+        if (observed == null) {
+            observedValue = new ActualWhereResponse.ObservedValue("HOLLOW", null, null);
+        } else if (observed.getAvailability() == ObservedAvailability.ABSENT) {
+            observedValue = new ActualWhereResponse.ObservedValue("ABSENT", null, null);
+        } else {
+            CuratedObject observedHost = curatedObjectMapper.selectById(observed.getTargetId());
+            observedValue = new ActualWhereResponse.ObservedValue(
+                    "PRESENT",
+                    observedHost != null ? observedHost.getId() : observed.getTargetId(),
+                    observedHost != null ? observedHost.getName() : null
+            );
+        }
+
+        return new ActualWhereResponse(
+                "实际在哪",
+                "OBSERVED",
+                CuratedRelationType.RUNS_ON,
+                CuratedRelationType.RUNS_ON.labelZh(),
+                CuratedObjectResponse.from(container),
+                observedValue,
+                new ActualWhereResponse.CuratedHostValue(curatedHost.getId(), curatedHost.getName())
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public List<UnboundCandidateResponse> listUnbound() {
+        return unboundMapper.selectList(new LambdaQueryWrapper<UnboundObservationCandidate>()
+                        .orderByDesc(UnboundObservationCandidate::getObservedAt))
+                .stream()
+                .map(row -> new UnboundCandidateResponse(
+                        row.getId(),
+                        row.getSourceAgentId(),
+                        row.getSourceHostId(),
+                        row.getRuntimeId(),
+                        row.getName(),
+                        row.getReason(),
+                        Boolean.TRUE.equals(row.getUpgradeChainPromised()),
+                        row.getObservedAt()
+                ))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public IdentityLostResponse getIdentityLost(String curatedObjectId) {
+        IdentityLostMark mark = identityLostMarkMapper.selectById(curatedObjectId);
+        if (mark == null) {
+            throw new BusinessException("IDENTITY_LOST_NOT_FOUND",
+                    "No identity-lost mark for object: " + curatedObjectId);
+        }
+        return new IdentityLostResponse(
+                mark.getCuratedObjectId(),
+                mark.getReason(),
+                mark.getMarkedAt(),
+                mark.getSourceAgentId(),
+                mark.getSourceHostId(),
+                Boolean.TRUE.equals(mark.getUpgradeChainPromised())
+        );
+    }
+
+    private void processSnapshot(
+            AgentHeartbeatRequest request,
+            CuratedObject host,
+            Instant now,
+            List<AgentHeartbeatResponse.MatchedObserved> matched,
+            List<AgentHeartbeatResponse.AbsentObserved> absent,
+            List<AgentHeartbeatResponse.UnboundCandidate> unbound,
+            List<AgentHeartbeatResponse.IdentityLost> identityLost
+    ) {
+        AgentHeartbeatRequest.SnapshotPayload snapshot = request.snapshot();
+        String agentId = request.agentId().trim();
+
+        List<AgentHeartbeatRequest.SnapshotContainer> containers =
+                snapshot.containers() == null ? List.of() : snapshot.containers();
+        for (AgentHeartbeatRequest.SnapshotContainer container : containers) {
+            Map<String, String> labels = container.labels() == null ? Map.of() : container.labels();
+            String objectId = labels.get(CuratedObjectLabels.OBJECT_ID_KEY);
+            if (objectId == null || objectId.isBlank()) {
+                unbound.add(persistUnbound(agentId, host.getId(), container, labels, UnboundReason.MISSING_LABEL, now));
+                continue;
+            }
+            String trimmedObjectId = objectId.trim();
+            CuratedObject curated = findContainerByImmutableObjectId(trimmedObjectId);
+            if (curated == null) {
+                unbound.add(persistUnbound(agentId, host.getId(), container, labels, UnboundReason.UNKNOWN_OBJECT_ID, now));
+                continue;
+            }
+            upsertObservedPresent(curated, host, agentId, now);
+            matched.add(new AgentHeartbeatResponse.MatchedObserved(
+                    curated.getId(),
+                    trimmedObjectId,
+                    host.getId(),
+                    CuratedRelationType.RUNS_ON.name()
+            ));
+        }
+
+        List<String> absentIds = snapshot.absentObjectIds() == null ? List.of() : snapshot.absentObjectIds();
+        for (String raw : absentIds) {
+            if (raw == null || raw.isBlank()) {
+                continue;
+            }
+            CuratedObject curated = findContainerByImmutableObjectId(raw.trim());
+            if (curated == null) {
+                continue;
+            }
+            upsertObservedAbsent(curated, host, agentId, now);
+            absent.add(new AgentHeartbeatResponse.AbsentObserved(
+                    curated.getId(),
+                    curated.getImmutableObjectId(),
+                    ObservedAvailability.ABSENT.name()
+            ));
+        }
+
+        List<String> lostIds = snapshot.identityLostObjectIds() == null ? List.of() : snapshot.identityLostObjectIds();
+        for (String raw : lostIds) {
+            if (raw == null || raw.isBlank()) {
+                continue;
+            }
+            CuratedObject curated = findContainerByImmutableObjectId(raw.trim());
+            if (curated == null) {
+                curated = curatedObjectMapper.selectById(raw.trim());
+                if (curated == null || curated.getKind() != CuratedObjectKind.DOCKER_CONTAINER) {
+                    continue;
+                }
+            }
+            upsertIdentityLost(curated, host, agentId, now);
+            identityLost.add(new AgentHeartbeatResponse.IdentityLost(
+                    curated.getId(),
+                    curated.getImmutableObjectId(),
+                    false
+            ));
+        }
+    }
+
+    private void upsertHostAgent(String agentId, String hostId, Instant now, boolean hasSnapshot) {
+        HostAgent existing = hostAgentMapper.selectById(agentId);
+        if (existing == null) {
+            HostAgent created = new HostAgent();
+            created.setAgentId(agentId);
+            created.setHostId(hostId);
+            created.setLastHeartbeatAt(now);
+            created.setLastSnapshotAt(hasSnapshot ? now : null);
+            created.setUpdatedAt(now);
+            hostAgentMapper.insert(created);
+            return;
+        }
+        existing.setHostId(hostId);
+        existing.setLastHeartbeatAt(now);
+        if (hasSnapshot) {
+            existing.setLastSnapshotAt(now);
+        }
+        existing.setUpdatedAt(now);
+        hostAgentMapper.updateById(existing);
+    }
+
+    private void upsertObservedPresent(CuratedObject container, CuratedObject host, String agentId, Instant now) {
+        ObservedFact existing = observedFactMapper.selectOne(new LambdaQueryWrapper<ObservedFact>()
+                .eq(ObservedFact::getSubjectId, container.getId())
+                .eq(ObservedFact::getRelationType, CuratedRelationType.RUNS_ON));
+        if (existing == null) {
+            ObservedFact fact = new ObservedFact();
+            fact.setId(newId("obs"));
+            fact.setSubjectId(container.getId());
+            fact.setRelationType(CuratedRelationType.RUNS_ON);
+            fact.setAvailability(ObservedAvailability.PRESENT);
+            fact.setTargetId(host.getId());
+            fact.setObservedAt(now);
+            fact.setSourceAgentId(agentId);
+            fact.setSourceHostId(host.getId());
+            observedFactMapper.insert(fact);
+            return;
+        }
+        observedFactMapper.update(null, new LambdaUpdateWrapper<ObservedFact>()
+                .eq(ObservedFact::getId, existing.getId())
+                .set(ObservedFact::getAvailability, ObservedAvailability.PRESENT)
+                .set(ObservedFact::getTargetId, host.getId())
+                .set(ObservedFact::getObservedAt, now)
+                .set(ObservedFact::getSourceAgentId, agentId)
+                .set(ObservedFact::getSourceHostId, host.getId()));
+    }
+
+    private void upsertObservedAbsent(CuratedObject container, CuratedObject host, String agentId, Instant now) {
+        ObservedFact existing = observedFactMapper.selectOne(new LambdaQueryWrapper<ObservedFact>()
+                .eq(ObservedFact::getSubjectId, container.getId())
+                .eq(ObservedFact::getRelationType, CuratedRelationType.RUNS_ON));
+        if (existing == null) {
+            ObservedFact fact = new ObservedFact();
+            fact.setId(newId("obs"));
+            fact.setSubjectId(container.getId());
+            fact.setRelationType(CuratedRelationType.RUNS_ON);
+            fact.setAvailability(ObservedAvailability.ABSENT);
+            fact.setTargetId(null);
+            fact.setObservedAt(now);
+            fact.setSourceAgentId(agentId);
+            fact.setSourceHostId(host.getId());
+            observedFactMapper.insert(fact);
+            return;
+        }
+        // Explicit set null — updateById would skip null targetId under default FieldStrategy.
+        observedFactMapper.update(null, new LambdaUpdateWrapper<ObservedFact>()
+                .eq(ObservedFact::getId, existing.getId())
+                .set(ObservedFact::getAvailability, ObservedAvailability.ABSENT)
+                .set(ObservedFact::getTargetId, null)
+                .set(ObservedFact::getObservedAt, now)
+                .set(ObservedFact::getSourceAgentId, agentId)
+                .set(ObservedFact::getSourceHostId, host.getId()));
+    }
+
+    private AgentHeartbeatResponse.UnboundCandidate persistUnbound(
+            String agentId,
+            String hostId,
+            AgentHeartbeatRequest.SnapshotContainer container,
+            Map<String, String> labels,
+            UnboundReason reason,
+            Instant now
+    ) {
+        UnboundObservationCandidate row = new UnboundObservationCandidate();
+        row.setId(newId("unb"));
+        row.setSourceAgentId(agentId);
+        row.setSourceHostId(hostId);
+        row.setRuntimeId(container.runtimeId());
+        row.setName(container.name());
+        row.setLabelsJson(toJson(labels));
+        row.setReason(reason);
+        row.setUpgradeChainPromised(false);
+        row.setObservedAt(now);
+        unboundMapper.insert(row);
+        return new AgentHeartbeatResponse.UnboundCandidate(
+                row.getId(),
+                reason.name(),
+                row.getRuntimeId(),
+                row.getName(),
+                false
+        );
+    }
+
+    private void upsertIdentityLost(CuratedObject curated, CuratedObject host, String agentId, Instant now) {
+        IdentityLostMark existing = identityLostMarkMapper.selectById(curated.getId());
+        if (existing == null) {
+            IdentityLostMark mark = new IdentityLostMark();
+            mark.setCuratedObjectId(curated.getId());
+            mark.setReason("LABEL_CLUE_LOST");
+            mark.setMarkedAt(now);
+            mark.setSourceAgentId(agentId);
+            mark.setSourceHostId(host.getId());
+            mark.setUpgradeChainPromised(false);
+            identityLostMarkMapper.insert(mark);
+            return;
+        }
+        existing.setReason("LABEL_CLUE_LOST");
+        existing.setMarkedAt(now);
+        existing.setSourceAgentId(agentId);
+        existing.setSourceHostId(host.getId());
+        existing.setUpgradeChainPromised(false);
+        identityLostMarkMapper.updateById(existing);
+    }
+
+    private CuratedObject findContainerByImmutableObjectId(String objectId) {
+        return curatedObjectMapper.selectOne(new LambdaQueryWrapper<CuratedObject>()
+                .eq(CuratedObject::getImmutableObjectId, objectId)
+                .eq(CuratedObject::getKind, CuratedObjectKind.DOCKER_CONTAINER));
+    }
+
+    private CuratedObject requireHost(String hostId) {
+        CuratedObject host = curatedObjectMapper.selectById(hostId);
+        if (host == null || host.getKind() != CuratedObjectKind.PHYSICAL_HOST) {
+            throw new BusinessException("CURATED_HOST_NOT_FOUND", "Physical host not found: " + hostId);
+        }
+        return host;
+    }
+
+    private CuratedObject requireContainer(String containerId) {
+        CuratedObject container = curatedObjectMapper.selectById(containerId);
+        if (container == null || container.getKind() != CuratedObjectKind.DOCKER_CONTAINER) {
+            throw new BusinessException("CURATED_CONTAINER_NOT_FOUND", "Docker container not found: " + containerId);
+        }
+        return container;
+    }
+
+    private String toJson(Map<String, String> labels) {
+        try {
+            return objectMapper.writeValueAsString(labels);
+        } catch (JsonProcessingException ex) {
+            return "{}";
+        }
+    }
+
+    private static String newId(String prefix) {
+        return prefix + "-" + UUID.randomUUID();
+    }
+}

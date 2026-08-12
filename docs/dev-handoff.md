@@ -17,13 +17,14 @@
 
 | 项 | 状态 |
 |---|---|
-| Gradle + Spring Boot + MyBatis-Plus + Flyway | 有；`GET /api/health` + `app_meta` V1 + platform_user V2 + curated V3 |
+| Gradle + Spring Boot + MyBatis-Plus + Flyway | 有；health + platform_user V2 + curated V3 + observed/agent V4 |
 | React + Ant Design 薄页 | 有；展示 health |
-| Python agent 心跳 stub + systemd 说明 | 有 |
+| Python agent 心跳+快照 stub + systemd 说明 | 有（契约见 `docs/contracts/agent-heartbeat-snapshot.md`） |
 | Compose + `archops:latest` 多阶段镜像 | 有 |
-| 冲突 / 计划 / Agent ingest / SSH / AI | **未做**（按工单实现） |
+| 冲突 / 计划 / SSH / AI | **未做**（按工单实现） |
 | 临时身份头 + 高级/一般角色门禁 | **已完成**（票 01） |
 | 策展主机 / 容器 / `运行于` / 「应该在哪」 | **已完成**（票 02） |
+| Agent 心跳+快照 → 观测 / 「实际在哪」 | **已完成**（票 03） |
 | 竖切 Spec | 已发布 → [`docs/specs/vertical-slice-mvp.md`](specs/vertical-slice-mvp.md) |
 | 竖切工单 | 已本地发布 → [`.scratch/vertical-slice-mvp/issues/`](../.scratch/vertical-slice-mvp/issues/)（`ready-for-agent`；tracker 未配置） |
 
@@ -31,7 +32,7 @@
 
 1. ~~竖切 Spec~~：已发布  
 2. ~~拆票 / to-tickets~~：已发布至 `.scratch/vertical-slice-mvp/issues/`（01–13）  
-3. **实现 frontier**：下一张无 blocker 的票为 **[`03-agent-heartbeat-snapshot-observed.md`](../.scratch/vertical-slice-mvp/issues/03-agent-heartbeat-snapshot-observed.md)**（`01`/`02` 已完成）；完成后再取 blockers 均已完成的下一张（勿跳过 Tickets 直接铺全层业务）
+3. **实现 frontier**：下一张无 blocker 的票为 **[`04-conflict-warn-and-upgrade.md`](../.scratch/vertical-slice-mvp/issues/04-conflict-warn-and-upgrade.md)**（`01`–`03` 已完成）；完成后再取 blockers 均已完成的下一张（勿跳过 Tickets 直接铺全层业务）
 
 ### 工单阻塞简图
 
