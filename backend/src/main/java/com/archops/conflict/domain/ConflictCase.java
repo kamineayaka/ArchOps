@@ -27,6 +27,8 @@ public class ConflictCase {
     private String ownerUserId;
     private String handlerUserId;
     private HandlerAcceptance handlerAcceptance;
+    private Instant pendingCloseAt;
+    private Instant closedAt;
 
     public String getId() {
         return id;
@@ -146,5 +148,21 @@ public class ConflictCase {
 
     public void setHandlerAcceptance(HandlerAcceptance handlerAcceptance) {
         this.handlerAcceptance = handlerAcceptance;
+    }
+
+    public Instant getPendingCloseAt() {
+        return pendingCloseAt;
+    }
+
+    public void setPendingCloseAt(Instant pendingCloseAt) {
+        this.pendingCloseAt = pendingCloseAt;
+    }
+
+    public Instant getClosedAt() {
+        return closedAt;
+    }
+
+    public void setClosedAt(Instant closedAt) {
+        this.closedAt = closedAt;
     }
 }

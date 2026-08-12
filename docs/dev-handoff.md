@@ -17,7 +17,7 @@
 
 | 项 | 状态 |
 |---|---|
-| Gradle + Spring Boot + MyBatis-Plus + Flyway | 有；至 V9（plan exec + host_ssh_credential） |
+| Gradle + Spring Boot + MyBatis-Plus + Flyway | 有；至 V10（pending close + conflict events） |
 | React + Ant Design 薄页 | 有；展示 health |
 | Python agent 心跳+快照 stub + systemd 说明 | 有（契约见 `docs/contracts/agent-heartbeat-snapshot.md`） |
 | Compose + `archops:latest` 多阶段镜像 | 有 |
@@ -29,6 +29,7 @@
 | 已知悉 + 认领/自任 → 已接受处理人 | **已完成**（票 05） |
 | 异步诊断（规则）+ 可选 LLM + 敏感读拒绝 | **已完成**（票 06） |
 | 修实际选支 + 操作计划人审 | **已完成**（票 07） |
+| 观测对齐 → 待确认关闭 → 处理人确认 | **已完成**（票 09） |
 | 竖切 Spec | 已发布 → [`docs/specs/vertical-slice-mvp.md`](specs/vertical-slice-mvp.md) |
 | 竖切工单 | 已本地发布 → [`.scratch/vertical-slice-mvp/issues/`](../.scratch/vertical-slice-mvp/issues/)（`ready-for-agent`；tracker 未配置） |
 
@@ -36,7 +37,7 @@
 
 1. ~~竖切 Spec~~：已发布  
 2. ~~拆票 / to-tickets~~：已发布至 `.scratch/vertical-slice-mvp/issues/`（01–13）  
-3. **实现 frontier**：下一张无 blocker 的票为 **[`09-pending-close-and-confirm.md`](../.scratch/vertical-slice-mvp/issues/09-pending-close-and-confirm.md)**（`01`–`08` 已完成）。`11` 仍可在 `05` 后独立推进。勿跳过依赖。
+3. **实现 frontier**：下一张无 blocker 的票为 **[`10-heartbeat-timeout-hollow-suspend-void.md`](../.scratch/vertical-slice-mvp/issues/10-heartbeat-timeout-hollow-suspend-void.md)**（`01`–`09` 已完成；`10` blockers=`04`+`08`）。`12` 亦已因 `09` 解阻；`11` 仍可在 `05` 后独立推进。勿跳过依赖。
 
 ### 工单阻塞简图
 
