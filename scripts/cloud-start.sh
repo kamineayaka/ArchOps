@@ -5,14 +5,26 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
+# Some Cloud VMs leave /var/run as 0700 (or dockerd creates a private dir).
+# Without traverse perms, docker-group users cannot reach docker.sock.
+ensure_docker_sock_reachable() {
+  if [[ -e /var/run/docker.sock ]] || [[ -d /var/run ]]; then
+    sudo chmod 755 /var/run 2>/dev/null || true
+    sudo chmod 755 /var/run/docker 2>/dev/null || true
+  fi
+}
+
 echo "==> Starting Docker daemon"
+ensure_docker_sock_reachable
 if ! docker info >/dev/null 2>&1; then
   if command -v service >/dev/null 2>&1; then
     sudo service docker start || true
   fi
+  ensure_docker_sock_reachable
   if ! docker info >/dev/null 2>&1; then
     sudo dockerd >/tmp/dockerd.log 2>&1 &
     for _ in $(seq 1 30); do
+      ensure_docker_sock_reachable
       if docker info >/dev/null 2>&1; then
         break
       fi
@@ -21,6 +33,7 @@ if ! docker info >/dev/null 2>&1; then
   fi
 fi
 
+ensure_docker_sock_reachable
 docker info >/dev/null
 
 echo "==> Postgres + Redis (compose)"
