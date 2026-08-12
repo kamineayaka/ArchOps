@@ -42,11 +42,17 @@ function readStoredUserId(): string {
 }
 
 export function DemoUserProvider({ children }: { children: ReactNode }) {
-  const [userId, setUserIdState] = useState(readStoredUserId);
+  const [userId, setUserIdState] = useState(() => {
+    const id = readStoredUserId();
+    // Sync before child effects so first /api calls include the identity header.
+    setApiUserId(id);
+    return id;
+  });
   const [user, setUser] = useState<CurrentUser | null>(null);
   const [loading, setLoading] = useState(true);
 
   const setUserId = useCallback((id: string) => {
+    setApiUserId(id);
     setUserIdState(id);
     try {
       localStorage.setItem(STORAGE_KEY, id);

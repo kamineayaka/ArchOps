@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { ConfigProvider } from 'antd';
+import { App as AntApp, ConfigProvider } from 'antd';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import { DemoUserProvider } from './auth/DemoUserContext';
@@ -18,11 +18,13 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         },
       }}
     >
-      <BrowserRouter>
-        <DemoUserProvider>
-          <App />
-        </DemoUserProvider>
-      </BrowserRouter>
+      <AntApp>
+        <BrowserRouter>
+          <DemoUserProvider>
+            <App />
+          </DemoUserProvider>
+        </BrowserRouter>
+      </AntApp>
     </ConfigProvider>
   </React.StrictMode>,
 );

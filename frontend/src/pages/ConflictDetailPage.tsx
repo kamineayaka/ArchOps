@@ -71,21 +71,23 @@ export default function ConflictDetailPage() {
         }
       }
 
-      try {
-        const p = await getActivePlan(id);
-        setPlan(p);
-        setPlanError(null);
-      } catch (err) {
-        setPlan(null);
-        // PENDING_CLOSE / CLOSED / SUSPENDED: no open-plan surface — not an error for UI.
-        if (
-          err instanceof ApiError &&
-          (err.code === 'PLAN_NOT_FOUND' || err.code === 'CONFLICT_NOT_OPEN')
-        ) {
+      // Active-plan API only accepts OPEN conflicts; skip when closed/pending/suspended.
+      if (c.status === 'OPEN') {
+        try {
+          const p = await getActivePlan(id);
+          setPlan(p);
           setPlanError(null);
-        } else {
-          setPlanError(err instanceof ApiError ? err.message : String(err));
+        } catch (err) {
+          setPlan(null);
+          if (err instanceof ApiError && err.code === 'PLAN_NOT_FOUND') {
+            setPlanError(null);
+          } else {
+            setPlanError(err instanceof ApiError ? err.message : String(err));
+          }
         }
+      } else {
+        setPlan(null);
+        setPlanError(null);
       }
     } catch (err) {
       setConflict(null);
