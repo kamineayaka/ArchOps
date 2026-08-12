@@ -23,6 +23,11 @@ public class OperationPlan {
     private String reviewedBy;
     private Instant reviewedAt;
     private Instant approvedAt;
+    private Integer currentStepSeq;
+    private String voidReason;
+    private Instant startedAt;
+    private Instant finishedAt;
+    private String executionLogJson;
 
     public String getId() {
         return id;
@@ -126,5 +131,45 @@ public class OperationPlan {
 
     public void setApprovedAt(Instant approvedAt) {
         this.approvedAt = approvedAt;
+    }
+
+    public Integer getCurrentStepSeq() {
+        return currentStepSeq;
+    }
+
+    public void setCurrentStepSeq(Integer currentStepSeq) {
+        this.currentStepSeq = currentStepSeq;
+    }
+
+    public String getVoidReason() {
+        return voidReason;
+    }
+
+    public void setVoidReason(String voidReason) {
+        this.voidReason = voidReason;
+    }
+
+    public Instant getStartedAt() {
+        return startedAt;
+    }
+
+    public void setStartedAt(Instant startedAt) {
+        this.startedAt = startedAt;
+    }
+
+    public Instant getFinishedAt() {
+        return finishedAt;
+    }
+
+    public void setFinishedAt(Instant finishedAt) {
+        this.finishedAt = finishedAt;
+    }
+
+    public String getExecutionLogJson() {
+        return executionLogJson;
+    }
+
+    public void setExecutionLogJson(String executionLogJson) {
+        this.executionLogJson = executionLogJson;
     }
 }

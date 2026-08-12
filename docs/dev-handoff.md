@@ -17,11 +17,11 @@
 
 | 项 | 状态 |
 |---|---|
-| Gradle + Spring Boot + MyBatis-Plus + Flyway | 有；至 V8（operation_plan） |
+| Gradle + Spring Boot + MyBatis-Plus + Flyway | 有；至 V9（plan exec + host_ssh_credential） |
 | React + Ant Design 薄页 | 有；展示 health |
 | Python agent 心跳+快照 stub + systemd 说明 | 有（契约见 `docs/contracts/agent-heartbeat-snapshot.md`） |
 | Compose + `archops:latest` 多阶段镜像 | 有 |
-| SSH 受控执行 | **未做**（票 08） |
+| SSH 受控执行 | **已完成**（票 08） |
 | 临时身份头 + 高级/一般角色门禁 | **已完成**（票 01） |
 | 策展主机 / 容器 / `运行于` / 「应该在哪」 | **已完成**（票 02） |
 | Agent 心跳+快照 → 观测 / 「实际在哪」 | **已完成**（票 03） |
@@ -36,7 +36,7 @@
 
 1. ~~竖切 Spec~~：已发布  
 2. ~~拆票 / to-tickets~~：已发布至 `.scratch/vertical-slice-mvp/issues/`（01–13）  
-3. **实现 frontier**：下一张无 blocker 的票为 **[`08-controlled-ssh-exec-redis-lock.md`](../.scratch/vertical-slice-mvp/issues/08-controlled-ssh-exec-redis-lock.md)**（`01`–`07` 已完成）。`11` 仍可在 `05` 后独立推进。勿跳过依赖。
+3. **实现 frontier**：下一张无 blocker 的票为 **[`09-pending-close-and-confirm.md`](../.scratch/vertical-slice-mvp/issues/09-pending-close-and-confirm.md)**（`01`–`08` 已完成）。`11` 仍可在 `05` 后独立推进。勿跳过依赖。
 
 ### 工单阻塞简图
 
@@ -57,4 +57,4 @@
 
 ## 栈摘要
 
-见 ADR-0043：Gradle / MyBatis-Plus / React+Ant / PG+Redis 多副本 / Python systemd Agent / `archops:latest`。MINA SSHD 在 `build.gradle.kts` 中仍注释预留（票 08）；WebClient 已启用（票 06）。
+见 ADR-0043：Gradle / MyBatis-Plus / React+Ant / PG+Redis 多副本 / Python systemd Agent / `archops:latest`。MINA SSHD 已接入（票 08，默认 `archops.ssh.mode=fake`）；WebClient 已启用（票 06）。

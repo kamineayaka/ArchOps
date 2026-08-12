@@ -28,9 +28,9 @@ dependencies {
     implementation("org.flywaydb:flyway-database-postgresql")
     runtimeOnly("org.postgresql:postgresql")
 
-    // Later (vertical slice): Apache MINA SSHD — plan execution / workbench SSH (ADR-0043)
-    // implementation("org.apache.sshd:sshd-core:2.14.0")
-    // implementation("org.apache.sshd:sshd-common:2.14.0")
+    // Apache MINA SSHD — controlled plan execution (ADR-0043); CI uses recording fake by default.
+    implementation("org.apache.sshd:sshd-core:2.14.0")
+    implementation("org.apache.sshd:sshd-common:2.14.0")
 
     // Controlled AI egress (ADR-0041 / ADR-0043) — WebClient only, no LangChain.
     implementation("org.springframework.boot:spring-boot-starter-webflux")
