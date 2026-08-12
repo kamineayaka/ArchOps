@@ -10,6 +10,7 @@ Claude / Cloud 编码助手请把本仓库的 **`AGENTS.md` 当作最高执行�
 4. [docs/specs/vertical-slice-mvp.md](./docs/specs/vertical-slice-mvp.md) — 竖切 Spec  
 5. [docs/dev-handoff.md](./docs/dev-handoff.md) — 下一张 frontier 工单  
 6. Tickets: [.scratch/vertical-slice-mvp/issues/](./.scratch/vertical-slice-mvp/issues/)
+7. Cloud VM setup: [.cursor/CLOUD.md](./.cursor/CLOUD.md) · [.cursor/environment.json](./.cursor/environment.json)
 
 ## Non-negotiables (short)
 

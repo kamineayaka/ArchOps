@@ -63,6 +63,18 @@
 5. 测试主接缝：控制面 HTTP API（含 Agent ingest）；SSH 可用 fake；前端最小冒烟即可。
 6. 提交信息聚焦 why；不要提交 `.env`、密钥、`node_modules`、`build/`。
 
+## 5.1 Cursor Cloud specific instructions
+
+Cloud Agents run in an **Ubuntu VM** configured by [`.cursor/environment.json`](.cursor/environment.json) (see [`.cursor/CLOUD.md`](.cursor/CLOUD.md)). Not the developer's Windows laptop.
+
+- After boot, `start` brings up **Postgres + Redis** via Compose. App env defaults: `POSTGRES_HOST=localhost`, `REDIS_HOST=localhost`, user/db/password `archops`.
+- Backend: `cd backend && ./gradlew bootRun` (also started as terminal `backend`). Health: `curl -s http://127.0.0.1:8080/api/health`
+- Frontend: `cd frontend && npm run dev -- --host 0.0.0.0 --port 5173` (terminal `frontend`)
+- Tests: `cd backend && ./gradlew test` (many HTTP tests use embedded Postgres; still keep Compose Redis up if the app under test needs Redis)
+- Warm deps already ran in Build `install` (`scripts/cloud-install.sh`). Re-run install commands only when deps change.
+- Secrets (AI keys, etc.): Cursor Dashboard Secrets — never commit `.env`
+- After editing `.cursor/Dockerfile` or `environment.json`, push and wait for a new Environment **Build** before relying on the change.
+
 ## 6. Matt 进度（勿倒退）
 
 - 领域 grilling / 合同冻结 / 技术选型 / 空脚手架 / Spec / Tickets：**已完成**
@@ -71,4 +83,4 @@
 
 ## 7. 云端提示词建议（用户可贴）
 
-> 读 AGENTS.md 与当前 frontier 工单并实现。遵守 ADR-0043 与 CONTEXT.md。只做这一张票的验收项，完成后更新 docs/dev-handoff.md 中的下一票指针。不要引入 Vue/JPA/Neo4j/Maven/LangChain。
+> 读 AGENTS.md 与当前 frontier 工单并实现。遵守 ADR-0043 与 CONTEXT.md。只做这一张票的验收项，完成后更新 docs/dev-handoff.md 中的下一票指针。不要引入 Vue/JPA/Neo4j/Maven/LangChain。在 Cloud VM 上用 Compose 的 Postgres/Redis 验收 HTTP API。

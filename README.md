@@ -4,7 +4,8 @@
 实现策略：K1 推倒（ADR-0040）、同仓重写（ADR-0042）。
 
 **脚手架状态**：已按 ADR-0043 重建可启动最小骨架。竖切按工单推进。  
-**AI Agent 入口**：[`AGENTS.md`](./AGENTS.md) · [`CLAUDE.md`](./CLAUDE.md)
+**AI Agent 入口**：[`AGENTS.md`](./AGENTS.md) · [`CLAUDE.md`](./CLAUDE.md)  
+**Cloud Agent 环境**：[`.cursor/environment.json`](./.cursor/environment.json) · [`.cursor/CLOUD.md`](./.cursor/CLOUD.md)
 
 ## 目录
 
