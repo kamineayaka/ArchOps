@@ -18,7 +18,7 @@
 | 项 | 状态 |
 |---|---|
 | Gradle + Spring Boot + MyBatis-Plus + Flyway | 有；至 V11（SUSPENDED + hollow timeout） |
-| React + Ant Design 薄页 | 有；展示 health |
+| React + Ant Design 薄页 | **已完成**（票 12：冲突列表/详情→协作→选支→审计划→确认关闭） |
 | Python agent 心跳+快照 stub + systemd 说明 | 有（契约见 `docs/contracts/agent-heartbeat-snapshot.md`） |
 | Compose + `archops:latest` 多阶段镜像 | 有 |
 | SSH 受控执行 | **已完成**（票 08） |
@@ -31,6 +31,7 @@
 | 修实际选支 + 操作计划人审 | **已完成**（票 07） |
 | 观测对齐 → 待确认关闭 → 处理人确认 | **已完成**（票 09） |
 | 心跳超时 → 空洞挂起并作废计划 | **已完成**（票 10） |
+| 最小演示 UI | **已完成**（票 12） |
 | 竖切 Spec | 已发布 → [`docs/specs/vertical-slice-mvp.md`](specs/vertical-slice-mvp.md) |
 | 竖切工单 | 已本地发布 → [`.scratch/vertical-slice-mvp/issues/`](../.scratch/vertical-slice-mvp/issues/)（`ready-for-agent`；tracker 未配置） |
 
@@ -38,7 +39,7 @@
 
 1. ~~竖切 Spec~~：已发布  
 2. ~~拆票 / to-tickets~~：已发布至 `.scratch/vertical-slice-mvp/issues/`（01–13）  
-3. **实现 frontier**：下一张主链票为 **[`12-minimal-demo-ui.md`](../.scratch/vertical-slice-mvp/issues/12-minimal-demo-ui.md)**（`09` 已解阻）。`11` 仍可在 `05` 后独立推进；`13` HTTP e2e 建议在 `10`+`12` 后。勿跳过依赖。
+3. **实现 frontier**：下一张主链票为 **[`13-http-e2e-acceptance.md`](../.scratch/vertical-slice-mvp/issues/13-http-e2e-acceptance.md)**（`10`+`12` 已解阻）。`11` 仍可在 `05` 后独立推进。勿跳过依赖。
 
 ### 工单阻塞简图
 
