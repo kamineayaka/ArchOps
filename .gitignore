@@ -13,6 +13,7 @@ desktop.ini
 !.cursor/skills/**
 !.cursor/CLOUD.md
 !.cursor/environment.json
+!.cursor/Dockerfile
 !.cursor/hooks.json
 *.iml
 *.swp
