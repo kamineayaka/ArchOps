@@ -1,2 +1,2 @@
-/** Observed-truth / heartbeat ingest module placeholder. */
+/** Observed-truth module: heartbeat freshness, facts, unbound / identity-lost. */
 package com.archops.observed;

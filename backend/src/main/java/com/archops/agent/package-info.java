@@ -1,2 +1,2 @@
-/** Host-agent protocol module placeholder (ingest lands in vertical slice). */
+/** Host-agent ingest protocol (heartbeat + optional snapshot). */
 package com.archops.agent;
