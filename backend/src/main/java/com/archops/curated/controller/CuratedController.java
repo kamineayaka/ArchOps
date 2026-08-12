@@ -6,14 +6,18 @@ import com.archops.curated.dto.CreateContainerRequest;
 import com.archops.curated.dto.CreateHostRequest;
 import com.archops.curated.dto.CuratedObjectResponse;
 import com.archops.curated.dto.CuratedRunsOnFactResponse;
+import com.archops.curated.dto.HostSshCredentialResponse;
 import com.archops.curated.dto.ShouldWhereResponse;
+import com.archops.curated.dto.UpsertHostSshCredentialRequest;
 import com.archops.curated.service.CuratedTruthService;
+import com.archops.curated.service.HostSshCredentialService;
 import com.archops.user.security.AuthUserPrincipal;
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -29,9 +33,14 @@ import org.springframework.web.bind.annotation.RestController;
 public class CuratedController {
 
     private final CuratedTruthService curatedTruthService;
+    private final HostSshCredentialService hostSshCredentialService;
 
-    public CuratedController(CuratedTruthService curatedTruthService) {
+    public CuratedController(
+            CuratedTruthService curatedTruthService,
+            HostSshCredentialService hostSshCredentialService
+    ) {
         this.curatedTruthService = curatedTruthService;
+        this.hostSshCredentialService = hostSshCredentialService;
     }
 
     @PostMapping("/hosts")
@@ -69,5 +78,22 @@ public class CuratedController {
     @GetMapping("/asks/should-where")
     public ApiResponse<ShouldWhereResponse> shouldWhere(@RequestParam String containerId) {
         return ApiResponse.ok(curatedTruthService.shouldWhere(containerId));
+    }
+
+    /**
+     * Store encrypted SSH credentials for a graph-resident physical host (ticket 08).
+     * Request secret is never returned.
+     */
+    @PutMapping("/hosts/{hostId}/ssh-credential")
+    public ApiResponse<HostSshCredentialResponse> upsertSshCredential(
+            @PathVariable String hostId,
+            @Valid @RequestBody UpsertHostSshCredentialRequest request
+    ) {
+        return ApiResponse.ok(hostSshCredentialService.upsert(hostId, request));
+    }
+
+    @GetMapping("/hosts/{hostId}/ssh-credential")
+    public ApiResponse<HostSshCredentialResponse> getSshCredential(@PathVariable String hostId) {
+        return ApiResponse.ok(hostSshCredentialService.get(hostId));
     }
 }

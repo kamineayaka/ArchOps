@@ -99,14 +99,15 @@ class OperationPlanReviewHttpAcceptanceTest {
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.status", is("EXECUTION_INTENT_READY")));
+                .andExpect(jsonPath("$.data.status", is("COMPLETED")))
+                .andExpect(jsonPath("$.data.completedSteps", is(3)));
 
-        mockMvc.perform(get("/api/conflicts/{id}/operation-plans/active", conflictId)
+        mockMvc.perform(get("/api/operation-plans/{id}", planId)
                         .header(TempAuthHeaders.USER_ID, SENIOR_ID)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.id", is(planId)))
-                .andExpect(jsonPath("$.data.status", is("APPROVED")));
+                .andExpect(jsonPath("$.data.status", is("COMPLETED")));
     }
 
     @Test

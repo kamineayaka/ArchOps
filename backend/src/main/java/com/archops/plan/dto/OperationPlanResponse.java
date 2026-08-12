@@ -22,13 +22,28 @@ public record OperationPlanResponse(
         Instant reviewedAt,
         Instant approvedAt,
         /** True only after human approval (APPROVED+); not set in DRAFT_REVIEW. */
-        boolean executionIntent
+        boolean executionIntent,
+        Integer currentStepSeq,
+        String voidReason,
+        Instant startedAt,
+        Instant finishedAt,
+        List<ExecutionStepLog> executionLog
 ) {
     public record PlanStep(
             int seq,
             String action,
             String description,
             Map<String, String> params
+    ) {
+    }
+
+    public record ExecutionStepLog(
+            int seq,
+            String action,
+            String hostId,
+            String command,
+            boolean success,
+            String failureReason
     ) {
     }
 }

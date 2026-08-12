@@ -32,6 +32,12 @@ logging:
 archops:
   diagnosis:
     poll-interval-ms: 200
+  ssh:
+    # fake (default/CI) | mina (production MINA SSHD)
+    mode: ${ARCHOPS_SSH_MODE:fake}
+  credentials:
+    # Base64-encoded AES-128/192/256 key. Required in production; blank uses a local-dev default.
+    encryption-key-base64: ${ARCHOPS_CREDENTIALS_ENCRYPTION_KEY_BASE64:}
   ai:
     enabled: ${ARCHOPS_AI_ENABLED:false}
     base-url: ${ARCHOPS_AI_BASE_URL:}
