@@ -176,9 +176,6 @@ public class OperationPlanService {
      */
     public StartExecutionResponse startExecution(String planId, AuthUserPrincipal actor) {
         OperationPlan gate = requirePlan(planId);
-        ConflictCase conflict = requireOpenConflict(gate.getConflictId());
-        requireAcceptedHandler(conflict, actor);
-
         if (gate.getStatus() == OperationPlanStatus.VOIDED) {
             throw new BusinessException("PLAN_VOIDED",
                     "Voided plans cannot be retried; generate a new plan through review");
@@ -191,6 +188,9 @@ public class OperationPlanService {
             throw new BusinessException("PLAN_ALREADY_EXECUTING",
                     "Plan is already executing");
         }
+        ConflictCase conflict = requireOpenConflict(gate.getConflictId());
+        requireAcceptedHandler(conflict, actor);
+
         if (gate.getStatus() != OperationPlanStatus.APPROVED) {
             throw new BusinessException("PLAN_NOT_APPROVED",
                     "Cannot start execution before human approval (no execution intent yet)");
@@ -431,6 +431,30 @@ public class OperationPlanService {
                         Map.of("subjectId", conflict.getSubjectId())
                 )
         );
+    }
+
+    /**
+     * Void all active plans for a conflict (e.g. observation hollow). Frozen plans are not rewritten.
+     */
+    @Transactional
+    public List<String> voidActivePlansForConflict(String conflictId, String reason) {
+        List<OperationPlan> active = operationPlanMapper.selectList(new LambdaQueryWrapper<OperationPlan>()
+                .eq(OperationPlan::getConflictId, conflictId)
+                .in(OperationPlan::getStatus, ACTIVE));
+        Instant now = Instant.now();
+        List<String> voided = new ArrayList<>();
+        for (OperationPlan plan : active) {
+            int updated = operationPlanMapper.update(null, new LambdaUpdateWrapper<OperationPlan>()
+                    .eq(OperationPlan::getId, plan.getId())
+                    .in(OperationPlan::getStatus, ACTIVE)
+                    .set(OperationPlan::getStatus, OperationPlanStatus.VOIDED)
+                    .set(OperationPlan::getVoidReason, reason)
+                    .set(OperationPlan::getFinishedAt, now));
+            if (updated == 1) {
+                voided.add(plan.getId());
+            }
+        }
+        return voided;
     }
 
     private OperationPlan findActive(String conflictId) {

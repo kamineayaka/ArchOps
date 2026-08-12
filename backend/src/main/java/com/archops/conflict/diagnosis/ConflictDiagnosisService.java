@@ -124,15 +124,23 @@ public class ConflictDiagnosisService {
                 ? null
                 : curatedObjectMapper.selectById(conflict.getObservedTargetId());
 
-        DiagnosisRuleEngine.RuleResult rules = DiagnosisRuleEngine.diagnoseRunsOnMismatch(
-                conflict.getCuratedTargetId(),
-                curatedHost != null ? curatedHost.getName() : null,
-                conflict.getObservedAvailability() == null
-                        ? ObservedAvailability.PRESENT.name()
-                        : conflict.getObservedAvailability().name(),
-                conflict.getObservedTargetId(),
-                observedHost != null ? observedHost.getName() : null
-        );
+        DiagnosisRuleEngine.RuleResult rules;
+        if (conflict.getStatus() == com.archops.conflict.domain.ConflictStatus.SUSPENDED) {
+            rules = DiagnosisRuleEngine.diagnoseHollow(
+                    conflict.getCuratedTargetId(),
+                    curatedHost != null ? curatedHost.getName() : null
+            );
+        } else {
+            rules = DiagnosisRuleEngine.diagnoseRunsOnMismatch(
+                    conflict.getCuratedTargetId(),
+                    curatedHost != null ? curatedHost.getName() : null,
+                    conflict.getObservedAvailability() == null
+                            ? ObservedAvailability.PRESENT.name()
+                            : conflict.getObservedAvailability().name(),
+                    conflict.getObservedTargetId(),
+                    observedHost != null ? observedHost.getName() : null
+            );
+        }
 
         List<String> forkLabels = rules.forks().stream().map(ConflictDiagnosisResponse.ForkSuggestion::label).toList();
         var llm = diagnosisLlmClient.enrichSummary(rules.summary(), forkLabels);

@@ -32,6 +32,10 @@ logging:
 archops:
   diagnosis:
     poll-interval-ms: 200
+  observation:
+    # Heartbeat older than this → sourced observed facts become 观测空洞.
+    heartbeat-timeout: ${ARCHOPS_HEARTBEAT_TIMEOUT:5m}
+    hollow-scan-interval-ms: ${ARCHOPS_HOLLOW_SCAN_INTERVAL_MS:5000}
   ssh:
     # fake (default/CI) | mina (production MINA SSHD)
     mode: ${ARCHOPS_SSH_MODE:fake}

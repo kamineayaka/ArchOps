@@ -29,6 +29,7 @@ public class ConflictCase {
     private HandlerAcceptance handlerAcceptance;
     private Instant pendingCloseAt;
     private Instant closedAt;
+    private Instant suspendedAt;
 
     public String getId() {
         return id;
@@ -164,5 +165,13 @@ public class ConflictCase {
 
     public void setClosedAt(Instant closedAt) {
         this.closedAt = closedAt;
+    }
+
+    public Instant getSuspendedAt() {
+        return suspendedAt;
+    }
+
+    public void setSuspendedAt(Instant suspendedAt) {
+        this.suspendedAt = suspendedAt;
     }
 }
