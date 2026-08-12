@@ -32,8 +32,8 @@ dependencies {
     // implementation("org.apache.sshd:sshd-core:2.14.0")
     // implementation("org.apache.sshd:sshd-common:2.14.0")
 
-    // Later (vertical slice): WebClient for controlled AI egress (ADR-0041 / ADR-0043)
-    // implementation("org.springframework.boot:spring-boot-starter-webflux")
+    // Controlled AI egress (ADR-0041 / ADR-0043) — WebClient only, no LangChain.
+    implementation("org.springframework.boot:spring-boot-starter-webflux")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.security:spring-security-test")

@@ -19,8 +19,7 @@ public record ConflictCaseResponse(
         Instant firstWarnedAt,
         Instant updatedAt,
         /**
-         * Warnings are independent of diagnosis.
-         * NOT_STARTED until ticket 06 lands.
+         * NOT_STARTED | PENDING | READY | FAILED — diagnosis is async and never blocks warning.
          */
         String diagnosisStatus,
         Collaboration collaboration

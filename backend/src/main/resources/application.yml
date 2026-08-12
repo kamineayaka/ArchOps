@@ -28,3 +28,15 @@ logging:
   level:
     root: INFO
     com.archops: INFO
+
+archops:
+  diagnosis:
+    poll-interval-ms: 200
+  ai:
+    enabled: ${ARCHOPS_AI_ENABLED:false}
+    base-url: ${ARCHOPS_AI_BASE_URL:}
+    api-key: ${ARCHOPS_AI_API_KEY:}
+    model: ${ARCHOPS_AI_MODEL:deepseek-chat}
+    allowlist-hosts:
+      - api.openai.com
+      - api.deepseek.com

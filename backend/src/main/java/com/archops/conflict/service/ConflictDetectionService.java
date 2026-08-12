@@ -1,6 +1,7 @@
 package com.archops.conflict.service;
 
 import com.archops.common.exception.BusinessException;
+import com.archops.conflict.diagnosis.ConflictDiagnosisService;
 import com.archops.conflict.domain.ConflictCase;
 import com.archops.conflict.domain.ConflictStatus;
 import com.archops.conflict.domain.HandlerAcceptance;
@@ -36,12 +37,11 @@ import java.util.UUID;
 @Service
 public class ConflictDetectionService {
 
-    private static final String DIAGNOSIS_NOT_STARTED = "NOT_STARTED";
-
     private final ConflictCaseMapper conflictCaseMapper;
     private final CuratedFactMapper curatedFactMapper;
     private final CuratedObjectMapper curatedObjectMapper;
     private final ObservedFactMapper observedFactMapper;
+    private final ConflictDiagnosisService conflictDiagnosisService;
     private final ObjectMapper objectMapper;
 
     public ConflictDetectionService(
@@ -49,12 +49,14 @@ public class ConflictDetectionService {
             CuratedFactMapper curatedFactMapper,
             CuratedObjectMapper curatedObjectMapper,
             ObservedFactMapper observedFactMapper,
+            ConflictDiagnosisService conflictDiagnosisService,
             ObjectMapper objectMapper
     ) {
         this.conflictCaseMapper = conflictCaseMapper;
         this.curatedFactMapper = curatedFactMapper;
         this.curatedObjectMapper = curatedObjectMapper;
         this.observedFactMapper = observedFactMapper;
+        this.conflictDiagnosisService = conflictDiagnosisService;
         this.objectMapper = objectMapper;
     }
 
@@ -147,6 +149,8 @@ public class ConflictDetectionService {
         created.setHandlerUserId(null);
         created.setHandlerAcceptance(HandlerAcceptance.NONE);
         conflictCaseMapper.insert(created);
+        // Async diagnosis — never blocks the warning emission.
+        conflictDiagnosisService.scheduleAsyncDiagnosis(created.getId());
     }
 
     private void upgradeOpen(ConflictCase open, CuratedFact curated, ObservedFact observed, Instant now) {
@@ -163,6 +167,7 @@ public class ConflictDetectionService {
                 .set(ConflictCase::getObservedTargetId, observed.getTargetId())
                 .set(ConflictCase::getObservedLineageJson, writeLineage(lineage))
                 .set(ConflictCase::getUpdatedAt, now));
+        conflictDiagnosisService.scheduleAsyncDiagnosis(open.getId());
     }
 
     private ConflictCase findOpen(String subjectId, CuratedRelationType relationType) {
@@ -232,7 +237,7 @@ public class ConflictDetectionService {
                 lineage,
                 row.getFirstWarnedAt(),
                 row.getUpdatedAt(),
-                DIAGNOSIS_NOT_STARTED,
+                conflictDiagnosisService.statusLabelForConflict(row.getId()),
                 new ConflictCaseResponse.Collaboration(
                         Boolean.TRUE.equals(row.getAcknowledged()),
                         row.getAcknowledgedAt(),

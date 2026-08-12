@@ -1,9 +1,10 @@
 package com.archops.common.config;
 
+import org.apache.ibatis.annotations.Mapper;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-@MapperScan("com.archops")
+@MapperScan(basePackages = "com.archops", annotationClass = Mapper.class)
 public class MybatisPlusConfig {
 }
