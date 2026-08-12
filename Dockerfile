@@ -4,7 +4,11 @@
 FROM node:22-alpine AS frontend-build
 WORKDIR /frontend
 COPY frontend/package.json frontend/package-lock.json* ./
-RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
+RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi \
+ || (echo "===== npm debug log =====" \
+     && ls -la /root/.npm/_logs/ \
+     && cat /root/.npm/_logs/*-debug-*.log \
+     && exit 1)
 COPY frontend/ ./
 RUN npm run build
 
