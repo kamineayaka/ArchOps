@@ -8,11 +8,13 @@ import com.archops.common.ssh.SshExecResult;
 import com.archops.conflict.diagnosis.ConflictDiagnosisService;
 import com.archops.conflict.diagnosis.DiagnosisRuleEngine;
 import com.archops.conflict.domain.ConflictCase;
+import com.archops.conflict.domain.ConflictEventType;
 import com.archops.conflict.domain.ConflictStatus;
 import com.archops.conflict.domain.DiagnosisStatus;
 import com.archops.conflict.domain.HandlerAcceptance;
 import com.archops.conflict.dto.ConflictDiagnosisResponse;
 import com.archops.conflict.mapper.ConflictCaseMapper;
+import com.archops.conflict.service.ConflictEventService;
 import com.archops.curated.domain.CuratedObject;
 import com.archops.curated.domain.CuratedObjectKind;
 import com.archops.curated.mapper.CuratedObjectMapper;
@@ -61,6 +63,7 @@ public class OperationPlanService {
     private final ControlledSshPort controlledSshPort;
     private final PlanExecutionLock planExecutionLock;
     private final TransactionTemplate transactionTemplate;
+    private final ConflictEventService conflictEventService;
 
     public OperationPlanService(
             OperationPlanMapper operationPlanMapper,
@@ -70,7 +73,8 @@ public class OperationPlanService {
             ObjectMapper objectMapper,
             ControlledSshPort controlledSshPort,
             PlanExecutionLock planExecutionLock,
-            TransactionTemplate transactionTemplate
+            TransactionTemplate transactionTemplate,
+            ConflictEventService conflictEventService
     ) {
         this.operationPlanMapper = operationPlanMapper;
         this.conflictCaseMapper = conflictCaseMapper;
@@ -80,6 +84,7 @@ public class OperationPlanService {
         this.controlledSshPort = controlledSshPort;
         this.planExecutionLock = planExecutionLock;
         this.transactionTemplate = transactionTemplate;
+        this.conflictEventService = conflictEventService;
     }
 
     @Transactional
@@ -277,10 +282,16 @@ public class OperationPlanService {
                             .set(OperationPlan::getCurrentStepSeq, steps.isEmpty() ? 0 : steps.getLast().seq())
                             .set(OperationPlan::getExecutionLogJson, logJson)));
 
+            conflictEventService.append(plan.getConflictId(), ConflictEventType.PLAN_COMPLETED, actor.getUserId(), Map.of(
+                    "planId", planId,
+                    "completedSteps", log.size(),
+                    "hint", "Post-exec observation refresh is via agent heartbeat/snapshot (探测写入观测)"
+            ));
+
             return new StartExecutionResponse(
                     planId,
                     OperationPlanStatus.COMPLETED.name(),
-                    "All frozen steps executed via controlled SSH",
+                    "All frozen steps executed via controlled SSH; accept observation refresh (heartbeat) to enter 待确认关闭",
                     log.size(),
                     null,
                     List.copyOf(log)

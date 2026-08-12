@@ -3,6 +3,7 @@ package com.archops.conflict.service;
 import com.archops.common.exception.BusinessException;
 import com.archops.conflict.diagnosis.ConflictDiagnosisService;
 import com.archops.conflict.domain.ConflictCase;
+import com.archops.conflict.domain.ConflictEventType;
 import com.archops.conflict.domain.ConflictStatus;
 import com.archops.conflict.domain.HandlerAcceptance;
 import com.archops.conflict.dto.ConflictCaseResponse;
@@ -27,21 +28,28 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
 /**
  * Emits conflict warnings when curated ≠ currently available observed on a merge key.
- * Does not wait on diagnosis. Hollow (no usable observed) does not open a both-sides conflict.
+ * When tracks become equal, transitions to PENDING_CLOSE (never auto-closes).
  */
 @Service
 public class ConflictDetectionService {
+
+    private static final List<ConflictStatus> ACTIVE = List.of(
+            ConflictStatus.OPEN,
+            ConflictStatus.PENDING_CLOSE
+    );
 
     private final ConflictCaseMapper conflictCaseMapper;
     private final CuratedFactMapper curatedFactMapper;
     private final CuratedObjectMapper curatedObjectMapper;
     private final ObservedFactMapper observedFactMapper;
     private final ConflictDiagnosisService conflictDiagnosisService;
+    private final ConflictEventService conflictEventService;
     private final ObjectMapper objectMapper;
 
     public ConflictDetectionService(
@@ -50,6 +58,7 @@ public class ConflictDetectionService {
             CuratedObjectMapper curatedObjectMapper,
             ObservedFactMapper observedFactMapper,
             ConflictDiagnosisService conflictDiagnosisService,
+            ConflictEventService conflictEventService,
             ObjectMapper objectMapper
     ) {
         this.conflictCaseMapper = conflictCaseMapper;
@@ -57,11 +66,12 @@ public class ConflictDetectionService {
         this.curatedObjectMapper = curatedObjectMapper;
         this.observedFactMapper = observedFactMapper;
         this.conflictDiagnosisService = conflictDiagnosisService;
+        this.conflictEventService = conflictEventService;
         this.objectMapper = objectMapper;
     }
 
     /**
-     * Reconcile open conflict for merge key (subject + relation) after an observed write.
+     * Reconcile active conflict for merge key (subject + relation) after an observed write.
      */
     @Transactional
     public void reconcileAfterObservedWrite(String subjectId, CuratedRelationType relationType) {
@@ -73,37 +83,74 @@ public class ConflictDetectionService {
                 .eq(ObservedFact::getRelationType, relationType));
 
         // 观测空洞: no usable observed value → do not open a both-sides-available conflict.
+        // Hollow suspend/void is ticket 10.
         if (curated == null || observed == null) {
             return;
         }
 
         boolean equal = isEqual(curated, observed);
-        ConflictCase open = findOpen(subjectId, relationType);
+        ConflictCase active = findActive(subjectId, relationType);
+        Instant now = Instant.now();
+
         if (equal) {
+            if (active == null) {
+                // No open conflict — equality with no prior warn does not create a case.
+                return;
+            }
+            if (active.getStatus() == ConflictStatus.PENDING_CLOSE) {
+                // Keep pending close; refresh snapshot if needed.
+                if (!sameObservedSnapshot(active, observed)
+                        || !Objects.equals(active.getCuratedTargetId(), curated.getTargetId())) {
+                    conflictCaseMapper.update(null, new LambdaUpdateWrapper<ConflictCase>()
+                            .eq(ConflictCase::getId, active.getId())
+                            .set(ConflictCase::getCuratedTargetId, curated.getTargetId())
+                            .set(ConflictCase::getObservedAvailability, observed.getAvailability())
+                            .set(ConflictCase::getObservedTargetId, observed.getTargetId())
+                            .set(ConflictCase::getUpdatedAt, now));
+                }
+                return;
+            }
+            markPendingClose(active, curated, observed, now);
             return;
         }
 
-        Instant now = Instant.now();
-        if (open == null) {
+        // Unequal tracks.
+        if (active == null) {
             createOpen(subjectId, relationType, curated, observed, now);
             return;
         }
 
-        if (sameObservedSnapshot(open, observed) && Objects.equals(open.getCuratedTargetId(), curated.getTargetId())) {
+        if (active.getStatus() == ConflictStatus.PENDING_CLOSE) {
+            // Drift after alignment — back to OPEN conflict (not force-close).
+            reopenFromPendingClose(active, curated, observed, now);
             return;
         }
 
-        upgradeOpen(open, curated, observed, now);
+        if (sameObservedSnapshot(active, observed) && Objects.equals(active.getCuratedTargetId(), curated.getTargetId())) {
+            return;
+        }
+
+        upgradeOpen(active, curated, observed, now);
     }
 
+    /**
+     * Active reminders: OPEN + PENDING_CLOSE (CLOSED excluded). PENDING_CLOSE is never muted by 已知悉.
+     */
     @Transactional(readOnly = true)
-    public List<ConflictCaseResponse> listOpen() {
+    public List<ConflictCaseResponse> listActive() {
         return conflictCaseMapper.selectList(new LambdaQueryWrapper<ConflictCase>()
-                        .eq(ConflictCase::getStatus, ConflictStatus.OPEN)
+                        .in(ConflictCase::getStatus, ACTIVE)
                         .orderByDesc(ConflictCase::getUpdatedAt))
                 .stream()
                 .map(this::toResponse)
                 .toList();
+    }
+
+    /** @deprecated use {@link #listActive()} — kept for older callers. */
+    @Deprecated
+    @Transactional(readOnly = true)
+    public List<ConflictCaseResponse> listOpen() {
+        return listActive();
     }
 
     @Transactional(readOnly = true)
@@ -116,13 +163,85 @@ public class ConflictDetectionService {
     }
 
     @Transactional(readOnly = true)
-    public ConflictCaseResponse getOpenByMergeKey(String subjectId, CuratedRelationType relationType) {
-        ConflictCase open = findOpen(subjectId, relationType);
-        if (open == null) {
+    public ConflictCaseResponse getActiveByMergeKey(String subjectId, CuratedRelationType relationType) {
+        ConflictCase active = findActive(subjectId, relationType);
+        if (active == null) {
             throw new BusinessException("CONFLICT_NOT_FOUND",
-                    "No open conflict for merge key subject=" + subjectId + " relation=" + relationType);
+                    "No active conflict for merge key subject=" + subjectId + " relation=" + relationType);
         }
-        return toResponse(open);
+        return toResponse(active);
+    }
+
+    @Transactional(readOnly = true)
+    public ConflictCaseResponse getOpenByMergeKey(String subjectId, CuratedRelationType relationType) {
+        return getActiveByMergeKey(subjectId, relationType);
+    }
+
+    /**
+     * Re-read curated/observed for confirm-close equality check.
+     */
+    @Transactional(readOnly = true)
+    public boolean tracksCurrentlyEqual(ConflictCase row) {
+        CuratedFact curated = curatedFactMapper.selectOne(new LambdaQueryWrapper<CuratedFact>()
+                .eq(CuratedFact::getSubjectId, row.getSubjectId())
+                .eq(CuratedFact::getRelationType, row.getRelationType()));
+        ObservedFact observed = observedFactMapper.selectOne(new LambdaQueryWrapper<ObservedFact>()
+                .eq(ObservedFact::getSubjectId, row.getSubjectId())
+                .eq(ObservedFact::getRelationType, row.getRelationType()));
+        if (curated == null || observed == null) {
+            return false;
+        }
+        return isEqual(curated, observed);
+    }
+
+    @Transactional(readOnly = true)
+    public TrackPair currentTracks(ConflictCase row) {
+        CuratedFact curated = curatedFactMapper.selectOne(new LambdaQueryWrapper<CuratedFact>()
+                .eq(CuratedFact::getSubjectId, row.getSubjectId())
+                .eq(CuratedFact::getRelationType, row.getRelationType()));
+        ObservedFact observed = observedFactMapper.selectOne(new LambdaQueryWrapper<ObservedFact>()
+                .eq(ObservedFact::getSubjectId, row.getSubjectId())
+                .eq(ObservedFact::getRelationType, row.getRelationType()));
+        return new TrackPair(curated, observed);
+    }
+
+    private void markPendingClose(ConflictCase open, CuratedFact curated, ObservedFact observed, Instant now) {
+        conflictCaseMapper.update(null, new LambdaUpdateWrapper<ConflictCase>()
+                .eq(ConflictCase::getId, open.getId())
+                .eq(ConflictCase::getStatus, ConflictStatus.OPEN)
+                .set(ConflictCase::getStatus, ConflictStatus.PENDING_CLOSE)
+                .set(ConflictCase::getCuratedTargetId, curated.getTargetId())
+                .set(ConflictCase::getObservedAvailability, observed.getAvailability())
+                .set(ConflictCase::getObservedTargetId, observed.getTargetId())
+                .set(ConflictCase::getPendingCloseAt, now)
+                .set(ConflictCase::getUpdatedAt, now));
+        conflictEventService.append(open.getId(), ConflictEventType.PENDING_CLOSE, null, Map.of(
+                "curatedTargetId", curated.getTargetId(),
+                "observedTargetId", observed.getTargetId() == null ? "" : observed.getTargetId()
+        ));
+    }
+
+    private void reopenFromPendingClose(ConflictCase pending, CuratedFact curated, ObservedFact observed, Instant now) {
+        List<LineageRecord> lineage = readLineage(pending.getObservedLineageJson());
+        LineageRecord next = lineageStep(observed, now);
+        if (lineage.isEmpty() || !sameStep(lineage.get(lineage.size() - 1), next)) {
+            lineage.add(next);
+        }
+        conflictCaseMapper.update(null, new LambdaUpdateWrapper<ConflictCase>()
+                .eq(ConflictCase::getId, pending.getId())
+                .eq(ConflictCase::getStatus, ConflictStatus.PENDING_CLOSE)
+                .set(ConflictCase::getStatus, ConflictStatus.OPEN)
+                .set(ConflictCase::getCuratedTargetId, curated.getTargetId())
+                .set(ConflictCase::getObservedAvailability, observed.getAvailability())
+                .set(ConflictCase::getObservedTargetId, observed.getTargetId())
+                .set(ConflictCase::getObservedLineageJson, writeLineage(lineage))
+                .set(ConflictCase::getPendingCloseAt, null)
+                .set(ConflictCase::getUpdatedAt, now));
+        conflictEventService.append(pending.getId(), ConflictEventType.UPGRADED, null, Map.of(
+                "reason", "drift_after_pending_close",
+                "observedTargetId", observed.getTargetId() == null ? "" : observed.getTargetId()
+        ));
+        conflictDiagnosisService.scheduleAsyncDiagnosis(pending.getId());
     }
 
     private void createOpen(
@@ -149,6 +268,10 @@ public class ConflictDetectionService {
         created.setHandlerUserId(null);
         created.setHandlerAcceptance(HandlerAcceptance.NONE);
         conflictCaseMapper.insert(created);
+        conflictEventService.append(created.getId(), ConflictEventType.WARNED, null, Map.of(
+                "curatedTargetId", curated.getTargetId(),
+                "observedTargetId", observed.getTargetId() == null ? "" : observed.getTargetId()
+        ));
         // Async diagnosis — never blocks the warning emission.
         conflictDiagnosisService.scheduleAsyncDiagnosis(created.getId());
     }
@@ -167,14 +290,17 @@ public class ConflictDetectionService {
                 .set(ConflictCase::getObservedTargetId, observed.getTargetId())
                 .set(ConflictCase::getObservedLineageJson, writeLineage(lineage))
                 .set(ConflictCase::getUpdatedAt, now));
+        conflictEventService.append(open.getId(), ConflictEventType.UPGRADED, null, Map.of(
+                "observedTargetId", observed.getTargetId() == null ? "" : observed.getTargetId()
+        ));
         conflictDiagnosisService.scheduleAsyncDiagnosis(open.getId());
     }
 
-    private ConflictCase findOpen(String subjectId, CuratedRelationType relationType) {
+    private ConflictCase findActive(String subjectId, CuratedRelationType relationType) {
         return conflictCaseMapper.selectOne(new LambdaQueryWrapper<ConflictCase>()
                 .eq(ConflictCase::getSubjectId, subjectId)
                 .eq(ConflictCase::getRelationType, relationType)
-                .eq(ConflictCase::getStatus, ConflictStatus.OPEN));
+                .in(ConflictCase::getStatus, ACTIVE));
     }
 
     private boolean isEqual(CuratedFact curated, ObservedFact observed) {
@@ -189,7 +315,7 @@ public class ConflictDetectionService {
                 && Objects.equals(open.getObservedTargetId(), observed.getTargetId());
     }
 
-    private ConflictCaseResponse toResponse(ConflictCase row) {
+    ConflictCaseResponse toResponse(ConflictCase row) {
         CuratedObject subject = curatedObjectMapper.selectById(row.getSubjectId());
         CuratedObject curatedHost = curatedObjectMapper.selectById(row.getCuratedTargetId());
         CuratedObject observedHost = row.getObservedTargetId() == null
@@ -223,9 +349,15 @@ public class ConflictDetectionService {
                 })
                 .toList();
 
+        ConflictCaseResponse.ConflictStatusView statusView = switch (row.getStatus()) {
+            case OPEN -> ConflictCaseResponse.ConflictStatusView.OPEN;
+            case PENDING_CLOSE -> ConflictCaseResponse.ConflictStatusView.PENDING_CLOSE;
+            case CLOSED -> ConflictCaseResponse.ConflictStatusView.CLOSED;
+        };
+
         return new ConflictCaseResponse(
                 row.getId(),
-                ConflictCaseResponse.ConflictStatusView.OPEN,
+                statusView,
                 new ConflictCaseResponse.MergeKey(
                         row.getSubjectId(),
                         row.getRelationType(),
@@ -237,6 +369,9 @@ public class ConflictDetectionService {
                 lineage,
                 row.getFirstWarnedAt(),
                 row.getUpdatedAt(),
+                row.getPendingCloseAt(),
+                row.getClosedAt(),
+                row.getStatus() == ConflictStatus.PENDING_CLOSE,
                 conflictDiagnosisService.statusLabelForConflict(row.getId()),
                 new ConflictCaseResponse.Collaboration(
                         Boolean.TRUE.equals(row.getAcknowledged()),
@@ -288,5 +423,8 @@ public class ConflictDetectionService {
             String hostId,
             Instant at
     ) {
+    }
+
+    public record TrackPair(CuratedFact curated, ObservedFact observed) {
     }
 }

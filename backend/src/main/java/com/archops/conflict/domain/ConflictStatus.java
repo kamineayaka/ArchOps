@@ -1,8 +1,11 @@
 package com.archops.conflict.domain;
 
 /**
- * Conflict case lifecycle. Ticket 04 only emits OPEN warnings (no diagnosis / close).
+ * Conflict case lifecycle (tickets 04 / 09).
+ * Equality alone never auto-closes — only PENDING_CLOSE + handler confirm → CLOSED.
  */
 public enum ConflictStatus {
-    OPEN
+    OPEN,
+    PENDING_CLOSE,
+    CLOSED
 }

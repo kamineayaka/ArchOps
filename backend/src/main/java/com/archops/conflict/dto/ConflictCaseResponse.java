@@ -18,6 +18,12 @@ public record ConflictCaseResponse(
         List<LineageStep> observedLineage,
         Instant firstWarnedAt,
         Instant updatedAt,
+        Instant pendingCloseAt,
+        Instant closedAt,
+        /**
+         * True when status is PENDING_CLOSE — reminder stays visible even if 已知悉.
+         */
+        boolean pendingCloseReminderVisible,
         /**
          * NOT_STARTED | PENDING | READY | FAILED — diagnosis is async and never blocks warning.
          */
@@ -25,7 +31,9 @@ public record ConflictCaseResponse(
         Collaboration collaboration
 ) {
     public enum ConflictStatusView {
-        OPEN
+        OPEN,
+        PENDING_CLOSE,
+        CLOSED
     }
 
     public record MergeKey(
