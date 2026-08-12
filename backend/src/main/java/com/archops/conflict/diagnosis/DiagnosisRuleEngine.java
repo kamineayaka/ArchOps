@@ -10,8 +10,28 @@ import java.util.List;
 public final class DiagnosisRuleEngine {
 
     public static final String FIX_ACTUAL_TO_CURATED = "FIX_ACTUAL_TO_CURATED";
+    public static final String RESTORE_HEARTBEAT_CHANNEL = "RESTORE_HEARTBEAT_CHANNEL";
 
     private DiagnosisRuleEngine() {
+    }
+
+    /**
+     * Pure 观测空洞: only restore observation channel / heartbeat / verification forks.
+     * Never guess a unique physical fix from expired actuals.
+     */
+    public static RuleResult diagnoseHollow(String curatedHostId, String curatedHostName) {
+        ConflictDiagnosisResponse.ForkSuggestion fork = new ConflictDiagnosisResponse.ForkSuggestion(
+                RESTORE_HEARTBEAT_CHANNEL,
+                "恢复观测通道/心跳/核验",
+                "RESTORE_CHANNEL",
+                "观测因心跳超时进入空洞，当前无可用实际",
+                "先恢复 Host Agent 心跳与状态快照；禁止用过期实际给出唯一落点或继续执行指向旧实际的计划。"
+        );
+        return new RuleResult(
+                "策展要求运行于 " + label(curatedHostId, curatedHostName)
+                        + "，但观测已因心跳超时进入空洞（无可用实际）。",
+                List.of(fork)
+        );
     }
 
     public static RuleResult diagnoseRunsOnMismatch(

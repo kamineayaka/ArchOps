@@ -30,6 +30,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -49,6 +50,7 @@ public class ObservedTruthService {
     private final CuratedObjectMapper curatedObjectMapper;
     private final CuratedFactMapper curatedFactMapper;
     private final ConflictDetectionService conflictDetectionService;
+    private final ObservationFreshnessService observationFreshnessService;
     private final ObjectMapper objectMapper;
 
     public ObservedTruthService(
@@ -59,6 +61,7 @@ public class ObservedTruthService {
             CuratedObjectMapper curatedObjectMapper,
             CuratedFactMapper curatedFactMapper,
             ConflictDetectionService conflictDetectionService,
+            @Lazy ObservationFreshnessService observationFreshnessService,
             ObjectMapper objectMapper
     ) {
         this.hostAgentMapper = hostAgentMapper;
@@ -68,6 +71,7 @@ public class ObservedTruthService {
         this.curatedObjectMapper = curatedObjectMapper;
         this.curatedFactMapper = curatedFactMapper;
         this.conflictDetectionService = conflictDetectionService;
+        this.observationFreshnessService = observationFreshnessService;
         this.objectMapper = objectMapper;
     }
 
@@ -137,7 +141,8 @@ public class ObservedTruthService {
                 .eq(ObservedFact::getRelationType, CuratedRelationType.RUNS_ON));
 
         ActualWhereResponse.ObservedValue observedValue;
-        if (observed == null) {
+        if (observed == null || observationFreshnessService.isObservedFactStale(observed)) {
+            // Never written, or heartbeat timed out → 观测空洞 (stale PRESENT is not 实际).
             observedValue = new ActualWhereResponse.ObservedValue("HOLLOW", null, null);
         } else if (observed.getAvailability() == ObservedAvailability.ABSENT) {
             observedValue = new ActualWhereResponse.ObservedValue("ABSENT", null, null);

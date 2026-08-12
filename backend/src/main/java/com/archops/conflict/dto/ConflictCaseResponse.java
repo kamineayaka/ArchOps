@@ -20,10 +20,16 @@ public record ConflictCaseResponse(
         Instant updatedAt,
         Instant pendingCloseAt,
         Instant closedAt,
+        Instant suspendedAt,
         /**
          * True when status is PENDING_CLOSE — reminder stays visible even if 已知悉.
          */
         boolean pendingCloseReminderVisible,
+        /**
+         * True when observation is 空洞 (e.g. SUSPENDED after heartbeat timeout) —
+         * observedValue must not be trusted as 实际.
+         */
+        boolean observationHollow,
         /**
          * NOT_STARTED | PENDING | READY | FAILED — diagnosis is async and never blocks warning.
          */
@@ -33,7 +39,8 @@ public record ConflictCaseResponse(
     public enum ConflictStatusView {
         OPEN,
         PENDING_CLOSE,
-        CLOSED
+        CLOSED,
+        SUSPENDED
     }
 
     public record MergeKey(
@@ -43,17 +50,24 @@ public record ConflictCaseResponse(
     ) {
     }
 
+    /**
+     * Track display. availability is PRESENT | ABSENT | HOLLOW (string for hollow without enum drift).
+     */
     public record TrackValue(
-            ObservedAvailability availability,
+            String availability,
             String hostId,
             String hostName
     ) {
         public static TrackValue present(String hostId, String hostName) {
-            return new TrackValue(ObservedAvailability.PRESENT, hostId, hostName);
+            return new TrackValue("PRESENT", hostId, hostName);
         }
 
         public static TrackValue absent() {
-            return new TrackValue(ObservedAvailability.ABSENT, null, null);
+            return new TrackValue("ABSENT", null, null);
+        }
+
+        public static TrackValue hollow() {
+            return new TrackValue("HOLLOW", null, null);
         }
     }
 
