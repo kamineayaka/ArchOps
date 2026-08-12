@@ -1,5 +1,6 @@
 package com.archops.conflict.dto;
 
+import com.archops.conflict.domain.HandlerAcceptance;
 import com.archops.curated.domain.CuratedRelationType;
 import com.archops.curated.dto.CuratedObjectResponse;
 import com.archops.observed.domain.ObservedAvailability;
@@ -18,10 +19,11 @@ public record ConflictCaseResponse(
         Instant firstWarnedAt,
         Instant updatedAt,
         /**
-         * Ticket 04: warnings are independent of diagnosis.
-         * Always NOT_STARTED here — diagnosis lands in later tickets.
+         * Warnings are independent of diagnosis.
+         * NOT_STARTED until ticket 06 lands.
          */
-        String diagnosisStatus
+        String diagnosisStatus,
+        Collaboration collaboration
 ) {
     public enum ConflictStatusView {
         OPEN
@@ -53,6 +55,18 @@ public record ConflictCaseResponse(
             String hostId,
             String hostName,
             Instant at
+    ) {
+    }
+
+    /**
+     * 已知悉 / 冲突归属 / 冲突处理人 collaboration snapshot.
+     */
+    public record Collaboration(
+            boolean acknowledged,
+            Instant acknowledgedAt,
+            String ownerUserId,
+            String handlerUserId,
+            HandlerAcceptance handlerAcceptance
     ) {
     }
 }

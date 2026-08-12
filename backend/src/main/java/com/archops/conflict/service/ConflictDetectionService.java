@@ -3,6 +3,7 @@ package com.archops.conflict.service;
 import com.archops.common.exception.BusinessException;
 import com.archops.conflict.domain.ConflictCase;
 import com.archops.conflict.domain.ConflictStatus;
+import com.archops.conflict.domain.HandlerAcceptance;
 import com.archops.conflict.dto.ConflictCaseResponse;
 import com.archops.conflict.mapper.ConflictCaseMapper;
 import com.archops.curated.domain.CuratedFact;
@@ -140,6 +141,11 @@ public class ConflictDetectionService {
         created.setObservedLineageJson(writeLineage(List.of(lineageStep(observed, now))));
         created.setFirstWarnedAt(now);
         created.setUpdatedAt(now);
+        created.setAcknowledged(false);
+        created.setAcknowledgedAt(null);
+        created.setOwnerUserId(null);
+        created.setHandlerUserId(null);
+        created.setHandlerAcceptance(HandlerAcceptance.NONE);
         conflictCaseMapper.insert(created);
     }
 
@@ -226,7 +232,16 @@ public class ConflictDetectionService {
                 lineage,
                 row.getFirstWarnedAt(),
                 row.getUpdatedAt(),
-                DIAGNOSIS_NOT_STARTED
+                DIAGNOSIS_NOT_STARTED,
+                new ConflictCaseResponse.Collaboration(
+                        Boolean.TRUE.equals(row.getAcknowledged()),
+                        row.getAcknowledgedAt(),
+                        row.getOwnerUserId(),
+                        row.getHandlerUserId(),
+                        row.getHandlerAcceptance() == null
+                                ? HandlerAcceptance.NONE
+                                : row.getHandlerAcceptance()
+                )
         );
     }
 
