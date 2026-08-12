@@ -32,14 +32,16 @@
 | 观测对齐 → 待确认关闭 → 处理人确认 | **已完成**（票 09） |
 | 心跳超时 → 空洞挂起并作废计划 | **已完成**（票 10） |
 | 最小演示 UI | **已完成**（票 12） |
+| HTTP 主接缝 E2E 验收（含负面） | **已完成**（票 13：`VerticalSliceHttpE2eAcceptanceTest`） |
 | 竖切 Spec | 已发布 → [`docs/specs/vertical-slice-mvp.md`](specs/vertical-slice-mvp.md) |
-| 竖切工单 | 已本地发布 → [`.scratch/vertical-slice-mvp/issues/`](../.scratch/vertical-slice-mvp/issues/)（`ready-for-agent`；tracker 未配置） |
+| 竖切工单 | 已本地发布 → [`.scratch/vertical-slice-mvp/issues/`](../.scratch/vertical-slice-mvp/issues/)（主链 01–10、12–13 done；`11` 仍为 Should） |
 
 ## 下一对话建议
 
 1. ~~竖切 Spec~~：已发布  
 2. ~~拆票 / to-tickets~~：已发布至 `.scratch/vertical-slice-mvp/issues/`（01–13）  
-3. **实现 frontier**：下一张主链票为 **[`13-http-e2e-acceptance.md`](../.scratch/vertical-slice-mvp/issues/13-http-e2e-acceptance.md)**（`10`+`12` 已解阻）。`11` 仍可在 `05` 后独立推进。勿跳过依赖。
+3. ~~主链 HTTP E2E（票 13）~~：已完成  
+4. **可选下一张**：[`11-assign-accept-reject-transfer.md`](../.scratch/vertical-slice-mvp/issues/11-assign-accept-reject-transfer.md)（指派/拒绝/转让 Should；`05` 后可独立推进）。主链竖切 Must 已闭合。
 
 ### 工单阻塞简图
 
@@ -48,11 +50,11 @@
                     ↘     ↑           ↘
                      06 ──┘            10
                      ↑                 ↓
-                     └── 13 ←──────────┘
-05 → 11（指派/拒绝/转让 Should，独立）
+                     └── 13（done）←───┘
+05 → 11（指派/拒绝/转让 Should，独立；可选）
 ```
 
-（编号为依赖序：`06` 诊断阻塞 `07` 选支；`12` UI 不阻塞 `13` HTTP 验收。）
+（编号为依赖序：`06` 诊断阻塞 `07` 选支；`12` UI 不阻塞 `13` HTTP 验收。主链 Must 至 13 已完成。）
 
 ## 本地启动摘要
 
