@@ -32,6 +32,7 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
+import static org.hamcrest.Matchers.startsWith;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -94,13 +95,17 @@ class VerticalSliceHttpE2eAcceptanceTest {
 
         MvcResult warn = mockMvc.perform(get("/api/conflicts/by-merge-key")
                         .param("subjectId", containerId)
+                        .param("relationType", "RUNS_ON")
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.id", startsWith("cnf-")))
                 .andExpect(jsonPath("$.data.status", is("OPEN")))
                 .andExpect(jsonPath("$.data.curatedValue.hostId", is(hostA)))
+                .andExpect(jsonPath("$.data.observedValue.availability", is("PRESENT")))
                 .andExpect(jsonPath("$.data.observedValue.hostId", is(hostB)))
-                .andExpect(jsonPath("$.data.diagnosisStatus", anyOf(is("PENDING"), is("READY"))))
+                .andExpect(jsonPath("$.data.mergeKey.relationLabel", is("运行于")))
+                .andExpect(jsonPath("$.data.diagnosisStatus", anyOf(is("PENDING"), is("READY"), is("NOT_STARTED"))))
                 .andReturn();
         String conflictId = objectMapper.readTree(warn.getResponse().getContentAsString())
                 .path("data").path("id").asText();
@@ -124,11 +129,21 @@ class VerticalSliceHttpE2eAcceptanceTest {
 
         ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, conflictId, GENERAL_ID);
         mockMvc.perform(get("/api/conflicts/{id}/diagnosis", conflictId)
-                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .header(TempAuthHeaders.USER_ID, SENIOR_ID)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status", is("READY")))
-                .andExpect(jsonPath("$.data.forks[0].id", is("FIX_ACTUAL_TO_CURATED")));
+                .andExpect(jsonPath("$.data.forks[0].id", is("FIX_ACTUAL_TO_CURATED")))
+                .andExpect(jsonPath("$.data.forks[0].kind", is("FIX_ACTUAL")));
+
+        // Non-handler cannot open plan via branch selection
+        mockMvc.perform(post("/api/conflicts/{id}/branch-selection", conflictId)
+                        .header(TempAuthHeaders.USER_ID, SENIOR_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"forkId\":\"FIX_ACTUAL_TO_CURATED\"}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("PLAN_REQUIRES_ACCEPTED_HANDLER")));
 
         // 选「修实际回 A」→ 人审前不可执行
         MvcResult created = mockMvc.perform(post("/api/conflicts/{id}/branch-selection", conflictId)
@@ -139,8 +154,10 @@ class VerticalSliceHttpE2eAcceptanceTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status", is("DRAFT_REVIEW")))
                 .andExpect(jsonPath("$.data.branchKind", is("FIX_ACTUAL")))
+                .andExpect(jsonPath("$.data.selectedForkId", is("FIX_ACTUAL_TO_CURATED")))
                 .andExpect(jsonPath("$.data.skipsDraft", is(true)))
                 .andExpect(jsonPath("$.data.executionIntent", is(false)))
+                .andExpect(jsonPath("$.data.steps", hasSize(3)))
                 .andReturn();
         String planId = objectMapper.readTree(created.getResponse().getContentAsString())
                 .path("data").path("id").asText();

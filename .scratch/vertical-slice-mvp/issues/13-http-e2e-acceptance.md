@@ -15,4 +15,5 @@
 
 ## Implementation notes
 
-- `backend/src/test/java/com/archops/slice/VerticalSliceHttpE2eAcceptanceTest.java` — ordered tracer + three negatives; SSH via `RecordingFakeSshPort`.
+- Canonical suite: `backend/src/test/java/com/archops/slice/VerticalSliceHttpE2eAcceptanceTest.java` (ordered tracer + three negatives; SSH via `RecordingFakeSshPort`).
+- PR #46 / #48 conflict resolution keeps a single suite under `com.archops.slice` (no duplicate `com.archops.e2e` class).
