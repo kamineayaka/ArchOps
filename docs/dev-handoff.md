@@ -33,15 +33,17 @@
 | 心跳超时 → 空洞挂起并作废计划 | **已完成**（票 10） |
 | 最小演示 UI | **已完成**（票 12） |
 | HTTP 主接缝 E2E 验收（含负面） | **已完成**（票 13：`VerticalSliceHttpE2eAcceptanceTest`） |
+| 指派 / 接受 / 拒绝 / 转让处理人 | **已完成**（票 11 Should：`ConflictAssignTransferHttpAcceptanceTest`） |
 | 竖切 Spec | 已发布 → [`docs/specs/vertical-slice-mvp.md`](specs/vertical-slice-mvp.md) |
-| 竖切工单 | 已本地发布 → [`.scratch/vertical-slice-mvp/issues/`](../.scratch/vertical-slice-mvp/issues/)（主链 01–10、12–13 done；`11` 仍为 Should） |
+| 竖切工单 | 已本地发布 → [`.scratch/vertical-slice-mvp/issues/`](../.scratch/vertical-slice-mvp/issues/)（01–13 均 done；Flyway 至 V12） |
 
 ## 下一对话建议
 
 1. ~~竖切 Spec~~：已发布  
 2. ~~拆票 / to-tickets~~：已发布至 `.scratch/vertical-slice-mvp/issues/`（01–13）  
 3. ~~主链 HTTP E2E（票 13）~~：已完成  
-4. **可选下一张**：[`11-assign-accept-reject-transfer.md`](../.scratch/vertical-slice-mvp/issues/11-assign-accept-reject-transfer.md)（指派/拒绝/转让 Should；`05` 后可独立推进）。主链竖切 Must 已闭合。
+4. ~~指派/拒绝/转让（票 11 Should）~~：已完成  
+5. **竖切工单包已闭合**。后续仅在新 Spec/ADR 或用户明示票后再开 frontier；勿无代码偷改领域合同。
 
 ### 工单阻塞简图
 
@@ -51,10 +53,10 @@
                      06 ──┘            10
                      ↑                 ↓
                      └── 13（done）←───┘
-05 → 11（指派/拒绝/转让 Should，独立；可选）
+05 → 11（指派/拒绝/转让 Should，done）
 ```
 
-（编号为依赖序：`06` 诊断阻塞 `07` 选支；`12` UI 不阻塞 `13` HTTP 验收。主链 Must 至 13 已完成。）
+（编号为依赖序。主链 Must + Should 协作票均已完成。）
 
 ## 本地启动摘要
 

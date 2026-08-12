@@ -11,7 +11,9 @@ import com.archops.conflict.mapper.ConflictCaseMapper;
 import com.archops.curated.domain.CuratedFact;
 import com.archops.observed.domain.ObservedFact;
 import com.archops.user.domain.PlatformRole;
+import com.archops.user.domain.PlatformUser;
 import com.archops.user.security.AuthUserPrincipal;
+import com.archops.user.service.UserLookupService;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -24,8 +26,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Conflict collaboration: claim / ack / confirm-close (tickets 05 / 09).
- * Assign / reject / transfer are ticket 11.
+ * Conflict collaboration: claim / ack / assign / accept / reject / transfer / confirm-close.
  */
 @Service
 public class ConflictCollaborationService {
@@ -33,17 +34,20 @@ public class ConflictCollaborationService {
     private final ConflictCaseMapper conflictCaseMapper;
     private final ConflictDetectionService conflictDetectionService;
     private final ConflictEventService conflictEventService;
+    private final UserLookupService userLookupService;
     private final TransactionTemplate requiresNewTx;
 
     public ConflictCollaborationService(
             ConflictCaseMapper conflictCaseMapper,
             ConflictDetectionService conflictDetectionService,
             ConflictEventService conflictEventService,
+            UserLookupService userLookupService,
             PlatformTransactionManager transactionManager
     ) {
         this.conflictCaseMapper = conflictCaseMapper;
         this.conflictDetectionService = conflictDetectionService;
         this.conflictEventService = conflictEventService;
+        this.userLookupService = userLookupService;
         this.requiresNewTx = new TransactionTemplate(transactionManager);
         this.requiresNewTx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
@@ -151,8 +155,130 @@ public class ConflictCollaborationService {
     }
 
     /**
+     * 归属方（高级角色）指派一般角色为待接受冲突处理人。
+     * 已有处理人（待接受/已接受）时不可强行改派。
+     */
+    @Transactional
+    public ConflictCaseResponse assignHandler(String conflictId, String assigneeUserId, AuthUserPrincipal actor) {
+        requireRole(actor, PlatformRole.SENIOR, "CONFLICT_ASSIGN_ROLE_DENIED",
+                "Only 高级角色 may assign a conflict handler");
+        ConflictCase row = requireOpen(conflictId);
+        if (!Boolean.TRUE.equals(row.getAcknowledged()) || row.getOwnerUserId() == null) {
+            throw new BusinessException("CONFLICT_NOT_ACKNOWLEDGED",
+                    "Conflict must be 已知悉 with 冲突归属 before assign");
+        }
+        if (!actor.getUserId().equals(row.getOwnerUserId())) {
+            throw new BusinessException("CONFLICT_NOT_OWNER",
+                    "Only the 冲突归属方 may assign a handler");
+        }
+        if (row.getHandlerAcceptance() != HandlerAcceptance.NONE || row.getHandlerUserId() != null) {
+            throw new BusinessException("CONFLICT_HANDLER_EXISTS",
+                    "Cannot reassign while a handler is pending or accepted; handler must reject/transfer or finish");
+        }
+        PlatformUser assignee = requireGeneralUser(assigneeUserId, "CONFLICT_ASSIGNEE_INVALID");
+        if (assignee.getId().equals(actor.getUserId())) {
+            throw new BusinessException("CONFLICT_ASSIGNEE_INVALID",
+                    "Use self-appoint instead of assigning yourself");
+        }
+
+        Instant now = Instant.now();
+        conflictCaseMapper.update(null, new LambdaUpdateWrapper<ConflictCase>()
+                .eq(ConflictCase::getId, row.getId())
+                .set(ConflictCase::getHandlerUserId, assignee.getId())
+                .set(ConflictCase::getHandlerAcceptance, HandlerAcceptance.PENDING_ACCEPT)
+                .set(ConflictCase::getUpdatedAt, now));
+        conflictEventService.append(conflictId, ConflictEventType.HANDLER_ASSIGNED, actor.getUserId(), Map.of(
+                "assigneeUserId", assignee.getId(),
+                "ownerUserId", row.getOwnerUserId()
+        ));
+        return conflictDetectionService.getById(conflictId);
+    }
+
+    /**
+     * 待接受处理人接受指派/转让 → 已接受处理人.
+     */
+    @Transactional
+    public ConflictCaseResponse acceptHandler(String conflictId, AuthUserPrincipal actor) {
+        ConflictCase row = requireOpen(conflictId);
+        requirePendingHandler(row, actor);
+        Instant now = Instant.now();
+        conflictCaseMapper.update(null, new LambdaUpdateWrapper<ConflictCase>()
+                .eq(ConflictCase::getId, row.getId())
+                .set(ConflictCase::getHandlerAcceptance, HandlerAcceptance.ACCEPTED)
+                .set(ConflictCase::getUpdatedAt, now));
+        conflictEventService.append(conflictId, ConflictEventType.HANDLER_ACCEPTED, actor.getUserId(), Map.of(
+                "via", "accept_assignment"
+        ));
+        return conflictDetectionService.getById(conflictId);
+    }
+
+    /**
+     * 待接受处理人拒绝（须理由）→ 无处理人、归属不变、仍已知悉.
+     */
+    @Transactional
+    public ConflictCaseResponse rejectHandler(String conflictId, String reason, AuthUserPrincipal actor) {
+        ConflictCase row = requireOpen(conflictId);
+        requirePendingHandler(row, actor);
+        String trimmed = reason == null ? "" : reason.trim();
+        if (trimmed.isEmpty()) {
+            throw new BusinessException("HANDLER_REJECT_REASON_REQUIRED",
+                    "拒绝指派必须说明理由");
+        }
+        String ownerUserId = row.getOwnerUserId();
+        Instant now = Instant.now();
+        conflictCaseMapper.update(null, new LambdaUpdateWrapper<ConflictCase>()
+                .eq(ConflictCase::getId, row.getId())
+                .set(ConflictCase::getHandlerUserId, null)
+                .set(ConflictCase::getHandlerAcceptance, HandlerAcceptance.NONE)
+                .set(ConflictCase::getUpdatedAt, now));
+        Map<String, Object> detail = new LinkedHashMap<>();
+        detail.put("reason", trimmed);
+        detail.put("ownerUserId", ownerUserId);
+        conflictEventService.append(conflictId, ConflictEventType.HANDLER_REJECTED, actor.getUserId(), detail);
+        return conflictDetectionService.getById(conflictId);
+    }
+
+    /**
+     * 当前处理人（待接受或已接受）转让给另一一般角色；归属不变；拟接手人进入待接受.
+     */
+    @Transactional
+    public ConflictCaseResponse transferHandler(String conflictId, String toUserId, AuthUserPrincipal actor) {
+        ConflictCase row = requireOpen(conflictId);
+        if (row.getHandlerUserId() == null
+                || (row.getHandlerAcceptance() != HandlerAcceptance.PENDING_ACCEPT
+                && row.getHandlerAcceptance() != HandlerAcceptance.ACCEPTED)) {
+            throw new BusinessException("CONFLICT_NOT_HANDLER",
+                    "Only the current 冲突处理人 may transfer the handler role");
+        }
+        if (!actor.getUserId().equals(row.getHandlerUserId())) {
+            throw new BusinessException("CONFLICT_NOT_HANDLER",
+                    "Only the current 冲突处理人 may transfer the handler role");
+        }
+        PlatformUser recipient = requireGeneralUser(toUserId, "CONFLICT_TRANSFER_TARGET_INVALID");
+        if (recipient.getId().equals(actor.getUserId())) {
+            throw new BusinessException("CONFLICT_TRANSFER_TARGET_INVALID",
+                    "Cannot transfer handler role to yourself");
+        }
+        String previousHandlerId = row.getHandlerUserId();
+        String previousAcceptance = row.getHandlerAcceptance().name();
+        Instant now = Instant.now();
+        conflictCaseMapper.update(null, new LambdaUpdateWrapper<ConflictCase>()
+                .eq(ConflictCase::getId, row.getId())
+                .set(ConflictCase::getHandlerUserId, recipient.getId())
+                .set(ConflictCase::getHandlerAcceptance, HandlerAcceptance.PENDING_ACCEPT)
+                .set(ConflictCase::getUpdatedAt, now));
+        Map<String, Object> detail = new LinkedHashMap<>();
+        detail.put("fromUserId", previousHandlerId);
+        detail.put("toUserId", recipient.getId());
+        detail.put("fromAcceptance", previousAcceptance);
+        detail.put("ownerUserId", row.getOwnerUserId());
+        conflictEventService.append(conflictId, ConflictEventType.HANDLER_TRANSFER_OFFERED, actor.getUserId(), detail);
+        return conflictDetectionService.getById(conflictId);
+    }
+
+    /**
      * Gate for opening an operation plan (full plan machine is ticket 07).
-     * Only the 已接受冲突处理人 may pass.
+     * Only the 已接受冲突处理人 may pass. 待接受 cannot open plans.
      */
     @Transactional(readOnly = true)
     public OpenOperationPlanResponse openOperationPlan(String conflictId, AuthUserPrincipal actor) {
@@ -251,6 +377,28 @@ public class ConflictCollaborationService {
             throw new BusinessException("CONFLICT_NOT_OPEN", "Conflict is not open: " + conflictId);
         }
         return row;
+    }
+
+    private static void requirePendingHandler(ConflictCase row, AuthUserPrincipal actor) {
+        if (row.getHandlerAcceptance() != HandlerAcceptance.PENDING_ACCEPT
+                || row.getHandlerUserId() == null) {
+            throw new BusinessException("CONFLICT_NOT_PENDING_HANDLER",
+                    "No 待接受冲突处理人 on this conflict");
+        }
+        if (!actor.getUserId().equals(row.getHandlerUserId())) {
+            throw new BusinessException("CONFLICT_NOT_PENDING_HANDLER",
+                    "Only the 待接受冲突处理人 may accept or reject this assignment");
+        }
+    }
+
+    private PlatformUser requireGeneralUser(String userId, String invalidCode) {
+        PlatformUser user = userLookupService.findById(userId)
+                .orElseThrow(() -> new BusinessException(invalidCode, "User not found: " + userId));
+        if (user.getRole() != PlatformRole.GENERAL) {
+            throw new BusinessException(invalidCode,
+                    "Conflict handler must be a 一般角色 user");
+        }
+        return user;
     }
 
     private static void requireRole(AuthUserPrincipal actor, PlatformRole expected, String code, String message) {
