@@ -4,11 +4,15 @@
 
 **Blocked by:** 06 — 异步诊断（规则必达）+ 可选 LLM 出站 + 敏感读拒绝；09 — 观测对齐 → 待确认关闭 → 处理人确认；10 — 心跳超时 → 观测空洞挂起并作废活跃计划
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] 一条有序 happy-path HTTP 验收可在 CI 中稳定跑通（SSH 用 fake）
-- [ ] 负面：心跳超时 / 空洞 → 冲突挂起 + 活跃计划作废
-- [ ] 负面：敏感业务读 → 拒绝
-- [ ] 负面：未打标快照 → 不承诺升级链 / 身份失联或未绑定路径可断言
-- [ ] 断言落在 HTTP 响应与后续 HTTP 可读状态；不测 MyBatis/Redis 内部键形
-- [ ] 不把前端自动化当作本竖切完成门槛
+- [x] 一条有序 happy-path HTTP 验收可在 CI 中稳定跑通（SSH 用 fake）
+- [x] 负面：心跳超时 / 空洞 → 冲突挂起 + 活跃计划作废
+- [x] 负面：敏感业务读 → 拒绝
+- [x] 负面：未打标快照 → 不承诺升级链 / 身份失联或未绑定路径可断言
+- [x] 断言落在 HTTP 响应与后续 HTTP 可读状态；不测 MyBatis/Redis 内部键形
+- [x] 不把前端自动化当作本竖切完成门槛
+
+## Implementation notes
+
+- `backend/src/test/java/com/archops/slice/VerticalSliceHttpE2eAcceptanceTest.java` — ordered tracer + three negatives; SSH via `RecordingFakeSshPort`.
