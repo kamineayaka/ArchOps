@@ -2,7 +2,7 @@ package com.archops.conflict.domain;
 
 /**
  * Handler acceptance on a conflict.
- * PENDING_ACCEPT is reserved for assign flow (ticket 11); ticket 05 uses NONE / ACCEPTED.
+ * NONE = no handler; PENDING_ACCEPT = assigned/transferred awaiting consent; ACCEPTED = may open plans.
  */
 public enum HandlerAcceptance {
     NONE,
