@@ -17,15 +17,16 @@
 
 | 项 | 状态 |
 |---|---|
-| Gradle + Spring Boot + MyBatis-Plus + Flyway | 有；至 V5（conflict_case） |
+| Gradle + Spring Boot + MyBatis-Plus + Flyway | 有；至 V6（conflict collaboration） |
 | React + Ant Design 薄页 | 有；展示 health |
 | Python agent 心跳+快照 stub + systemd 说明 | 有（契约见 `docs/contracts/agent-heartbeat-snapshot.md`） |
 | Compose + `archops:latest` 多阶段镜像 | 有 |
-| 计划 / SSH / AI 诊断 | **未做**（按工单实现） |
+| 计划生成/人审 / SSH / AI 诊断 | **未做**（按工单实现） |
 | 临时身份头 + 高级/一般角色门禁 | **已完成**（票 01） |
 | 策展主机 / 容器 / `运行于` / 「应该在哪」 | **已完成**（票 02） |
 | Agent 心跳+快照 → 观测 / 「实际在哪」 | **已完成**（票 03） |
 | 冲突警告与合并键升级 | **已完成**（票 04） |
+| 已知悉 + 认领/自任 → 已接受处理人 | **已完成**（票 05） |
 | 竖切 Spec | 已发布 → [`docs/specs/vertical-slice-mvp.md`](specs/vertical-slice-mvp.md) |
 | 竖切工单 | 已本地发布 → [`.scratch/vertical-slice-mvp/issues/`](../.scratch/vertical-slice-mvp/issues/)（`ready-for-agent`；tracker 未配置） |
 
@@ -33,7 +34,7 @@
 
 1. ~~竖切 Spec~~：已发布  
 2. ~~拆票 / to-tickets~~：已发布至 `.scratch/vertical-slice-mvp/issues/`（01–13）  
-3. **实现 frontier**：下一张无 blocker 的票为 **[`05-ack-claim-self-appoint-handler.md`](../.scratch/vertical-slice-mvp/issues/05-ack-claim-self-appoint-handler.md)**（`01`–`04` 已完成）；并行可启动但勿跳过依赖的还有 `06`（诊断，阻塞 `07`）。完成后再取 blockers 均已完成的下一张。
+3. **实现 frontier**：下一张无 blocker 的票为 **[`06-async-diagnosis-egress-sensitive-deny.md`](../.scratch/vertical-slice-mvp/issues/06-async-diagnosis-egress-sensitive-deny.md)**（`01`–`05` 已完成；`06` 阻塞 `07`）。`11`（指派/拒绝/转让）可在 `05` 后独立推进。勿跳过依赖。
 
 ### 工单阻塞简图
 
