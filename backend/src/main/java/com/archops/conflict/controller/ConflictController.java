@@ -3,20 +3,25 @@ package com.archops.conflict.controller;
 import com.archops.common.api.ApiResponse;
 import com.archops.common.exception.BusinessException;
 import com.archops.conflict.diagnosis.ConflictDiagnosisService;
+import com.archops.conflict.dto.AssignHandlerRequest;
 import com.archops.conflict.dto.ConflictCaseResponse;
 import com.archops.conflict.dto.ConflictDiagnosisResponse;
 import com.archops.conflict.dto.ConflictEventResponse;
 import com.archops.conflict.dto.OpenOperationPlanResponse;
+import com.archops.conflict.dto.RejectHandlerRequest;
+import com.archops.conflict.dto.TransferHandlerRequest;
 import com.archops.conflict.service.ConflictCollaborationService;
 import com.archops.conflict.service.ConflictDetectionService;
 import com.archops.conflict.service.ConflictEventService;
 import com.archops.curated.domain.CuratedRelationType;
 import com.archops.user.security.AuthUserPrincipal;
+import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -108,6 +113,45 @@ public class ConflictController {
             @AuthenticationPrincipal AuthUserPrincipal principal
     ) {
         return ApiResponse.ok(conflictCollaborationService.acknowledgeAndSelfAppoint(id, principal));
+    }
+
+    /** 归属方（高级角色）指派一般角色为待接受处理人. */
+    @PostMapping("/{id}/assign-handler")
+    public ApiResponse<ConflictCaseResponse> assignHandler(
+            @PathVariable String id,
+            @Valid @RequestBody AssignHandlerRequest request,
+            @AuthenticationPrincipal AuthUserPrincipal principal
+    ) {
+        return ApiResponse.ok(conflictCollaborationService.assignHandler(id, request.assigneeUserId(), principal));
+    }
+
+    /** 待接受处理人接受指派/转让. */
+    @PostMapping("/{id}/accept-handler")
+    public ApiResponse<ConflictCaseResponse> acceptHandler(
+            @PathVariable String id,
+            @AuthenticationPrincipal AuthUserPrincipal principal
+    ) {
+        return ApiResponse.ok(conflictCollaborationService.acceptHandler(id, principal));
+    }
+
+    /** 待接受处理人拒绝（须理由）. */
+    @PostMapping("/{id}/reject-handler")
+    public ApiResponse<ConflictCaseResponse> rejectHandler(
+            @PathVariable String id,
+            @Valid @RequestBody RejectHandlerRequest request,
+            @AuthenticationPrincipal AuthUserPrincipal principal
+    ) {
+        return ApiResponse.ok(conflictCollaborationService.rejectHandler(id, request.reason(), principal));
+    }
+
+    /** 当前处理人转让给另一一般角色（拟接手人待接受；归属不变）. */
+    @PostMapping("/{id}/transfer-handler")
+    public ApiResponse<ConflictCaseResponse> transferHandler(
+            @PathVariable String id,
+            @Valid @RequestBody TransferHandlerRequest request,
+            @AuthenticationPrincipal AuthUserPrincipal principal
+    ) {
+        return ApiResponse.ok(conflictCollaborationService.transferHandler(id, request.toUserId(), principal));
     }
 
     /**

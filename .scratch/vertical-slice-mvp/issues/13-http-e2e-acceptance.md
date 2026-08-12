@@ -12,3 +12,8 @@
 - [x] 负面：未打标快照 → 不承诺升级链 / 身份失联或未绑定路径可断言
 - [x] 断言落在 HTTP 响应与后续 HTTP 可读状态；不测 MyBatis/Redis 内部键形
 - [x] 不把前端自动化当作本竖切完成门槛
+
+## Implementation notes
+
+- Canonical suite: `backend/src/test/java/com/archops/slice/VerticalSliceHttpE2eAcceptanceTest.java` (ordered tracer + three negatives; SSH via `RecordingFakeSshPort`).
+- PR #46 / #48 conflict resolution keeps a single suite under `com.archops.slice` (no duplicate `com.archops.e2e` class).

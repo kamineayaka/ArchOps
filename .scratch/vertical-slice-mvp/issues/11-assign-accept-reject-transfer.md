@@ -4,10 +4,16 @@
 
 **Blocked by:** 05 — 已知悉 + 认领/自任 → 已接受冲突处理人（Must）
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] 高级角色可指派一般角色为待接受冲突处理人
-- [ ] 待接受处理人不能开启操作计划
-- [ ] 被指派者可接受，成为已接受处理人后可开计划
-- [ ] 被指派者可拒绝且须理由；拒绝后无处理人、归属不变、仍已知悉
-- [ ] 转让只改处理人、不改归属，并遵守同意规则（按合同）
+- [x] 高级角色可指派一般角色为待接受冲突处理人
+- [x] 待接受处理人不能开启操作计划
+- [x] 被指派者可接受，成为已接受处理人后可开计划
+- [x] 被指派者可拒绝且须理由；拒绝后无处理人、归属不变、仍已知悉
+- [x] 转让只改处理人、不改归属，并遵守同意规则（按合同）
+
+## Implementation notes
+
+- APIs: `POST /api/conflicts/{id}/assign-handler|accept-handler|reject-handler|transfer-handler`
+- Flyway `V12__handler_assign_transfer_events.sql` (event types + `user-general-2-demo`)
+- HTTP acceptance: `ConflictAssignTransferHttpAcceptanceTest`
