@@ -7,12 +7,12 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 
-final class ConflictDiagnosisWait {
+public final class ConflictDiagnosisWait {
 
     private ConflictDiagnosisWait() {
     }
 
-    static void waitUntilReady(MockMvc mockMvc, ObjectMapper objectMapper, String conflictId, String userId)
+    public static void waitUntilReady(MockMvc mockMvc, ObjectMapper objectMapper, String conflictId, String userId)
             throws Exception {
         long deadline = System.currentTimeMillis() + 10_000;
         while (System.currentTimeMillis() < deadline) {
