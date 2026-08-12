@@ -1,7 +1,10 @@
 package com.archops.conflict.controller;
 
 import com.archops.common.api.ApiResponse;
+import com.archops.common.exception.BusinessException;
+import com.archops.conflict.diagnosis.ConflictDiagnosisService;
 import com.archops.conflict.dto.ConflictCaseResponse;
+import com.archops.conflict.dto.ConflictDiagnosisResponse;
 import com.archops.conflict.dto.OpenOperationPlanResponse;
 import com.archops.conflict.service.ConflictCollaborationService;
 import com.archops.conflict.service.ConflictDetectionService;
@@ -19,7 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 /**
- * Conflict warn / collaboration HTTP surface.
+ * Conflict warn / collaboration / diagnosis HTTP surface.
  */
 @RestController
 @RequestMapping("/api/conflicts")
@@ -28,13 +31,16 @@ public class ConflictController {
 
     private final ConflictDetectionService conflictDetectionService;
     private final ConflictCollaborationService conflictCollaborationService;
+    private final ConflictDiagnosisService conflictDiagnosisService;
 
     public ConflictController(
             ConflictDetectionService conflictDetectionService,
-            ConflictCollaborationService conflictCollaborationService
+            ConflictCollaborationService conflictCollaborationService,
+            ConflictDiagnosisService conflictDiagnosisService
     ) {
         this.conflictDetectionService = conflictDetectionService;
         this.conflictCollaborationService = conflictCollaborationService;
+        this.conflictDiagnosisService = conflictDiagnosisService;
     }
 
     @GetMapping
@@ -45,6 +51,16 @@ public class ConflictController {
     @GetMapping("/{id}")
     public ApiResponse<ConflictCaseResponse> get(@PathVariable String id) {
         return ApiResponse.ok(conflictDetectionService.getById(id));
+    }
+
+    @GetMapping("/{id}/diagnosis")
+    public ApiResponse<ConflictDiagnosisResponse> diagnosis(@PathVariable String id) {
+        conflictDetectionService.getById(id);
+        ConflictDiagnosisResponse latest = conflictDiagnosisService.latestForConflict(id);
+        if (latest == null) {
+            throw new BusinessException("DIAGNOSIS_NOT_FOUND", "No diagnosis for conflict: " + id);
+        }
+        return ApiResponse.ok(latest);
     }
 
     @GetMapping("/by-merge-key")
