@@ -4,10 +4,10 @@
 
 **Blocked by:** 01 — 临时身份头与高级/一般角色门禁
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] 可创建两台物理主机与一台 Docker 容器，容器带 `archops.object_id` 约定
-- [ ] 可写入并读回策展事实：容器 X `运行于` 主机 A
-- [ ] 「应该在哪」类读取返回策展值（规范问法纪律）
-- [ ] 策展写入经认证；持久化在 PostgreSQL；仅用 additive Flyway
-- [ ] 不实现 AI 起草草案全流程；不引入图库
+- [x] 可创建两台物理主机与一台 Docker 容器，容器带 `archops.object_id` 约定
+- [x] 可写入并读回策展事实：容器 X `运行于` 主机 A
+- [x] 「应该在哪」类读取返回策展值（规范问法纪律）
+- [x] 策展写入经认证；持久化在 PostgreSQL；仅用 additive Flyway
+- [x] 不实现 AI 起草草案全流程；不引入图库
