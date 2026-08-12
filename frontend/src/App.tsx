@@ -1,75 +1,56 @@
-import { useEffect, useState } from 'react';
-import { Alert, Layout, Spin, Typography } from 'antd';
+import { Layout, Select, Space, Typography } from 'antd';
+import { Link, Navigate, Route, Routes } from 'react-router-dom';
+import { DEMO_USERS, useDemoUser } from './auth/DemoUserContext';
+import ConflictDetailPage from './pages/ConflictDetailPage';
+import ConflictListPage from './pages/ConflictListPage';
 
 const { Header, Content } = Layout;
-const { Title, Paragraph, Text } = Typography;
-
-type HealthPayload = {
-  success: boolean;
-  code: string;
-  message: string;
-  data?: { status?: string };
-};
+const { Title, Text } = Typography;
 
 export default function App() {
-  const [loading, setLoading] = useState(true);
-  const [health, setHealth] = useState<HealthPayload | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch('/api/health');
-        if (!res.ok) {
-          throw new Error(`HTTP ${res.status}`);
-        }
-        const body = (await res.json()) as HealthPayload;
-        if (!cancelled) {
-          setHealth(body);
-          setError(null);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : String(err));
-          setHealth(null);
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const { userId, user, loading, setUserId } = useDemoUser();
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
-      <Header style={{ display: 'flex', alignItems: 'center' }}>
-        <Title level={3} style={{ color: '#fff', margin: 0 }}>
-          ArchOps
-        </Title>
-      </Header>
-      <Content style={{ padding: 24, maxWidth: 720, margin: '0 auto', width: '100%' }}>
-        <Paragraph type="secondary">Scaffold health check (ADR-0043). Vertical-slice APIs come later.</Paragraph>
-        {loading && <Spin tip="Calling /api/health…" />}
-        {!loading && error && (
-          <Alert type="error" showIcon message="Health check failed" description={error} />
-        )}
-        {!loading && health && (
-          <Alert
-            type={health.success && health.data?.status === 'UP' ? 'success' : 'warning'}
-            showIcon
-            message="API health"
-            description={
-              <Text code>
-                {JSON.stringify(health)}
-              </Text>
-            }
+    <Layout style={{ minHeight: '100vh', background: '#f0f2f5' }}>
+      <Header
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 16,
+          background: '#1f2a24',
+          paddingInline: 24,
+        }}
+      >
+        <Space size="middle">
+          <Link to="/" style={{ textDecoration: 'none' }}>
+            <Title level={3} style={{ color: '#e8f0ea', margin: 0, letterSpacing: '0.04em' }}>
+              ArchOps
+            </Title>
+          </Link>
+          <Text style={{ color: '#9bb59f' }}>关系真相 · 竖切演示</Text>
+        </Space>
+        <Space>
+          <Text style={{ color: '#c5d6c8' }}>演示身份</Text>
+          <Select
+            value={userId}
+            onChange={setUserId}
+            style={{ width: 220 }}
+            options={DEMO_USERS.map((u) => ({ value: u.id, label: u.label }))}
           />
-        )}
+          {!loading && user && (
+            <Text style={{ color: '#9bb59f' }}>
+              {user.displayName} · {user.roleLabel}
+            </Text>
+          )}
+        </Space>
+      </Header>
+      <Content style={{ padding: 24, maxWidth: 960, margin: '0 auto', width: '100%' }}>
+        <Routes>
+          <Route path="/" element={<ConflictListPage />} />
+          <Route path="/conflicts/:id" element={<ConflictDetailPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
       </Content>
     </Layout>
   );

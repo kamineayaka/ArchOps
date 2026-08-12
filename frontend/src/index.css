@@ -1,5 +1,9 @@
 body {
   margin: 0;
-  font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-  background: #f5f5f5;
+  font-family: 'IBM Plex Sans', 'Source Sans 3', 'Noto Sans SC', 'Segoe UI', 'PingFang SC', sans-serif;
+  background:
+    radial-gradient(ellipse 80% 50% at 10% -10%, rgba(47, 107, 79, 0.12), transparent),
+    radial-gradient(ellipse 60% 40% at 100% 0%, rgba(31, 42, 36, 0.08), transparent),
+    #f0f2f5;
+  color: #1a1f1c;
 }
