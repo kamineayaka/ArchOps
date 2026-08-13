@@ -1,9 +1,13 @@
 # syntax=docker/dockerfile:1
 
+# Default Hub prefix is DaoCloud (China). Override for official Hub:
+#   docker build --build-arg DOCKER_HUB_MIRROR=docker.io/library ...
+ARG DOCKER_HUB_MIRROR=docker.m.daocloud.io/library
+
 # Stage 1: frontend static assets (React + Vite)
-FROM node:22-alpine AS frontend-build
+FROM ${DOCKER_HUB_MIRROR}/node:22-alpine AS frontend-build
 WORKDIR /frontend
-COPY frontend/package.json frontend/package-lock.json* ./
+COPY frontend/package.json frontend/package-lock.json* frontend/.npmrc* ./
 RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi \
  || (echo "===== npm debug log =====" \
      && ls -la /root/.npm/_logs/ \
@@ -13,35 +17,26 @@ COPY frontend/ ./
 RUN npm run build
 
 # Stage 2: Spring Boot bootJar (embeds frontend into classpath:/static)
-FROM eclipse-temurin:21-jdk-jammy AS backend-build
+FROM ${DOCKER_HUB_MIRROR}/eclipse-temurin:21-jdk-jammy AS backend-build
 WORKDIR /backend
 COPY backend/ ./
 COPY --from=frontend-build /frontend/dist/ ./src/main/resources/static/
 
-# Default: official services.gradle.org + Maven Central (CI / Cloud Agent).
-# China Linux VMs that cannot reach those hosts: --build-arg ARCHOPS_CN_MIRRORS=1
-# (see deploy/scripts/build-images.sh). Wrapper read timeout lives in
-# gradle-wrapper.properties (120s); do not lower it back to 10s.
-ARG ARCHOPS_CN_MIRRORS=0
+# Wrapper + Maven repos default to Tencent / Aliyun in the copied tree.
+# Optional: GRADLE_DISTRIBUTION_URL to pin a different Gradle zip.
+# Wrapper read timeout lives in gradle-wrapper.properties (120s).
 ARG GRADLE_DISTRIBUTION_URL=
 RUN set -eux; \
     if [ -n "${GRADLE_DISTRIBUTION_URL}" ]; then \
       escaped="$(printf '%s' "${GRADLE_DISTRIBUTION_URL}" | sed 's/:/\\:/g')"; \
       sed -i "s|^distributionUrl=.*|distributionUrl=${escaped}|" gradle/wrapper/gradle-wrapper.properties; \
       sed -i 's/^validateDistributionUrl=.*/validateDistributionUrl=false/' gradle/wrapper/gradle-wrapper.properties; \
-    elif [ "${ARCHOPS_CN_MIRRORS}" = "1" ]; then \
-      sed -i 's|^distributionUrl=.*|distributionUrl=https\://mirrors.cloud.tencent.com/gradle/gradle-8.12.1-bin.zip|' gradle/wrapper/gradle-wrapper.properties; \
-      sed -i 's/^validateDistributionUrl=.*/validateDistributionUrl=false/' gradle/wrapper/gradle-wrapper.properties; \
     fi; \
     chmod +x ./gradlew; \
-    if [ "${ARCHOPS_CN_MIRRORS}" = "1" ]; then \
-      ./gradlew bootJar --no-daemon -I gradle/init-cn-mirrors.gradle; \
-    else \
-      ./gradlew bootJar --no-daemon; \
-    fi
+    ./gradlew bootJar --no-daemon
 
 # Stage 3: runtime image
-FROM eclipse-temurin:21-jre-jammy AS runtime
+FROM ${DOCKER_HUB_MIRROR}/eclipse-temurin:21-jre-jammy AS runtime
 WORKDIR /app
 ENV JAVA_OPTS=""
 COPY --from=backend-build /backend/build/libs/*.jar /app/archops.jar

@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:16
+    image: ${POSTGRES_IMAGE:-docker.m.daocloud.io/library/postgres:16}
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-archops}
       POSTGRES_USER: ${POSTGRES_USER:-archops}
@@ -16,7 +16,7 @@ services:
       retries: 10
 
   redis:
-    image: redis:7-alpine
+    image: ${REDIS_IMAGE:-docker.m.daocloud.io/library/redis:7-alpine}
     ports:
       - "${REDIS_PORT:-6379}:6379"
     healthcheck:

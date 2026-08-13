@@ -156,11 +156,7 @@ try {
 Write-Host ""
 Write-Host "Done. Open a NEW terminal so User env vars reload." -ForegroundColor Green
 Write-Host "Optional: docker compose -f deploy/compose/compose.yaml up -d postgres redis"
-Write-Host "  If docker.io DNS is poisoned, pull via mirror then retag:"
-Write-Host "    docker pull docker.m.daocloud.io/library/postgres:16"
-Write-Host "    docker tag  docker.m.daocloud.io/library/postgres:16 postgres:16"
-Write-Host "    docker pull docker.m.daocloud.io/library/redis:7-alpine"
-Write-Host "    docker tag  docker.m.daocloud.io/library/redis:7-alpine redis:7-alpine"
+Write-Host "  Compose defaults to DaoCloud Hub mirrors (POSTGRES_IMAGE / REDIS_IMAGE)."
 Write-Host "Optional: cd backend; .\gradlew.bat test"
 Write-Host "Note: JAVA_TOOL_OPTIONS points Java at a user truststore that includes SteamTools CA."
 Write-Host "      Prefer disabling GitHub HTTPS MITM in SteamTools if you do not need it."

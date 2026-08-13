@@ -10,7 +10,7 @@ Repo config: [`.cursor/environment.json`](./environment.json) + [`.cursor/Docker
 | JDK 21 | Gradle / Spring Boot |
 | Node 22 | React / Vite |
 | Python 3 | Agent stub |
-| Docker Engine + Compose | `postgres:16` + `redis:7` |
+| Docker Engine + Compose | Postgres 16 + Redis 7（Compose 默认 DaoCloud 镜像名） |
 
 ## Lifecycle
 

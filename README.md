@@ -26,7 +26,8 @@
 docker compose -f deploy/compose/compose.yaml up -d postgres redis
 ```
 
-默认：`localhost:5432` / `localhost:6379`，库用户密码均为 `archops`（可用 `deploy/compose/.env.example`）。
+默认：`localhost:5432` / `localhost:6379`，库用户密码均为 `archops`（可用 `deploy/compose/.env.example`）。  
+Compose 默认从 DaoCloud 拉 `postgres:16` / `redis:7-alpine`（`POSTGRES_IMAGE` / `REDIS_IMAGE` 可改回官方名）。
 
 ### 2. 后端
 
@@ -38,9 +39,7 @@ powershell -ExecutionPolicy Bypass -File scripts\fix-windows-dev-env.ps1
 
 （会对齐 `JAVA_HOME`、拉起 Docker Desktop、补齐 Gradle wrapper 缓存，并把 SteamTools/Watt Toolkit 的 MITM 根证书同步进用户级 Java truststore。）
 
-仓库默认仍使用官方 `services.gradle.org`，wrapper 读超时为 120s（过短的 10s 会在慢速链路上把 ~130MB 的发行包读到约 20% 就 `SocketTimeoutException`）。校验使用官方 SHA-256。本地若仍拉不下来，不要改仓库里的 `distributionUrl`；Docker 构建用下面的 `ARCHOPS_CN_MIRRORS=1`。
-
-Docker Hub 若因 DNS 污染拉不到镜像，确认 Docker Desktop → Docker Engine 已配置 registry-mirrors（脚本不改引擎 UI；本机可编辑 `%USERPROFILE%\.docker\daemon.json`），然后重启 Docker Desktop。
+依赖下载默认走国内镜像：Gradle zip 为腾讯云、Maven/插件为阿里云（官方 Central 作回退）、npm 为 npmmirror。wrapper 仍校验官方 SHA-256；读超时 120s。若本机已按官方 URL 缓存过 zip，换源后缓存目录会变，可重新让 wrapper 从腾讯云拉，或把同一 zip 放到 `~/.gradle/wrapper/dists/gradle-8.12.1-bin/830jys8xkckz69cgvf9t0ocan/`。
 
 ```bash
 cd backend
@@ -58,6 +57,8 @@ cd frontend
 npm install
 npm run dev
 ```
+
+`frontend/.npmrc` 将 registry 固定为 `https://registry.npmmirror.com`。
 
 打开 Vite 提示的地址（默认 `http://localhost:5173`）。页面标题 **ArchOps**，并代理 `/api` → `:8080` 展示 health 结果。
 
@@ -81,19 +82,25 @@ docker compose -f deploy/compose/compose.yaml up -d
 多副本设计前提（ADR-0043）：本地可用  
 `docker compose -f deploy/compose/compose.yaml up --scale archops=2`（端口映射冲突时需自行调整）。
 
-国内 Linux VM 上若 `docker build` 在 `#21 [backend-build] ./gradlew bootJar` 因访问 `services.gradle.org` / Maven Central 失败或极慢：
+`Dockerfile` 基础镜像默认也走 DaoCloud（`node` / `eclipse-temurin`）。容器里若解析不了镜像站：
 
 ```bash
 # 可选：修复 docker0 / UFW FORWARD / 容器 DNS（默认只用公网 DNS，不要写死局域网地址）
 # sudo bash deploy/scripts/fix-docker-bridge-dns.sh
 # sudo DOCKER_LAN_DNS=192.168.x.x bash deploy/scripts/fix-docker-bridge-dns.sh
 
-ARCHOPS_CN_MIRRORS=1 bash deploy/scripts/build-images-logged.sh
+bash deploy/scripts/build-images-logged.sh
 ```
 
-`ARCHOPS_CN_MIRRORS=1` 只作用于这次镜像构建（腾讯云 Gradle zip + 阿里云 Maven），不会改 GitHub Actions / Cursor Cloud 的默认源。失败时完整 `progress=plain` 日志写到 `~/logs/build-*.log`。
+失败时完整 `progress=plain` 日志写到 `~/logs/build-*.log`。若必须改回 Docker Hub 官方名：
 
-> Windows 本机：Docker Desktop 路径多为 `%LOCALAPPDATA%\Programs\DockerDesktop\`。若 `docker.io` DNS 被污染，用 `scripts/fix-windows-dev-env.ps1` + DaoCloud 直拉镜像（见脚本末尾提示）。
+```bash
+DOCKER_HUB_MIRROR=docker.io/library bash deploy/scripts/build-images.sh
+POSTGRES_IMAGE=postgres:16 REDIS_IMAGE=redis:7-alpine \
+  docker compose -f deploy/compose/compose.yaml up -d postgres redis
+```
+
+> `.cursor/Dockerfile`（Cloud Agent 底镜像）仍用 Ubuntu / NodeSource / Docker 官方 apt，因为那是美国区环境构建，不是应用依赖。Windows 本机 Docker Desktop 路径多为 `%LOCALAPPDATA%\Programs\DockerDesktop\`。
 
 ## 明确不做（脚手架）
 
