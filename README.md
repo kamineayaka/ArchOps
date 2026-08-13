@@ -38,9 +38,7 @@ powershell -ExecutionPolicy Bypass -File scripts\fix-windows-dev-env.ps1
 
 （会对齐 `JAVA_HOME`、拉起 Docker Desktop、补齐 Gradle wrapper 缓存，并把 SteamTools/Watt Toolkit 的 MITM 根证书同步进用户级 Java truststore。）
 
-若 `./gradlew` 仍从 `services.gradle.org` 拉取失败，可将
-`backend/gradle/wrapper/gradle-wrapper.properties` 中的 `distributionUrl` 临时改为镜像，例如
-`https://mirrors.cloud.tencent.com/gradle/gradle-8.12.1-bin.zip`。
+仓库默认仍使用官方 `services.gradle.org`，wrapper 读超时为 120s（过短的 10s 会在慢速链路上把 ~130MB 的发行包读到约 20% 就 `SocketTimeoutException`）。校验使用官方 SHA-256。本地若仍拉不下来，不要改仓库里的 `distributionUrl`；Docker 构建用下面的 `ARCHOPS_CN_MIRRORS=1`。
 
 Docker Hub 若因 DNS 污染拉不到镜像，确认 Docker Desktop → Docker Engine 已配置 registry-mirrors（脚本不改引擎 UI；本机可编辑 `%USERPROFILE%\.docker\daemon.json`），然后重启 Docker Desktop。
 
@@ -82,6 +80,18 @@ docker compose -f deploy/compose/compose.yaml up -d
 
 多副本设计前提（ADR-0043）：本地可用  
 `docker compose -f deploy/compose/compose.yaml up --scale archops=2`（端口映射冲突时需自行调整）。
+
+国内 Linux VM 上若 `docker build` 在 `#21 [backend-build] ./gradlew bootJar` 因访问 `services.gradle.org` / Maven Central 失败或极慢：
+
+```bash
+# 可选：修复 docker0 / UFW FORWARD / 容器 DNS（默认只用公网 DNS，不要写死局域网地址）
+# sudo bash deploy/scripts/fix-docker-bridge-dns.sh
+# sudo DOCKER_LAN_DNS=192.168.x.x bash deploy/scripts/fix-docker-bridge-dns.sh
+
+ARCHOPS_CN_MIRRORS=1 bash deploy/scripts/build-images-logged.sh
+```
+
+`ARCHOPS_CN_MIRRORS=1` 只作用于这次镜像构建（腾讯云 Gradle zip + 阿里云 Maven），不会改 GitHub Actions / Cursor Cloud 的默认源。失败时完整 `progress=plain` 日志写到 `~/logs/build-*.log`。
 
 > Windows 本机：Docker Desktop 路径多为 `%LOCALAPPDATA%\Programs\DockerDesktop\`。若 `docker.io` DNS 被污染，用 `scripts/fix-windows-dev-env.ps1` + DaoCloud 直拉镜像（见脚本末尾提示）。
 
