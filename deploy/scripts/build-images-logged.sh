@@ -8,6 +8,8 @@ LOG_DIR="${ARCHOPS_BUILD_LOG_DIR:-${HOME}/logs}"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 LOG_FILE="${LOG_DIR}/build-${STAMP}.log"
 TMP_LOG="$(mktemp)"
+# shellcheck source=image-build-args.sh
+source "${ROOT_DIR}/deploy/scripts/image-build-args.sh"
 
 mkdir -p "${LOG_DIR}"
 
@@ -18,10 +20,14 @@ trap cleanup EXIT
 
 echo "Building ${IMAGE_TAG} from ${ROOT_DIR}"
 echo "Live output below; failure log (if any): ${LOG_FILE}"
+if [[ "${ARCHOPS_CN_MIRRORS:-0}" == "1" ]]; then
+  echo "China mirrors: on (Tencent Gradle + Aliyun Maven in this image build only)"
+fi
 
 set +e
 # plain progress keeps the full npm/docker layer output readable in the log
 DOCKER_BUILDKIT=1 docker build \
+  "${DOCKER_IMAGE_BUILD_ARGS[@]}" \
   --progress=plain \
   -t "${IMAGE_TAG}" \
   -f "${ROOT_DIR}/Dockerfile" \
@@ -42,6 +48,7 @@ fi
   echo "root_dir:    ${ROOT_DIR}"
   echo "exit_code:   ${status}"
   echo "host:        $(hostname)"
+  echo "cn_mirrors:  ${ARCHOPS_CN_MIRRORS:-0}"
   echo
   echo "===== free -h ====="
   free -h || true
