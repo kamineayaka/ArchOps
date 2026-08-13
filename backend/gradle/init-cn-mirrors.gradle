@@ -1,7 +1,7 @@
 /**
- * Opt-in Maven/plugin mirrors for China VM Docker builds.
- * Loaded only when Dockerfile ARG ARCHOPS_CN_MIRRORS=1 (gradle -I).
- * Do not apply this on GitHub Actions / Cursor Cloud by default.
+ * China Maven/plugin mirrors. Kept as an explicit Gradle init script (`-I`)
+ * for one-off runs; settings.gradle.kts + build.gradle.kts already apply the
+ * same repositories by default.
  */
 beforeSettings { settings ->
     settings.pluginManagement {

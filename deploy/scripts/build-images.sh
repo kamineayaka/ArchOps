@@ -8,9 +8,7 @@ IMAGE_TAG="${ARCHOPS_IMAGE_TAG:-archops:latest}"
 source "${ROOT_DIR}/deploy/scripts/image-build-args.sh"
 
 echo "Building ${IMAGE_TAG} from ${ROOT_DIR}"
-if [[ "${ARCHOPS_CN_MIRRORS:-0}" == "1" ]]; then
-  echo "China mirrors: on (Tencent Gradle + Aliyun Maven in this image build only)"
-fi
+echo "Docker Hub mirror: ${DOCKER_HUB_MIRROR:-docker.m.daocloud.io/library}"
 docker build \
   "${DOCKER_IMAGE_BUILD_ARGS[@]}" \
   -t "${IMAGE_TAG}" \
