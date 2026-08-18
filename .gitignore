@@ -18,7 +18,6 @@ desktop.ini
 *.iml
 *.swp
 *.swo
-skills-lock.json
 
 # Editor 本地配置（可选留在本机）
 .editorconfig

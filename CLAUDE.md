@@ -12,6 +12,21 @@ Claude / Cloud 编码助手请把本仓库的 **`AGENTS.md` 当作最高执行�
 6. [docs/dev-handoff.md](./docs/dev-handoff.md) — 进度与下一票  
 7. Tickets: 竖切 [.scratch/vertical-slice-mvp/issues/](./.scratch/vertical-slice-mvp/issues/) 已 done；改策展票待 `/to-tickets`
 8. Cloud VM setup: [.cursor/CLOUD.md](./.cursor/CLOUD.md) · [.cursor/environment.json](./.cursor/environment.json)
+9. Matt tracker config: [`docs/agents/`](./docs/agents/)
+
+## Agent skills
+
+### Issue tracker
+
+Local markdown under `.scratch/<feature-slug>/`; canonical specs in `docs/specs/`. Cloud `gh` is read-only. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Ticket `Status:` line uses the canonical roles. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context frozen `CONTEXT.md` + `docs/adr/`. See `docs/agents/domain.md`.
 
 ## Non-negotiables (short)
 

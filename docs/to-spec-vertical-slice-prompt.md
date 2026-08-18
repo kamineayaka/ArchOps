@@ -1,13 +1,13 @@
 # 新对话：竖切 MVP → to-spec（Prompt）
 
-将下面整段复制到**新对话**作为第一条用户消息。若客户端支持手动附带 skill，请同时附上 `to-spec`（路径一般在 `~/.agents/skills/to-spec/SKILL.md`）。
+将下面整段复制到**新对话**作为第一条用户消息。若客户端支持手动附带 skill，请同时附上 `to-spec`（仓库路径：`.cursor/skills/to-spec/SKILL.md` 或 `.agents/skills/to-spec/SKILL.md`）。
 
 ---
 
 ```text
 /to-spec
 
-请加载并严格遵循 skill：to-spec（~/.agents/skills/to-spec/SKILL.md）。
+请加载并严格遵循 skill：to-spec（`.cursor/skills/to-spec/SKILL.md`）。
 本对话任务：把 ArchOps「竖切 MVP」综合成一份可发布的 Spec，作为脚手架之后的 Matt 下一步。不要写业务代码，不要开 to-tickets（拆票另开对话）。
 
 ## 背景（已完成，勿重开 grilling / 选型）
@@ -44,7 +44,7 @@
 3. Spec 使用 skill 模板：Problem Statement / Solution / User Stories（尽量全）/ Implementation Decisions / Testing Decisions / Out of Scope / Further Notes。
 4. Implementation Decisions 要体现 ADR-0043：MyBatis-Plus、PG+Redis 多副本、React+Ant、Python Agent systemd、MINA SSHD、WebClient；图库 Later；不要写易过期的具体文件路径（除非原型级状态机/表形必须内联）。
 5. 按 skill：综合已有讨论即可，不要再面试式 grilling；有歧义用已冻结合同裁决，合同未覆盖的实现细节可在 Implementation Decisions 中给出合理默认并标明。
-6. 写完后发布到项目配置的 issue tracker，并打 ready-for-agent（若未 setup tracker，则先把完整 Spec 落到 docs/specs/vertical-slice-mvp.md，并明确告知我下一步应 /setup-matt-pocock-skills 或改用本地发布）。
+6. 写完后按 `docs/agents/issue-tracker.md` 发布：canonical spec 落到 `docs/specs/`，tracker 副本落到 `.scratch/<slug>/spec.md`，并打 ready-for-agent。不要用 `gh issue create`（Cloud `gh` 只读）。
 
 开始：先用几句话确认范围 + 列出你建议的测试接缝，等我确认接缝后再写出完整 Spec 并发布。
 ```

@@ -1,6 +1,6 @@
 # 新对话：竖切 MVP Spec → to-tickets（Prompt）
 
-将下面整段复制到**新对话**作为第一条用户消息。若客户端支持手动附带 skill，请同时附上 `to-tickets`（路径一般在 `~/.agents/skills/to-tickets/SKILL.md`）。
+将下面整段复制到**新对话**作为第一条用户消息。若客户端支持手动附带 skill，请同时附上 `to-tickets`（仓库路径：`.cursor/skills/to-tickets/SKILL.md` 或 `.agents/skills/to-tickets/SKILL.md`）。
 
 前置：[`docs/specs/vertical-slice-mvp.md`](specs/vertical-slice-mvp.md) 已发布（`ready-for-agent`）。
 
@@ -9,7 +9,7 @@
 ```text
 /to-tickets
 
-请加载并严格遵循 skill：to-tickets（~/.agents/skills/to-tickets/SKILL.md）。
+请加载并严格遵循 skill：to-tickets（`.cursor/skills/to-tickets/SKILL.md`）。
 本对话任务：把已发布的 ArchOps「竖切 MVP」Spec 拆成一组 tracer-bullet 工单（含阻塞边）。不要写业务实现代码；不要重开领域 grilling / 技术选型；不要改 CONTEXT 合同语义。
 
 ## 背景（已完成）

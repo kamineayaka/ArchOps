@@ -1,6 +1,6 @@
 # Spec: 改策展 / 改理想（草案逐条确认）
 
-**Status**: ready-for-agent（本地发布；issue tracker 未配置）  
+**Status**: ready-for-agent（本地发布；tracker = `docs/agents/issue-tracker.md`）  
 **Basis**: ADR-0039 领域合同、`CONTEXT.md`、ADR-0043 技术栈、ADR-0006（草案逐条写入）、ADR-0009（双轨偏差）、ADR-0019（相等后待确认关闭；本刀**不含** Y2 策展对齐步骤）、ADR-0038（改策展须草案人审；纯修现场跳过草案）、ADR-0041（竖切范围 + AI 出站）  
 **Predecessor**: [`docs/specs/vertical-slice-mvp.md`](vertical-slice-mvp.md)（票 01–13 已实现并经 VM 人工验收）。本 Spec 从该实现往上长，不从空骨架重写，不复活旧域包。  
 **Testing seams (confirmed)**: **唯一验收主接缝 = 控制面公开 HTTP API**（含 Agent 心跳/快照 ingest）。驱动可以是 Gradle/`MockMvc` 或 Compose 上 `bootRun`+`curl`，仍是同一条接缝。前端最小 UI 手工/冒烟，不进自动化主接缝。本刀无 SSH 计划，不引入 SSH fake 作为接缝或替身。
@@ -225,7 +225,7 @@
 
 ## Further Notes
 
-- **Issue tracker**: Matt `/setup-matt-pocock-skills` 未配置；本 Spec 发布为 `docs/specs/change-curated-draft.md`，conceptually `ready-for-agent`。
+- **Issue tracker**: 本地 markdown，见 `docs/agents/issue-tracker.md`。本 Spec 已发布为 `docs/specs/change-curated-draft.md`，`ready-for-agent`。下一刀拆票写入 `.scratch/change-curated-draft/issues/`。
 - **Next Matt step**: 另开对话 `/to-tickets`，**只**以本 Spec 为拆票主输入；不要把竖切 01–13 重拆一遍；不要跳过拆票直接写业务代码。
 - **Why no 策展对齐步骤 in this knife**: CONTEXT 同时写了「接受的条目立即写入策展」与「计划内对齐步为另一合法路径」。本刀按用户钉死的故事走前者。Y2 是后续 Spec，不得在实现里用对齐步推迟写入，也不得在选支瞬间写入。
 - **Why ≥2 items**: 合同禁止整单全有或全无作为确认单位；单条草案无法在 HTTP 上把「逐条」与「整单确认」分开。1-item drafts 仍符合合同，但本刀规则夹具必须给出两条。
