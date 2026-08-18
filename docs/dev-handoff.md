@@ -36,6 +36,8 @@
 | 指派 / 接受 / 拒绝 / 转让处理人 | **已完成**（票 11 Should：`ConflictAssignTransferHttpAcceptanceTest`） |
 | 竖切 Spec | 已发布 → [`docs/specs/vertical-slice-mvp.md`](specs/vertical-slice-mvp.md) |
 | 竖切工单 | 已本地发布 → [`.scratch/vertical-slice-mvp/issues/`](../.scratch/vertical-slice-mvp/issues/)（01–13 均 done；Flyway 至 V12） |
+| 国内镜像默认 | **已合并**（PR #53：Gradle 腾讯云 / Maven 阿里云 / npm npmmirror / Docker DaoCloud） |
+| kamiserver 人工验收 | **通过**（2026-08：Compose postgres+redis healthy 且宿主机端口已映射 → `./gradlew bootRun` → `GET /api/health`；竖切演示闭环已在该 VM 走通） |
 
 ## 下一对话建议
 
@@ -43,7 +45,8 @@
 2. ~~拆票 / to-tickets~~：已发布至 `.scratch/vertical-slice-mvp/issues/`（01–13）  
 3. ~~主链 HTTP E2E（票 13）~~：已完成  
 4. ~~指派/拒绝/转让（票 11 Should）~~：已完成  
-5. **竖切工单包已闭合**。后续仅在新 Spec/ADR 或用户明示票后再开 frontier；勿用代码偷改领域合同。
+5. ~~kamiserver 人工验收~~：已通过  
+6. **竖切工单包已闭合**。Matt 下一步是新对话 `/to-spec`（建议下一刀：改策展分支全流程），再 `/to-tickets`，再实现；勿用代码偷改领域合同。
 
 ### 工单阻塞简图
 
