@@ -1,6 +1,6 @@
 # 新对话：改策展草案 Spec → to-tickets（Prompt）
 
-将下面整段复制到**新对话**作为第一条用户消息。若客户端支持手动附带 skill，请同时附上 `to-tickets`（路径一般在 `~/.agents/skills/to-tickets/SKILL.md`）。
+将下面整段复制到**新对话**作为第一条用户消息。若客户端支持手动附带 skill，请同时附上 `to-tickets`（仓库路径：`.cursor/skills/to-tickets/SKILL.md` 或 `.agents/skills/to-tickets/SKILL.md`）。
 
 前置：[`docs/specs/change-curated-draft.md`](specs/change-curated-draft.md) 已发布（`ready-for-agent`）。竖切 MVP 01–13 **不要重拆**。
 
@@ -9,7 +9,7 @@
 ```text
 /to-tickets
 
-请加载并严格遵循 skill：to-tickets（~/.agents/skills/to-tickets/SKILL.md）。
+请加载并严格遵循 skill：to-tickets（`.cursor/skills/to-tickets/SKILL.md`）。
 本对话任务：把已发布的 ArchOps「改策展 / 改理想（草案逐条确认）」Spec 拆成一组 tracer-bullet 工单（含阻塞边）。不要写业务实现代码；不要重开领域 grilling / 技术选型；不要改 CONTEXT 合同语义；不要 to-spec 重写。
 
 ## 背景（已完成）
@@ -45,10 +45,10 @@ Out of Scope（票不得偷带）：自我迭代、指标大盘、网络可达�
 4. 验收对齐 Spec：自动化以 HTTP API 主接缝为准；UI 可在相关票里做最小可演示，但不另开「只做 UI 层」横切片当主路径。
 5. Prefactor 仅在为本刀真正降阻时单列；禁止借 prefactor 复活旧语义或重做 01–13。
 6. 先把票清单 + 阻塞图画给我确认（粒度 / 边是否对 / 是否要合并拆分）；我批准后再发布。
-7. 发布：若未 setup Matt tracker，则本地发布到
+7. 发布：按 `docs/agents/issue-tracker.md` 本地发布到
    `.scratch/change-curated-draft/issues/NN-<slug>.md`
    （从 01 起按依赖序；每票一个文件；模板见 to-tickets skill；Status: ready-for-agent）。
-   并更新 docs/dev-handoff.md 指向该目录。若已配置 tracker，则开 Issue + 原生阻塞关系 + ready-for-agent。
+   并更新 docs/dev-handoff.md 指向该目录。不要用 `gh issue create`（Cloud `gh` 只读）。
 8. 不要实现任何票的业务代码；发布后提示我下一对话从无 blocker 的 frontier 票开工。
 
 开始：先输出建议的票清单（编号、标题、Blocked by、交付的可验证行为）与简图，等我确认粒度后再写入 `.scratch/...` 并收束。

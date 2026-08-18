@@ -14,27 +14,58 @@ ensure_docker_sock_reachable() {
   fi
 }
 
+docker_ready() {
+  ensure_docker_sock_reachable
+  docker info >/dev/null 2>&1
+}
+
+wait_for_docker() {
+  local seconds="${1:-60}"
+  local _
+  for _ in $(seq 1 "${seconds}"); do
+    if docker_ready; then
+      return 0
+    fi
+    sleep 1
+  done
+  return 1
+}
+
+# Restart a hung dockerd (stale socket / pid file) without `pkill -f`.
+restart_hung_dockerd() {
+  local pid
+  while read -r pid; do
+    [[ -n "${pid}" ]] || continue
+    sudo kill "${pid}" 2>/dev/null || true
+  done < <(ps -eo pid,cmd | awk '$2 == "/usr/bin/dockerd" || $2 == "dockerd" { print $1 }')
+  sleep 1
+  while read -r pid; do
+    [[ -n "${pid}" ]] || continue
+    if [[ -d "/proc/${pid}" ]]; then
+      sudo kill -9 "${pid}" 2>/dev/null || true
+    fi
+  done < <(ps -eo pid,cmd | awk '$2 == "/usr/bin/dockerd" || $2 == "dockerd" { print $1 }')
+  sudo rm -f /var/run/docker.pid
+}
+
 echo "==> Starting Docker daemon"
-ensure_docker_sock_reachable
-if ! docker info >/dev/null 2>&1; then
+if docker_ready; then
+  echo "==> docker already ready"
+else
   if command -v service >/dev/null 2>&1; then
     sudo service docker start || true
   fi
-  ensure_docker_sock_reachable
-  if ! docker info >/dev/null 2>&1; then
+  if ! wait_for_docker 15; then
+    echo "==> docker not serving; replacing hung daemon if present"
+    restart_hung_dockerd
     sudo dockerd >/tmp/dockerd.log 2>&1 &
-    for _ in $(seq 1 30); do
-      ensure_docker_sock_reachable
-      if docker info >/dev/null 2>&1; then
-        break
-      fi
-      sleep 1
-    done
+    if ! wait_for_docker 60; then
+      echo "ERROR: docker did not become ready" >&2
+      tail -n 40 /tmp/dockerd.log >&2 || true
+      exit 1
+    fi
   fi
 fi
-
-ensure_docker_sock_reachable
-docker info >/dev/null
 
 echo "==> Postgres + Redis (compose)"
 docker compose -f deploy/compose/compose.yaml up -d postgres redis

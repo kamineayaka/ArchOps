@@ -1,6 +1,6 @@
 # Spec: ArchOps 竖切 MVP（一条冲突闭环）
 
-**Status**: ready-for-agent（本地发布；issue tracker 未配置）  
+**Status**: done（01–13 已闭合；tracker = `docs/agents/issue-tracker.md`）  
 **Basis**: ADR-0039 领域合同、`CONTEXT.md`、ADR-0043 技术栈、ADR-0041（竖切范围 + AI 出站）、`docs/mvp-vertical-slice.md`  
 **Starting point**: 空脚手架已按 ADR-0043 重建（仅 `GET /api/health`、包占位、Flyway `app_meta`）；本 Spec 从该骨架往上长，不复活旧业务模块语义。  
 **Testing seams (confirmed)**: 唯一验收主接缝 = 控制面公开 HTTP API（含 Agent ingest）；SSH 执行端口可替换 fake 支撑 CI，不算第二条验收接缝。前端最小 UI 手工/冒烟，不进自动化主接缝。
@@ -200,7 +200,7 @@
 
 ## Further Notes
 
-- **Issue tracker**: Matt `/setup-matt-pocock-skills` 未配置；本 Spec 发布为仓库内 `docs/specs/vertical-slice-mvp.md`，并标记 conceptually `ready-for-agent`。配置 tracker 后可将本文原样开 Issue 并打 `ready-for-agent`。
+- **Issue tracker**: 本地 markdown，见 `docs/agents/issue-tracker.md`。本 Spec 与 `.scratch/vertical-slice-mvp/issues/` 01–13 均已闭合。
 - **Next Matt step**: 竖切 01–13 已闭合。改策展后续刀 Spec：[`change-curated-draft.md`](change-curated-draft.md)；下一对话 `/to-tickets`（不要重拆本 Spec）。
 - **Acceptance motto** (from ADR-0041 vertical-slice): 没有心跳快照就不能假装有实际；没有人审就不能执行；计划失败不能改步重试；没对齐不能关单。
 - **Glossary authority**: prefer `CONTEXT.md` terms (策展真相、观测真相、冲突、已知悉、冲突归属、冲突处理人、操作计划、待确认关闭、观测空洞、心跳、规范问法, etc.). Do not invent parallel vocabulary in APIs/UI copy.

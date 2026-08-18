@@ -13,6 +13,7 @@
 7. 当前工单：见 `docs/dev-handoff.md`（竖切 `.scratch/vertical-slice-mvp/issues/` 已 done；改策展票尚未拆）
 8. `docs/dev-handoff.md` — 进度与下一票
 9. `.cursor/rules/project-map.mdc`、`backend-java.mdc`、`frontend-react.mdc`
+10. `docs/agents/` — Matt 工作流 tracker / triage / domain 布局（Cloud 已 vendoring `.cursor/skills/`）
 
 **不要**把 git 历史里的旧 ArchOps（Neo4j 必选、Maven、Vue/Naive、JPA 域模型、architecture proposal、旧 Agent 工具）当作现行实现样板。
 
@@ -75,6 +76,23 @@ Cloud Agents run in an **Ubuntu VM** configured by [`.cursor/environment.json`](
 - Warm deps already ran in Build `install` (`scripts/cloud-install.sh`). Re-run install commands only when deps change.
 - Secrets (AI keys, etc.): Cursor Dashboard Secrets — never commit `.env`
 - After editing `.cursor/Dockerfile` or `environment.json`, push and wait for a new Environment **Build** before relying on the change.
+- Matt engineering skills are vendored in `.cursor/skills/` (Cloud Agent discovery) and `.agents/skills/` (skills.sh / desktop Cursor). Do not expect `~/.agents/skills/` on this VM.
+
+## Agent skills
+
+### Issue tracker
+
+Local markdown under `.scratch/<feature-slug>/`; canonical specs in `docs/specs/`. Cloud `gh` is read-only — do not publish GitHub Issues. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Canonical roles on each ticket `Status:` line (`ready-for-agent`, `done`, …). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: frozen `CONTEXT.md` + `docs/adr/` (ADR-0039 / ADR-0043). Skills must not silently rewrite the contract. See `docs/agents/domain.md`.
+
+`/to-spec` `/to-tickets` `/implement` `/grill-with-docs` read those files. `/implement` still follows §5: **one unblocked frontier ticket**, HTTP API acceptance seam.
 
 ## 6. Matt 进度（勿倒退）
 
