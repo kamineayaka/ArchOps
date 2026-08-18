@@ -17,7 +17,8 @@ alwaysApply: true
 | `agent/` | Python 3.12+；systemd 交付 |
 | `deploy/` | `archops:latest` + postgres + redis（多副本） |
 | `docs/` | 合同、ADR、Spec、prompts |
-| `.scratch/vertical-slice-mvp/issues/` | 竖切工单（按 frontier 实现） |
+| `.scratch/vertical-slice-mvp/issues/` | 竖切工单（01–13 已闭合） |
+| `docs/specs/change-curated-draft.md` | 下一刀 Spec（改策展/草案；待拆票） |
 
 ## 模块边界
 

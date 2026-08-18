@@ -184,7 +184,7 @@
 - AI 自我迭代、权限白名单自动写入、处理归档驱动的策略晋升
 - 指标 / 告警大盘、可观测性产品化（非关系冲突）
 - 网络可达边的全矩阵核验与 N² 探测
-- 改策展分支全流程（冲突处理中选「改理想」→ 草案逐条确认 → 策展对齐步骤）——本竖切固定纯修现场、跳过草案
+- 改策展分支全流程（冲突处理中选「改理想」→ 草案逐条确认 → 策展对齐步骤）——本竖切固定纯修现场、跳过草案。后续刀见 [`change-curated-draft.md`](change-curated-draft.md)（草案逐条写入 + 比对演进；仍不含对齐步骤）
 - Neo4j / 专用图库引入或双写
 - 多租户 / 租户隔离
 - 完整 xterm 连接工作台、工作台轻确认日常探查产品化（本切片只需计划步骤受控执行）
@@ -201,7 +201,7 @@
 ## Further Notes
 
 - **Issue tracker**: Matt `/setup-matt-pocock-skills` 未配置；本 Spec 发布为仓库内 `docs/specs/vertical-slice-mvp.md`，并标记 conceptually `ready-for-agent`。配置 tracker 后可将本文原样开 Issue 并打 `ready-for-agent`。
-- **Next Matt step**: 另开对话运行 `/to-tickets`，按 tracer-bullet 竖切开票（每票可演示/可验证），阻塞关系写清；不要跳过拆票直接铺全层业务。
+- **Next Matt step**: 竖切 01–13 已闭合。改策展后续刀 Spec：[`change-curated-draft.md`](change-curated-draft.md)；下一对话 `/to-tickets`（不要重拆本 Spec）。
 - **Acceptance motto** (from ADR-0041 vertical-slice): 没有心跳快照就不能假装有实际；没有人审就不能执行；计划失败不能改步重试；没对齐不能关单。
 - **Glossary authority**: prefer `CONTEXT.md` terms (策展真相、观测真相、冲突、已知悉、冲突归属、冲突处理人、操作计划、待确认关闭、观测空洞、心跳、规范问法, etc.). Do not invent parallel vocabulary in APIs/UI copy.
 - **Scaffold honesty**: until domain migrations and APIs land, only health is live; implementers must add schema and modules incrementally without treating health-only code as domain precedent.

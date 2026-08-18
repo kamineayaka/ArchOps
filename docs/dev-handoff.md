@@ -9,9 +9,10 @@
 1. `CONTEXT.md`
 2. `docs/adr/0039` … `0043`（尤其 **0043**）
 3. `docs/mvp-vertical-slice.md`（竖切范围对照）
-4. `docs/specs/vertical-slice-mvp.md`（竖切 Spec；拆票主输入）
-5. `docs/scaffold-bootstrap-prompt.md`（脚手架专用；已完成后可作审计对照）
-6. `.cursor/rules/project-map.mdc`
+4. `docs/specs/vertical-slice-mvp.md`（竖切 Spec；01–13 已闭合）
+5. `docs/specs/change-curated-draft.md`（下一刀 Spec：改策展/草案逐条确认；拆票主输入）
+6. `docs/scaffold-bootstrap-prompt.md`（脚手架专用；已完成后可作审计对照）
+7. `.cursor/rules/project-map.mdc`
 
 ## 当前状态
 
@@ -36,6 +37,7 @@
 | 指派 / 接受 / 拒绝 / 转让处理人 | **已完成**（票 11 Should：`ConflictAssignTransferHttpAcceptanceTest`） |
 | 竖切 Spec | 已发布 → [`docs/specs/vertical-slice-mvp.md`](specs/vertical-slice-mvp.md) |
 | 竖切工单 | 已本地发布 → [`.scratch/vertical-slice-mvp/issues/`](../.scratch/vertical-slice-mvp/issues/)（01–13 均 done；Flyway 至 V12） |
+| 改策展草案 Spec | **已发布** → [`docs/specs/change-curated-draft.md`](specs/change-curated-draft.md)（ready-for-agent；尚未拆票） |
 | 国内镜像默认 | **已合并**（PR #53：Gradle 腾讯云 / Maven 阿里云 / npm npmmirror / Docker DaoCloud） |
 | kamiserver 人工验收 | **通过**（2026-08：Compose postgres+redis healthy 且宿主机端口已映射 → `./gradlew bootRun` → `GET /api/health`；竖切演示闭环已在该 VM 走通） |
 
@@ -46,7 +48,8 @@
 3. ~~主链 HTTP E2E（票 13）~~：已完成  
 4. ~~指派/拒绝/转让（票 11 Should）~~：已完成  
 5. ~~kamiserver 人工验收~~：已通过  
-6. **竖切工单包已闭合**。Matt 下一步是新对话 `/to-spec`（建议下一刀：改策展分支全流程），再 `/to-tickets`，再实现；勿用代码偷改领域合同。
+6. ~~竖切工单包已闭合 / 下一刀 to-spec~~：改策展 Spec 已发布  
+7. **下一对话：`/to-tickets`**，主输入 [`docs/specs/change-curated-draft.md`](specs/change-curated-draft.md)，提示词 [`docs/to-tickets-change-curated-draft-prompt.md`](to-tickets-change-curated-draft-prompt.md)。不要写业务代码；不要重拆 01–13。勿用代码偷改领域合同。
 
 ### 工单阻塞简图
 

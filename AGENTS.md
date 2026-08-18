@@ -8,10 +8,11 @@
 2. `CONTEXT.md` — 领域术语（禁止发明同义新词）
 3. `docs/adr/0039-domain-contract-frozen.md` — 合同已冻结
 4. `docs/adr/0043-tech-stack.md` — **技术栈唯一真相**
-5. `docs/specs/vertical-slice-mvp.md` — 竖切 Spec
-6. 当前工单：`.scratch/vertical-slice-mvp/issues/`（只实现 **ready-for-agent 且 blockers 已完成** 的 frontier 票）
-7. `docs/dev-handoff.md` — 进度与下一票
-8. `.cursor/rules/project-map.mdc`、`backend-java.mdc`、`frontend-react.mdc`
+5. `docs/specs/vertical-slice-mvp.md` — 竖切 Spec（01–13 已闭合）
+6. `docs/specs/change-curated-draft.md` — 下一刀 Spec（改策展/草案逐条确认；拆票前不要写业务代码）
+7. 当前工单：见 `docs/dev-handoff.md`（竖切 `.scratch/vertical-slice-mvp/issues/` 已 done；改策展票尚未拆）
+8. `docs/dev-handoff.md` — 进度与下一票
+9. `.cursor/rules/project-map.mdc`、`backend-java.mdc`、`frontend-react.mdc`
 
 **不要**把 git 历史里的旧 ArchOps（Neo4j 必选、Maven、Vue/Naive、JPA 域模型、architecture proposal、旧 Agent 工具）当作现行实现样板。
 
@@ -77,8 +78,8 @@ Cloud Agents run in an **Ubuntu VM** configured by [`.cursor/environment.json`](
 
 ## 6. Matt 进度（勿倒退）
 
-- 领域 grilling / 合同冻结 / 技术选型 / 空脚手架 / Spec / Tickets：**已完成**
-- 实现：按 `.scratch/vertical-slice-mvp/issues/` 顺序推进
+- 领域 grilling / 合同冻结 / 技术选型 / 空脚手架 / 竖切 Spec / 竖切 Tickets / 竖切实现：**已完成**
+- 下一刀 Spec：`docs/specs/change-curated-draft.md`（已发布，待 `/to-tickets`）
 - 不需要再开技术选型或推倒栈，除非用户明示新 ADR
 
 ## 7. 云端提示词建议（用户可贴）
