@@ -20,6 +20,14 @@ Repo config: [`.cursor/environment.json`](./environment.json) + [`.cursor/Docker
 
 Default DB/Redis env matches `deploy/compose/.env.example` (`archops` / `archops` on localhost ports).
 
+Matt workflow skills are **vendored in the repo** (Cloud Agents do not inherit laptop `~/.agents/skills/`):
+
+| Path | Who reads it |
+|---|---|
+| `.cursor/skills/` | Cursor Cloud Agent (plus ArchOps `add-*` skills) |
+| `.agents/skills/` | skills.sh / desktop Cursor |
+| `docs/agents/` | `/setup-matt-pocock-skills` output: tracker, labels, domain layout |
+
 ## Acceptance in Cloud
 
 - Primary seam: HTTP API (`GET /api/health`, then ticket acceptance tests).

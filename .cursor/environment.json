@@ -1,18 +1,32 @@
 {
+  "name": "ArchOps Cloud Agent",
+  "user": "ubuntu",
   "build": {
     "dockerfile": "Dockerfile",
     "context": "."
   },
   "install": "bash scripts/cloud-install.sh",
   "start": "bash scripts/cloud-start.sh",
+  "ports": [
+    {
+      "name": "backend API",
+      "port": 8080
+    },
+    {
+      "name": "frontend Vite",
+      "port": 5173
+    }
+  ],
   "terminals": [
     {
       "name": "backend",
-      "command": "cd backend && ./gradlew bootRun --no-daemon"
+      "command": "cd backend && ./gradlew bootRun --no-daemon",
+      "description": "Spring Boot control plane on :8080 (health: GET /api/health). Needs Compose Postgres+Redis from start."
     },
     {
       "name": "frontend",
-      "command": "cd frontend && npm run dev -- --host 0.0.0.0 --port 5173"
+      "command": "cd frontend && npm run dev -- --host 0.0.0.0 --port 5173",
+      "description": "Vite + React + Ant Design; proxies /api to http://127.0.0.1:8080"
     }
   ]
 }
