@@ -10,7 +10,7 @@
 2. `docs/adr/0039` … `0043`（尤其 **0043**）
 3. `docs/mvp-vertical-slice.md`（竖切范围对照）
 4. `docs/specs/vertical-slice-mvp.md`（竖切 Spec；01–13 已闭合）
-5. `docs/specs/change-curated-draft.md`（下一刀 Spec：改策展/草案逐条确认；拆票主输入）
+5. `docs/specs/change-curated-draft.md`（改策展/草案逐条确认 Spec；工单见 `.scratch/change-curated-draft/issues/`）
 6. `docs/scaffold-bootstrap-prompt.md`（脚手架专用；已完成后可作审计对照）
 7. `.cursor/rules/project-map.mdc`
 
@@ -37,7 +37,8 @@
 | 指派 / 接受 / 拒绝 / 转让处理人 | **已完成**（票 11 Should：`ConflictAssignTransferHttpAcceptanceTest`） |
 | 竖切 Spec | 已发布 → [`docs/specs/vertical-slice-mvp.md`](specs/vertical-slice-mvp.md) |
 | 竖切工单 | 已本地发布 → [`.scratch/vertical-slice-mvp/issues/`](../.scratch/vertical-slice-mvp/issues/)（01–13 均 done；Flyway 至 V12） |
-| 改策展草案 Spec | **已发布** → [`docs/specs/change-curated-draft.md`](specs/change-curated-draft.md)（ready-for-agent；尚未拆票） |
+| 改策展草案 Spec | **已发布** → [`docs/specs/change-curated-draft.md`](specs/change-curated-draft.md) |
+| 改策展草案工单 | **已本地发布** → [`.scratch/change-curated-draft/issues/`](../.scratch/change-curated-draft/issues/)（01–06 `ready-for-agent`；从竖切 MVP 往上长，不重拆 01–13） |
 | Matt 工作流 skills / tracker | **已入库**（`.cursor/skills/` + `.agents/skills/` + `docs/agents/`；Cloud 不依赖本机 `~/.agents`） |
 | 国内镜像默认 | **已合并**（PR #53：Gradle 腾讯云 / Maven 阿里云 / npm npmmirror / Docker DaoCloud） |
 | kamiserver 人工验收 | **通过**（2026-08：Compose postgres+redis healthy 且宿主机端口已映射 → `./gradlew bootRun` → `GET /api/health`；竖切演示闭环已在该 VM 走通） |
@@ -45,14 +46,17 @@
 ## 下一对话建议
 
 1. ~~竖切 Spec~~：已发布  
-2. ~~拆票 / to-tickets~~：已发布至 `.scratch/vertical-slice-mvp/issues/`（01–13）  
+2. ~~拆票 / to-tickets~~：竖切已发布至 `.scratch/vertical-slice-mvp/issues/`（01–13）  
 3. ~~主链 HTTP E2E（票 13）~~：已完成  
 4. ~~指派/拒绝/转让（票 11 Should）~~：已完成  
 5. ~~kamiserver 人工验收~~：已通过  
 6. ~~竖切工单包已闭合 / 下一刀 to-spec~~：改策展 Spec 已发布  
-7. **下一对话：`/to-tickets`**，主输入 [`docs/specs/change-curated-draft.md`](specs/change-curated-draft.md)，提示词 [`docs/to-tickets-change-curated-draft-prompt.md`](to-tickets-change-curated-draft-prompt.md)。不要写业务代码；不要重拆 01–13。勿用代码偷改领域合同。
+7. ~~改策展 `/to-tickets`~~：已发布至 `.scratch/change-curated-draft/issues/`（01–06）  
+8. **下一对话：实现一张无 blocker 的 frontier 票**（01 或 02；一次只做一张）。主输入该票文件 + [`docs/specs/change-curated-draft.md`](specs/change-curated-draft.md)。HTTP API 主接缝；不要写票外业务代码；不要重做竖切 01–13；勿用代码偷改领域合同。
 
 ### 工单阻塞简图
+
+竖切 MVP（已闭合）：
 
 ```
 01 → 02 → 03 → 04 → 05 → 07 → 08 → 09 → 12（最小演示 UI）
@@ -63,7 +67,19 @@
 05 → 11（指派/拒绝/转让 Should，done）
 ```
 
-（编号为依赖序。主链 Must + Should 协作票均已完成。）
+改策展 / 改理想草案（现行 frontier）：
+
+```
+01 关闭建底覆盖 ─────────────────────────┐
+                                         │
+02 诊断改理想分叉 → 03 选支出草案（≥2 条，不写策展、不出计划）
+                                         │
+                                         └→ 04 逐条确认写入并立刻比对（相等 → 待确认关闭）
+                                              → 05 升级/空洞作废草案
+                                              → 06 HTTP tracer（本刀定义完成）
+```
+
+（Frontier：01 与 02 均无 blocker，`ready-for-agent`。一次只做一张。）
 
 ## 本地启动摘要
 
