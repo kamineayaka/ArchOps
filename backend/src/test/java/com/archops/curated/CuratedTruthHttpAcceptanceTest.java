@@ -101,6 +101,78 @@ class CuratedTruthHttpAcceptanceTest {
     }
 
     @Test
+    void bootstrapRunsOnPostRejectsOverwriteOfExistingFact() throws Exception {
+        String hostAId = createHost("host-ow-a");
+        String hostBId = createHost("host-ow-b");
+        String containerId = createContainer("app-ow", "ctr-ow-001");
+
+        mockMvc.perform(post("/api/curated/facts/runs-on")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"containerId":"%s","hostId":"%s"}
+                                """.formatted(containerId, hostAId))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.target.id", is(hostAId)));
+
+        mockMvc.perform(get("/api/curated/asks/should-where")
+                        .param("containerId", containerId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.question", is("应该在哪")))
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(hostAId)));
+
+        mockMvc.perform(post("/api/curated/facts/runs-on")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"containerId":"%s","hostId":"%s"}
+                                """.formatted(containerId, hostBId))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.code", is("CURATED_RUNS_ON_EXISTS")))
+                .andExpect(jsonPath("$.data", nullValue()));
+
+        mockMvc.perform(get("/api/curated/asks/should-where")
+                        .param("containerId", containerId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(hostAId)));
+
+        mockMvc.perform(post("/api/curated/facts/runs-on")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"containerId":"%s","hostId":"%s"}
+                                """.formatted(containerId, hostAId))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.code", is("CURATED_RUNS_ON_EXISTS")))
+                .andExpect(jsonPath("$.data", nullValue()));
+
+        mockMvc.perform(get("/api/curated/asks/should-where")
+                        .param("containerId", containerId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(hostAId)));
+
+        mockMvc.perform(get("/api/curated/facts/runs-on/{containerId}", containerId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.target.id", is(hostAId)));
+    }
+
+    @Test
     void duplicateImmutableObjectIdIsRejected() throws Exception {
         createContainer("app-x", "ctr-dup-1");
         mockMvc.perform(post("/api/curated/containers")
