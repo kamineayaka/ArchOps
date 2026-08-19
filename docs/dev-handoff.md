@@ -38,7 +38,7 @@
 | 竖切 Spec | 已发布 → [`docs/specs/vertical-slice-mvp.md`](specs/vertical-slice-mvp.md) |
 | 竖切工单 | 已本地发布 → [`.scratch/vertical-slice-mvp/issues/`](../.scratch/vertical-slice-mvp/issues/)（01–13 均 done；Flyway 至 V12） |
 | 改策展草案 Spec | **已发布** → [`docs/specs/change-curated-draft.md`](specs/change-curated-draft.md) |
-| 改策展草案工单 | **进行中** → [`.scratch/change-curated-draft/issues/`](../.scratch/change-curated-draft/issues/)（**01 done**：关闭建底 POST 覆盖已有 `运行于`；02–06 `ready-for-agent`；从竖切 MVP 往上长，不重拆 01–13） |
+| 改策展草案工单 | **进行中** → [`.scratch/change-curated-draft/issues/`](../.scratch/change-curated-draft/issues/)（**01–02 done**：关闭建底覆盖 + 诊断改理想分叉；03–06 `ready-for-agent`；从竖切 MVP 往上长，不重拆 01–13） |
 | Matt 工作流 skills / tracker | **已入库**（`.cursor/skills/` + `.agents/skills/` + `docs/agents/`；Cloud 不依赖本机 `~/.agents`） |
 | 国内镜像默认 | **已合并**（PR #53：Gradle 腾讯云 / Maven 阿里云 / npm npmmirror / Docker DaoCloud） |
 | kamiserver 人工验收 | **通过**（2026-08：Compose postgres+redis healthy 且宿主机端口已映射 → `./gradlew bootRun` → `GET /api/health`；竖切演示闭环已在该 VM 走通） |
@@ -53,7 +53,8 @@
 6. ~~竖切工单包已闭合 / 下一刀 to-spec~~：改策展 Spec 已发布  
 7. ~~改策展 `/to-tickets`~~：已发布至 `.scratch/change-curated-draft/issues/`（01–06）  
 8. ~~`/implement` 票 01~~：已完成（关闭建底 POST 覆盖已有 `运行于`；`CURATED_RUNS_ON_EXISTS`）  
-9. **下一对话：`/implement` 票 02**（诊断改理想分叉）。票路径 [`.scratch/change-curated-draft/issues/02-diagnosis-change-curated-fork.md`](../.scratch/change-curated-draft/issues/02-diagnosis-change-curated-fork.md)。一次只做一张；不要顺手做 03–06。HTTP API 主接缝；勿用代码偷改领域合同。
+9. ~~`/implement` 票 02~~：已完成（诊断同时给出 `FIX_ACTUAL` 与 `CHANGE_CURATED`）  
+10. **下一对话：`/implement` 票 03**（选改理想生成草案）。票路径 [`.scratch/change-curated-draft/issues/03-select-change-curated-draft.md`](../.scratch/change-curated-draft/issues/03-select-change-curated-draft.md)。一次只做一张；不要顺手做 04–06。HTTP API 主接缝；勿用代码偷改领域合同。
 
 ### 工单阻塞简图
 
@@ -73,14 +74,14 @@
 ```
 01 关闭建底覆盖（done） ─────────────────┐
                                          │
-02 诊断改理想分叉 → 03 选支出草案（≥2 条，不写策展、不出计划）
+02 诊断改理想分叉（done） → 03 选支出草案（≥2 条，不写策展、不出计划）
                                          │
                                          └→ 04 逐条确认写入并立刻比对（相等 → 待确认关闭）
                                               → 05 升级/空洞作废草案
                                               → 06 HTTP tracer（本刀定义完成）
 ```
 
-（Frontier：02 无 blocker，`ready-for-agent`。01 已 done。一次只做一张。）
+（Frontier：03 的 blocker 02 已 done，`ready-for-agent`。一次只做一张。）
 
 ## 本地启动摘要
 

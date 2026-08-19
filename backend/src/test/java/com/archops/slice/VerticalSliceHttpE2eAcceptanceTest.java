@@ -133,8 +133,8 @@ class VerticalSliceHttpE2eAcceptanceTest {
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status", is("READY")))
-                .andExpect(jsonPath("$.data.forks[0].id", is("FIX_ACTUAL_TO_CURATED")))
-                .andExpect(jsonPath("$.data.forks[0].kind", is("FIX_ACTUAL")));
+                .andExpect(jsonPath("$.data.forks[*].id", hasItem("FIX_ACTUAL_TO_CURATED")))
+                .andExpect(jsonPath("$.data.forks[?(@.id=='FIX_ACTUAL_TO_CURATED')].kind", hasItem("FIX_ACTUAL")));
 
         // Non-handler cannot open plan via branch selection
         mockMvc.perform(post("/api/conflicts/{id}/branch-selection", conflictId)
