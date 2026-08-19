@@ -10,7 +10,7 @@
 4. `docs/adr/0043-tech-stack.md` — **技术栈唯一真相**
 5. `docs/specs/vertical-slice-mvp.md` — 竖切 Spec（01–13 已闭合）
 6. `docs/specs/change-curated-draft.md` — 改策展/草案逐条确认 Spec（工单已拆，见下一则）
-7. 当前工单：见 `docs/dev-handoff.md`；竖切 `.scratch/vertical-slice-mvp/issues/` 已 done；改策展 `.scratch/change-curated-draft/issues/`（frontier 按编号 = 01；开工提示词 `docs/implement-change-curated-draft-01-prompt.md`）
+7. 当前工单：见 `docs/dev-handoff.md`；竖切 `.scratch/vertical-slice-mvp/issues/` 已 done；改策展 `.scratch/change-curated-draft/issues/`（01 done；frontier = 02）
 8. `docs/dev-handoff.md` — 进度与下一票
 9. `.cursor/rules/project-map.mdc`、`backend-java.mdc`、`frontend-react.mdc`
 10. `docs/agents/` — Matt 工作流 tracker / triage / domain 布局（Cloud 已 vendoring `.cursor/skills/`）
@@ -97,7 +97,7 @@ Single-context: frozen `CONTEXT.md` + `docs/adr/` (ADR-0039 / ADR-0043). Skills 
 ## 6. Matt 进度（勿倒退）
 
 - 领域 grilling / 合同冻结 / 技术选型 / 空脚手架 / 竖切 Spec / 竖切 Tickets / 竖切实现：**已完成**
-- 下一刀 Spec：`docs/specs/change-curated-draft.md`（已发布）；工单 `.scratch/change-curated-draft/issues/`（01–06）；frontier 按编号 = 01；开工提示词 `docs/implement-change-curated-draft-01-prompt.md`
+- 下一刀 Spec：`docs/specs/change-curated-draft.md`（已发布）；工单 `.scratch/change-curated-draft/issues/`（01 done；frontier = 02）
 - 不需要再开技术选型或推倒栈，除非用户明示新 ADR
 
 ## 7. 云端提示词建议（用户可贴）

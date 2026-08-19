@@ -77,25 +77,20 @@ public class CuratedTruthService {
         CuratedFact existing = curatedFactMapper.selectOne(new LambdaQueryWrapper<CuratedFact>()
                 .eq(CuratedFact::getSubjectId, container.getId())
                 .eq(CuratedFact::getRelationType, CuratedRelationType.RUNS_ON));
+        if (existing != null) {
+            throw new BusinessException("CURATED_RUNS_ON_EXISTS",
+                    "Curated 运行于 already exists for container: " + container.getId());
+        }
 
         Instant now = Instant.now();
-        CuratedFact fact;
-        if (existing == null) {
-            fact = new CuratedFact();
-            fact.setId(newId("fact"));
-            fact.setSubjectId(container.getId());
-            fact.setRelationType(CuratedRelationType.RUNS_ON);
-            fact.setTargetId(host.getId());
-            fact.setCreatedBy(actorUserId);
-            fact.setCreatedAt(now);
-            curatedFactMapper.insert(fact);
-        } else {
-            existing.setTargetId(host.getId());
-            existing.setCreatedBy(actorUserId);
-            existing.setCreatedAt(now);
-            curatedFactMapper.updateById(existing);
-            fact = existing;
-        }
+        CuratedFact fact = new CuratedFact();
+        fact.setId(newId("fact"));
+        fact.setSubjectId(container.getId());
+        fact.setRelationType(CuratedRelationType.RUNS_ON);
+        fact.setTargetId(host.getId());
+        fact.setCreatedBy(actorUserId);
+        fact.setCreatedAt(now);
+        curatedFactMapper.insert(fact);
 
         return new CuratedRunsOnFactResponse(
                 fact.getId(),

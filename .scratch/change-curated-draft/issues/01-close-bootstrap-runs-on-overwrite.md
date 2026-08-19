@@ -4,13 +4,17 @@
 
 **Blocked by:** None — can start immediately
 
-**Status:** ready-for-agent
+**Status:** done
 
 从竖切 MVP 往上长：今日建底 POST 对已有 `运行于` 会覆盖写入。本票只关掉这条旁路，不引入草案、不改诊断、不改选支。
 
-- [ ] 对尚无 `运行于` 的容器，建底 POST 仍可插入第一条事实，随后「应该在哪」可读到该宿主
-- [ ] 对已有 `运行于` 的容器，再 POST（同一或不同宿主）被拒绝；事实与「应该在哪」均不变
-- [ ] 拒绝行为可经控制面公开 HTTP API 断言（统一信封）；不测 Mapper/Redis 内部
-- [ ] 不引入草案、选支或策展对齐步骤；不修改已有 Flyway 历史脚本
+- [x] 对尚无 `运行于` 的容器，建底 POST 仍可插入第一条事实，随后「应该在哪」可读到该宿主
+- [x] 对已有 `运行于` 的容器，再 POST（同一或不同宿主）被拒绝；事实与「应该在哪」均不变
+- [x] 拒绝行为可经控制面公开 HTTP API 断言（统一信封）；不测 Mapper/Redis 内部
+- [x] 不引入草案、选支或策展对齐步骤；不修改已有 Flyway 历史脚本
 
 **Out of this ticket:** 改理想分叉、草案逐条确认、比对触发、UI、SSH、Y2 策展对齐步骤。
+
+## Comments
+
+HTTP 接缝：`CuratedTruthHttpAcceptanceTest.bootstrapRunsOnPostRejectsOverwriteOfExistingFact`。`confirmRunsOn` 对已有 `运行于` 抛 `CURATED_RUNS_ON_EXISTS`（统一信封 400）；首次插入与「应该在哪」保留。无草案表、无 Flyway。
