@@ -19,7 +19,8 @@ alwaysApply: true
 | `docs/` | 合同、ADR、Spec、prompts、`docs/agents/`（Matt tracker） |
 | `.cursor/skills/` | Cloud Agent 技能（Matt 工程链 + ArchOps `add-*`） |
 | `.scratch/vertical-slice-mvp/issues/` | 竖切工单（01–13 已闭合） |
-| `docs/specs/change-curated-draft.md` | 下一刀 Spec（改策展/草案；待拆票） |
+| `.scratch/change-curated-draft/issues/` | 改策展/草案工单（01–06；frontier = 01 或 02） |
+| `docs/specs/change-curated-draft.md` | 改策展/草案 Spec（已拆票） |
 
 ## 模块边界
 
