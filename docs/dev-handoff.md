@@ -52,7 +52,7 @@
 5. ~~kamiserver 人工验收~~：已通过  
 6. ~~竖切工单包已闭合 / 下一刀 to-spec~~：改策展 Spec 已发布  
 7. ~~改策展 `/to-tickets`~~：已发布至 `.scratch/change-curated-draft/issues/`（01–06）  
-8. **下一对话：实现一张无 blocker 的 frontier 票**（01 或 02；一次只做一张）。主输入该票文件 + [`docs/specs/change-curated-draft.md`](specs/change-curated-draft.md)。HTTP API 主接缝；不要写票外业务代码；不要重做竖切 01–13；勿用代码偷改领域合同。
+8. **下一对话：`/implement` 票 01**（按编号的 frontier）。提示词 [`docs/implement-change-curated-draft-01-prompt.md`](implement-change-curated-draft-01-prompt.md)。一次只做一张；不要顺手做 02。HTTP API 主接缝；勿用代码偷改领域合同。并行可开工的另一张是 02，须另开对话并只换票路径。
 
 ### 工单阻塞简图
 

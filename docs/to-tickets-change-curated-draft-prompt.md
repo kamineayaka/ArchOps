@@ -56,4 +56,4 @@ Out of Scope（票不得偷带）：自我迭代、指标大盘、网络可达�
 
 ---
 
-工单已发布至 `.scratch/change-curated-draft/issues/`（01–06）。下一对话从无 blocker 的 frontier 票（01 或 02）实现（仍一次一张）。
+工单已发布至 `.scratch/change-curated-draft/issues/`（01–06）。下一对话开工提示词：[`docs/implement-change-curated-draft-01-prompt.md`](implement-change-curated-draft-01-prompt.md)（仍一次一张）。
