@@ -11,6 +11,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -43,7 +44,7 @@ class OperationPlanReviewHttpAcceptanceTest {
                         .header(TempAuthHeaders.USER_ID, SENIOR_ID)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.forks[0].id", is("FIX_ACTUAL_TO_CURATED")));
+                .andExpect(jsonPath("$.data.forks[*].id", hasItem("FIX_ACTUAL_TO_CURATED")));
 
         mockMvc.perform(post("/api/conflicts/{id}/branch-selection", conflictId)
                         .header(TempAuthHeaders.USER_ID, SENIOR_ID)

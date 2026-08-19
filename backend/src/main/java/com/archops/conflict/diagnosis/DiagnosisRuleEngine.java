@@ -10,6 +10,7 @@ import java.util.List;
 public final class DiagnosisRuleEngine {
 
     public static final String FIX_ACTUAL_TO_CURATED = "FIX_ACTUAL_TO_CURATED";
+    public static final String CHANGE_CURATED_TO_OBSERVED = "CHANGE_CURATED_TO_OBSERVED";
     public static final String RESTORE_HEARTBEAT_CHANNEL = "RESTORE_HEARTBEAT_CHANNEL";
 
     private DiagnosisRuleEngine() {
@@ -56,20 +57,31 @@ public final class DiagnosisRuleEngine {
             );
         }
 
-        ConflictDiagnosisResponse.ForkSuggestion fork = new ConflictDiagnosisResponse.ForkSuggestion(
+        String curatedLabel = label(curatedHostId, curatedHostName);
+        String observedLabel = label(observedHostId, observedHostName);
+        ConflictDiagnosisResponse.ForkSuggestion fixActual = new ConflictDiagnosisResponse.ForkSuggestion(
                 FIX_ACTUAL_TO_CURATED,
                 "修实际回策展宿主",
                 "FIX_ACTUAL",
                 "观测宿主与策展宿主不一致",
-                "将容器从实际宿主 " + label(observedHostId, observedHostName)
-                        + " 迁回策展宿主 " + label(curatedHostId, curatedHostName)
+                "将容器从实际宿主 " + observedLabel
+                        + " 迁回策展宿主 " + curatedLabel
                         + "（纯修现场，跳过草案）。"
         );
+        ConflictDiagnosisResponse.ForkSuggestion changeCurated = new ConflictDiagnosisResponse.ForkSuggestion(
+                CHANGE_CURATED_TO_OBSERVED,
+                "改理想",
+                "CHANGE_CURATED",
+                "承认实际、更新策展",
+                "把策展「运行于」从 " + curatedLabel
+                        + " 对齐到当前可用观测宿主 " + observedLabel
+                        + "（须经草案逐条确认；本分叉只读可见）。"
+        );
         return new RuleResult(
-                "策展「运行于」" + label(curatedHostId, curatedHostName)
-                        + "，观测「运行于」" + label(observedHostId, observedHostName)
+                "策展「运行于」" + curatedLabel
+                        + "，观测「运行于」" + observedLabel
                         + "，两侧可用且不等。",
-                List.of(fork)
+                List.of(fixActual, changeCurated)
         );
     }
 
