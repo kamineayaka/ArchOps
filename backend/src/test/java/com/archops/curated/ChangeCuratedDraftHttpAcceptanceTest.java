@@ -69,6 +69,23 @@ class ChangeCuratedDraftHttpAcceptanceTest {
                         hasItem("RUNS_ON_TARGET_CHANGE")));
     }
 
+    @Test
+    void selectChangeCuratedDoesNotWriteCuratedShouldWhere() throws Exception {
+        Fixture fx = openConflictWithSiblingAndClaim("ccd-sw-a", "ccd-sw-b", "ctr-ccd-sw-x", "ctr-ccd-sw-y");
+        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, fx.conflictId(), GENERAL_ID);
+        postBranch(fx.conflictId(), GENERAL_ID, "CHANGE_CURATED_TO_OBSERVED", null)
+                .andExpect(status().isOk());
+
+        getShouldWhere(fx.containerX())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.question", is("应该在哪")))
+                .andExpect(jsonPath("$.data.track", is("CURATED")))
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(fx.hostA())));
+        getShouldWhere(fx.containerY())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(fx.hostA())));
+    }
+
     private org.springframework.test.web.servlet.ResultActions postBranch(
             String conflictId, String userId, String forkId, String diagnosisId
     ) throws Exception {
@@ -86,6 +103,13 @@ class ChangeCuratedDraftHttpAcceptanceTest {
             throws Exception {
         return mockMvc.perform(get("/api/conflicts/{id}/curated-drafts/open", conflictId)
                 .header(TempAuthHeaders.USER_ID, userId)
+                .accept(MediaType.APPLICATION_JSON));
+    }
+
+    private org.springframework.test.web.servlet.ResultActions getShouldWhere(String containerId) throws Exception {
+        return mockMvc.perform(get("/api/curated/asks/should-where")
+                .param("containerId", containerId)
+                .header(TempAuthHeaders.USER_ID, GENERAL_ID)
                 .accept(MediaType.APPLICATION_JSON));
     }
 

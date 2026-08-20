@@ -64,3 +64,16 @@ BUILD SUCCESSFUL in 4s
 ```
 
 Refactor (no behavior change): HTTP helpers `postBranch` / `getOpenDraft`. Same test still green.
+
+### Step D — cycle 2: 选支后「应该在哪」仍为 A
+
+Ran:
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftHttpAcceptanceTest.selectChangeCuratedDoesNotWriteCuratedShouldWhere
+BUILD SUCCESSFUL in 4s
+```
+
+Already green from cycle 1 (create 草案 does not write 策展). Regression only; no extra production. GET 「应该在哪」 for X and Y stays host A (`question` / `track` literals).
+
+Refactor: HTTP helper `getShouldWhere`.
