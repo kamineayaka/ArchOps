@@ -110,6 +110,27 @@ class ChangeCuratedDraftHttpAcceptanceTest {
                 .andExpect(jsonPath("$.code", is("PLAN_REQUIRES_ACCEPTED_HANDLER")));
     }
 
+    @Test
+    void pendingHandlerCannotSelectChangeCurated() throws Exception {
+        Fixture pending = openConflictWithSibling("ccd-pe-a", "ccd-pe-b", "ctr-ccd-pe-x", "ctr-ccd-pe-y");
+        mockMvc.perform(post("/api/conflicts/{id}/acknowledge", pending.conflictId())
+                        .header(TempAuthHeaders.USER_ID, SENIOR_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.collaboration.handlerAcceptance", is("NONE")));
+        mockMvc.perform(post("/api/conflicts/{id}/assign-handler", pending.conflictId())
+                        .header(TempAuthHeaders.USER_ID, SENIOR_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"assigneeUserId\":\"" + GENERAL_ID + "\"}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.collaboration.handlerAcceptance", is("PENDING_ACCEPT")));
+        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, pending.conflictId(), GENERAL_ID);
+        postBranch(pending.conflictId(), GENERAL_ID, "CHANGE_CURATED_TO_OBSERVED", null)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("PLAN_REQUIRES_ACCEPTED_HANDLER")));
+    }
+
     private org.springframework.test.web.servlet.ResultActions postBranch(
             String conflictId, String userId, String forkId, String diagnosisId
     ) throws Exception {

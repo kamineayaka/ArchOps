@@ -99,3 +99,14 @@ BUILD SUCCESSFUL in 5s
 ```
 
 Already green: reused `requireAcceptedHandler` gate (`PLAN_REQUIRES_ACCEPTED_HANDLER`). Senior viewer is not the 已接受处理人. No extra production; collaboration not reimplemented.
+
+### Step G — cycle 5: 待接受处理人 cannot select 改理想
+
+Ran:
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftHttpAcceptanceTest.pendingHandlerCannotSelectChangeCurated
+BUILD SUCCESSFUL in 4s
+```
+
+Already green from the same gate: `PENDING_ACCEPT` is not 已接受. Assignee POST is `PLAN_REQUIRES_ACCEPTED_HANDLER`. No extra production.
