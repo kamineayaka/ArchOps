@@ -13,7 +13,6 @@ import org.springframework.test.web.servlet.MvcResult;
 
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.hasItem;
-import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -22,14 +21,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * Change-curated ticket 03 HTTP acceptance: accepted handler selects 改理想 →
- * open draft with ≥2 pending 运行于 items; curated truth and operation plans unchanged.
+ * Change-curated ticket 03 HTTP acceptance: one behavior per method.
+ * Cycle 1: accepted handler selects 改理想 → exactly one open 草案 with ≥2 pending 运行于 items.
  */
 @HttpAcceptanceTest
 class ChangeCuratedDraftHttpAcceptanceTest {
 
     private static final String GENERAL_ID = "user-general-demo";
-    private static final String SENIOR_ID = "user-senior-demo";
 
     @Autowired
     private MockMvc mockMvc;
@@ -38,16 +36,9 @@ class ChangeCuratedDraftHttpAcceptanceTest {
     private ObjectMapper objectMapper;
 
     @Test
-    void acceptedHandlerSelectsChangeCuratedOpensDraftWithoutWritingCuratedOrPlan() throws Exception {
+    void acceptedHandlerSelectsChangeCuratedOpensDraftWithTwoPendingRunsOnItems() throws Exception {
         Fixture fx = openConflictWithSiblingAndClaim("ccd-a", "ccd-b", "ctr-ccd-x", "ctr-ccd-y");
         ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, fx.conflictId(), GENERAL_ID);
-
-        mockMvc.perform(get("/api/conflicts/{id}/diagnosis", fx.conflictId())
-                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.forks[*].id", hasItems("FIX_ACTUAL_TO_CURATED", "CHANGE_CURATED_TO_OBSERVED")))
-                .andExpect(jsonPath("$.data.forks[?(@.id=='CHANGE_CURATED_TO_OBSERVED')].kind", hasItem("CHANGE_CURATED")));
 
         mockMvc.perform(post("/api/conflicts/{id}/branch-selection", fx.conflictId())
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)
@@ -61,7 +52,7 @@ class ChangeCuratedDraftHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data.items", hasSize(greaterThanOrEqualTo(2))));
 
         mockMvc.perform(get("/api/conflicts/{id}/curated-drafts/open", fx.conflictId())
-                        .header(TempAuthHeaders.USER_ID, SENIOR_ID)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status", is("OPEN")))
@@ -76,172 +67,12 @@ class ChangeCuratedDraftHttpAcceptanceTest {
                         hasItem(fx.hostB())))
                 .andExpect(jsonPath("$.data.items[?(@.subjectId=='" + fx.containerX() + "')].status",
                         hasItem("PENDING")))
-                .andExpect(jsonPath("$.data.items[?(@.subjectId=='" + fx.containerY() + "')].status",
-                        hasItem("PENDING")))
                 .andExpect(jsonPath("$.data.items[?(@.subjectId=='" + fx.containerX() + "')].kind",
                         hasItem("RUNS_ON_TARGET_CHANGE")))
+                .andExpect(jsonPath("$.data.items[?(@.subjectId=='" + fx.containerY() + "')].status",
+                        hasItem("PENDING")))
                 .andExpect(jsonPath("$.data.items[?(@.subjectId=='" + fx.containerY() + "')].kind",
                         hasItem("RUNS_ON_TARGET_CHANGE")));
-
-        mockMvc.perform(get("/api/curated/asks/should-where")
-                        .param("containerId", fx.containerX())
-                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.question", is("应该在哪")))
-                .andExpect(jsonPath("$.data.track", is("CURATED")))
-                .andExpect(jsonPath("$.data.curatedValue.hostId", is(fx.hostA())));
-
-        mockMvc.perform(get("/api/curated/asks/should-where")
-                        .param("containerId", fx.containerY())
-                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.curatedValue.hostId", is(fx.hostA())));
-
-        mockMvc.perform(get("/api/conflicts/{id}/operation-plans/active", fx.conflictId())
-                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code", is("PLAN_NOT_FOUND")));
-
-        mockMvc.perform(get("/api/conflicts/{id}/events", fx.conflictId())
-                        .header(TempAuthHeaders.USER_ID, SENIOR_ID)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data[*].eventType", hasItem("DRAFT_CREATED")))
-                .andExpect(jsonPath("$.data[?(@.eventType=='DRAFT_CREATED')].detail.hint", hasItem("草案已创建")));
-    }
-
-    @Test
-    void nonHandlerAndPendingHandlerCannotSelectChangeCurated() throws Exception {
-        Fixture claimed = openConflictWithSiblingAndClaim("ccd-nh-a", "ccd-nh-b", "ctr-ccd-nh-x", "ctr-ccd-nh-y");
-        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, claimed.conflictId(), GENERAL_ID);
-        postBranch(claimed.conflictId(), SENIOR_ID, "CHANGE_CURATED_TO_OBSERVED", null)
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code", is("PLAN_REQUIRES_ACCEPTED_HANDLER")));
-
-        Fixture pending = openConflictWithSibling("ccd-pe-a", "ccd-pe-b", "ctr-ccd-pe-x", "ctr-ccd-pe-y");
-        mockMvc.perform(post("/api/conflicts/{id}/acknowledge", pending.conflictId())
-                        .header(TempAuthHeaders.USER_ID, SENIOR_ID)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.collaboration.handlerAcceptance", is("NONE")));
-        mockMvc.perform(post("/api/conflicts/{id}/assign-handler", pending.conflictId())
-                        .header(TempAuthHeaders.USER_ID, SENIOR_ID)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"assigneeUserId\":\"" + GENERAL_ID + "\"}")
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.collaboration.handlerAcceptance", is("PENDING_ACCEPT")));
-        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, pending.conflictId(), GENERAL_ID);
-        postBranch(pending.conflictId(), GENERAL_ID, "CHANGE_CURATED_TO_OBSERVED", null)
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code", is("PLAN_REQUIRES_ACCEPTED_HANDLER")));
-    }
-
-    @Test
-    void staleDiagnosisCannotSelectChangeCurated() throws Exception {
-        Fixture fx = openConflictWithSiblingAndClaim("ccd-st-a", "ccd-st-b", "ctr-ccd-st-x", "ctr-ccd-st-y");
-        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, fx.conflictId(), GENERAL_ID);
-        String staleDiagnosisId = readDiagnosisId(fx.conflictId());
-
-        String hostC = createHost("ccd-st-c");
-        heartbeatWithContainer(hostC, "agent-ccd-st-c", "ctr-ccd-st-x");
-        waitUntilDiagnosisReplaced(fx.conflictId(), staleDiagnosisId);
-
-        postBranch(fx.conflictId(), GENERAL_ID, "CHANGE_CURATED_TO_OBSERVED", staleDiagnosisId)
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code", is("DIAGNOSIS_NOT_READY")));
-    }
-
-    @Test
-    void openDraftRejectsSecondChangeCuratedAndFixActual() throws Exception {
-        Fixture fx = openConflictWithSiblingAndClaim("ccd-od-a", "ccd-od-b", "ctr-ccd-od-x", "ctr-ccd-od-y");
-        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, fx.conflictId(), GENERAL_ID);
-        postBranch(fx.conflictId(), GENERAL_ID, "CHANGE_CURATED_TO_OBSERVED", null)
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.status", is("OPEN")));
-
-        postBranch(fx.conflictId(), GENERAL_ID, "CHANGE_CURATED_TO_OBSERVED", null)
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code", is("DRAFT_ALREADY_OPEN")));
-        postBranch(fx.conflictId(), GENERAL_ID, "FIX_ACTUAL_TO_CURATED", null)
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code", is("OPEN_DRAFT_BLOCKS_FIX_ACTUAL")));
-    }
-
-    @Test
-    void fixActualStillSkipsDraftAndBlocksChangeCuratedWhilePlanActive() throws Exception {
-        Fixture fx = openConflictWithSiblingAndClaim("ccd-pl-a", "ccd-pl-b", "ctr-ccd-pl-x", "ctr-ccd-pl-y");
-        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, fx.conflictId(), GENERAL_ID);
-
-        postBranch(fx.conflictId(), GENERAL_ID, "FIX_ACTUAL_TO_CURATED", null)
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.status", is("DRAFT_REVIEW")))
-                .andExpect(jsonPath("$.data.skipsDraft", is(true)))
-                .andExpect(jsonPath("$.data.branchKind", is("FIX_ACTUAL")))
-                .andExpect(jsonPath("$.data.selectedForkId", is("FIX_ACTUAL_TO_CURATED")));
-
-        mockMvc.perform(get("/api/conflicts/{id}/curated-drafts/open", fx.conflictId())
-                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code", is("DRAFT_NOT_FOUND")));
-
-        mockMvc.perform(get("/api/conflicts/{id}/operation-plans/active", fx.conflictId())
-                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.branchKind", is("FIX_ACTUAL")))
-                .andExpect(jsonPath("$.data.skipsDraft", is(true)));
-
-        postBranch(fx.conflictId(), GENERAL_ID, "CHANGE_CURATED_TO_OBSERVED", null)
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code", is("PLAN_ALREADY_ACTIVE")));
-    }
-
-    private org.springframework.test.web.servlet.ResultActions postBranch(
-            String conflictId, String userId, String forkId, String diagnosisId
-    ) throws Exception {
-        String body = diagnosisId == null
-                ? "{\"forkId\":\"" + forkId + "\"}"
-                : "{\"forkId\":\"" + forkId + "\",\"diagnosisId\":\"" + diagnosisId + "\"}";
-        return mockMvc.perform(post("/api/conflicts/{id}/branch-selection", conflictId)
-                .header(TempAuthHeaders.USER_ID, userId)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(body)
-                .accept(MediaType.APPLICATION_JSON));
-    }
-
-    private String readDiagnosisId(String conflictId) throws Exception {
-        MvcResult result = mockMvc.perform(get("/api/conflicts/{id}/diagnosis", conflictId)
-                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andReturn();
-        return objectMapper.readTree(result.getResponse().getContentAsString())
-                .path("data").path("id").asText();
-    }
-
-    private void waitUntilDiagnosisReplaced(String conflictId, String previousId) throws Exception {
-        long deadline = System.currentTimeMillis() + 10_000;
-        while (System.currentTimeMillis() < deadline) {
-            MvcResult result = mockMvc.perform(get("/api/conflicts/{id}/diagnosis", conflictId)
-                            .header(TempAuthHeaders.USER_ID, GENERAL_ID)
-                            .accept(MediaType.APPLICATION_JSON))
-                    .andReturn();
-            if (result.getResponse().getStatus() == 200) {
-                JsonNode data = objectMapper.readTree(result.getResponse().getContentAsString()).path("data");
-                String status = data.path("status").asText();
-                String id = data.path("id").asText();
-                if ("READY".equals(status) && !previousId.equals(id)) {
-                    return;
-                }
-            }
-            Thread.sleep(150);
-        }
-        throw new AssertionError("Timed out waiting for replacement READY diagnosis on " + conflictId);
     }
 
     private Fixture openConflictWithSiblingAndClaim(

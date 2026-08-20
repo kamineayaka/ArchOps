@@ -30,3 +30,24 @@
 HTTP 接缝（先前同提交落地，**不是** TDD 完成证据）：`ChangeCuratedDraftHttpAcceptanceTest`。已接受处理人 `POST /api/conflicts/{id}/branch-selection`（`CHANGE_CURATED_TO_OBSERVED`）生成开放草案；`GET /api/conflicts/{id}/curated-drafts/open` 条目 ≥2（X/Y `运行于` A→B，PENDING）。选支后「应该在哪」仍为 A，活跃计划 `PLAN_NOT_FOUND`，事件 `DRAFT_CREATED`。Flyway V13 草案表；`FIX_ACTUAL` 仍跳过草案出计划。无按条写入策展。
 
 TDD 重做：把多行为测试拆成一圈一条；若已绿则先去掉该票生产行为（**不要改 V13**；新 schema 用下一号）。HTTP 循环全绿后再接线薄 UI。不要做 04–06。
+
+### Step A — restore FIX_ACTUAL-only select so TDD starts red
+
+Removed `CHANGE_CURATED` draft write from the shared branch-selection gate (back to `FORK_NOT_SUPPORTED`). Split the co-committed multi-behavior test; cycle 1 HTTP method is `acceptedHandlerSelectsChangeCuratedOpensDraftWithTwoPendingRunsOnItems`. Did not edit V13.
+
+Red:
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftHttpAcceptanceTest.acceptedHandlerSelectsChangeCuratedOpensDraftWithTwoPendingRunsOnItems
+```
+
+```text
+ChangeCuratedDraftHttpAcceptanceTest > acceptedHandlerSelectsChangeCuratedOpensDraftWithTwoPendingRunsOnItems() FAILED
+    java.lang.AssertionError at ChangeCuratedDraftHttpAcceptanceTest.java:48
+
+java.lang.AssertionError: Status expected:<200> but was:<400>
+Body = {"success":false,"code":"FORK_NOT_SUPPORTED","message":"Ticket 07 only supports FIX_ACTUAL / 修实际回策展宿主","data":null}
+BUILD FAILED in 16s
+```
+
+POST 改理想 is 400 `FORK_NOT_SUPPORTED` (not HTTP 500). No open 草案.
