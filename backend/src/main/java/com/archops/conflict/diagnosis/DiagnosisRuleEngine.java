@@ -70,10 +70,12 @@ public final class DiagnosisRuleEngine {
         );
         ConflictDiagnosisResponse.ForkSuggestion changeCurated = new ConflictDiagnosisResponse.ForkSuggestion(
                 CHANGE_CURATED_TO_OBSERVED,
+                "改理想",
                 "CHANGE_CURATED",
-                "CHANGE_CURATED",
-                "",
-                observedLabel
+                "承认实际、更新策展",
+                "把策展「运行于」从 " + curatedLabel
+                        + " 对齐到当前可用观测宿主 " + observedLabel
+                        + "（须经草案逐条确认）。"
         );
         return new RuleResult(
                 "策展「运行于」" + curatedLabel

@@ -87,6 +87,22 @@ class ConflictDiagnosisHttpAcceptanceTest {
     }
 
     @Test
+    void changeCuratedForkCopyUsesContractTerms() throws Exception {
+        MismatchFixture fx = seedAvailableRunsOnMismatch(
+                "diag-copy-a", "diag-copy-b", "app-diag-copy", "ctr-diag-copy-001");
+        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, fx.conflictId(), GENERAL_ID);
+
+        MvcResult diagnosis = getDiagnosis(fx.conflictId(), GENERAL_ID).andReturn();
+        String changeCopy = forkCopy(diagnosis, "CHANGE_CURATED_TO_OBSERVED");
+        assertTrue(changeCopy.contains("改理想"));
+        assertTrue(changeCopy.contains("策展"));
+        assertTrue(changeCopy.contains("观测"));
+        assertTrue(changeCopy.contains("草案"));
+        assertFalse(changeCopy.contains("以观测为准"));
+        assertFalse(changeCopy.contains("裁定"));
+    }
+
+    @Test
     void absentObservationKeepsRestoreForksWithoutChangeCuratedToMissing() throws Exception {
         String hostA = createHost("diag-abs-a");
         String hostB = createHost("diag-abs-b");
@@ -235,5 +251,19 @@ class ConflictDiagnosisHttpAcceptanceTest {
     }
 
     private record MismatchFixture(String conflictId, String hostA, String hostB, String containerId) {
+    }
+
+    private String forkCopy(MvcResult diagnosis, String forkId) throws Exception {
+        JsonNode forks = objectMapper.readTree(diagnosis.getResponse().getContentAsString())
+                .path("data").path("forks");
+        for (JsonNode fork : forks) {
+            if (forkId.equals(fork.path("id").asText())) {
+                return String.join(" ",
+                        fork.path("label").asText(),
+                        fork.path("hypothesis").asText(),
+                        fork.path("description").asText());
+            }
+        }
+        throw new AssertionError("Fork not found: " + forkId);
     }
 }
