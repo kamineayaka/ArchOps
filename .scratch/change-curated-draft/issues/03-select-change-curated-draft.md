@@ -147,3 +147,27 @@ Green: `createForChangeCurated` refuses when an OPEN 草案 exists (`DRAFT_ALREA
 cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftHttpAcceptanceTest.openDraftRejectsSecondChangeCuratedSelection
 BUILD SUCCESSFUL in 4s
 ```
+
+### Step J — cycle 8: open 草案 blocks FIX_ACTUAL
+
+Red:
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftHttpAcceptanceTest.openDraftBlocksFixActualSelection
+```
+
+```text
+ChangeCuratedDraftHttpAcceptanceTest > openDraftBlocksFixActualSelection() FAILED
+    java.lang.AssertionError at ChangeCuratedDraftHttpAcceptanceTest.java:170
+
+java.lang.AssertionError: Status expected:<400> but was:<200>
+Body = {"success":true,...,"data":{"id":"plan-...","branchKind":"FIX_ACTUAL","skipsDraft":true,"status":"DRAFT_REVIEW",...}}
+BUILD FAILED in 4s
+```
+
+Green: shared gate checks `hasOpen` before `FIX_ACTUAL` plan create → `OPEN_DRAFT_BLOCKS_FIX_ACTUAL`.
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftHttpAcceptanceTest.openDraftBlocksFixActualSelection
+BUILD SUCCESSFUL in 4s
+```

@@ -65,6 +65,10 @@ public class BranchSelectionService {
             return curatedDraftService.createForChangeCurated(conflict, diagnosis, fork, actor);
         }
         if (isFixActual(fork)) {
+            if (curatedDraftService.hasOpen(conflictId)) {
+                throw new BusinessException("OPEN_DRAFT_BLOCKS_FIX_ACTUAL",
+                        "Open 改理想草案 blocks 修实际 branch selection");
+            }
             return operationPlanService.selectBranch(conflictId, forkId, actor);
         }
         throw new BusinessException("FORK_NOT_SUPPORTED",
