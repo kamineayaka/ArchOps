@@ -135,6 +135,31 @@ export type StartExecutionResult = {
   executionLog: ExecutionStepLog[] | null;
 };
 
+export type CuratedDraftItem = {
+  id: string;
+  seq: number;
+  kind: string;
+  status: string;
+  subjectId: string;
+  subjectName: string | null;
+  fromHostId: string;
+  fromHostName: string | null;
+  toHostId: string;
+  toHostName: string | null;
+  mergeKey: boolean;
+};
+
+export type CuratedDraft = {
+  id: string;
+  conflictId: string;
+  diagnosisId: string;
+  selectedForkId: string;
+  status: string;
+  items: CuratedDraftItem[];
+  createdBy: string;
+  createdAt: string;
+};
+
 export class ApiError extends Error {
   readonly code: string;
   readonly httpStatus: number;

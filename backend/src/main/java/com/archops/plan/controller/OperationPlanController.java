@@ -1,9 +1,11 @@
 package com.archops.plan.controller;
 
 import com.archops.common.api.ApiResponse;
+import com.archops.common.api.BranchSelectionResult;
 import com.archops.plan.dto.OperationPlanResponse;
 import com.archops.plan.dto.SelectBranchRequest;
 import com.archops.plan.dto.StartExecutionResponse;
+import com.archops.plan.service.BranchSelectionService;
 import com.archops.plan.service.OperationPlanService;
 import com.archops.user.security.AuthUserPrincipal;
 import jakarta.validation.Valid;
@@ -17,8 +19,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Operation plan review surface (ticket 07). Diagnosis forks remain read-only on conflict APIs;
- * only the accepted handler may select a branch here.
+ * Operation plan review + shared branch-selection gate (tickets 07 / change-curated 03).
+ * Diagnosis GET stays read-only; only the accepted handler may select a branch here.
  */
 @RestController
 @RequestMapping("/api")
@@ -26,18 +28,24 @@ import org.springframework.web.bind.annotation.RestController;
 public class OperationPlanController {
 
     private final OperationPlanService operationPlanService;
+    private final BranchSelectionService branchSelectionService;
 
-    public OperationPlanController(OperationPlanService operationPlanService) {
+    public OperationPlanController(
+            OperationPlanService operationPlanService,
+            BranchSelectionService branchSelectionService
+    ) {
         this.operationPlanService = operationPlanService;
+        this.branchSelectionService = branchSelectionService;
     }
 
     @PostMapping("/conflicts/{conflictId}/branch-selection")
-    public ApiResponse<OperationPlanResponse> selectBranch(
+    public ApiResponse<BranchSelectionResult> selectBranch(
             @PathVariable String conflictId,
             @Valid @RequestBody SelectBranchRequest request,
             @AuthenticationPrincipal AuthUserPrincipal principal
     ) {
-        return ApiResponse.ok(operationPlanService.selectBranch(conflictId, request.forkId(), principal));
+        return ApiResponse.ok(branchSelectionService.select(
+                conflictId, request.forkId(), request.diagnosisId(), principal));
     }
 
     @GetMapping("/conflicts/{conflictId}/operation-plans/active")
