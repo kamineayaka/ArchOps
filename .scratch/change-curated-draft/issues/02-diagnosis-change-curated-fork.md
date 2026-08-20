@@ -4,18 +4,18 @@
 
 **Blocked by:** None — can start immediately
 
-**Status:** ready-for-agent
+**Status:** done
 
 **TDD redo:** yes — 验收标准不变。先前实现与测试同提交，不算 TDD 完成。按 [`docs/agents/tdd.md`](../../../docs/agents/tdd.md) 从 witnessed red 重做。在 01 TDD-done 之后再开（两张 unblocked 时按编号最小）。
 
 从竖切 MVP 往上长：规则诊断曾在宿主不等时只发出 `FIX_ACTUAL`，既有验收按「仅一条 / 第一条即修实际」断言。本票保留修实际分叉，并增加 `CHANGE_CURATED`（建议稳定 id：`CHANGE_CURATED_TO_OBSERVED`，`kind=CHANGE_CURATED`）；把按序号钉死的断言改成按分叉 id 识别，避免打掉竖切回归。TDD 重做从红灯开始（见 Comments）。
 
-- [ ] 可用策展宿主 A、可用观测宿主 B（不等）时，GET 当前诊断同时包含 `FIX_ACTUAL` 与 `CHANGE_CURATED`；改理想目标为当前可用观测宿主
-- [ ] 改理想分叉文案使用合同术语（改理想 / 策展 / 观测 / 草案），不出现「以观测为准」「裁定」等 Avoid 词
-- [ ] 纯观测空洞：仍只有恢复观测通道/心跳/核验类分叉，不含改理想
-- [ ] 观测消失（可用值为不存在）：保持既有恢复/核验类分叉，不发明「策展改为不存在」条目或分叉
-- [ ] 非处理人仍可只读看到分叉；本票不实现选支写入草案
-- [ ] 既有「修实际」HTTP 验收仍绿（允许改为按 id 认分叉，而不是 `forks[0]` / 长度恒为 1）
+- [x] 可用策展宿主 A、可用观测宿主 B（不等）时，GET 当前诊断同时包含 `FIX_ACTUAL` 与 `CHANGE_CURATED`；改理想目标为当前可用观测宿主
+- [x] 改理想分叉文案使用合同术语（改理想 / 策展 / 观测 / 草案），不出现「以观测为准」「裁定」等 Avoid 词
+- [x] 纯观测空洞：仍只有恢复观测通道/心跳/核验类分叉，不含改理想
+- [x] 观测消失（可用值为不存在）：保持既有恢复/核验类分叉，不发明「策展改为不存在」条目或分叉
+- [x] 非处理人仍可只读看到分叉；本票不实现选支写入草案
+- [x] 既有「修实际」HTTP 验收仍绿（允许改为按 id 认分叉，而不是 `forks[0]` / 长度恒为 1）
 
 **Out of this ticket:** 选支、草案表、逐条确认、关建底覆盖（见 01）、立刻比对、UI 选支按钮文案可留到 03。无 LLM 起草（规则引擎即可）。
 
@@ -168,4 +168,29 @@ BUILD SUCCESSFUL in 5s
 ```
 
 Refactor: `seedAbsentObservation` HTTP helper.
+
+### Step H — cycle 6: non-handler can still GET 改理想 fork
+
+GET `/api/conflicts/{id}/diagnosis` has no handler write gate. Senior viewer (not 已接受处理人) still sees `CHANGE_CURATED_TO_OBSERVED`. Already green after cycle 1. This ticket does not POST branch-selection / 草案.
+
+```text
+cd backend && ./gradlew test --tests com.archops.conflict.ConflictDiagnosisHttpAcceptanceTest.nonHandlerCanReadChangeCuratedFork
+BUILD SUCCESSFUL in 5s
+```
+
+### Step I — full suite, /code-review, frontier → 03
+
+```text
+cd backend && ./gradlew cleanTest test
+BUILD SUCCESSFUL in 11s
+15 test classes, 61 tests, 0 failures
+```
+
+`/code-review` fixed point: `27c3637` (Step A restore). `git diff 27c3637...HEAD`.
+
+Standards: 0 hard product violations. Judgement: hollow fixture uses `HostAgentMapper` to backdate heartbeat (same HTTP-scan pattern as ticket 10 `HeartbeatTimeoutHollowHttpAcceptanceTest`); not asserting mapper internals. Duplicated seed helpers left as one-behavior methods.
+
+Spec: 0 missing / wrong / scope-creep. `CHANGE_CURATED` only on available mismatch; hollow/ABSENT stay restore/verify; no 选支写入草案.
+
+No Flyway history edits. No ticket 03 draft write. Frontier now 03 (`docs/implement-change-curated-draft-03-prompt.md`).
 
