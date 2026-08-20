@@ -171,3 +171,14 @@ Green: shared gate checks `hasOpen` before `FIX_ACTUAL` plan create → `OPEN_DR
 cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftHttpAcceptanceTest.openDraftBlocksFixActualSelection
 BUILD SUCCESSFUL in 4s
 ```
+
+### Step K — cycle 9: FIX_ACTUAL still skips 草案 and creates 操作计划
+
+Ran:
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftHttpAcceptanceTest.fixActualStillSkipsDraftAndCreatesOperationPlan
+BUILD SUCCESSFUL in 4s
+```
+
+Already green: existing `FIX_ACTUAL` HTTP contract (`skipsDraft=true`, `branchKind=FIX_ACTUAL`, GET open draft `DRAFT_NOT_FOUND`). No extra production. Did not add `CHANGE_CURATED` as a plan branch kind.

@@ -171,6 +171,30 @@ class ChangeCuratedDraftHttpAcceptanceTest {
                 .andExpect(jsonPath("$.code", is("OPEN_DRAFT_BLOCKS_FIX_ACTUAL")));
     }
 
+    @Test
+    void fixActualStillSkipsDraftAndCreatesOperationPlan() throws Exception {
+        Fixture fx = openConflictWithSiblingAndClaim("ccd-fa-a", "ccd-fa-b", "ctr-ccd-fa-x", "ctr-ccd-fa-y");
+        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, fx.conflictId(), GENERAL_ID);
+
+        postBranch(fx.conflictId(), GENERAL_ID, "FIX_ACTUAL_TO_CURATED", null)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("DRAFT_REVIEW")))
+                .andExpect(jsonPath("$.data.skipsDraft", is(true)))
+                .andExpect(jsonPath("$.data.branchKind", is("FIX_ACTUAL")))
+                .andExpect(jsonPath("$.data.selectedForkId", is("FIX_ACTUAL_TO_CURATED")));
+
+        getOpenDraft(fx.conflictId(), GENERAL_ID)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("DRAFT_NOT_FOUND")));
+
+        mockMvc.perform(get("/api/conflicts/{id}/operation-plans/active", fx.conflictId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.branchKind", is("FIX_ACTUAL")))
+                .andExpect(jsonPath("$.data.skipsDraft", is(true)));
+    }
+
     private org.springframework.test.web.servlet.ResultActions postBranch(
             String conflictId, String userId, String forkId, String diagnosisId
     ) throws Exception {
