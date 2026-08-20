@@ -21,4 +21,4 @@
 
 HTTP 接缝（先前同提交落地，**不是** TDD 完成证据）：`CuratedTruthHttpAcceptanceTest.bootstrapRunsOnPostRejectsOverwriteOfExistingFact`。`confirmRunsOn` 对已有 `运行于` 抛 `CURATED_RUNS_ON_EXISTS`（统一信封 400）；首次插入与「应该在哪」保留。无草案表、无 Flyway。
 
-TDD 重做：若覆盖拒绝测试对当前生产代码已绿，先去掉该票生产行为让第一圈变红；一圈一条测试；红灯输出贴本段；绿灯后重构再提交。不要做 02–06。
+TDD 重做：若覆盖拒绝测试对当前生产代码已绿，先恢复「已有则 update target」让第一圈变成诚实红灯（第二下 POST 为 200 且「应该在哪」变成 B；不要只删 throw 去撞 UNIQUE 变 500）。一圈一条测试；红灯输出贴本段；绿灯后重构再提交。开工 prompt：[`docs/implement-change-curated-draft-01-prompt.md`](../../../docs/implement-change-curated-draft-01-prompt.md)。不要做 02–06。

@@ -54,7 +54,7 @@
 6. ~~竖切工单包已闭合 / 下一刀 to-spec~~：改策展 Spec 已发布  
 7. ~~改策展 `/to-tickets`~~：已发布至 `.scratch/change-curated-draft/issues/`（01–06）  
 8. ~~Agent 约束文档对齐 TDD~~：`docs/agents/tdd.md` + `/tdd` skill 为 **red → green → refactor**（本轮只改文档，未改业务代码）  
-9. **下一对话：`/implement` `/tdd` 票 01（TDD 重做）**（关闭建底 POST 覆盖已有 `运行于`）。票路径 [`.scratch/change-curated-draft/issues/01-close-bootstrap-runs-on-overwrite.md`](../.scratch/change-curated-draft/issues/01-close-bootstrap-runs-on-overwrite.md)。提示词 [`docs/implement-change-curated-draft-01-prompt.md`](implement-change-curated-draft-01-prompt.md)。一次只做一张；不要顺手做 02–06。先留下 HTTP 接缝上的 witnessed red，再写该圈生产代码。  
+9. **下一对话：`/implement` `/tdd` 票 01（TDD 重做）**（关闭建底 POST 覆盖已有 `运行于`）。票路径 [`.scratch/change-curated-draft/issues/01-close-bootstrap-runs-on-overwrite.md`](../.scratch/change-curated-draft/issues/01-close-bootstrap-runs-on-overwrite.md)。**完整开工 prompt** [`docs/implement-change-curated-draft-01-prompt.md`](implement-change-curated-draft-01-prompt.md)（复制区整段贴进新对话；附 implement + tdd skill）。一次只做一张；不要顺手做 02–06。先恢复覆盖以得到诚实红灯，再写该圈生产代码。  
 
 02 无 blocker 但不是本对话的 frontier（两张 unblocked 时按编号最小）。03 被 02 挡住；04 被 01 与 03 挡住。
 
