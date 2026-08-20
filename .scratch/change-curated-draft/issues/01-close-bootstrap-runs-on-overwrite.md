@@ -4,16 +4,16 @@
 
 **Blocked by:** None — can start immediately
 
-**Status:** ready-for-agent
+**Status:** done
 
 **TDD redo:** yes — 验收标准不变。先前实现与测试同提交，不算 TDD 完成。按 [`docs/agents/tdd.md`](../../../docs/agents/tdd.md) 从 witnessed red 重做。
 
 从竖切 MVP 往上长：建底 POST 曾对已有 `运行于` 覆盖写入。本票只关掉这条旁路，不引入草案、不改诊断、不改选支。TDD 重做从红灯开始（见 Comments）。
 
-- [ ] 对尚无 `运行于` 的容器，建底 POST 仍可插入第一条事实，随后「应该在哪」可读到该宿主
-- [ ] 对已有 `运行于` 的容器，再 POST（同一或不同宿主）被拒绝；事实与「应该在哪」均不变
-- [ ] 拒绝行为可经控制面公开 HTTP API 断言（统一信封）；不测 Mapper/Redis 内部
-- [ ] 不引入草案、选支或策展对齐步骤；不修改已有 Flyway 历史脚本
+- [x] 对尚无 `运行于` 的容器，建底 POST 仍可插入第一条事实，随后「应该在哪」可读到该宿主
+- [x] 对已有 `运行于` 的容器，再 POST（同一或不同宿主）被拒绝；事实与「应该在哪」均不变
+- [x] 拒绝行为可经控制面公开 HTTP API 断言（统一信封）；不测 Mapper/Redis 内部
+- [x] 不引入草案、选支或策展对齐步骤；不修改已有 Flyway 历史脚本
 
 **Out of this ticket:** 改理想分叉、草案逐条确认、比对触发、UI、SSH、Y2 策展对齐步骤。
 
@@ -121,3 +121,30 @@ Refactor (no behavior change): `findRunsOnFact` / `toRunsOnResponse`; HTTP helpe
 cd backend && ./gradlew test --tests com.archops.curated.CuratedTruthHttpAcceptanceTest.bootstrapPostRejectsOverwriteToDifferentHost --tests com.archops.curated.CuratedTruthHttpAcceptanceTest.createHostsContainerConfirmRunsOnAndAskShouldWhere
 BUILD SUCCESSFUL in 5s
 ```
+
+### Step D — cycle 2: reject overwrite to the same host
+
+Ran:
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.CuratedTruthHttpAcceptanceTest.bootstrapPostRejectsOverwriteToSameHost
+BUILD SUCCESSFUL in 5s
+```
+
+Already green from Step C’s rule (any existing `运行于` is rejected). This method stays as regression; no extra production code. Envelope `code` literal `CURATED_RUNS_ON_EXISTS`; 「应该在哪」 host remains A.
+
+### Step E — full suite, /code-review, frontier → 02
+
+```text
+cd backend && ./gradlew cleanTest test
+BUILD SUCCESSFUL in 11s
+15 test classes, 55 tests, 0 failures
+```
+
+`/code-review` fixed point: `7e1bd6f` (Step A restore). `git diff 7e1bd6f...HEAD`.
+
+Standards: 0 hard violations. Judgement only (duplicated POST shape in HTTP tests; Data Clumps `containerId`+`hostId` kept at HTTP seam).
+
+Spec: 0 wrong implementations. Partial: same-host test did not GET `facts/runs-on` after reject. Fixed by adding `assertRunsOnTarget` (still HTTP seam; production unchanged). `./gradlew test --tests com.archops.curated.CuratedTruthHttpAcceptanceTest` green after that.
+
+No Flyway history edits. No draft/diagnosis/SSH/UI. Ticket 02 production code untouched. Frontier now 02 (`docs/implement-change-curated-draft-02-prompt.md`).
