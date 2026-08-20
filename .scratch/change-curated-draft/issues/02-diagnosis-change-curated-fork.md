@@ -147,3 +147,14 @@ BUILD SUCCESSFUL in 5s
 
 Refactor: copy lives on the existing CHANGE_CURATED `ForkSuggestion`; no new types.
 
+### Step F — cycle 4: 纯观测空洞 has restore forks, not 改理想
+
+`diagnoseHollow` already emits only `RESTORE_HEARTBEAT_CHANNEL`. Added focused HTTP method (heartbeat timeout → SUSPENDED → GET diagnosis). Already green; lock against treating 空洞 as a unique 改理想 site. No extra production.
+
+```text
+cd backend && ./gradlew test --tests com.archops.conflict.ConflictDiagnosisHttpAcceptanceTest.hollowDiagnosisHasRestoreForksWithoutChangeCurated
+BUILD SUCCESSFUL in 5s
+```
+
+Refactor: agent id from the same objectId used to seed the mismatch (`agent-` + objectId).
+

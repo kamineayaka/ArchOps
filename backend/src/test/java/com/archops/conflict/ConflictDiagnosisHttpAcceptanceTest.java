@@ -144,51 +144,28 @@ class ConflictDiagnosisHttpAcceptanceTest {
     }
 
     @Test
-    void absentObservationKeepsRestoreForksWithoutChangeCuratedToMissing() throws Exception {
-        String hostA = createHost("diag-abs-a");
-        String hostB = createHost("diag-abs-b");
-        String containerId = createContainer("app-diag-abs", "ctr-diag-abs-001");
-        confirmRunsOn(containerId, hostA);
+    void absentObservationKeepsRestoreForksWithoutChangeCurated() throws Exception {
+        MismatchFixture fx = seedAbsentObservation(
+                "diag-abs-a", "diag-abs-b", "app-diag-abs", "ctr-diag-abs-001");
+        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, fx.conflictId(), GENERAL_ID);
 
-        mockMvc.perform(post("/api/agent/heartbeat")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "agentId":"agent-diag-abs",
-                                  "hostId":"%s",
-                                  "snapshot":{
-                                    "containers":[],
-                                    "absentObjectIds":["ctr-diag-abs-001"]
-                                  }
-                                }
-                                """.formatted(hostB))
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk());
-
-        MvcResult warn = mockMvc.perform(get("/api/conflicts/by-merge-key")
-                        .param("subjectId", containerId)
-                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.status", is("OPEN")))
-                .andExpect(jsonPath("$.data.observedValue.availability", is("ABSENT")))
-                .andReturn();
-        String conflictId = objectMapper.readTree(warn.getResponse().getContentAsString())
-                .path("data").path("id").asText();
-
-        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, conflictId, GENERAL_ID);
-
-        MvcResult diagnosis = mockMvc.perform(get("/api/conflicts/{id}/diagnosis", conflictId)
-                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
+        getDiagnosis(fx.conflictId(), GENERAL_ID)
                 .andExpect(jsonPath("$.data.status", is("READY")))
                 .andExpect(jsonPath("$.data.forks[*].id", hasItem("RESTORE_OBSERVATION_OR_RECREATE")))
                 .andExpect(jsonPath("$.data.forks[?(@.id=='RESTORE_OBSERVATION_OR_RECREATE')].kind", hasItem("RESTORE_CHANNEL")))
                 .andExpect(jsonPath("$.data.forks[?(@.kind=='CHANGE_CURATED')]").isEmpty())
-                .andExpect(jsonPath("$.data.forks[?(@.id=='CHANGE_CURATED_TO_OBSERVED')]").isEmpty())
-                .andReturn();
+                .andExpect(jsonPath("$.data.forks[?(@.id=='CHANGE_CURATED_TO_OBSERVED')]").isEmpty());
+    }
 
+    @Test
+    void absentObservationDoesNotInventChangeCuratedToMissing() throws Exception {
+        MismatchFixture fx = seedAbsentObservation(
+                "diag-miss-a", "diag-miss-b", "app-diag-miss", "ctr-diag-miss-001");
+        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, fx.conflictId(), GENERAL_ID);
+
+        MvcResult diagnosis = getDiagnosis(fx.conflictId(), GENERAL_ID)
+                .andExpect(jsonPath("$.data.status", is("READY")))
+                .andReturn();
         String allCopy = objectMapper.readTree(diagnosis.getResponse().getContentAsString())
                 .path("data").path("forks").toString();
         assertFalse(allCopy.contains("策展改为不存在"));
@@ -222,6 +199,39 @@ class ConflictDiagnosisHttpAcceptanceTest {
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status", is("OPEN")))
+                .andReturn();
+        String conflictId = objectMapper.readTree(warn.getResponse().getContentAsString())
+                .path("data").path("id").asText();
+        return new MismatchFixture(conflictId, hostA, hostB, containerId);
+    }
+
+    private MismatchFixture seedAbsentObservation(
+            String hostAName, String hostBName, String containerName, String objectId) throws Exception {
+        String hostA = createHost(hostAName);
+        String hostB = createHost(hostBName);
+        String containerId = createContainer(containerName, objectId);
+        confirmRunsOn(containerId, hostA);
+        mockMvc.perform(post("/api/agent/heartbeat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "agentId":"agent-%s",
+                                  "hostId":"%s",
+                                  "snapshot":{
+                                    "containers":[],
+                                    "absentObjectIds":["%s"]
+                                  }
+                                }
+                                """.formatted(objectId, hostB, objectId))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+        MvcResult warn = mockMvc.perform(get("/api/conflicts/by-merge-key")
+                        .param("subjectId", containerId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("OPEN")))
+                .andExpect(jsonPath("$.data.observedValue.availability", is("ABSENT")))
                 .andReturn();
         String conflictId = objectMapper.readTree(warn.getResponse().getContentAsString())
                 .path("data").path("id").asText();
