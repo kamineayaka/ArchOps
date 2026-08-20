@@ -120,6 +120,7 @@ class CuratedTruthHttpAcceptanceTest {
         insertBootstrapRunsOn(containerId, hostAId);
         rejectBootstrapRunsOnOverwrite(containerId, hostAId);
         assertShouldWhereHost(containerId, hostAId);
+        assertRunsOnTarget(containerId, hostAId);
     }
 
     @Test
