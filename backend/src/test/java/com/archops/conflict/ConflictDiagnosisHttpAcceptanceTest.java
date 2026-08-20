@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.ResultActions;
 
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.hasItem;
@@ -39,32 +40,19 @@ class ConflictDiagnosisHttpAcceptanceTest {
 
     @Test
     void warningExistsBeforeDiagnosisReadyAndRulesProduceFixActualFork() throws Exception {
-        String hostA = createHost("diag-a");
-        String hostB = createHost("diag-b");
-        String containerId = createContainer("app-diag", "ctr-diag-001");
-        confirmRunsOn(containerId, hostA);
-        heartbeatWithContainer(hostB, "agent-diag", "ctr-diag-001");
-
-        MvcResult warn = mockMvc.perform(get("/api/conflicts/by-merge-key")
-                        .param("subjectId", containerId)
+        MismatchFixture fx = seedAvailableRunsOnMismatch("diag-a", "diag-b", "app-diag", "ctr-diag-001");
+        mockMvc.perform(get("/api/conflicts/by-merge-key")
+                        .param("subjectId", fx.containerId())
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status", is("OPEN")))
-                .andExpect(jsonPath("$.data.diagnosisStatus", anyOf(is("PENDING"), is("READY"))))
-                .andReturn();
-        String conflictId = objectMapper.readTree(warn.getResponse().getContentAsString())
-                .path("data").path("id").asText();
+                .andExpect(jsonPath("$.data.diagnosisStatus", anyOf(is("PENDING"), is("READY"))));
+        assertTrue(fx.conflictId().startsWith("cnf-"));
 
-        // Prove warning does not depend on diagnosis completion: OPEN is already asserted above.
-        assertTrue(conflictId.startsWith("cnf-"));
+        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, fx.conflictId(), GENERAL_ID);
 
-        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, conflictId, GENERAL_ID);
-
-        mockMvc.perform(get("/api/conflicts/{id}/diagnosis", conflictId)
-                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
+        getDiagnosis(fx.conflictId(), GENERAL_ID)
                 .andExpect(jsonPath("$.data.status", is("READY")))
                 .andExpect(jsonPath("$.data.source", is("RULES")))
                 .andExpect(jsonPath("$.data.summary", notNullValue()))
@@ -74,28 +62,11 @@ class ConflictDiagnosisHttpAcceptanceTest {
 
     @Test
     void mismatchDiagnosisIncludesFixActualAndChangeCuratedForks() throws Exception {
-        String hostA = createHost("diag-fork-a");
-        String hostB = createHost("diag-fork-b");
-        String containerId = createContainer("app-diag-fork", "ctr-diag-fork-001");
-        confirmRunsOn(containerId, hostA);
-        heartbeatWithContainer(hostB, "agent-diag-fork", "ctr-diag-fork-001");
+        MismatchFixture fx = seedAvailableRunsOnMismatch(
+                "diag-fork-a", "diag-fork-b", "app-diag-fork", "ctr-diag-fork-001");
+        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, fx.conflictId(), GENERAL_ID);
 
-        MvcResult warn = mockMvc.perform(get("/api/conflicts/by-merge-key")
-                        .param("subjectId", containerId)
-                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.status", is("OPEN")))
-                .andReturn();
-        String conflictId = objectMapper.readTree(warn.getResponse().getContentAsString())
-                .path("data").path("id").asText();
-
-        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, conflictId, GENERAL_ID);
-
-        mockMvc.perform(get("/api/conflicts/{id}/diagnosis", conflictId)
-                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
+        getDiagnosis(fx.conflictId(), GENERAL_ID)
                 .andExpect(jsonPath("$.data.status", is("READY")))
                 .andExpect(jsonPath("$.data.forks[*].id", hasItems("FIX_ACTUAL_TO_CURATED", "CHANGE_CURATED_TO_OBSERVED")))
                 .andExpect(jsonPath("$.data.forks[?(@.id=='FIX_ACTUAL_TO_CURATED')].kind", hasItem("FIX_ACTUAL")))
@@ -168,6 +139,32 @@ class ConflictDiagnosisHttpAcceptanceTest {
                 .andExpect(jsonPath("$.code", is("SENSITIVE_BUSINESS_READ_DENIED")));
     }
 
+    private MismatchFixture seedAvailableRunsOnMismatch(
+            String hostAName, String hostBName, String containerName, String objectId) throws Exception {
+        String hostA = createHost(hostAName);
+        String hostB = createHost(hostBName);
+        String containerId = createContainer(containerName, objectId);
+        confirmRunsOn(containerId, hostA);
+        heartbeatWithContainer(hostB, "agent-" + objectId, objectId);
+        MvcResult warn = mockMvc.perform(get("/api/conflicts/by-merge-key")
+                        .param("subjectId", containerId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("OPEN")))
+                .andReturn();
+        String conflictId = objectMapper.readTree(warn.getResponse().getContentAsString())
+                .path("data").path("id").asText();
+        return new MismatchFixture(conflictId, hostA, hostB, containerId);
+    }
+
+    private ResultActions getDiagnosis(String conflictId, String userId) throws Exception {
+        return mockMvc.perform(get("/api/conflicts/{id}/diagnosis", conflictId)
+                        .header(TempAuthHeaders.USER_ID, userId)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+    }
+
     private void heartbeatWithContainer(String hostId, String agentId, String objectId) throws Exception {
         mockMvc.perform(post("/api/agent/heartbeat")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -222,5 +219,8 @@ class ConflictDiagnosisHttpAcceptanceTest {
     private String readDataId(MvcResult result) throws Exception {
         JsonNode root = objectMapper.readTree(result.getResponse().getContentAsString());
         return root.path("data").path("id").asText();
+    }
+
+    private record MismatchFixture(String conflictId, String hostA, String hostB, String containerId) {
     }
 }

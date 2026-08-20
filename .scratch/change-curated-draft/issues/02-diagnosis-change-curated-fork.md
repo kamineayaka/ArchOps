@@ -73,3 +73,21 @@ cd backend && ./gradlew test --tests com.archops.plan.OperationPlanReviewHttpAcc
 BUILD SUCCESSFUL in 5s
 ```
 
+### Step C — cycle 1: GET diagnosis includes FIX_ACTUAL and CHANGE_CURATED
+
+Red (same split method as Step A command 2; still only `FIX_ACTUAL_TO_CURATED` before this slice’s production change).
+
+Green: `diagnoseRunsOnMismatch` emits `CHANGE_CURATED_TO_OBSERVED` with `kind=CHANGE_CURATED` alongside 修实际. Copy left empty for later cycles.
+
+```text
+cd backend && ./gradlew test --tests com.archops.conflict.ConflictDiagnosisHttpAcceptanceTest.mismatchDiagnosisIncludesFixActualAndChangeCuratedForks
+BUILD SUCCESSFUL in 5s
+```
+
+Refactor (no behavior change): HTTP helpers `seedAvailableRunsOnMismatch` / `getDiagnosis`. Same tests still green:
+
+```text
+cd backend && ./gradlew test --tests com.archops.conflict.ConflictDiagnosisHttpAcceptanceTest.mismatchDiagnosisIncludesFixActualAndChangeCuratedForks --tests com.archops.conflict.ConflictDiagnosisHttpAcceptanceTest.warningExistsBeforeDiagnosisReadyAndRulesProduceFixActualFork
+BUILD SUCCESSFUL in 5s
+```
+

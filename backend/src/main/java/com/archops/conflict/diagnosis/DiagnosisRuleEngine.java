@@ -57,20 +57,29 @@ public final class DiagnosisRuleEngine {
             );
         }
 
-        ConflictDiagnosisResponse.ForkSuggestion fork = new ConflictDiagnosisResponse.ForkSuggestion(
+        String curatedLabel = label(curatedHostId, curatedHostName);
+        String observedLabel = label(observedHostId, observedHostName);
+        ConflictDiagnosisResponse.ForkSuggestion fixActual = new ConflictDiagnosisResponse.ForkSuggestion(
                 FIX_ACTUAL_TO_CURATED,
                 "修实际回策展宿主",
                 "FIX_ACTUAL",
                 "观测宿主与策展宿主不一致",
-                "将容器从实际宿主 " + label(observedHostId, observedHostName)
-                        + " 迁回策展宿主 " + label(curatedHostId, curatedHostName)
+                "将容器从实际宿主 " + observedLabel
+                        + " 迁回策展宿主 " + curatedLabel
                         + "（纯修现场，跳过草案）。"
         );
+        ConflictDiagnosisResponse.ForkSuggestion changeCurated = new ConflictDiagnosisResponse.ForkSuggestion(
+                CHANGE_CURATED_TO_OBSERVED,
+                "CHANGE_CURATED",
+                "CHANGE_CURATED",
+                "",
+                ""
+        );
         return new RuleResult(
-                "策展「运行于」" + label(curatedHostId, curatedHostName)
-                        + "，观测「运行于」" + label(observedHostId, observedHostName)
+                "策展「运行于」" + curatedLabel
+                        + "，观测「运行于」" + observedLabel
                         + "，两侧可用且不等。",
-                List.of(fork)
+                List.of(fixActual, changeCurated)
         );
     }
 
