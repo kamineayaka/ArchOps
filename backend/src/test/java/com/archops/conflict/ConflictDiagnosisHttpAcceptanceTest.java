@@ -12,6 +12,7 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
 
 import static org.hamcrest.Matchers.anyOf;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.is;
@@ -71,6 +72,18 @@ class ConflictDiagnosisHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data.forks[*].id", hasItems("FIX_ACTUAL_TO_CURATED", "CHANGE_CURATED_TO_OBSERVED")))
                 .andExpect(jsonPath("$.data.forks[?(@.id=='FIX_ACTUAL_TO_CURATED')].kind", hasItem("FIX_ACTUAL")))
                 .andExpect(jsonPath("$.data.forks[?(@.id=='CHANGE_CURATED_TO_OBSERVED')].kind", hasItem("CHANGE_CURATED")));
+    }
+
+    @Test
+    void changeCuratedForkTargetsCurrentAvailableObservedHost() throws Exception {
+        MismatchFixture fx = seedAvailableRunsOnMismatch(
+                "diag-tgt-a", "diag-tgt-b", "app-diag-tgt", "ctr-diag-tgt-001");
+        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, fx.conflictId(), GENERAL_ID);
+
+        getDiagnosis(fx.conflictId(), GENERAL_ID)
+                .andExpect(jsonPath(
+                        "$.data.forks[?(@.id=='CHANGE_CURATED_TO_OBSERVED')].description",
+                        hasItem(containsString(fx.hostB()))));
     }
 
     @Test

@@ -73,7 +73,7 @@ public final class DiagnosisRuleEngine {
                 "CHANGE_CURATED",
                 "CHANGE_CURATED",
                 "",
-                ""
+                observedLabel
         );
         return new RuleResult(
                 "策展「运行于」" + curatedLabel

@@ -91,3 +91,31 @@ cd backend && ./gradlew test --tests com.archops.conflict.ConflictDiagnosisHttpA
 BUILD SUCCESSFUL in 5s
 ```
 
+### Step D — cycle 2: 改理想 target is the current available observed host
+
+Red:
+
+```text
+cd backend && ./gradlew test --tests com.archops.conflict.ConflictDiagnosisHttpAcceptanceTest.changeCuratedForkTargetsCurrentAvailableObservedHost
+```
+
+```text
+ConflictDiagnosisHttpAcceptanceTest > changeCuratedForkTargetsCurrentAvailableObservedHost() FAILED
+    java.lang.AssertionError at ConflictDiagnosisHttpAcceptanceTest.java:84
+
+java.lang.AssertionError: JSON path "$.data.forks[?(@.id=='CHANGE_CURATED_TO_OBSERVED')].description"
+Expected: a collection containing a string containing "host-..."
+     but: mismatches were: [was ""]
+
+BUILD FAILED in 5s
+```
+
+Green: CHANGE_CURATED description is the current available observed host label (id from GET setup). Cycle 1 still green.
+
+```text
+cd backend && ./gradlew test --tests com.archops.conflict.ConflictDiagnosisHttpAcceptanceTest.changeCuratedForkTargetsCurrentAvailableObservedHost --tests com.archops.conflict.ConflictDiagnosisHttpAcceptanceTest.mismatchDiagnosisIncludesFixActualAndChangeCuratedForks
+BUILD SUCCESSFUL in 4s
+```
+
+Refactor: no extra production structure; observed host already labeled via existing `label()`.
+
