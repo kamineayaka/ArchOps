@@ -1,8 +1,8 @@
 import { apiRequest } from './client';
-import type { OperationPlan, StartExecutionResult } from './types';
+import type { CuratedDraft, OperationPlan, StartExecutionResult } from './types';
 
-export function selectBranch(conflictId: string, forkId: string): Promise<unknown> {
-  return apiRequest<unknown>(
+export function selectBranch(conflictId: string, forkId: string): Promise<OperationPlan | CuratedDraft> {
+  return apiRequest<OperationPlan | CuratedDraft>(
     `/api/conflicts/${encodeURIComponent(conflictId)}/branch-selection`,
     { method: 'POST', body: { forkId } },
   );

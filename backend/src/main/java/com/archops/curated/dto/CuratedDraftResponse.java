@@ -1,5 +1,6 @@
 package com.archops.curated.dto;
 
+import com.archops.common.api.BranchSelectionResult;
 import com.archops.curated.domain.CuratedDraftItemKind;
 import com.archops.curated.domain.CuratedDraftItemStatus;
 import com.archops.curated.domain.CuratedDraftStatus;
@@ -16,7 +17,7 @@ public record CuratedDraftResponse(
         List<Item> items,
         String createdBy,
         Instant createdAt
-) {
+) implements BranchSelectionResult {
     public record Item(
             String id,
             int seq,

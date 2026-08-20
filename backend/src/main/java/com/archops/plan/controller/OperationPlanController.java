@@ -1,6 +1,7 @@
 package com.archops.plan.controller;
 
 import com.archops.common.api.ApiResponse;
+import com.archops.common.api.BranchSelectionResult;
 import com.archops.plan.dto.OperationPlanResponse;
 import com.archops.plan.dto.SelectBranchRequest;
 import com.archops.plan.dto.StartExecutionResponse;
@@ -38,7 +39,7 @@ public class OperationPlanController {
     }
 
     @PostMapping("/conflicts/{conflictId}/branch-selection")
-    public ApiResponse<Object> selectBranch(
+    public ApiResponse<BranchSelectionResult> selectBranch(
             @PathVariable String conflictId,
             @Valid @RequestBody SelectBranchRequest request,
             @AuthenticationPrincipal AuthUserPrincipal principal

@@ -160,9 +160,14 @@ public class CuratedDraftService {
             item.setCreatedAt(now);
             items.add(item);
         }
-        if (items.isEmpty()) {
-            throw new BusinessException("DRAFT_ITEMS_MISSING",
-                    "改理想草案需要至少一条策展「运行于」条目");
+        if (items.size() < 2) {
+            throw new BusinessException("DRAFT_ITEMS_INCOMPLETE",
+                    "改理想草案规则夹具需要至少两条可独立确认的「运行于」条目");
+        }
+        boolean hasMergeKey = items.stream().anyMatch(item -> mergeKeySubjectId.equals(item.getSubjectId()));
+        if (!hasMergeKey) {
+            throw new BusinessException("DRAFT_MERGE_KEY_ITEM_MISSING",
+                    "改理想草案必须包含合并键容器的「运行于」条目");
         }
         return items;
     }

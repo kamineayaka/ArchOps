@@ -1,5 +1,6 @@
 package com.archops.plan.dto;
 
+import com.archops.common.api.BranchSelectionResult;
 import com.archops.plan.domain.OperationPlanStatus;
 import com.archops.plan.domain.PlanBranchKind;
 
@@ -28,7 +29,7 @@ public record OperationPlanResponse(
         Instant startedAt,
         Instant finishedAt,
         List<ExecutionStepLog> executionLog
-) {
+) implements BranchSelectionResult {
     public record PlanStep(
             int seq,
             String action,

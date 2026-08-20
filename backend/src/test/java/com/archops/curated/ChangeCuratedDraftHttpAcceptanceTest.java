@@ -13,6 +13,7 @@ import org.springframework.test.web.servlet.MvcResult;
 
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -40,6 +41,13 @@ class ChangeCuratedDraftHttpAcceptanceTest {
     void acceptedHandlerSelectsChangeCuratedOpensDraftWithoutWritingCuratedOrPlan() throws Exception {
         Fixture fx = openConflictWithSiblingAndClaim("ccd-a", "ccd-b", "ctr-ccd-x", "ctr-ccd-y");
         ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, fx.conflictId(), GENERAL_ID);
+
+        mockMvc.perform(get("/api/conflicts/{id}/diagnosis", fx.conflictId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.forks[*].id", hasItems("FIX_ACTUAL_TO_CURATED", "CHANGE_CURATED_TO_OBSERVED")))
+                .andExpect(jsonPath("$.data.forks[?(@.id=='CHANGE_CURATED_TO_OBSERVED')].kind", hasItem("CHANGE_CURATED")));
 
         mockMvc.perform(post("/api/conflicts/{id}/branch-selection", fx.conflictId())
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)

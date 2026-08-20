@@ -1,5 +1,6 @@
 package com.archops.plan.service;
 
+import com.archops.common.api.BranchSelectionResult;
 import com.archops.common.exception.BusinessException;
 import com.archops.conflict.diagnosis.ConflictDiagnosisService;
 import com.archops.conflict.diagnosis.DiagnosisRuleEngine;
@@ -39,7 +40,7 @@ public class BranchSelectionService {
     }
 
     @Transactional
-    public Object select(String conflictId, String forkId, String expectedDiagnosisId, AuthUserPrincipal actor) {
+    public BranchSelectionResult select(String conflictId, String forkId, String expectedDiagnosisId, AuthUserPrincipal actor) {
         ConflictCase conflict = requireOpenConflict(conflictId);
         requireAcceptedHandler(conflict, actor);
 
