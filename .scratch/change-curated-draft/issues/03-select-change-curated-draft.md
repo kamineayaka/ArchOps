@@ -205,3 +205,27 @@ Green: shared gate checks `hasActive` before 草案 create → `PLAN_ALREADY_ACT
 cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftHttpAcceptanceTest.activePlanBlocksChangeCuratedSelection
 BUILD SUCCESSFUL in 4s
 ```
+
+### Step M — cycle 11: GET events include 草案已创建
+
+Red:
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftHttpAcceptanceTest.selectChangeCuratedWritesDraftCreatedAuditEvent
+```
+
+```text
+ChangeCuratedDraftHttpAcceptanceTest > selectChangeCuratedWritesDraftCreatedAuditEvent() FAILED
+    java.lang.AssertionError at ChangeCuratedDraftHttpAcceptanceTest.java:222
+
+java.lang.AssertionError: JSON path "$.data[*].eventType"
+Expected: a collection containing "DRAFT_CREATED"
+BUILD FAILED in 4s
+```
+
+Green: append `DRAFT_CREATED` on the existing conflict event list (`hint` literal `草案已创建`). V13 already allows the event type. Items still `PENDING` from cycle 1 GET.
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftHttpAcceptanceTest.selectChangeCuratedWritesDraftCreatedAuditEvent
+BUILD SUCCESSFUL in 4s
+```

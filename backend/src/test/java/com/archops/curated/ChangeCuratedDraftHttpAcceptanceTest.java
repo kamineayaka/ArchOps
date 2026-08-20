@@ -208,6 +208,21 @@ class ChangeCuratedDraftHttpAcceptanceTest {
                 .andExpect(jsonPath("$.code", is("PLAN_ALREADY_ACTIVE")));
     }
 
+    @Test
+    void selectChangeCuratedWritesDraftCreatedAuditEvent() throws Exception {
+        Fixture fx = openConflictWithSiblingAndClaim("ccd-ev-a", "ccd-ev-b", "ctr-ccd-ev-x", "ctr-ccd-ev-y");
+        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, fx.conflictId(), GENERAL_ID);
+        postBranch(fx.conflictId(), GENERAL_ID, "CHANGE_CURATED_TO_OBSERVED", null)
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/conflicts/{id}/events", fx.conflictId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[*].eventType", hasItem("DRAFT_CREATED")))
+                .andExpect(jsonPath("$.data[?(@.eventType=='DRAFT_CREATED')].detail.hint", hasItem("草案已创建")));
+    }
+
     private org.springframework.test.web.servlet.ResultActions postBranch(
             String conflictId, String userId, String forkId, String diagnosisId
     ) throws Exception {

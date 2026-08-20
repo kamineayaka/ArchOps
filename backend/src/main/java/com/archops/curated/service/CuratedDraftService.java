@@ -2,8 +2,10 @@ package com.archops.curated.service;
 
 import com.archops.common.exception.BusinessException;
 import com.archops.conflict.domain.ConflictCase;
+import com.archops.conflict.domain.ConflictEventType;
 import com.archops.conflict.dto.ConflictDiagnosisResponse;
 import com.archops.conflict.mapper.ConflictCaseMapper;
+import com.archops.conflict.service.ConflictEventService;
 import com.archops.curated.domain.CuratedDraft;
 import com.archops.curated.domain.CuratedDraftItem;
 import com.archops.curated.domain.CuratedDraftItemKind;
@@ -43,6 +45,7 @@ public class CuratedDraftService {
     private final CuratedFactMapper curatedFactMapper;
     private final CuratedObjectMapper curatedObjectMapper;
     private final ConflictCaseMapper conflictCaseMapper;
+    private final ConflictEventService conflictEventService;
     private final ObjectMapper objectMapper;
 
     public CuratedDraftService(
@@ -51,6 +54,7 @@ public class CuratedDraftService {
             CuratedFactMapper curatedFactMapper,
             CuratedObjectMapper curatedObjectMapper,
             ConflictCaseMapper conflictCaseMapper,
+            ConflictEventService conflictEventService,
             ObjectMapper objectMapper
     ) {
         this.curatedDraftMapper = curatedDraftMapper;
@@ -58,6 +62,7 @@ public class CuratedDraftService {
         this.curatedFactMapper = curatedFactMapper;
         this.curatedObjectMapper = curatedObjectMapper;
         this.conflictCaseMapper = conflictCaseMapper;
+        this.conflictEventService = conflictEventService;
         this.objectMapper = objectMapper;
     }
 
@@ -115,6 +120,12 @@ public class CuratedDraftService {
         for (CuratedDraftItem item : items) {
             curatedDraftItemMapper.insert(item);
         }
+
+        conflictEventService.append(conflict.getId(), ConflictEventType.DRAFT_CREATED, actor.getUserId(), Map.of(
+                "draftId", draft.getId(),
+                "itemCount", items.size(),
+                "hint", "草案已创建"
+        ));
         return toResponse(draft, items);
     }
 
