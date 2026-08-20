@@ -1,15 +1,22 @@
 package com.archops.conflict;
 
+import com.archops.observed.domain.HostAgent;
+import com.archops.observed.mapper.HostAgentMapper;
 import com.archops.support.HttpAcceptanceTest;
 import com.archops.user.security.TempAuthHeaders;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
+
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsString;
@@ -29,6 +36,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Change-curated ticket 02: mismatch diagnosis also emits a read-only CHANGE_CURATED fork.
  */
 @HttpAcceptanceTest
+@TestPropertySource(properties = {
+        "archops.observation.heartbeat-timeout=30s",
+        "archops.observation.hollow-scan-interval-ms=3600000"
+})
 class ConflictDiagnosisHttpAcceptanceTest {
 
     private static final String GENERAL_ID = "user-general-demo";
@@ -38,6 +49,9 @@ class ConflictDiagnosisHttpAcceptanceTest {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private HostAgentMapper hostAgentMapper;
 
     @Test
     void warningExistsBeforeDiagnosisReadyAndRulesProduceFixActualFork() throws Exception {
@@ -100,6 +114,33 @@ class ConflictDiagnosisHttpAcceptanceTest {
         assertTrue(changeCopy.contains("草案"));
         assertFalse(changeCopy.contains("以观测为准"));
         assertFalse(changeCopy.contains("裁定"));
+    }
+
+    @Test
+    void hollowDiagnosisHasRestoreForksWithoutChangeCurated() throws Exception {
+        String objectId = "ctr-diag-hol-001";
+        MismatchFixture fx = seedAvailableRunsOnMismatch(
+                "diag-hol-a", "diag-hol-b", "app-diag-hol", objectId);
+        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, fx.conflictId(), GENERAL_ID);
+
+        hostAgentMapper.update(null, new LambdaUpdateWrapper<HostAgent>()
+                .eq(HostAgent::getAgentId, "agent-" + objectId)
+                .set(HostAgent::getLastHeartbeatAt, Instant.now().minus(2, ChronoUnit.MINUTES)));
+
+        mockMvc.perform(post("/api/observed/scan-heartbeat-timeouts")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.suspendedConflictIds", hasItem(fx.conflictId())));
+
+        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, fx.conflictId(), GENERAL_ID);
+
+        getDiagnosis(fx.conflictId(), GENERAL_ID)
+                .andExpect(jsonPath("$.data.status", is("READY")))
+                .andExpect(jsonPath("$.data.forks[*].id", hasItem("RESTORE_HEARTBEAT_CHANNEL")))
+                .andExpect(jsonPath("$.data.forks[?(@.id=='RESTORE_HEARTBEAT_CHANNEL')].kind", hasItem("RESTORE_CHANNEL")))
+                .andExpect(jsonPath("$.data.forks[?(@.kind=='CHANGE_CURATED')]").isEmpty())
+                .andExpect(jsonPath("$.data.forks[?(@.id=='CHANGE_CURATED_TO_OBSERVED')]").isEmpty());
     }
 
     @Test

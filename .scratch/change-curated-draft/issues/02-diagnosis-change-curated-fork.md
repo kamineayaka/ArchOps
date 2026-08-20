@@ -119,3 +119,31 @@ BUILD SUCCESSFUL in 4s
 
 Refactor: no extra production structure; observed host already labeled via existing `label()`.
 
+### Step E — cycle 3: 改理想 copy uses contract terms
+
+Red:
+
+```text
+cd backend && ./gradlew test --tests com.archops.conflict.ConflictDiagnosisHttpAcceptanceTest.changeCuratedForkCopyUsesContractTerms
+```
+
+```text
+ConflictDiagnosisHttpAcceptanceTest > changeCuratedForkCopyUsesContractTerms() FAILED
+    org.opentest4j.AssertionFailedError at ConflictDiagnosisHttpAcceptanceTest.java:97
+
+org.opentest4j.AssertionFailedError: expected: <true> but was: <false>
+
+BUILD FAILED in 4s
+```
+
+Copy was the observed host label only; missing 改理想 (and would miss 策展 / 观测 / 草案).
+
+Green: label `改理想`, hypothesis `承认实际、更新策展`, description names 策展 `运行于` → 当前可用观测宿主 and 草案逐条确认. Avoid 以观测为准 / 裁定. Cycles 1–2 still green.
+
+```text
+cd backend && ./gradlew test --tests com.archops.conflict.ConflictDiagnosisHttpAcceptanceTest.changeCuratedForkCopyUsesContractTerms --tests com.archops.conflict.ConflictDiagnosisHttpAcceptanceTest.changeCuratedForkTargetsCurrentAvailableObservedHost --tests com.archops.conflict.ConflictDiagnosisHttpAcceptanceTest.mismatchDiagnosisIncludesFixActualAndChangeCuratedForks
+BUILD SUCCESSFUL in 5s
+```
+
+Refactor: copy lives on the existing CHANGE_CURATED `ForkSuggestion`; no new types.
+
