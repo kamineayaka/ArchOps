@@ -51,3 +51,16 @@ BUILD FAILED in 16s
 ```
 
 POST 改理想 is 400 `FORK_NOT_SUPPORTED` (not HTTP 500). No open 草案.
+
+### Step C — cycle 1: 选改理想 opens ≥2 pending 运行于 items
+
+Red (same command as Step A; still `FORK_NOT_SUPPORTED` before this slice’s production change).
+
+Green: shared gate routes `CHANGE_CURATED` to rule-templated 草案 create (V13 tables reused). POST + GET open draft: `OPEN`, items ≥2, X/Y `运行于` A→B `PENDING`. No `hasOpen` / `hasActive` pipeline mutex yet; no `DRAFT_CREATED` event yet.
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftHttpAcceptanceTest.acceptedHandlerSelectsChangeCuratedOpensDraftWithTwoPendingRunsOnItems
+BUILD SUCCESSFUL in 4s
+```
+
+Refactor (no behavior change): HTTP helpers `postBranch` / `getOpenDraft`. Same test still green.

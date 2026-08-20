@@ -40,20 +40,14 @@ class ChangeCuratedDraftHttpAcceptanceTest {
         Fixture fx = openConflictWithSiblingAndClaim("ccd-a", "ccd-b", "ctr-ccd-x", "ctr-ccd-y");
         ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, fx.conflictId(), GENERAL_ID);
 
-        mockMvc.perform(post("/api/conflicts/{id}/branch-selection", fx.conflictId())
-                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"forkId\":\"CHANGE_CURATED_TO_OBSERVED\"}")
-                        .accept(MediaType.APPLICATION_JSON))
+        postBranch(fx.conflictId(), GENERAL_ID, "CHANGE_CURATED_TO_OBSERVED", null)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success", is(true)))
                 .andExpect(jsonPath("$.data.status", is("OPEN")))
                 .andExpect(jsonPath("$.data.selectedForkId", is("CHANGE_CURATED_TO_OBSERVED")))
                 .andExpect(jsonPath("$.data.items", hasSize(greaterThanOrEqualTo(2))));
 
-        mockMvc.perform(get("/api/conflicts/{id}/curated-drafts/open", fx.conflictId())
-                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
-                        .accept(MediaType.APPLICATION_JSON))
+        getOpenDraft(fx.conflictId(), GENERAL_ID)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status", is("OPEN")))
                 .andExpect(jsonPath("$.data.items", hasSize(greaterThanOrEqualTo(2))))
@@ -73,6 +67,26 @@ class ChangeCuratedDraftHttpAcceptanceTest {
                         hasItem("PENDING")))
                 .andExpect(jsonPath("$.data.items[?(@.subjectId=='" + fx.containerY() + "')].kind",
                         hasItem("RUNS_ON_TARGET_CHANGE")));
+    }
+
+    private org.springframework.test.web.servlet.ResultActions postBranch(
+            String conflictId, String userId, String forkId, String diagnosisId
+    ) throws Exception {
+        String body = diagnosisId == null
+                ? "{\"forkId\":\"" + forkId + "\"}"
+                : "{\"forkId\":\"" + forkId + "\",\"diagnosisId\":\"" + diagnosisId + "\"}";
+        return mockMvc.perform(post("/api/conflicts/{id}/branch-selection", conflictId)
+                .header(TempAuthHeaders.USER_ID, userId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body)
+                .accept(MediaType.APPLICATION_JSON));
+    }
+
+    private org.springframework.test.web.servlet.ResultActions getOpenDraft(String conflictId, String userId)
+            throws Exception {
+        return mockMvc.perform(get("/api/conflicts/{id}/curated-drafts/open", conflictId)
+                .header(TempAuthHeaders.USER_ID, userId)
+                .accept(MediaType.APPLICATION_JSON));
     }
 
     private Fixture openConflictWithSiblingAndClaim(

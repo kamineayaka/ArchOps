@@ -10,13 +10,14 @@ import com.archops.conflict.domain.DiagnosisStatus;
 import com.archops.conflict.domain.HandlerAcceptance;
 import com.archops.conflict.dto.ConflictDiagnosisResponse;
 import com.archops.conflict.mapper.ConflictCaseMapper;
+import com.archops.curated.service.CuratedDraftService;
 import com.archops.user.security.AuthUserPrincipal;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Single select-branch gate: 已接受处理人 + 当前未过时诊断 + 每冲突一条活跃处理路径.
- * Ticket 03 TDD redo starts from the vertical-slice gate: only FIX_ACTUAL creates an 操作计划.
+ * FIX_ACTUAL still creates an 操作计划; CHANGE_CURATED creates a 草案 and no plan.
  */
 @Service
 public class BranchSelectionService {
@@ -24,15 +25,18 @@ public class BranchSelectionService {
     private final ConflictCaseMapper conflictCaseMapper;
     private final ConflictDiagnosisService conflictDiagnosisService;
     private final OperationPlanService operationPlanService;
+    private final CuratedDraftService curatedDraftService;
 
     public BranchSelectionService(
             ConflictCaseMapper conflictCaseMapper,
             ConflictDiagnosisService conflictDiagnosisService,
-            OperationPlanService operationPlanService
+            OperationPlanService operationPlanService,
+            CuratedDraftService curatedDraftService
     ) {
         this.conflictCaseMapper = conflictCaseMapper;
         this.conflictDiagnosisService = conflictDiagnosisService;
         this.operationPlanService = operationPlanService;
+        this.curatedDraftService = curatedDraftService;
     }
 
     @Transactional
@@ -57,11 +61,19 @@ public class BranchSelectionService {
                 .orElseThrow(() -> new BusinessException("FORK_NOT_FOUND",
                         "Fork not present on current diagnosis: " + forkId));
 
+        if (isChangeCurated(fork)) {
+            return curatedDraftService.createForChangeCurated(conflict, diagnosis, fork, actor);
+        }
         if (isFixActual(fork)) {
             return operationPlanService.selectBranch(conflictId, forkId, actor);
         }
         throw new BusinessException("FORK_NOT_SUPPORTED",
-                "Ticket 07 only supports FIX_ACTUAL / 修实际回策展宿主");
+                "Unsupported diagnosis fork for branch selection: " + fork.id());
+    }
+
+    private static boolean isChangeCurated(ConflictDiagnosisResponse.ForkSuggestion fork) {
+        return DiagnosisRuleEngine.CHANGE_CURATED_TO_OBSERVED.equals(fork.id())
+                || "CHANGE_CURATED".equals(fork.kind());
     }
 
     private static boolean isFixActual(ConflictDiagnosisResponse.ForkSuggestion fork) {
