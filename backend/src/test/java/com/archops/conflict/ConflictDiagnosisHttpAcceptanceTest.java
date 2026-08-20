@@ -11,7 +11,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 import static org.hamcrest.Matchers.anyOf;
-import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.is;
@@ -31,7 +30,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class ConflictDiagnosisHttpAcceptanceTest {
 
     private static final String GENERAL_ID = "user-general-demo";
-    private static final String SENIOR_ID = "user-senior-demo";
 
     @Autowired
     private MockMvc mockMvc;
@@ -40,7 +38,7 @@ class ConflictDiagnosisHttpAcceptanceTest {
     private ObjectMapper objectMapper;
 
     @Test
-    void warningExistsBeforeDiagnosisReadyAndRulesProduceFixActualAndChangeCuratedForks() throws Exception {
+    void warningExistsBeforeDiagnosisReadyAndRulesProduceFixActualFork() throws Exception {
         String hostA = createHost("diag-a");
         String hostB = createHost("diag-b");
         String containerId = createContainer("app-diag", "ctr-diag-001");
@@ -63,34 +61,44 @@ class ConflictDiagnosisHttpAcceptanceTest {
 
         ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, conflictId, GENERAL_ID);
 
-        MvcResult diagnosis = mockMvc.perform(get("/api/conflicts/{id}/diagnosis", conflictId)
+        mockMvc.perform(get("/api/conflicts/{id}/diagnosis", conflictId)
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status", is("READY")))
                 .andExpect(jsonPath("$.data.source", is("RULES")))
                 .andExpect(jsonPath("$.data.summary", notNullValue()))
-                .andExpect(jsonPath("$.data.forks[*].id", hasItems("FIX_ACTUAL_TO_CURATED", "CHANGE_CURATED_TO_OBSERVED")))
-                .andExpect(jsonPath("$.data.forks[?(@.id=='FIX_ACTUAL_TO_CURATED')].kind", hasItem("FIX_ACTUAL")))
-                .andExpect(jsonPath("$.data.forks[?(@.id=='CHANGE_CURATED_TO_OBSERVED')].kind", hasItem("CHANGE_CURATED")))
-                .andExpect(jsonPath(
-                        "$.data.forks[?(@.id=='CHANGE_CURATED_TO_OBSERVED')].description",
-                        hasItem(containsString(hostB))))
-                .andReturn();
+                .andExpect(jsonPath("$.data.forks[*].id", hasItem("FIX_ACTUAL_TO_CURATED")))
+                .andExpect(jsonPath("$.data.forks[?(@.id=='FIX_ACTUAL_TO_CURATED')].kind", hasItem("FIX_ACTUAL")));
+    }
 
-        String changeCopy = forkCopy(diagnosis, "CHANGE_CURATED_TO_OBSERVED");
-        assertTrue(changeCopy.contains("改理想"));
-        assertTrue(changeCopy.contains("策展"));
-        assertTrue(changeCopy.contains("观测"));
-        assertTrue(changeCopy.contains("草案"));
-        assertFalse(changeCopy.contains("以观测为准"));
-        assertFalse(changeCopy.contains("裁定"));
+    @Test
+    void mismatchDiagnosisIncludesFixActualAndChangeCuratedForks() throws Exception {
+        String hostA = createHost("diag-fork-a");
+        String hostB = createHost("diag-fork-b");
+        String containerId = createContainer("app-diag-fork", "ctr-diag-fork-001");
+        confirmRunsOn(containerId, hostA);
+        heartbeatWithContainer(hostB, "agent-diag-fork", "ctr-diag-fork-001");
 
-        mockMvc.perform(get("/api/conflicts/{id}/diagnosis", conflictId)
-                        .header(TempAuthHeaders.USER_ID, SENIOR_ID)
+        MvcResult warn = mockMvc.perform(get("/api/conflicts/by-merge-key")
+                        .param("subjectId", containerId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.forks[*].id", hasItem("CHANGE_CURATED_TO_OBSERVED")))
+                .andExpect(jsonPath("$.data.status", is("OPEN")))
+                .andReturn();
+        String conflictId = objectMapper.readTree(warn.getResponse().getContentAsString())
+                .path("data").path("id").asText();
+
+        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, conflictId, GENERAL_ID);
+
+        mockMvc.perform(get("/api/conflicts/{id}/diagnosis", conflictId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("READY")))
+                .andExpect(jsonPath("$.data.forks[*].id", hasItems("FIX_ACTUAL_TO_CURATED", "CHANGE_CURATED_TO_OBSERVED")))
+                .andExpect(jsonPath("$.data.forks[?(@.id=='FIX_ACTUAL_TO_CURATED')].kind", hasItem("FIX_ACTUAL")))
                 .andExpect(jsonPath("$.data.forks[?(@.id=='CHANGE_CURATED_TO_OBSERVED')].kind", hasItem("CHANGE_CURATED")));
     }
 
@@ -214,19 +222,5 @@ class ConflictDiagnosisHttpAcceptanceTest {
     private String readDataId(MvcResult result) throws Exception {
         JsonNode root = objectMapper.readTree(result.getResponse().getContentAsString());
         return root.path("data").path("id").asText();
-    }
-
-    private String forkCopy(MvcResult diagnosis, String forkId) throws Exception {
-        JsonNode forks = objectMapper.readTree(diagnosis.getResponse().getContentAsString())
-                .path("data").path("forks");
-        for (JsonNode fork : forks) {
-            if (forkId.equals(fork.path("id").asText())) {
-                return String.join(" ",
-                        fork.path("label").asText(),
-                        fork.path("hypothesis").asText(),
-                        fork.path("description").asText());
-            }
-        }
-        throw new AssertionError("Fork not found: " + forkId);
     }
 }

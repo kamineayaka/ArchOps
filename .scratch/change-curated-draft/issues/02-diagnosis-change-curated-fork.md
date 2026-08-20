@@ -24,3 +24,52 @@
 HTTP 接缝（先前同提交落地，**不是** TDD 完成证据）：`ConflictDiagnosisHttpAcceptanceTest`。宿主 A vs 可用观测 B 时 GET `/api/conflicts/{id}/diagnosis` 同时含 `FIX_ACTUAL_TO_CURATED` 与 `CHANGE_CURATED_TO_OBSERVED`（目标写入改理想 description）。空洞/观测消失仍只恢复/核验类分叉。按 fork id 认修实际，避免 `forks[0]`。无草案表、无选支写入。
 
 TDD 重做：一圈一条诊断行为；多断言测试拆成单行为方法；若已绿则先去掉该票生产行为。不要做 01/03–06。
+
+### Step A — restore FIX_ACTUAL-only mismatch (honest red; not product-done)
+
+Removed `CHANGE_CURATED` emission from `DiagnosisRuleEngine.diagnoseRunsOnMismatch` (pre-0c6e48d: available A vs B only emits `FIX_ACTUAL_TO_CURATED`). Kept `CHANGE_CURATED_TO_OBSERVED` constant for ticket 03 compile. Split the combined HTTP method: ticket 06 keeps 修实际 by fork id; cycle 1 is `mismatchDiagnosisIncludesFixActualAndChangeCuratedForks` only (ids + kinds). No draft write, no Flyway.
+
+Red command 1 (combined method, before split):
+
+```text
+cd backend && ./gradlew test --tests com.archops.conflict.ConflictDiagnosisHttpAcceptanceTest.warningExistsBeforeDiagnosisReadyAndRulesProduceFixActualAndChangeCuratedForks
+```
+
+```text
+ConflictDiagnosisHttpAcceptanceTest > warningExistsBeforeDiagnosisReadyAndRulesProduceFixActualAndChangeCuratedForks() FAILED
+    java.lang.AssertionError at ConflictDiagnosisHttpAcceptanceTest.java:73
+
+java.lang.AssertionError: JSON path "$.data.forks[*].id"
+Expected: (a collection containing "FIX_ACTUAL_TO_CURATED" and a collection containing "CHANGE_CURATED_TO_OBSERVED")
+     but: a collection containing "CHANGE_CURATED_TO_OBSERVED" mismatches were: [was "FIX_ACTUAL_TO_CURATED"]
+
+BUILD FAILED in 17s
+```
+
+GET `/api/conflicts/{id}/diagnosis` body had a single fork `FIX_ACTUAL_TO_CURATED` (kind `FIX_ACTUAL`). Not a compile fail.
+
+Red command 2 (split single-behavior method):
+
+```text
+cd backend && ./gradlew test --tests com.archops.conflict.ConflictDiagnosisHttpAcceptanceTest.mismatchDiagnosisIncludesFixActualAndChangeCuratedForks --tests com.archops.conflict.ConflictDiagnosisHttpAcceptanceTest.warningExistsBeforeDiagnosisReadyAndRulesProduceFixActualFork
+```
+
+```text
+ConflictDiagnosisHttpAcceptanceTest > mismatchDiagnosisIncludesFixActualAndChangeCuratedForks() FAILED
+    java.lang.AssertionError at ConflictDiagnosisHttpAcceptanceTest.java:100
+
+java.lang.AssertionError: JSON path "$.data.forks[*].id"
+Expected: (a collection containing "FIX_ACTUAL_TO_CURATED" and a collection containing "CHANGE_CURATED_TO_OBSERVED")
+     but: a collection containing "CHANGE_CURATED_TO_OBSERVED" mismatches were: [was "FIX_ACTUAL_TO_CURATED"]
+
+2 tests completed, 1 failed
+BUILD FAILED in 5s
+```
+
+Ticket 06 修实际-by-id still green in the same run. Also:
+
+```text
+cd backend && ./gradlew test --tests com.archops.plan.OperationPlanReviewHttpAcceptanceTest.acceptedHandlerSelectsFixActualGeneratesPlanAndApproves
+BUILD SUCCESSFUL in 5s
+```
+
