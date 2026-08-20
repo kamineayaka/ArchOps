@@ -101,75 +101,25 @@ class CuratedTruthHttpAcceptanceTest {
     }
 
     @Test
-    void bootstrapRunsOnPostRejectsOverwriteOfExistingFact() throws Exception {
-        String hostAId = createHost("host-ow-a");
-        String hostBId = createHost("host-ow-b");
-        String containerId = createContainer("app-ow", "ctr-ow-001");
+    void bootstrapPostRejectsOverwriteToDifferentHost() throws Exception {
+        String hostAId = createHost("host-ow-diff-a");
+        String hostBId = createHost("host-ow-diff-b");
+        String containerId = createContainer("app-ow-diff", "ctr-ow-diff-001");
 
-        mockMvc.perform(post("/api/curated/facts/runs-on")
-                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"containerId":"%s","hostId":"%s"}
-                                """.formatted(containerId, hostAId))
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success", is(true)))
-                .andExpect(jsonPath("$.data.target.id", is(hostAId)));
+        insertBootstrapRunsOn(containerId, hostAId);
+        rejectBootstrapRunsOnOverwrite(containerId, hostBId);
+        assertShouldWhereHost(containerId, hostAId);
+        assertRunsOnTarget(containerId, hostAId);
+    }
 
-        mockMvc.perform(get("/api/curated/asks/should-where")
-                        .param("containerId", containerId)
-                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success", is(true)))
-                .andExpect(jsonPath("$.data.question", is("应该在哪")))
-                .andExpect(jsonPath("$.data.curatedValue.hostId", is(hostAId)));
+    @Test
+    void bootstrapPostRejectsOverwriteToSameHost() throws Exception {
+        String hostAId = createHost("host-ow-same-a");
+        String containerId = createContainer("app-ow-same", "ctr-ow-same-001");
 
-        mockMvc.perform(post("/api/curated/facts/runs-on")
-                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"containerId":"%s","hostId":"%s"}
-                                """.formatted(containerId, hostBId))
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.success", is(false)))
-                .andExpect(jsonPath("$.code", is("CURATED_RUNS_ON_EXISTS")))
-                .andExpect(jsonPath("$.data", nullValue()));
-
-        mockMvc.perform(get("/api/curated/asks/should-where")
-                        .param("containerId", containerId)
-                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.curatedValue.hostId", is(hostAId)));
-
-        mockMvc.perform(post("/api/curated/facts/runs-on")
-                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"containerId":"%s","hostId":"%s"}
-                                """.formatted(containerId, hostAId))
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.success", is(false)))
-                .andExpect(jsonPath("$.code", is("CURATED_RUNS_ON_EXISTS")))
-                .andExpect(jsonPath("$.data", nullValue()));
-
-        mockMvc.perform(get("/api/curated/asks/should-where")
-                        .param("containerId", containerId)
-                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.curatedValue.hostId", is(hostAId)));
-
-        mockMvc.perform(get("/api/curated/facts/runs-on/{containerId}", containerId)
-                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success", is(true)))
-                .andExpect(jsonPath("$.data.target.id", is(hostAId)));
+        insertBootstrapRunsOn(containerId, hostAId);
+        rejectBootstrapRunsOnOverwrite(containerId, hostAId);
+        assertShouldWhereHost(containerId, hostAId);
     }
 
     @Test
@@ -183,6 +133,54 @@ class CuratedTruthHttpAcceptanceTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success", is(false)))
                 .andExpect(jsonPath("$.code", is("CURATED_OBJECT_ID_EXISTS")));
+    }
+
+    private void insertBootstrapRunsOn(String containerId, String hostId) throws Exception {
+        mockMvc.perform(post("/api/curated/facts/runs-on")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"containerId":"%s","hostId":"%s"}
+                                """.formatted(containerId, hostId))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.target.id", is(hostId)));
+    }
+
+    private void rejectBootstrapRunsOnOverwrite(String containerId, String hostId) throws Exception {
+        mockMvc.perform(post("/api/curated/facts/runs-on")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"containerId":"%s","hostId":"%s"}
+                                """.formatted(containerId, hostId))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.code", is("CURATED_RUNS_ON_EXISTS")))
+                .andExpect(jsonPath("$.data", nullValue()));
+    }
+
+    private void assertShouldWhereHost(String containerId, String hostId) throws Exception {
+        mockMvc.perform(get("/api/curated/asks/should-where")
+                        .param("containerId", containerId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.question", is("应该在哪")))
+                .andExpect(jsonPath("$.data.track", is("CURATED")))
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(hostId)));
+    }
+
+    private void assertRunsOnTarget(String containerId, String hostId) throws Exception {
+        mockMvc.perform(get("/api/curated/facts/runs-on/{containerId}", containerId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.target.id", is(hostId)));
     }
 
     private String createHost(String name) throws Exception {

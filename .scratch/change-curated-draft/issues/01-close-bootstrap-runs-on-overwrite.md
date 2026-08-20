@@ -59,3 +59,65 @@ Regression still green:
 cd backend && ./gradlew test --tests com.archops.curated.CuratedTruthHttpAcceptanceTest.createHostsContainerConfirmRunsOnAndAskShouldWhere
 BUILD SUCCESSFUL in 5s
 ```
+
+### Step B — one behavior per test (still red)
+
+Split the combined overwrite test. First insert remains `createHostsContainerConfirmRunsOnAndAskShouldWhere`. No production reject yet.
+
+Red command 1 (POST to different host B):
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.CuratedTruthHttpAcceptanceTest.bootstrapPostRejectsOverwriteToDifferentHost
+```
+
+```text
+CuratedTruthHttpAcceptanceTest > bootstrapPostRejectsOverwriteToDifferentHost() FAILED
+    java.lang.AssertionError at CuratedTruthHttpAcceptanceTest.java:127
+
+java.lang.AssertionError: Status expected:<400> but was:<200>
+
+BUILD FAILED in 5s
+```
+
+Second POST returned 200 `success=true` with `data.target.name=host-ow-diff-b` (same fact id overwritten to B). Not HTTP 500.
+
+Red command 2 (POST to same host A):
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.CuratedTruthHttpAcceptanceTest.bootstrapPostRejectsOverwriteToSameHost
+```
+
+```text
+CuratedTruthHttpAcceptanceTest > bootstrapPostRejectsOverwriteToSameHost() FAILED
+    java.lang.AssertionError at CuratedTruthHttpAcceptanceTest.java:173
+
+java.lang.AssertionError: Status expected:<400> but was:<200>
+
+BUILD FAILED in 5s
+```
+
+Second POST to A returned 200 `success=true` (same fact id, overwrite treated as success). Not HTTP 500.
+
+### Step C — cycle 1: reject overwrite to a different host
+
+Red (same command as Step B method 1; still overwrite 200 before this slice’s production change):
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.CuratedTruthHttpAcceptanceTest.bootstrapPostRejectsOverwriteToDifferentHost
+java.lang.AssertionError: Status expected:<400> but was:<200>
+BUILD FAILED
+```
+
+Green: `confirmRunsOn` throws `BusinessException("CURATED_RUNS_ON_EXISTS", …)` when a `运行于` fact already exists; `GlobalExceptionHandler` maps it to HTTP 400 envelope. No draft/event/compare.
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.CuratedTruthHttpAcceptanceTest.bootstrapPostRejectsOverwriteToDifferentHost
+BUILD SUCCESSFUL in 5s
+```
+
+Refactor (no behavior change): `findRunsOnFact` / `toRunsOnResponse`; HTTP helpers in the reject tests. Same test still green; first insert still green:
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.CuratedTruthHttpAcceptanceTest.bootstrapPostRejectsOverwriteToDifferentHost --tests com.archops.curated.CuratedTruthHttpAcceptanceTest.createHostsContainerConfirmRunsOnAndAskShouldWhere
+BUILD SUCCESSFUL in 5s
+```

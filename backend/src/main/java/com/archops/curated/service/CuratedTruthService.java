@@ -74,37 +74,20 @@ public class CuratedTruthService {
         CuratedObject host = requireObject(request.hostId().trim(), CuratedObjectKind.PHYSICAL_HOST,
                 "CURATED_HOST_NOT_FOUND", "Physical host not found: ");
 
-        CuratedFact existing = curatedFactMapper.selectOne(new LambdaQueryWrapper<CuratedFact>()
-                .eq(CuratedFact::getSubjectId, container.getId())
-                .eq(CuratedFact::getRelationType, CuratedRelationType.RUNS_ON));
-
-        Instant now = Instant.now();
-        CuratedFact fact;
-        if (existing == null) {
-            fact = new CuratedFact();
-            fact.setId(newId("fact"));
-            fact.setSubjectId(container.getId());
-            fact.setRelationType(CuratedRelationType.RUNS_ON);
-            fact.setTargetId(host.getId());
-            fact.setCreatedBy(actorUserId);
-            fact.setCreatedAt(now);
-            curatedFactMapper.insert(fact);
-        } else {
-            existing.setTargetId(host.getId());
-            existing.setCreatedBy(actorUserId);
-            existing.setCreatedAt(now);
-            curatedFactMapper.updateById(existing);
-            fact = existing;
+        if (findRunsOnFact(container.getId()) != null) {
+            throw new BusinessException("CURATED_RUNS_ON_EXISTS",
+                    "Curated 运行于 already exists for container: " + container.getId());
         }
 
-        return new CuratedRunsOnFactResponse(
-                fact.getId(),
-                CuratedRelationType.RUNS_ON,
-                CuratedRelationType.RUNS_ON.labelZh(),
-                CuratedObjectResponse.from(container),
-                CuratedObjectResponse.from(host),
-                fact.getCreatedAt()
-        );
+        CuratedFact fact = new CuratedFact();
+        fact.setId(newId("fact"));
+        fact.setSubjectId(container.getId());
+        fact.setRelationType(CuratedRelationType.RUNS_ON);
+        fact.setTargetId(host.getId());
+        fact.setCreatedBy(actorUserId);
+        fact.setCreatedAt(Instant.now());
+        curatedFactMapper.insert(fact);
+        return toRunsOnResponse(fact, container, host);
     }
 
     @Transactional(readOnly = true)
@@ -114,14 +97,7 @@ public class CuratedTruthService {
         CuratedFact fact = requireRunsOnFact(container.getId());
         CuratedObject host = requireObject(fact.getTargetId(), CuratedObjectKind.PHYSICAL_HOST,
                 "CURATED_HOST_NOT_FOUND", "Physical host not found: ");
-        return new CuratedRunsOnFactResponse(
-                fact.getId(),
-                CuratedRelationType.RUNS_ON,
-                CuratedRelationType.RUNS_ON.labelZh(),
-                CuratedObjectResponse.from(container),
-                CuratedObjectResponse.from(host),
-                fact.getCreatedAt()
-        );
+        return toRunsOnResponse(fact, container, host);
     }
 
     /**
@@ -152,15 +128,32 @@ public class CuratedTruthService {
         return object;
     }
 
-    private CuratedFact requireRunsOnFact(String containerId) {
-        CuratedFact fact = curatedFactMapper.selectOne(new LambdaQueryWrapper<CuratedFact>()
+    private CuratedFact findRunsOnFact(String containerId) {
+        return curatedFactMapper.selectOne(new LambdaQueryWrapper<CuratedFact>()
                 .eq(CuratedFact::getSubjectId, containerId)
                 .eq(CuratedFact::getRelationType, CuratedRelationType.RUNS_ON));
+    }
+
+    private CuratedFact requireRunsOnFact(String containerId) {
+        CuratedFact fact = findRunsOnFact(containerId);
         if (fact == null) {
             throw new BusinessException("CURATED_RUNS_ON_NOT_FOUND",
                     "No curated 运行于 fact for container: " + containerId);
         }
         return fact;
+    }
+
+    private static CuratedRunsOnFactResponse toRunsOnResponse(
+            CuratedFact fact, CuratedObject container, CuratedObject host
+    ) {
+        return new CuratedRunsOnFactResponse(
+                fact.getId(),
+                CuratedRelationType.RUNS_ON,
+                CuratedRelationType.RUNS_ON.labelZh(),
+                CuratedObjectResponse.from(container),
+                CuratedObjectResponse.from(host),
+                fact.getCreatedAt()
+        );
     }
 
     private static String newId(String prefix) {
