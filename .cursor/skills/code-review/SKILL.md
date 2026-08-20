@@ -10,6 +10,8 @@ Two-axis review of the diff between `HEAD` and a fixed point the user supplies:
 
 Both axes run as **parallel sub-agents** so they don't pollute each other's context, then this skill aggregates their findings.
 
+Per-cycle **refactor** belongs to `/tdd` (red → green → refactor). This skill is the ticket-end Standards + Spec gate, not a substitute for that refactor step.
+
 The issue tracker should have been provided to you. If `docs/agents/issue-tracker.md` is missing, tell the user to run `/setup-matt-pocock-skills`.
 
 ## Process

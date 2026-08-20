@@ -16,7 +16,7 @@ Already published:
 | Feature | Canonical spec | Tickets |
 |---|---|---|
 | vertical-slice-mvp | `docs/specs/vertical-slice-mvp.md` | `.scratch/vertical-slice-mvp/issues/` (01–13 **done** — do not re-open) |
-| change-curated-draft | `docs/specs/change-curated-draft.md` | `.scratch/change-curated-draft/issues/`（01–02 **done**；03–06 `ready-for-agent`；frontier = 03） |
+| change-curated-draft | `docs/specs/change-curated-draft.md` | `.scratch/change-curated-draft/issues/`（**01–03 TDD redo**，`ready-for-agent`；frontier = **01**；04–06 被挡住） |
 
 ## When a skill says "publish to the issue tracker"
 
@@ -25,11 +25,11 @@ Already published:
 
 ## When a skill says "fetch the relevant ticket"
 
-Read the file at the referenced path. The user will normally pass the path or the issue number directly. Frontier tickets are **ready-for-agent** with all `Blocked by` tickets `done`.
+Read the file at the referenced path. The user will normally pass the path or the issue number directly. Frontier tickets are **ready-for-agent** with all `Blocked by` tickets `done`. When two tickets are unblocked, implement the **lowest number**.
 
 ## Cloud / ArchOps overrides
 
-- AGENTS.md wins over this file on process: **one ticket at a time**; HTTP API is the acceptance seam; do not revive Vue/JPA/Neo4j/Maven/LangChain.
+- AGENTS.md wins over this file on process: **one ticket at a time** (lowest number when two are unblocked); HTTP API is the acceptance seam; `/implement` drives `/tdd` (**red → green → refactor**, overlay [`tdd.md`](tdd.md)); do not revive Vue/JPA/Neo4j/Maven/LangChain.
 - `/implement` still implements a single unblocked frontier ticket, not a whole spec.
 
 ## Wayfinding operations

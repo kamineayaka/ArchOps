@@ -27,3 +27,4 @@ alwaysApply: false
 
 - 函数组件 + hooks；避免为竖切引入过重状态管理（除非票明确要求）
 - 不引入未使用依赖；不做票外页面
+- 薄 UI 排在该票 HTTP 循环变绿之后（`docs/agents/tdd.md`）；UI 不是自动化主接缝

@@ -31,8 +31,9 @@ Matt workflow skills are **vendored in the repo** (Cloud Agents do not inherit l
 ## Acceptance in Cloud
 
 - Primary seam: HTTP API (`GET /api/health`, then ticket acceptance tests).
+- `/implement` drives `/tdd`: **red → green → refactor**, witnessed red per cycle. Overlay: [`docs/agents/tdd.md`](../docs/agents/tdd.md).
 - Backend unit/HTTP tests: `cd backend && ./gradlew test` (embedded Postgres available for many tests).
-- Manual UI: Vite `:5173` proxies `/api` → `:8080`.
+- Manual UI: Vite `:5173` proxies `/api` → `:8080`. UI after that ticket's HTTP cycles are green.
 - Do **not** assume the developer's Windows machine, SteamTools certs, or local Docker Desktop.
 
 ## Secrets

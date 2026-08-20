@@ -4,19 +4,23 @@
 
 **Blocked by:** None — can start immediately
 
-**Status:** done
+**Status:** ready-for-agent
 
-从竖切 MVP 往上长：今日规则诊断在宿主不等时只发出 `FIX_ACTUAL`，既有验收按「仅一条 / 第一条即修实际」断言。本票保留修实际分叉，并增加 `CHANGE_CURATED`（建议稳定 id：`CHANGE_CURATED_TO_OBSERVED`，`kind=CHANGE_CURATED`）；把按序号钉死的断言改成按分叉 id 识别，避免打掉竖切回归。
+**TDD redo:** yes — 验收标准不变。先前实现与测试同提交，不算 TDD 完成。按 [`docs/agents/tdd.md`](../../../docs/agents/tdd.md) 从 witnessed red 重做。在 01 TDD-done 之后再开（两张 unblocked 时按编号最小）。
 
-- [x] 可用策展宿主 A、可用观测宿主 B（不等）时，GET 当前诊断同时包含 `FIX_ACTUAL` 与 `CHANGE_CURATED`；改理想目标为当前可用观测宿主
-- [x] 改理想分叉文案使用合同术语（改理想 / 策展 / 观测 / 草案），不出现「以观测为准」「裁定」等 Avoid 词
-- [x] 纯观测空洞：仍只有恢复观测通道/心跳/核验类分叉，不含改理想
-- [x] 观测消失（可用值为不存在）：保持既有恢复/核验类分叉，不发明「策展改为不存在」条目或分叉
-- [x] 非处理人仍可只读看到分叉；本票不实现选支写入草案
-- [x] 既有「修实际」HTTP 验收仍绿（允许改为按 id 认分叉，而不是 `forks[0]` / 长度恒为 1）
+从竖切 MVP 往上长：规则诊断曾在宿主不等时只发出 `FIX_ACTUAL`，既有验收按「仅一条 / 第一条即修实际」断言。本票保留修实际分叉，并增加 `CHANGE_CURATED`（建议稳定 id：`CHANGE_CURATED_TO_OBSERVED`，`kind=CHANGE_CURATED`）；把按序号钉死的断言改成按分叉 id 识别，避免打掉竖切回归。TDD 重做从红灯开始（见 Comments）。
+
+- [ ] 可用策展宿主 A、可用观测宿主 B（不等）时，GET 当前诊断同时包含 `FIX_ACTUAL` 与 `CHANGE_CURATED`；改理想目标为当前可用观测宿主
+- [ ] 改理想分叉文案使用合同术语（改理想 / 策展 / 观测 / 草案），不出现「以观测为准」「裁定」等 Avoid 词
+- [ ] 纯观测空洞：仍只有恢复观测通道/心跳/核验类分叉，不含改理想
+- [ ] 观测消失（可用值为不存在）：保持既有恢复/核验类分叉，不发明「策展改为不存在」条目或分叉
+- [ ] 非处理人仍可只读看到分叉；本票不实现选支写入草案
+- [ ] 既有「修实际」HTTP 验收仍绿（允许改为按 id 认分叉，而不是 `forks[0]` / 长度恒为 1）
 
 **Out of this ticket:** 选支、草案表、逐条确认、关建底覆盖（见 01）、立刻比对、UI 选支按钮文案可留到 03。无 LLM 起草（规则引擎即可）。
 
 ## Comments
 
-HTTP 接缝：`ConflictDiagnosisHttpAcceptanceTest`。宿主 A vs 可用观测 B 时 GET `/api/conflicts/{id}/diagnosis` 同时含 `FIX_ACTUAL_TO_CURATED` 与 `CHANGE_CURATED_TO_OBSERVED`（目标写入改理想 description）。空洞/观测消失仍只恢复/核验类分叉。按 fork id 认修实际，避免 `forks[0]`。无草案表、无选支写入。
+HTTP 接缝（先前同提交落地，**不是** TDD 完成证据）：`ConflictDiagnosisHttpAcceptanceTest`。宿主 A vs 可用观测 B 时 GET `/api/conflicts/{id}/diagnosis` 同时含 `FIX_ACTUAL_TO_CURATED` 与 `CHANGE_CURATED_TO_OBSERVED`（目标写入改理想 description）。空洞/观测消失仍只恢复/核验类分叉。按 fork id 认修实际，避免 `forks[0]`。无草案表、无选支写入。
+
+TDD 重做：一圈一条诊断行为；多断言测试拆成单行为方法；若已绿则先去掉该票生产行为。不要做 01/03–06。
