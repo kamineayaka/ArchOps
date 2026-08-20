@@ -54,7 +54,7 @@
 7. ~~改策展 `/to-tickets`~~：已发布至 `.scratch/change-curated-draft/issues/`（01–06）  
 8. ~~`/implement` 票 01~~：已完成（关闭建底 POST 覆盖已有 `运行于`；`CURATED_RUNS_ON_EXISTS`）  
 9. ~~`/implement` 票 02~~：已完成（诊断同时给出 `FIX_ACTUAL` 与 `CHANGE_CURATED`）  
-10. ~~`/implement` 票 03~~：已完成（选改理想生成 ≥2 条开放草案；不写策展、不出操作计划）  
+10. ~~`/implement` 票 03~~：已完成（选改理想生成 ≥2 条开放草案；不写策展、不出操作计划）。提示词 [`docs/implement-change-curated-draft-03-prompt.md`](implement-change-curated-draft-03-prompt.md)。  
 11. **下一对话：`/implement` 票 04**（逐条确认写入并立刻比对）。票路径 [`.scratch/change-curated-draft/issues/04-itemized-accept-write-compare.md`](../.scratch/change-curated-draft/issues/04-itemized-accept-write-compare.md)。一次只做一张；不要顺手做 05–06。HTTP API 主接缝；勿用代码偷改领域合同。
 
 ### 工单阻塞简图
