@@ -110,3 +110,14 @@ BUILD SUCCESSFUL in 4s
 ```
 
 Already green from the same gate: `PENDING_ACCEPT` is not 已接受. Assignee POST is `PLAN_REQUIRES_ACCEPTED_HANDLER`. No extra production.
+
+### Step H — cycle 6: 过时诊断 cannot select 改理想
+
+Ran:
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftHttpAcceptanceTest.staleDiagnosisCannotSelectChangeCurated
+BUILD SUCCESSFUL in 4s
+```
+
+Already green: reused current-diagnosis check (`DIAGNOSIS_NOT_READY` when body `diagnosisId` is stale after B→C upgrade). No extra production.

@@ -131,6 +131,21 @@ class ChangeCuratedDraftHttpAcceptanceTest {
                 .andExpect(jsonPath("$.code", is("PLAN_REQUIRES_ACCEPTED_HANDLER")));
     }
 
+    @Test
+    void staleDiagnosisCannotSelectChangeCurated() throws Exception {
+        Fixture fx = openConflictWithSiblingAndClaim("ccd-st-a", "ccd-st-b", "ctr-ccd-st-x", "ctr-ccd-st-y");
+        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, fx.conflictId(), GENERAL_ID);
+        String staleDiagnosisId = readDiagnosisId(fx.conflictId());
+
+        String hostC = createHost("ccd-st-c");
+        heartbeatWithContainer(hostC, "agent-ccd-st-c", "ctr-ccd-st-x");
+        waitUntilDiagnosisReplaced(fx.conflictId(), staleDiagnosisId);
+
+        postBranch(fx.conflictId(), GENERAL_ID, "CHANGE_CURATED_TO_OBSERVED", staleDiagnosisId)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("DIAGNOSIS_NOT_READY")));
+    }
+
     private org.springframework.test.web.servlet.ResultActions postBranch(
             String conflictId, String userId, String forkId, String diagnosisId
     ) throws Exception {
@@ -156,6 +171,36 @@ class ChangeCuratedDraftHttpAcceptanceTest {
                 .param("containerId", containerId)
                 .header(TempAuthHeaders.USER_ID, GENERAL_ID)
                 .accept(MediaType.APPLICATION_JSON));
+    }
+
+    private String readDiagnosisId(String conflictId) throws Exception {
+        MvcResult result = mockMvc.perform(get("/api/conflicts/{id}/diagnosis", conflictId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn();
+        return objectMapper.readTree(result.getResponse().getContentAsString())
+                .path("data").path("id").asText();
+    }
+
+    private void waitUntilDiagnosisReplaced(String conflictId, String previousId) throws Exception {
+        long deadline = System.currentTimeMillis() + 10_000;
+        while (System.currentTimeMillis() < deadline) {
+            MvcResult result = mockMvc.perform(get("/api/conflicts/{id}/diagnosis", conflictId)
+                            .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                            .accept(MediaType.APPLICATION_JSON))
+                    .andReturn();
+            if (result.getResponse().getStatus() == 200) {
+                JsonNode data = objectMapper.readTree(result.getResponse().getContentAsString()).path("data");
+                String status = data.path("status").asText();
+                String id = data.path("id").asText();
+                if ("READY".equals(status) && !previousId.equals(id)) {
+                    return;
+                }
+            }
+            Thread.sleep(150);
+        }
+        throw new AssertionError("Timed out waiting for replacement READY diagnosis on " + conflictId);
     }
 
     private Fixture openConflictWithSiblingAndClaim(
