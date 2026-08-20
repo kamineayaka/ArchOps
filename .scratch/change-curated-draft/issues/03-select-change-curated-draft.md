@@ -121,3 +121,29 @@ BUILD SUCCESSFUL in 4s
 ```
 
 Already green: reused current-diagnosis check (`DIAGNOSIS_NOT_READY` when body `diagnosisId` is stale after B→C upgrade). No extra production.
+
+### Step I — cycle 7: open 草案 rejects a second 改理想 select
+
+Red:
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftHttpAcceptanceTest.openDraftRejectsSecondChangeCuratedSelection
+```
+
+```text
+ChangeCuratedDraftHttpAcceptanceTest > openDraftRejectsSecondChangeCuratedSelection() FAILED
+    java.lang.AssertionError at ChangeCuratedDraftHttpAcceptanceTest.java:158
+
+java.lang.AssertionError: Status expected:<400> but was:<500>
+Body = {"success":false,"code":"INTERNAL_ERROR","message":"... duplicate key value violates unique constraint \"curated_draft_open_conflict_uq\" ..."}
+BUILD FAILED in 4s
+```
+
+Second POST hit V13 unique index as HTTP 500, not `DRAFT_ALREADY_OPEN`.
+
+Green: `createForChangeCurated` refuses when an OPEN 草案 exists (`DRAFT_ALREADY_OPEN`); unique-index races map to the same code. V13 unchanged.
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftHttpAcceptanceTest.openDraftRejectsSecondChangeCuratedSelection
+BUILD SUCCESSFUL in 4s
+```

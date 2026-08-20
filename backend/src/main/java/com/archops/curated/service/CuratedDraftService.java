@@ -21,6 +21,7 @@ import com.archops.user.security.AuthUserPrincipal;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -82,6 +83,10 @@ public class CuratedDraftService {
             ConflictDiagnosisResponse.ForkSuggestion fork,
             AuthUserPrincipal actor
     ) {
+        if (findOpen(conflict.getId()) != null) {
+            throw new BusinessException("DRAFT_ALREADY_OPEN",
+                    "Conflict already has an open 草案");
+        }
         String fromHostId = conflict.getCuratedTargetId();
         String toHostId = conflict.getObservedTargetId();
         if (fromHostId == null || fromHostId.isBlank() || toHostId == null || toHostId.isBlank()) {
@@ -98,7 +103,12 @@ public class CuratedDraftService {
         draft.setStatus(CuratedDraftStatus.OPEN);
         draft.setCreatedBy(actor.getUserId());
         draft.setCreatedAt(now);
-        curatedDraftMapper.insert(draft);
+        try {
+            curatedDraftMapper.insert(draft);
+        } catch (DataIntegrityViolationException ex) {
+            throw new BusinessException("DRAFT_ALREADY_OPEN",
+                    "Conflict already has an open 草案");
+        }
 
         List<CuratedDraftItem> items = buildRunsOnItems(
                 draft.getId(), conflict.getSubjectId(), fromHostId, toHostId, now);
