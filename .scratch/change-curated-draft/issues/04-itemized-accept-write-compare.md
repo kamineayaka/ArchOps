@@ -6,7 +6,7 @@
 
 **Status:** ready-for-agent
 
-**Not frontier:** 01 与 03 正以 TDD 重做（`Status: ready-for-agent`）。本票在两者重新 `done` 之前不要开工。`/implement` 走 [`docs/agents/tdd.md`](../../../docs/agents/tdd.md)。
+**TDD:** `/implement` 走 [`docs/agents/tdd.md`](../../../docs/agents/tdd.md)。01 与 03 已 TDD-done；本票是现行 frontier。
 
 从竖切 MVP 往上长：今日比对只在观测写入后触发；策展突变不会自己走进待确认关闭。关单、待确认关闭提醒可见、确认时若已漂移则失败——这些已由竖切票交付，本票只复用，不重做关单产品化。合法策展改写在本刀只剩「接受的草案条目」；建底 POST 覆盖已由 01 关闭。
 

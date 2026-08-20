@@ -4,24 +4,24 @@
 
 **Blocked by:** 02 — 诊断同时给出「修实际」与「改理想」分叉
 
-**Status:** ready-for-agent
+**Status:** done
 
-**TDD redo:** yes — 验收标准不变。先前实现与测试同提交，不算 TDD 完成。按 [`docs/agents/tdd.md`](../../../docs/agents/tdd.md) 从 witnessed red 重做。待 02 TDD-done。
+**TDD redo:** yes — 验收标准不变。先前实现与测试同提交，不算 TDD 完成。按 [`docs/agents/tdd.md`](../../../docs/agents/tdd.md) 从 witnessed red 重做。02 TDD-done。
 
 从竖切 MVP 往上长：选支门禁曾在「出操作计划」服务里，且非 `FIX_ACTUAL` 直接拒绝；操作计划 `branch_kind` 历史约束仍只有修实际。本票复用同一门禁（已接受处理人、当前诊断、每冲突一条活跃处理路径），为改理想走出草案而不是计划。不要把 `CHANGE_CURATED` 加进操作计划分支种类；`FIX_ACTUAL` 的 HTTP 响应须对既有客户端保持有效。HTTP 形状按 Spec 默认：复用选支 POST（可判别 body）或与草案资源配对，只要能 GET 到开放草案。TDD 重做从红灯开始（见 Comments）；不要改已有 V13。
 
 夹具：用既有建底 API 准备主机 A/B、容器 X 与 Y（均带对象标签）、策展 X/Y 皆 `运行于` A；Agent 快照仅须让 X 出现在 B（Y 不必冲突）。草案生成规则模板化，不依赖 LLM；模型不可用也不得挡住出草案。
 
-- [ ] 已接受处理人选择改理想：该冲突出现恰好一份开放草案；条目 ≥2（X：A→B 合并键；Y：A→B 兄弟，相互独立）
-- [ ] 选支后、条目接受前：GET「应该在哪」对 X 与 Y 仍为 A；策展真相未变
-- [ ] 选支后无活跃操作计划；不启动 SSH；不出现策展对齐步骤
-- [ ] 非处理人与待接受处理人选择改理想被拒绝；过时诊断上选支被拒绝（复用既有门禁，不重做协作）
-- [ ] 开放草案时再次选择改理想被拒绝（每冲突至多一份开放草案）
-- [ ] 开放草案时选择 `FIX_ACTUAL` 被拒绝；已有活跃操作计划时选择改理想被拒绝
-- [ ] `FIX_ACTUAL` 仍跳过草案并仍创建操作计划（聚焦 HTTP 回归即可，不跑 SSH 执行）
-- [ ] GET 开放草案可看出条目仍待确认；HTTP 可读「草案已创建」审计（可并入既有冲突事件列表）
-- [ ] 草案与条目落 PostgreSQL（仅增量 Flyway）；Redis 不用作草案/关系真相 SSOT
-- [ ] 冲突详情薄 UI：能看见并选择改理想分叉、列出草案条目；选择改理想不得再写成「生成操作计划」。UI 不进自动化主接缝
+- [x] 已接受处理人选择改理想：该冲突出现恰好一份开放草案；条目 ≥2（X：A→B 合并键；Y：A→B 兄弟，相互独立）
+- [x] 选支后、条目接受前：GET「应该在哪」对 X 与 Y 仍为 A；策展真相未变
+- [x] 选支后无活跃操作计划；不启动 SSH；不出现策展对齐步骤
+- [x] 非处理人与待接受处理人选择改理想被拒绝；过时诊断上选支被拒绝（复用既有门禁，不重做协作）
+- [x] 开放草案时再次选择改理想被拒绝（每冲突至多一份开放草案）
+- [x] 开放草案时选择 `FIX_ACTUAL` 被拒绝；已有活跃操作计划时选择改理想被拒绝
+- [x] `FIX_ACTUAL` 仍跳过草案并仍创建操作计划（聚焦 HTTP 回归即可，不跑 SSH 执行）
+- [x] GET 开放草案可看出条目仍待确认；HTTP 可读「草案已创建」审计（可并入既有冲突事件列表）
+- [x] 草案与条目落 PostgreSQL（仅增量 Flyway）；Redis 不用作草案/关系真相 SSOT
+- [x] 冲突详情薄 UI：能看见并选择改理想分叉、列出草案条目；选择改理想不得再写成「生成操作计划」。UI 不进自动化主接缝
 
 **Out of this ticket:** 按条接受/拒绝写入（04）、关建底覆盖（01，本票不写策展故不挡开工）、升级/空洞作废（05）、有序 E2E 套件（06）、Y2 对齐步、改策展后再出 SSH 计划、LLM 起草、整单一键全接受。
 
@@ -229,3 +229,23 @@ Green: append `DRAFT_CREATED` on the existing conflict event list (`hint` litera
 cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftHttpAcceptanceTest.selectChangeCuratedWritesDraftCreatedAuditEvent
 BUILD SUCCESSFUL in 4s
 ```
+
+### Step N — thin UI (after HTTP green)
+
+No frontend diff this redo. `ConflictDetailPage` already shows the 改理想 radio, button copy `选择改理想并生成草案` (not `生成操作计划`), and a read-only 草案 item list. No per-item accept/reject (04).
+
+### Step O — full suite, /code-review, frontier → 04
+
+```text
+cd backend && ./gradlew cleanTest test
+BUILD SUCCESSFUL in 10s
+15 test classes, 67 tests, 0 failures
+```
+
+`/code-review` fixed point: `a086f76` (Step A restore). `git diff a086f76...HEAD`.
+
+Standards: 0 hard product violations. Judgement: some later HTTP methods were already green from cycle 1 / reused gates (same as ticket 01 Step D / 02 hollow+viewer cycles — kept as regression, no extra production). Duplicate `DRAFT_ALREADY_OPEN` throw is check + unique-index race map.
+
+Spec: 0 missing / wrong / scope-creep vs ticket 03. Extra `运行于` facts on host A would also become items (fixture still requires X+Y ≥2). No V13 edit. No 04 item write.
+
+Thin UI already on main. Ticket 04 not implemented. Frontier now 04.
