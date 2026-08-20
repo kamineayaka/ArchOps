@@ -86,6 +86,20 @@ class ChangeCuratedDraftHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data.curatedValue.hostId", is(fx.hostA())));
     }
 
+    @Test
+    void selectChangeCuratedDoesNotCreateActiveOperationPlan() throws Exception {
+        Fixture fx = openConflictWithSiblingAndClaim("ccd-np-a", "ccd-np-b", "ctr-ccd-np-x", "ctr-ccd-np-y");
+        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, fx.conflictId(), GENERAL_ID);
+        postBranch(fx.conflictId(), GENERAL_ID, "CHANGE_CURATED_TO_OBSERVED", null)
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/conflicts/{id}/operation-plans/active", fx.conflictId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("PLAN_NOT_FOUND")));
+    }
+
     private org.springframework.test.web.servlet.ResultActions postBranch(
             String conflictId, String userId, String forkId, String diagnosisId
     ) throws Exception {
