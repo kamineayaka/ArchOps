@@ -3,7 +3,7 @@
 **Status**: ready-for-agent（本地发布；tracker = `docs/agents/issue-tracker.md`）  
 **Basis**: ADR-0039 领域合同、`CONTEXT.md`、ADR-0043 技术栈、ADR-0006（草案逐条写入）、ADR-0009（双轨偏差）、ADR-0019（相等后待确认关闭；本刀**不含** Y2 策展对齐步骤）、ADR-0038（改策展须草案人审；纯修现场跳过草案）、ADR-0041（竖切范围 + AI 出站）  
 **Predecessor**: [`docs/specs/vertical-slice-mvp.md`](vertical-slice-mvp.md)（票 01–13 已实现并经 VM 人工验收）。本 Spec 从该实现往上长，不从空骨架重写，不复活旧域包。  
-**Testing seams (confirmed)**: **唯一验收主接缝 = 控制面公开 HTTP API**（含 Agent 心跳/快照 ingest）。驱动可以是 Gradle/`MockMvc` 或 Compose 上 `bootRun`+`curl`，仍是同一条接缝。前端最小 UI 手工/冒烟，不进自动化主接缝。本刀无 SSH 计划，不引入 SSH fake 作为接缝或替身。
+**Testing seams (confirmed)**: **唯一验收主接缝 = 控制面公开 HTTP API**（含 Agent 心跳/快照 ingest）。驱动可以是 Gradle/`MockMvc` 或 Compose 上 `bootRun`+`curl`，仍是同一条接缝。前端最小 UI 手工/冒烟，不进自动化主接缝。本刀无 SSH 计划，不引入 SSH fake 作为接缝或替身。`/implement` 按 [`docs/agents/tdd.md`](../agents/tdd.md) 走 **red → green → refactor**；下文 HTTP tracer 是循环顺序，不是一次写完全部测试再实现。
 
 **Confirmed scope pins**
 
@@ -165,6 +165,7 @@
 - Assert **external HTTP behavior** only: status codes, `ApiResponse` envelope, and state readable by subsequent HTTP GETs (策展「应该在哪」、观测「实际在哪」、冲突 status/merge key/lineage、草案 item states、诊断 forks、事件列表).
 - Do **not** assert MyBatis mapper internals, Redis key shapes, or private call graphs.
 - Prefer one ordered HTTP tracer plus a small negative set over a wide unit pyramid.
+- Drive the tracer **one cycle at a time** (red → green → refactor). See [`docs/agents/tdd.md`](../agents/tdd.md).
 
 ### Primary seam (confirmed)
 

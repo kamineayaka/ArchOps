@@ -56,4 +56,4 @@ Out of Scope（票不得偷带）：自我迭代、指标大盘、网络可达�
 
 ---
 
-工单已发布至 `.scratch/change-curated-draft/issues/`（01–06）。现行 frontier 开工提示词：[`docs/implement-change-curated-draft-03-prompt.md`](implement-change-curated-draft-03-prompt.md)（票 03；仍一次一张）。
+工单已发布至 `.scratch/change-curated-draft/issues/`（01–06）。现行 frontier：**01 TDD 重做**。开工提示词：[`docs/implement-change-curated-draft-01-prompt.md`](implement-change-curated-draft-01-prompt.md)。`/implement` 走 [`docs/agents/tdd.md`](agents/tdd.md)。

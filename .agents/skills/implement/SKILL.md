@@ -4,12 +4,10 @@ description: "Implement a piece of work based on a spec or set of tickets."
 disable-model-invocation: true
 ---
 
-Implement the work described by the user in the spec or tickets.
+Implement one frontier ticket from the tracker. Read `AGENTS.md` for which ticket is next.
 
-Use /tdd where possible, at pre-agreed seams.
+Drive `/tdd` at the ticket's confirmed seam: **red → green → refactor**, one test per cycle. Witness the red run before production code for that slice. ArchOps overlay: `docs/agents/tdd.md`.
 
-Run typechecking regularly, single test files regularly, and the full test suite once at the end.
+Run the single test each cycle. Run the full suite once at ticket end.
 
-Once done, use /code-review to review the work.
-
-Commit your work to the current branch.
+When the ticket's acceptance is green, `/code-review` (Standards + Spec). Commit each green slice; the review is the ticket-end gate, not a substitute for per-cycle refactor.

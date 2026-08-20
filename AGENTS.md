@@ -10,10 +10,11 @@
 4. `docs/adr/0043-tech-stack.md` — **技术栈唯一真相**
 5. `docs/specs/vertical-slice-mvp.md` — 竖切 Spec（01–13 已闭合）
 6. `docs/specs/change-curated-draft.md` — 改策展/草案逐条确认 Spec（工单已拆，见下一则）
-7. 当前工单：见 `docs/dev-handoff.md`；竖切 `.scratch/vertical-slice-mvp/issues/` 已 done；改策展 `.scratch/change-curated-draft/issues/`（01–02 done；frontier = 03）
+7. 当前工单：见 `docs/dev-handoff.md`；竖切 `.scratch/vertical-slice-mvp/issues/` 已 done；改策展 `.scratch/change-curated-draft/issues/`（**01–03 TDD redo**，`ready-for-agent`；frontier = **01**；04–06 仍被挡住）
 8. `docs/dev-handoff.md` — 进度与下一票
-9. `.cursor/rules/project-map.mdc`、`backend-java.mdc`、`frontend-react.mdc`
-10. `docs/agents/` — Matt 工作流 tracker / triage / domain 布局（Cloud 已 vendoring `.cursor/skills/`）
+9. `docs/agents/tdd.md` — ArchOps TDD overlay（`/implement` 必读）
+10. `.cursor/rules/project-map.mdc`、`backend-java.mdc`、`frontend-react.mdc`
+11. `docs/agents/` — Matt 工作流 tracker / triage / domain 布局（Cloud 已 vendoring `.cursor/skills/`）
 
 **不要**把 git 历史里的旧 ArchOps（Neo4j 必选、Maven、Vue/Naive、JPA 域模型、architecture proposal、旧 Agent 工具）当作现行实现样板。
 
@@ -58,12 +59,13 @@
 
 ## 5. Cloud Agent 工作方式（防范围漂移）
 
-1. **一次只做一张工单**（默认下一 frontier：见 `docs/dev-handoff.md`）。读票内 Acceptance，做完更新票状态或 handoff，勿顺手做下一张。
+1. **一次只做一张工单**（默认下一 frontier：见 `docs/dev-handoff.md`）。读票内 Acceptance，做完更新票状态或 handoff，勿顺手做下一张。两张都 unblocked 时按编号最小的做。
 2. Spec / 票 / ADR 冲突时：**ADR 与 CONTEXT > Spec > 票**；票过宽则缩到验收标准。
 3. 不要「顺便」引入：Neo4j、Vue、Maven、JPA 全域、LangChain、完整 xterm、网络可达矩阵、自我迭代、多租户。
 4. 不要从旧提交恢复已删除的 `ai/` `asset/` `graph/` 等旧域包当业务基础。
-5. 测试主接缝：控制面 HTTP API（含 Agent ingest）；SSH 可用 fake；前端最小冒烟即可。
-6. 提交信息聚焦 why；不要提交 `.env`、密钥、`node_modules`、`build/`。
+5. `/implement` 驱动 `/tdd`：**red → green → refactor**，一圈一条测试。先在确认接缝上跑出 **witnessed red**，再写该圈生产代码。ArchOps overlay：[`docs/agents/tdd.md`](docs/agents/tdd.md)。Skill：`.cursor/skills/tdd/SKILL.md`（桌面：`.agents/skills/tdd/SKILL.md`）。与 skill 冲突时以本文件与 overlay 为准。
+6. 测试主接缝：控制面 HTTP API（含 Agent ingest）；SSH 可用 fake；前端最小冒烟，且排在该票 HTTP 循环变绿之后。
+7. 提交信息聚焦 why；每个绿灯切片可提交；不要提交 `.env`、密钥、`node_modules`、`build/`。
 
 ## 5.1 Cursor Cloud specific instructions
 
@@ -88,18 +90,23 @@ Local markdown under `.scratch/<feature-slug>/`; canonical specs in `docs/specs/
 
 Canonical roles on each ticket `Status:` line (`ready-for-agent`, `done`, …). See `docs/agents/triage-labels.md`.
 
+### TDD
+
+`/implement` drives `/tdd` (**red → green → refactor**). Overlay: [`docs/agents/tdd.md`](docs/agents/tdd.md).
+
 ### Domain docs
 
 Single-context: frozen `CONTEXT.md` + `docs/adr/` (ADR-0039 / ADR-0043). Skills must not silently rewrite the contract. See `docs/agents/domain.md`.
 
-`/to-spec` `/to-tickets` `/implement` `/grill-with-docs` read those files. `/implement` still follows §5: **one unblocked frontier ticket**, HTTP API acceptance seam.
+`/to-spec` `/to-tickets` `/implement` `/grill-with-docs` `/tdd` `/code-review` read those files. `/implement` still follows §5: **one unblocked frontier ticket**, HTTP API acceptance seam, **red → green → refactor**. See [`docs/agents/tdd.md`](docs/agents/tdd.md).
 
 ## 6. Matt 进度（勿倒退）
 
 - 领域 grilling / 合同冻结 / 技术选型 / 空脚手架 / 竖切 Spec / 竖切 Tickets / 竖切实现：**已完成**
-- 下一刀 Spec：`docs/specs/change-curated-draft.md`（已发布）；工单 `.scratch/change-curated-draft/issues/`（01–02 done；frontier = 03）
+- 下一刀 Spec：`docs/specs/change-curated-draft.md`（已发布）；工单 `.scratch/change-curated-draft/issues/`（01–06 已拆）。01–03 曾按「实现与测试同提交」落地，**现以 TDD 重做**：frontier = **01**（关闭建底覆盖）。04 仍被 01 与 03 挡住。
+- `/implement` 必须走 TDD overlay：[`docs/agents/tdd.md`](docs/agents/tdd.md)
 - 不需要再开技术选型或推倒栈，除非用户明示新 ADR
 
 ## 7. 云端提示词建议（用户可贴）
 
-> 读 AGENTS.md 与当前 frontier 工单并实现。遵守 ADR-0043 与 CONTEXT.md。只做这一张票的验收项，完成后更新 docs/dev-handoff.md 中的下一票指针。不要引入 Vue/JPA/Neo4j/Maven/LangChain。在 Cloud VM 上用 Compose 的 Postgres/Redis 验收 HTTP API。
+> 读 AGENTS.md、docs/agents/tdd.md 与当前 frontier 工单并 /implement /tdd。遵守 ADR-0043 与 CONTEXT.md。red → green → refactor，一圈一条 HTTP 测试；先留下 witnessed red。只做这一张票的验收项，完成后更新 docs/dev-handoff.md 中的下一票指针。不要引入 Vue/JPA/Neo4j/Maven/LangChain。在 Cloud VM 上用 Compose 的 Postgres/Redis 跑该圈测试。

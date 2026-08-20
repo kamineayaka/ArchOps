@@ -15,6 +15,7 @@
 
 规则：
 - 只做这一张票的验收项；不要顺手做下一张
+- `/implement` 驱动 `/tdd`：red → green → refactor（`docs/agents/tdd.md`）；先留下 witnessed red
 - 栈：Gradle + MyBatis-Plus + React/Ant + PG + Redis；禁止 Vue/JPA/Maven/Neo4j必选/LangChain
 - 不复活旧域包；不改 Flyway 历史脚本；改语义须 ADR
 - 主验收接缝：HTTP API；完成后更新 docs/dev-handoff.md 下一票指针

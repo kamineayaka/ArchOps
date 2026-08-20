@@ -16,6 +16,7 @@ This is a **single-context** repo. `CONTEXT.md` and the domain contract (**ADR-0
 - **`CONTEXT.md`** at the repo root
 - **`docs/adr/`** — especially `0039-domain-contract-frozen.md` and `0043-tech-stack.md`, plus ADRs that touch the area you're about to work in
 - Current frontier spec listed in `AGENTS.md` / `docs/dev-handoff.md`
+- `/implement` also reads [`docs/agents/tdd.md`](tdd.md)
 
 ## File structure
 

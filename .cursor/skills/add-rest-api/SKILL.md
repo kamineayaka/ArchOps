@@ -9,7 +9,7 @@ description: >-
 
 # 加 REST API（ArchOps）
 
-先读并遵守 `.cursor/rules/backend-java.mdc`（以及涉及前端时的 `frontend-react.mdc`）和 `AGENTS.md`。
+先读并遵守 `.cursor/rules/backend-java.mdc`（以及涉及前端时的 `frontend-react.mdc`）和 `AGENTS.md`。当此技能被 `/implement` 调用时，checklist 是 **green 阶段**要落到的生产分层：先按 [`docs/agents/tdd.md`](../../../docs/agents/tdd.md) 写出失败的 HTTP 测试并跑红。
 
 ## 流程清单
 
@@ -51,5 +51,5 @@ export function listX(): Promise<X[]> {
 
 ## 验证
 
-- 优先 HTTP：`curl` 对应 `/api/...` 或 Gradle 测试
+- 优先 HTTP：red → green → refactor 的 `*HttpAcceptanceTest`，或 `curl` 对应 `/api/...`
 - Cloud VM：Compose Postgres/Redis 已由 `scripts/cloud-start.sh` 拉起

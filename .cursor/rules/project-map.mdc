@@ -16,10 +16,10 @@ alwaysApply: true
 | `frontend/` | React + TypeScript + Ant Design（嵌入 `archops:latest`） |
 | `agent/` | Python 3.12+；systemd 交付 |
 | `deploy/` | `archops:latest` + postgres + redis（多副本） |
-| `docs/` | 合同、ADR、Spec、prompts、`docs/agents/`（Matt tracker） |
+| `docs/` | 合同、ADR、Spec、prompts、`docs/agents/`（Matt tracker + TDD overlay） |
 | `.cursor/skills/` | Cloud Agent 技能（Matt 工程链 + ArchOps `add-*`） |
 | `.scratch/vertical-slice-mvp/issues/` | 竖切工单（01–13 已闭合） |
-| `.scratch/change-curated-draft/issues/` | 改策展/草案工单（01–02 done；frontier = 03） |
+| `.scratch/change-curated-draft/issues/` | 改策展/草案工单（**01–03 TDD redo**；frontier = **01**） |
 | `docs/specs/change-curated-draft.md` | 改策展/草案 Spec（已拆票） |
 
 ## 模块边界
@@ -31,4 +31,4 @@ alwaysApply: true
 - 遵守 `AGENTS.md`；禁止 Maven、JPA 当地基、Vue 当前端、Neo4j v1 必选、LangChain 主干、Redis 当真相 SSOT
 - SSH：MINA SSHD + Redis 锁；禁止旁路直连与绕过计划冻结
 - Flyway：只增不改历史脚本
-- 一次只做一张 ready 工单；进度见 `docs/dev-handoff.md`
+- 一次只做一张 ready 工单；`/implement` 走 **red → green → refactor**（`docs/agents/tdd.md`）；进度见 `docs/dev-handoff.md`

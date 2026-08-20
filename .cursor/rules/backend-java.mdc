@@ -33,3 +33,4 @@ alwaysApply: false
 - SSH：MINA SSHD；计划互斥用分布式锁
 - AI：WebClient + ADR-0041；无 LangChain 主干
 - 图库 Later；v1 邻域用 SQL/CTE
+- `/implement` 的 HTTP 验收循环见 `docs/agents/tdd.md`（本文件只管分层）

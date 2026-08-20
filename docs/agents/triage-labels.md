@@ -12,6 +12,6 @@ Local markdown tickets record the role on a `Status:` line (not GitHub labels).
 | `ready-for-human` | `ready-for-human` | Requires human implementation |
 | `wontfix` | `wontfix` | Will not be actioned |
 
-ArchOps addition: completed tickets use `Status: done` (equivalent to closed). Do not treat `done` tickets as frontier.
+ArchOps addition: completed tickets use `Status: done` (equivalent to closed). Do not treat `done` tickets as frontier. A **TDD redo** reopens a ticket as `ready-for-agent` with the same acceptance list; see [`tdd.md`](tdd.md).
 
 When a skill mentions a role (e.g. "apply the AFK-ready triage label"), use the corresponding label string from this table.

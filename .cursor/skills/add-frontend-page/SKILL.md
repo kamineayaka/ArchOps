@@ -8,7 +8,7 @@ description: >-
 
 # 加前端页面（ArchOps）
 
-遵守 `.cursor/rules/frontend-react.mdc` 与 ADR-0043。禁止把 Vue / Naive UI 当作现行前端重新引入。
+遵守 `.cursor/rules/frontend-react.mdc` 与 ADR-0043。禁止把 Vue / Naive UI 当作现行前端重新引入。票内薄 UI 排在该票 HTTP 循环变绿之后（[`docs/agents/tdd.md`](../../../docs/agents/tdd.md)）；UI 不是自动化主接缝。
 
 ## 流程清单
 
