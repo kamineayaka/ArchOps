@@ -22,3 +22,40 @@
 HTTP 接缝（先前同提交落地，**不是** TDD 完成证据）：`CuratedTruthHttpAcceptanceTest.bootstrapRunsOnPostRejectsOverwriteOfExistingFact`。`confirmRunsOn` 对已有 `运行于` 抛 `CURATED_RUNS_ON_EXISTS`（统一信封 400）；首次插入与「应该在哪」保留。无草案表、无 Flyway。
 
 TDD 重做：若覆盖拒绝测试对当前生产代码已绿，先恢复「已有则 update target」让第一圈变成诚实红灯（第二下 POST 为 200 且「应该在哪」变成 B；不要只删 throw 去撞 UNIQUE 变 500）。一圈一条测试；红灯输出贴本段；绿灯后重构再提交。开工 prompt：[`docs/implement-change-curated-draft-01-prompt.md`](../../../docs/implement-change-curated-draft-01-prompt.md)。不要做 02–06。
+
+### Step A — restore overwrite (honest red; not product-done)
+
+Restored `confirmRunsOn` to update `targetId` when a `运行于` fact already exists (pre-e009d30 bypass). First insert still inserts. No reject logic in this step.
+
+Red command:
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.CuratedTruthHttpAcceptanceTest.bootstrapRunsOnPostRejectsOverwriteOfExistingFact
+```
+
+Red output (honest overwrite, not UNIQUE 500):
+
+```text
+CuratedTruthHttpAcceptanceTest > bootstrapRunsOnPostRejectsOverwriteOfExistingFact() FAILED
+    java.lang.AssertionError at CuratedTruthHttpAcceptanceTest.java:136
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':test'.
+> There were failing tests. See the report at: file:///workspace/backend/build/reports/tests/test/index.html
+
+BUILD FAILED in 5s
+
+java.lang.AssertionError: Status expected:<400> but was:<200>
+	at com.archops.curated.CuratedTruthHttpAcceptanceTest.bootstrapRunsOnPostRejectsOverwriteOfExistingFact(CuratedTruthHttpAcceptanceTest.java:136)
+```
+
+Second POST `/api/curated/facts/runs-on` (different host B) returned HTTP 200 `success=true` with `data.target.name=host-ow-b` (same fact id, target overwritten). Not HTTP 500 / UNIQUE.
+
+Regression still green:
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.CuratedTruthHttpAcceptanceTest.createHostsContainerConfirmRunsOnAndAskShouldWhere
+BUILD SUCCESSFUL in 5s
+```
