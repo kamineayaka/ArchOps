@@ -62,6 +62,10 @@ public class BranchSelectionService {
                         "Fork not present on current diagnosis: " + forkId));
 
         if (isChangeCurated(fork)) {
+            if (operationPlanService.hasActive(conflictId)) {
+                throw new BusinessException("PLAN_ALREADY_ACTIVE",
+                        "Conflict already has an active operation plan");
+            }
             return curatedDraftService.createForChangeCurated(conflict, diagnosis, fork, actor);
         }
         if (isFixActual(fork)) {

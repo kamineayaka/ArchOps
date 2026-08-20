@@ -195,6 +195,19 @@ class ChangeCuratedDraftHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data.skipsDraft", is(true)));
     }
 
+    @Test
+    void activePlanBlocksChangeCuratedSelection() throws Exception {
+        Fixture fx = openConflictWithSiblingAndClaim("ccd-pl-a", "ccd-pl-b", "ctr-ccd-pl-x", "ctr-ccd-pl-y");
+        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, fx.conflictId(), GENERAL_ID);
+        postBranch(fx.conflictId(), GENERAL_ID, "FIX_ACTUAL_TO_CURATED", null)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.branchKind", is("FIX_ACTUAL")));
+
+        postBranch(fx.conflictId(), GENERAL_ID, "CHANGE_CURATED_TO_OBSERVED", null)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("PLAN_ALREADY_ACTIVE")));
+    }
+
     private org.springframework.test.web.servlet.ResultActions postBranch(
             String conflictId, String userId, String forkId, String diagnosisId
     ) throws Exception {

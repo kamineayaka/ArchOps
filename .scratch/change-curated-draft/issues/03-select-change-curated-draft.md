@@ -182,3 +182,26 @@ BUILD SUCCESSFUL in 4s
 ```
 
 Already green: existing `FIX_ACTUAL` HTTP contract (`skipsDraft=true`, `branchKind=FIX_ACTUAL`, GET open draft `DRAFT_NOT_FOUND`). No extra production. Did not add `CHANGE_CURATED` as a plan branch kind.
+
+### Step L — cycle 10: active 操作计划 blocks 改理想
+
+Red:
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftHttpAcceptanceTest.activePlanBlocksChangeCuratedSelection
+```
+
+```text
+ChangeCuratedDraftHttpAcceptanceTest > activePlanBlocksChangeCuratedSelection() FAILED
+    java.lang.AssertionError at ChangeCuratedDraftHttpAcceptanceTest.java:207
+
+java.lang.AssertionError: Status expected:<400> but was:<200>
+BUILD FAILED in 4s
+```
+
+Green: shared gate checks `hasActive` before 草案 create → `PLAN_ALREADY_ACTIVE` (same code as existing plan mutex).
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftHttpAcceptanceTest.activePlanBlocksChangeCuratedSelection
+BUILD SUCCESSFUL in 4s
+```
