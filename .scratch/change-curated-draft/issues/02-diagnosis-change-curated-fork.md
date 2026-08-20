@@ -158,3 +158,14 @@ BUILD SUCCESSFUL in 5s
 
 Refactor: agent id from the same objectId used to seed the mismatch (`agent-` + objectId).
 
+### Step G — cycle 5: 观测消失 keeps restore forks; no 策展改为不存在
+
+Split the co-committed absent method. ABSENT still uses `diagnoseRunsOnMismatch` restore/verify fork only. Already green; no production change. Lock against inventing 改理想「改为不存在」.
+
+```text
+cd backend && ./gradlew test --tests com.archops.conflict.ConflictDiagnosisHttpAcceptanceTest.absentObservationKeepsRestoreForksWithoutChangeCurated --tests com.archops.conflict.ConflictDiagnosisHttpAcceptanceTest.absentObservationDoesNotInventChangeCuratedToMissing
+BUILD SUCCESSFUL in 5s
+```
+
+Refactor: `seedAbsentObservation` HTTP helper.
+

@@ -43,6 +43,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class ConflictDiagnosisHttpAcceptanceTest {
 
     private static final String GENERAL_ID = "user-general-demo";
+    private static final String SENIOR_ID = "user-senior-demo";
 
     @Autowired
     private MockMvc mockMvc;
@@ -170,6 +171,18 @@ class ConflictDiagnosisHttpAcceptanceTest {
                 .path("data").path("forks").toString();
         assertFalse(allCopy.contains("策展改为不存在"));
         assertFalse(allCopy.contains("改为不存在"));
+    }
+
+    @Test
+    void nonHandlerCanReadChangeCuratedFork() throws Exception {
+        MismatchFixture fx = seedAvailableRunsOnMismatch(
+                "diag-view-a", "diag-view-b", "app-diag-view", "ctr-diag-view-001");
+        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, fx.conflictId(), GENERAL_ID);
+
+        getDiagnosis(fx.conflictId(), SENIOR_ID)
+                .andExpect(jsonPath("$.data.status", is("READY")))
+                .andExpect(jsonPath("$.data.forks[*].id", hasItem("CHANGE_CURATED_TO_OBSERVED")))
+                .andExpect(jsonPath("$.data.forks[?(@.id=='CHANGE_CURATED_TO_OBSERVED')].kind", hasItem("CHANGE_CURATED")));
     }
 
     @Test
