@@ -23,7 +23,8 @@ import {
   getDiagnosis,
 } from '../api/conflicts';
 import { approvePlan, getActivePlan, selectBranch, startExecution } from '../api/plans';
-import type { ConflictCase, ConflictDiagnosis, OperationPlan } from '../api/types';
+import { getOpenDraft } from '../api/drafts';
+import type { ConflictCase, ConflictDiagnosis, CuratedDraft, OperationPlan } from '../api/types';
 import { ApiError } from '../api/types';
 import { useDemoUser } from '../auth/DemoUserContext';
 import { formatTrack, isAcceptedHandler } from '../util/format';
@@ -31,6 +32,7 @@ import { formatTrack, isAcceptedHandler } from '../util/format';
 const { Title, Paragraph, Text } = Typography;
 
 const FIX_ACTUAL_FORK = 'FIX_ACTUAL_TO_CURATED';
+const CHANGE_CURATED_FORK = 'CHANGE_CURATED_TO_OBSERVED';
 
 export default function ConflictDetailPage() {
   const { id = '' } = useParams<{ id: string }>();
@@ -41,6 +43,8 @@ export default function ConflictDetailPage() {
   const [diagnosisError, setDiagnosisError] = useState<string | null>(null);
   const [plan, setPlan] = useState<OperationPlan | null>(null);
   const [planError, setPlanError] = useState<string | null>(null);
+  const [draft, setDraft] = useState<CuratedDraft | null>(null);
+  const [draftError, setDraftError] = useState<string | null>(null);
   const [selectedForkId, setSelectedForkId] = useState<string>(FIX_ACTUAL_FORK);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -88,6 +92,19 @@ export default function ConflictDetailPage() {
       } else {
         setPlan(null);
         setPlanError(null);
+      }
+
+      try {
+        const dft = await getOpenDraft(id);
+        setDraft(dft);
+        setDraftError(null);
+      } catch (err) {
+        setDraft(null);
+        if (err instanceof ApiError && err.code === 'DRAFT_NOT_FOUND') {
+          setDraftError(null);
+        } else {
+          setDraftError(err instanceof ApiError ? err.message : String(err));
+        }
       }
     } catch (err) {
       setConflict(null);
@@ -237,6 +254,7 @@ export default function ConflictDetailPage() {
                       <Text strong>
                         {fork.label}
                         {fork.id === FIX_ACTUAL_FORK ? '（竖切主路径）' : ''}
+                        {fork.id === CHANGE_CURATED_FORK ? '（改理想）' : ''}
                       </Text>
                       <Text type="secondary">{fork.description}</Text>
                     </Space>
@@ -247,21 +265,68 @@ export default function ConflictDetailPage() {
             <Divider style={{ margin: '12px 0' }} />
             <Button
               type="primary"
-              disabled={!accepted || diagnosis.status !== 'READY' || !!plan}
+              disabled={!accepted || diagnosis.status !== 'READY' || !!plan || !!draft}
               loading={busy}
               onClick={() =>
-                void runAction('已选择分叉并生成计划', () =>
-                  selectBranch(conflict.id, selectedForkId),
+                void runAction(
+                  selectedForkId === CHANGE_CURATED_FORK
+                    ? '已选择改理想并生成草案'
+                    : '已选择分叉并生成计划',
+                  () => selectBranch(conflict.id, selectedForkId),
                 )
               }
             >
-              选择分叉并生成操作计划
+              {selectedForkId === CHANGE_CURATED_FORK
+                ? '选择改理想并生成草案'
+                : '选择分叉并生成操作计划'}
             </Button>
             {plan && (
               <Paragraph type="secondary" style={{ marginTop: 8, marginBottom: 0 }}>
                 已有活跃计划，不可再选支。
               </Paragraph>
             )}
+            {draft && (
+              <Paragraph type="secondary" style={{ marginTop: 8, marginBottom: 0 }}>
+                已有开放草案，不可再选支。
+              </Paragraph>
+            )}
+          </>
+        )}
+      </Card>
+
+      <Card size="small" title="改理想草案">
+        {draftError && <Alert type="warning" showIcon message={draftError} style={{ marginBottom: 12 }} />}
+        {!draft && !draftError && (
+          <Text type="secondary">尚无开放草案。已接受处理人可选择「改理想」生成待确认条目（确认前不是策展真相）。</Text>
+        )}
+        {draft && (
+          <>
+            <Descriptions column={1} size="small">
+              <Descriptions.Item label="草案 ID">{draft.id}</Descriptions.Item>
+              <Descriptions.Item label="状态">
+                <Tag>{draft.status}</Tag>
+              </Descriptions.Item>
+              <Descriptions.Item label="选支">{draft.selectedForkId}</Descriptions.Item>
+            </Descriptions>
+            <List
+              size="small"
+              header="条目（待确认，本页只读列出）"
+              dataSource={draft.items}
+              renderItem={(item) => (
+                <List.Item>
+                  <Space direction="vertical" size={0}>
+                    <Text>
+                      {item.seq}. {item.subjectName ?? item.subjectId} 运行于{' '}
+                      {item.fromHostName ?? item.fromHostId} → {item.toHostName ?? item.toHostId}
+                      {item.mergeKey ? '（合并键）' : '（兄弟）'}
+                    </Text>
+                    <Text type="secondary">
+                      {item.kind} · {item.status}
+                    </Text>
+                  </Space>
+                </List.Item>
+              )}
+            />
           </>
         )}
       </Card>

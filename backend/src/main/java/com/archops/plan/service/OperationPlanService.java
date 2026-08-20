@@ -457,6 +457,10 @@ public class OperationPlanService {
         return voided;
     }
 
+    public boolean hasActive(String conflictId) {
+        return findActive(conflictId) != null;
+    }
+
     private OperationPlan findActive(String conflictId) {
         return operationPlanMapper.selectOne(new LambdaQueryWrapper<OperationPlan>()
                 .eq(OperationPlan::getConflictId, conflictId)

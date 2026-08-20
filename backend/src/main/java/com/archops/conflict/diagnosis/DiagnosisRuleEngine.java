@@ -75,7 +75,7 @@ public final class DiagnosisRuleEngine {
                 "承认实际、更新策展",
                 "把策展「运行于」从 " + curatedLabel
                         + " 对齐到当前可用观测宿主 " + observedLabel
-                        + "（须经草案逐条确认；本分叉只读可见）。"
+                        + "（须经草案逐条确认）。"
         );
         return new RuleResult(
                 "策展「运行于」" + curatedLabel
