@@ -4,16 +4,16 @@
 
 **Blocked by:** None — can start immediately
 
-**Status:** ready-for-agent
+**Status:** done
 
 **TDD redo:** yes — 验收标准不变。先前实现与测试同提交，不算 TDD 完成。按 [`docs/agents/tdd.md`](../../../docs/agents/tdd.md) 从 witnessed red 重做。
 
 从竖切 MVP 往上长：建底 POST 曾对已有 `运行于` 覆盖写入。本票只关掉这条旁路，不引入草案、不改诊断、不改选支。TDD 重做从红灯开始（见 Comments）。
 
-- [ ] 对尚无 `运行于` 的容器，建底 POST 仍可插入第一条事实，随后「应该在哪」可读到该宿主
-- [ ] 对已有 `运行于` 的容器，再 POST（同一或不同宿主）被拒绝；事实与「应该在哪」均不变
-- [ ] 拒绝行为可经控制面公开 HTTP API 断言（统一信封）；不测 Mapper/Redis 内部
-- [ ] 不引入草案、选支或策展对齐步骤；不修改已有 Flyway 历史脚本
+- [x] 对尚无 `运行于` 的容器，建底 POST 仍可插入第一条事实，随后「应该在哪」可读到该宿主
+- [x] 对已有 `运行于` 的容器，再 POST（同一或不同宿主）被拒绝；事实与「应该在哪」均不变
+- [x] 拒绝行为可经控制面公开 HTTP API 断言（统一信封）；不测 Mapper/Redis 内部
+- [x] 不引入草案、选支或策展对齐步骤；不修改已有 Flyway 历史脚本
 
 **Out of this ticket:** 改理想分叉、草案逐条确认、比对触发、UI、SSH、Y2 策展对齐步骤。
 
@@ -22,3 +22,129 @@
 HTTP 接缝（先前同提交落地，**不是** TDD 完成证据）：`CuratedTruthHttpAcceptanceTest.bootstrapRunsOnPostRejectsOverwriteOfExistingFact`。`confirmRunsOn` 对已有 `运行于` 抛 `CURATED_RUNS_ON_EXISTS`（统一信封 400）；首次插入与「应该在哪」保留。无草案表、无 Flyway。
 
 TDD 重做：若覆盖拒绝测试对当前生产代码已绿，先恢复「已有则 update target」让第一圈变成诚实红灯（第二下 POST 为 200 且「应该在哪」变成 B；不要只删 throw 去撞 UNIQUE 变 500）。一圈一条测试；红灯输出贴本段；绿灯后重构再提交。开工 prompt：[`docs/implement-change-curated-draft-01-prompt.md`](../../../docs/implement-change-curated-draft-01-prompt.md)。不要做 02–06。
+
+### Step A — restore overwrite (honest red; not product-done)
+
+Restored `confirmRunsOn` to update `targetId` when a `运行于` fact already exists (pre-e009d30 bypass). First insert still inserts. No reject logic in this step.
+
+Red command:
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.CuratedTruthHttpAcceptanceTest.bootstrapRunsOnPostRejectsOverwriteOfExistingFact
+```
+
+Red output (honest overwrite, not UNIQUE 500):
+
+```text
+CuratedTruthHttpAcceptanceTest > bootstrapRunsOnPostRejectsOverwriteOfExistingFact() FAILED
+    java.lang.AssertionError at CuratedTruthHttpAcceptanceTest.java:136
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':test'.
+> There were failing tests. See the report at: file:///workspace/backend/build/reports/tests/test/index.html
+
+BUILD FAILED in 5s
+
+java.lang.AssertionError: Status expected:<400> but was:<200>
+	at com.archops.curated.CuratedTruthHttpAcceptanceTest.bootstrapRunsOnPostRejectsOverwriteOfExistingFact(CuratedTruthHttpAcceptanceTest.java:136)
+```
+
+Second POST `/api/curated/facts/runs-on` (different host B) returned HTTP 200 `success=true` with `data.target.name=host-ow-b` (same fact id, target overwritten). Not HTTP 500 / UNIQUE.
+
+Regression still green:
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.CuratedTruthHttpAcceptanceTest.createHostsContainerConfirmRunsOnAndAskShouldWhere
+BUILD SUCCESSFUL in 5s
+```
+
+### Step B — one behavior per test (still red)
+
+Split the combined overwrite test. First insert remains `createHostsContainerConfirmRunsOnAndAskShouldWhere`. No production reject yet.
+
+Red command 1 (POST to different host B):
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.CuratedTruthHttpAcceptanceTest.bootstrapPostRejectsOverwriteToDifferentHost
+```
+
+```text
+CuratedTruthHttpAcceptanceTest > bootstrapPostRejectsOverwriteToDifferentHost() FAILED
+    java.lang.AssertionError at CuratedTruthHttpAcceptanceTest.java:127
+
+java.lang.AssertionError: Status expected:<400> but was:<200>
+
+BUILD FAILED in 5s
+```
+
+Second POST returned 200 `success=true` with `data.target.name=host-ow-diff-b` (same fact id overwritten to B). Not HTTP 500.
+
+Red command 2 (POST to same host A):
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.CuratedTruthHttpAcceptanceTest.bootstrapPostRejectsOverwriteToSameHost
+```
+
+```text
+CuratedTruthHttpAcceptanceTest > bootstrapPostRejectsOverwriteToSameHost() FAILED
+    java.lang.AssertionError at CuratedTruthHttpAcceptanceTest.java:173
+
+java.lang.AssertionError: Status expected:<400> but was:<200>
+
+BUILD FAILED in 5s
+```
+
+Second POST to A returned 200 `success=true` (same fact id, overwrite treated as success). Not HTTP 500.
+
+### Step C — cycle 1: reject overwrite to a different host
+
+Red (same command as Step B method 1; still overwrite 200 before this slice’s production change):
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.CuratedTruthHttpAcceptanceTest.bootstrapPostRejectsOverwriteToDifferentHost
+java.lang.AssertionError: Status expected:<400> but was:<200>
+BUILD FAILED
+```
+
+Green: `confirmRunsOn` throws `BusinessException("CURATED_RUNS_ON_EXISTS", …)` when a `运行于` fact already exists; `GlobalExceptionHandler` maps it to HTTP 400 envelope. No draft/event/compare.
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.CuratedTruthHttpAcceptanceTest.bootstrapPostRejectsOverwriteToDifferentHost
+BUILD SUCCESSFUL in 5s
+```
+
+Refactor (no behavior change): `findRunsOnFact` / `toRunsOnResponse`; HTTP helpers in the reject tests. Same test still green; first insert still green:
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.CuratedTruthHttpAcceptanceTest.bootstrapPostRejectsOverwriteToDifferentHost --tests com.archops.curated.CuratedTruthHttpAcceptanceTest.createHostsContainerConfirmRunsOnAndAskShouldWhere
+BUILD SUCCESSFUL in 5s
+```
+
+### Step D — cycle 2: reject overwrite to the same host
+
+Ran:
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.CuratedTruthHttpAcceptanceTest.bootstrapPostRejectsOverwriteToSameHost
+BUILD SUCCESSFUL in 5s
+```
+
+Already green from Step C’s rule (any existing `运行于` is rejected). This method stays as regression; no extra production code. Envelope `code` literal `CURATED_RUNS_ON_EXISTS`; 「应该在哪」 host remains A.
+
+### Step E — full suite, /code-review, frontier → 02
+
+```text
+cd backend && ./gradlew cleanTest test
+BUILD SUCCESSFUL in 11s
+15 test classes, 55 tests, 0 failures
+```
+
+`/code-review` fixed point: `7e1bd6f` (Step A restore). `git diff 7e1bd6f...HEAD`.
+
+Standards: 0 hard violations. Judgement only (duplicated POST shape in HTTP tests; Data Clumps `containerId`+`hostId` kept at HTTP seam).
+
+Spec: 0 wrong implementations. Partial: same-host test did not GET `facts/runs-on` after reject. Fixed by adding `assertRunsOnTarget` (still HTTP seam; production unchanged). `./gradlew test --tests com.archops.curated.CuratedTruthHttpAcceptanceTest` green after that.
+
+No Flyway history edits. No draft/diagnosis/SSH/UI. Ticket 02 production code untouched. Frontier now 02 (`docs/implement-change-curated-draft-02-prompt.md`).

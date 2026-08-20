@@ -10,7 +10,7 @@
 4. `docs/adr/0043-tech-stack.md` — **技术栈唯一真相**
 5. `docs/specs/vertical-slice-mvp.md` — 竖切 Spec（01–13 已闭合）
 6. `docs/specs/change-curated-draft.md` — 改策展/草案逐条确认 Spec（工单已拆，见下一则）
-7. 当前工单：见 `docs/dev-handoff.md`；竖切 `.scratch/vertical-slice-mvp/issues/` 已 done；改策展 `.scratch/change-curated-draft/issues/`（**01–03 TDD redo**，`ready-for-agent`；frontier = **01**；04–06 仍被挡住）
+7. 当前工单：见 `docs/dev-handoff.md`；竖切 `.scratch/vertical-slice-mvp/issues/` 已 done；改策展 `.scratch/change-curated-draft/issues/`（**01 TDD-done**；02–03 `ready-for-agent` TDD redo；**frontier = 02**；04–06 仍被挡住）
 8. `docs/dev-handoff.md` — 进度与下一票
 9. `docs/agents/tdd.md` — ArchOps TDD overlay（`/implement` 必读）
 10. `.cursor/rules/project-map.mdc`、`backend-java.mdc`、`frontend-react.mdc`
@@ -103,7 +103,7 @@ Single-context: frozen `CONTEXT.md` + `docs/adr/` (ADR-0039 / ADR-0043). Skills 
 ## 6. Matt 进度（勿倒退）
 
 - 领域 grilling / 合同冻结 / 技术选型 / 空脚手架 / 竖切 Spec / 竖切 Tickets / 竖切实现：**已完成**
-- 下一刀 Spec：`docs/specs/change-curated-draft.md`（已发布）；工单 `.scratch/change-curated-draft/issues/`（01–06 已拆）。01–03 曾按「实现与测试同提交」落地，**现以 TDD 重做**：frontier = **01**（关闭建底覆盖）。04 仍被 01 与 03 挡住。
+- 下一刀 Spec：`docs/specs/change-curated-draft.md`（已发布）；工单 `.scratch/change-curated-draft/issues/`（01–06 已拆）。**01 TDD 重做已 done**（关闭建底覆盖）。frontier = **02**（诊断改理想分叉，TDD 重做）。03 被 02 挡住；04 被 03 挡住。
 - `/implement` 必须走 TDD overlay：[`docs/agents/tdd.md`](docs/agents/tdd.md)
 - 不需要再开技术选型或推倒栈，除非用户明示新 ADR
 

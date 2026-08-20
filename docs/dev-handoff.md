@@ -39,7 +39,7 @@
 | 竖切 Spec | 已发布 → [`docs/specs/vertical-slice-mvp.md`](specs/vertical-slice-mvp.md) |
 | 竖切工单 | 已本地发布 → [`.scratch/vertical-slice-mvp/issues/`](../.scratch/vertical-slice-mvp/issues/)（01–13 均 done；Flyway 至 V12） |
 | 改策展草案 Spec | **已发布** → [`docs/specs/change-curated-draft.md`](specs/change-curated-draft.md) |
-| 改策展草案工单 | **TDD 重做 01–03** → [`.scratch/change-curated-draft/issues/`](../.scratch/change-curated-draft/issues/)（01–03 `ready-for-agent`；**frontier = 01**；04–06 仍被挡住。验收标准不变；先前同提交落地不算 TDD 完成。从竖切 MVP 往上长，不重拆竖切 01–13） |
+| 改策展草案工单 | **TDD 重做 02–03** → [`.scratch/change-curated-draft/issues/`](../.scratch/change-curated-draft/issues/)（**01 TDD-done**；02–03 `ready-for-agent`；**frontier = 02**；04–06 仍被挡住。从竖切 MVP 往上长，不重拆竖切 01–13） |
 | Matt 工作流 skills / tracker | **已入库**（`.cursor/skills/` + `.agents/skills/` + `docs/agents/`；TDD overlay [`docs/agents/tdd.md`](agents/tdd.md)；Cloud 不依赖本机 `~/.agents`） |
 | 国内镜像默认 | **已合并**（PR #53：Gradle 腾讯云 / Maven 阿里云 / npm npmmirror / Docker DaoCloud） |
 | kamiserver 人工验收 | **通过**（2026-08：Compose postgres+redis healthy 且宿主机端口已映射 → `./gradlew bootRun` → `GET /api/health`；竖切演示闭环已在该 VM 走通） |
@@ -54,9 +54,10 @@
 6. ~~竖切工单包已闭合 / 下一刀 to-spec~~：改策展 Spec 已发布  
 7. ~~改策展 `/to-tickets`~~：已发布至 `.scratch/change-curated-draft/issues/`（01–06）  
 8. ~~Agent 约束文档对齐 TDD~~：`docs/agents/tdd.md` + `/tdd` skill 为 **red → green → refactor**（本轮只改文档，未改业务代码）  
-9. **下一对话：`/implement` `/tdd` 票 01（TDD 重做）**（关闭建底 POST 覆盖已有 `运行于`）。票路径 [`.scratch/change-curated-draft/issues/01-close-bootstrap-runs-on-overwrite.md`](../.scratch/change-curated-draft/issues/01-close-bootstrap-runs-on-overwrite.md)。**完整开工 prompt** [`docs/implement-change-curated-draft-01-prompt.md`](implement-change-curated-draft-01-prompt.md)（复制区整段贴进新对话；附 implement + tdd skill）。一次只做一张；不要顺手做 02–06。先恢复覆盖以得到诚实红灯，再写该圈生产代码。  
+9. ~~`/implement` `/tdd` 票 01（TDD 重做）~~：已完成（关闭建底 POST 覆盖已有 `运行于`；witnessed red → green → refactor；`CURATED_RUNS_ON_EXISTS`）  
+10. **下一对话：`/implement` `/tdd` 票 02（TDD 重做）**（诊断同时给出「修实际」与「改理想」分叉）。票路径 [`.scratch/change-curated-draft/issues/02-diagnosis-change-curated-fork.md`](../.scratch/change-curated-draft/issues/02-diagnosis-change-curated-fork.md)。**完整开工 prompt** [`docs/implement-change-curated-draft-02-prompt.md`](implement-change-curated-draft-02-prompt.md)。一次只做一张；不要顺手做 03–06。  
 
-02 无 blocker 但不是本对话的 frontier（两张 unblocked 时按编号最小）。03 被 02 挡住；04 被 01 与 03 挡住。
+03 被 02 挡住；04 被 03 挡住。
 
 ### 工单阻塞简图
 
@@ -71,10 +72,10 @@
 05 → 11（指派/拒绝/转让 Should，done）
 ```
 
-改策展 / 改理想草案（现行 frontier = **01 TDD redo**）：
+改策展 / 改理想草案（现行 frontier = **02 TDD redo**）：
 
 ```
-01 关闭建底覆盖（TDD redo） ─────────────────┐
+01 关闭建底覆盖（TDD-done） ─────────────────┐
                                               │
 02 诊断改理想分叉（TDD redo） → 03 选支出草案（TDD redo） → 04 逐条确认写入并立刻比对
                                               │
@@ -82,7 +83,7 @@
                                                    → 06 HTTP tracer（本刀定义完成）
 ```
 
-（一次只做一张。01 的 TDD 重做未完成前，不要开工 04。）
+（一次只做一张。02 的 TDD 重做未完成前，不要开工 03。）
 
 ## 本地启动摘要
 
