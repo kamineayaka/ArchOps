@@ -16,19 +16,21 @@ import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * Change-curated ticket 03 HTTP acceptance: accepted handler selects 改理想 →
- * open draft with ≥2 pending 运行于 items; curated truth and operation plans unchanged.
+ * Change-curated HTTP acceptance: ticket 03 select-branch draft, ticket 04 itemized
+ * accept (write + same-engine compare) / reject (no write).
  */
 @HttpAcceptanceTest
 class ChangeCuratedDraftHttpAcceptanceTest {
 
     private static final String GENERAL_ID = "user-general-demo";
+    private static final String GENERAL_2_ID = "user-general-2-demo";
     private static final String SENIOR_ID = "user-senior-demo";
 
     @Autowired
@@ -111,6 +113,222 @@ class ChangeCuratedDraftHttpAcceptanceTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[*].eventType", hasItem("DRAFT_CREATED")))
                 .andExpect(jsonPath("$.data[?(@.eventType=='DRAFT_CREATED')].detail.hint", hasItem("草案已创建")));
+    }
+
+    @Test
+    void acceptedHandlerRejectsSiblingThenAcceptsMergeKeyWritesCuratedAndEntersPendingClose()
+            throws Exception {
+        Fixture fx = openConflictWithSiblingAndClaim("ccd-mx-a", "ccd-mx-b", "ctr-ccd-mx-x", "ctr-ccd-mx-y");
+        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, fx.conflictId(), GENERAL_ID);
+        postBranch(fx.conflictId(), GENERAL_ID, "CHANGE_CURATED_TO_OBSERVED", null)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("OPEN")));
+
+        JsonNode draft = readOpenDraft(fx.conflictId());
+        String draftId = draft.path("id").asText();
+        String itemX = itemIdForSubject(draft, fx.containerX());
+        String itemY = itemIdForSubject(draft, fx.containerY());
+
+        postItemDecision(draftId, itemX, "accept", SENIOR_ID)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("PLAN_REQUIRES_ACCEPTED_HANDLER")));
+        assertShouldWhereHost(fx.containerX(), fx.hostA());
+        assertShouldWhereHost(fx.containerY(), fx.hostA());
+
+        postItemDecision(draftId, itemY, "reject", GENERAL_ID)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.items[?(@.subjectId=='" + fx.containerY() + "')].status",
+                        hasItem("REJECTED")))
+                .andExpect(jsonPath("$.data.items[?(@.subjectId=='" + fx.containerX() + "')].status",
+                        hasItem("PENDING")));
+        assertShouldWhereHost(fx.containerY(), fx.hostA());
+        assertShouldWhereHost(fx.containerX(), fx.hostA());
+
+        postItemDecision(draftId, itemX, "accept", GENERAL_ID)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.items[?(@.subjectId=='" + fx.containerX() + "')].status",
+                        hasItem("ACCEPTED")))
+                .andExpect(jsonPath("$.data.items[?(@.subjectId=='" + fx.containerY() + "')].status",
+                        hasItem("REJECTED")));
+        assertShouldWhereHost(fx.containerX(), fx.hostB());
+        assertShouldWhereHost(fx.containerY(), fx.hostA());
+
+        mockMvc.perform(get("/api/conflicts/{id}", fx.conflictId())
+                        .header(TempAuthHeaders.USER_ID, SENIOR_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("PENDING_CLOSE")))
+                .andExpect(jsonPath("$.data.status", not("CLOSED")))
+                .andExpect(jsonPath("$.data.pendingCloseReminderVisible", is(true)))
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(fx.hostB())))
+                .andExpect(jsonPath("$.data.observedValue.hostId", is(fx.hostB())));
+
+        mockMvc.perform(get("/api/observed/asks/actual-where")
+                        .param("containerId", fx.containerX())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.question", is("实际在哪")))
+                .andExpect(jsonPath("$.data.track", is("OBSERVED")))
+                .andExpect(jsonPath("$.data.observedValue.hostId", is(fx.hostB())))
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(fx.hostB())));
+
+        mockMvc.perform(get("/api/conflicts/{id}/events", fx.conflictId())
+                        .header(TempAuthHeaders.USER_ID, SENIOR_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[*].eventType", hasItem("ITEM_REJECTED")))
+                .andExpect(jsonPath("$.data[*].eventType", hasItem("ITEM_ACCEPTED")))
+                .andExpect(jsonPath("$.data[*].eventType", hasItem("PENDING_CLOSE")))
+                .andExpect(jsonPath("$.data[?(@.eventType=='ITEM_ACCEPTED')].detail.wroteCurated",
+                        hasItem(true)))
+                .andExpect(jsonPath("$.data[?(@.eventType=='ITEM_ACCEPTED')].detail.hint",
+                        hasItem("条目已接受（含写入）")))
+                .andExpect(jsonPath("$.data[?(@.eventType=='ITEM_REJECTED')].detail.wroteCurated",
+                        hasItem(false)))
+                .andExpect(jsonPath("$.data[?(@.eventType=='ITEM_REJECTED')].detail.hint",
+                        hasItem("条目已拒绝")));
+
+        mockMvc.perform(post("/api/conflicts/{id}/confirm-close", fx.conflictId())
+                        .header(TempAuthHeaders.USER_ID, SENIOR_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("CONFIRM_CLOSE_REQUIRES_ACCEPTED_HANDLER")));
+        mockMvc.perform(get("/api/conflicts/{id}", fx.conflictId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.data.status", is("PENDING_CLOSE")));
+
+        mockMvc.perform(post("/api/conflicts/{id}/confirm-close", fx.conflictId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("CLOSED")));
+    }
+
+    @Test
+    void nonHandlerAndPendingHandlerCannotReviewDraftItems() throws Exception {
+        Fixture fx = openConflictWithSiblingAndClaim("ccd-nhi-a", "ccd-nhi-b", "ctr-ccd-nhi-x", "ctr-ccd-nhi-y");
+        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, fx.conflictId(), GENERAL_ID);
+        postBranch(fx.conflictId(), GENERAL_ID, "CHANGE_CURATED_TO_OBSERVED", null)
+                .andExpect(status().isOk());
+        JsonNode draft = readOpenDraft(fx.conflictId());
+        String draftId = draft.path("id").asText();
+        String itemX = itemIdForSubject(draft, fx.containerX());
+        String itemY = itemIdForSubject(draft, fx.containerY());
+
+        postItemDecision(draftId, itemY, "reject", SENIOR_ID)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("PLAN_REQUIRES_ACCEPTED_HANDLER")));
+        postItemDecision(draftId, itemX, "accept", SENIOR_ID)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("PLAN_REQUIRES_ACCEPTED_HANDLER")));
+        assertShouldWhereHost(fx.containerX(), fx.hostA());
+        assertShouldWhereHost(fx.containerY(), fx.hostA());
+
+        mockMvc.perform(post("/api/conflicts/{id}/transfer-handler", fx.conflictId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"toUserId\":\"" + GENERAL_2_ID + "\"}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.collaboration.handlerAcceptance", is("PENDING_ACCEPT")))
+                .andExpect(jsonPath("$.data.collaboration.handlerUserId", is(GENERAL_2_ID)));
+
+        postItemDecision(draftId, itemX, "accept", GENERAL_2_ID)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("PLAN_REQUIRES_ACCEPTED_HANDLER")));
+        postItemDecision(draftId, itemY, "reject", GENERAL_2_ID)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("PLAN_REQUIRES_ACCEPTED_HANDLER")));
+        postItemDecision(draftId, itemX, "accept", GENERAL_ID)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("PLAN_REQUIRES_ACCEPTED_HANDLER")));
+        assertShouldWhereHost(fx.containerX(), fx.hostA());
+        assertShouldWhereHost(fx.containerY(), fx.hostA());
+        mockMvc.perform(get("/api/conflicts/{id}/curated-drafts/open", fx.conflictId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_2_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.data.items[?(@.subjectId=='" + fx.containerX() + "')].status",
+                        hasItem("PENDING")))
+                .andExpect(jsonPath("$.data.items[?(@.subjectId=='" + fx.containerY() + "')].status",
+                        hasItem("PENDING")));
+    }
+
+    @Test
+    void rejectingMergeKeyAndAcceptingSiblingDoesNotPendingCloseMergeKeyConflict() throws Exception {
+        Fixture fx = openConflictWithSiblingAndClaim("ccd-anti-a", "ccd-anti-b", "ctr-ccd-anti-x", "ctr-ccd-anti-y");
+        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, fx.conflictId(), GENERAL_ID);
+        postBranch(fx.conflictId(), GENERAL_ID, "CHANGE_CURATED_TO_OBSERVED", null)
+                .andExpect(status().isOk());
+        JsonNode draft = readOpenDraft(fx.conflictId());
+        String draftId = draft.path("id").asText();
+        String itemX = itemIdForSubject(draft, fx.containerX());
+        String itemY = itemIdForSubject(draft, fx.containerY());
+
+        postItemDecision(draftId, itemX, "reject", GENERAL_ID)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[?(@.subjectId=='" + fx.containerX() + "')].status",
+                        hasItem("REJECTED")));
+        postItemDecision(draftId, itemY, "accept", GENERAL_ID)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[?(@.subjectId=='" + fx.containerY() + "')].status",
+                        hasItem("ACCEPTED")));
+
+        assertShouldWhereHost(fx.containerX(), fx.hostA());
+        assertShouldWhereHost(fx.containerY(), fx.hostB());
+
+        mockMvc.perform(get("/api/conflicts/{id}", fx.conflictId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("OPEN")))
+                .andExpect(jsonPath("$.data.status", not("PENDING_CLOSE")))
+                .andExpect(jsonPath("$.data.pendingCloseReminderVisible", is(false)))
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(fx.hostA())))
+                .andExpect(jsonPath("$.data.observedValue.hostId", is(fx.hostB())));
+
+        mockMvc.perform(get("/api/conflicts/by-merge-key")
+                        .param("subjectId", fx.containerX())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.id", is(fx.conflictId())))
+                .andExpect(jsonPath("$.data.status", is("OPEN")));
+    }
+
+    @Test
+    void terminalDraftItemsCannotBeReviewedAgain() throws Exception {
+        Fixture fx = openConflictWithSiblingAndClaim("ccd-term-a", "ccd-term-b", "ctr-ccd-term-x", "ctr-ccd-term-y");
+        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, fx.conflictId(), GENERAL_ID);
+        postBranch(fx.conflictId(), GENERAL_ID, "CHANGE_CURATED_TO_OBSERVED", null)
+                .andExpect(status().isOk());
+        JsonNode draft = readOpenDraft(fx.conflictId());
+        String draftId = draft.path("id").asText();
+        String itemX = itemIdForSubject(draft, fx.containerX());
+        String itemY = itemIdForSubject(draft, fx.containerY());
+
+        postItemDecision(draftId, itemY, "reject", GENERAL_ID)
+                .andExpect(status().isOk());
+        postItemDecision(draftId, itemY, "reject", GENERAL_ID)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("DRAFT_ITEM_NOT_PENDING")));
+        postItemDecision(draftId, itemY, "accept", GENERAL_ID)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("DRAFT_ITEM_NOT_PENDING")));
+        assertShouldWhereHost(fx.containerY(), fx.hostA());
+
+        postItemDecision(draftId, itemX, "accept", GENERAL_ID)
+                .andExpect(status().isOk());
+        postItemDecision(draftId, itemX, "accept", GENERAL_ID)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("DRAFT_ITEM_NOT_PENDING")));
+        postItemDecision(draftId, itemX, "reject", GENERAL_ID)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("DRAFT_ITEM_NOT_PENDING")));
+        assertShouldWhereHost(fx.containerX(), fx.hostB());
     }
 
     @Test
@@ -199,6 +417,44 @@ class ChangeCuratedDraftHttpAcceptanceTest {
         postBranch(fx.conflictId(), GENERAL_ID, "CHANGE_CURATED_TO_OBSERVED", null)
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code", is("PLAN_ALREADY_ACTIVE")));
+    }
+
+    private org.springframework.test.web.servlet.ResultActions postItemDecision(
+            String draftId, String itemId, String decision, String userId
+    ) throws Exception {
+        return mockMvc.perform(post("/api/curated-drafts/{draftId}/items/{itemId}/{decision}",
+                        draftId, itemId, decision)
+                .header(TempAuthHeaders.USER_ID, userId)
+                .accept(MediaType.APPLICATION_JSON));
+    }
+
+    private JsonNode readOpenDraft(String conflictId) throws Exception {
+        MvcResult result = mockMvc.perform(get("/api/conflicts/{id}/curated-drafts/open", conflictId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn();
+        return objectMapper.readTree(result.getResponse().getContentAsString()).path("data");
+    }
+
+    private String itemIdForSubject(JsonNode draft, String subjectId) {
+        for (JsonNode item : draft.path("items")) {
+            if (subjectId.equals(item.path("subjectId").asText())) {
+                return item.path("id").asText();
+            }
+        }
+        throw new AssertionError("No draft item for subject " + subjectId);
+    }
+
+    private void assertShouldWhereHost(String containerId, String hostId) throws Exception {
+        mockMvc.perform(get("/api/curated/asks/should-where")
+                        .param("containerId", containerId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.question", is("应该在哪")))
+                .andExpect(jsonPath("$.data.track", is("CURATED")))
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(hostId)));
     }
 
     private org.springframework.test.web.servlet.ResultActions postBranch(

@@ -23,7 +23,8 @@ import {
   getDiagnosis,
 } from '../api/conflicts';
 import { approvePlan, getActivePlan, selectBranch, startExecution } from '../api/plans';
-import { getOpenDraft } from '../api/drafts';
+import { getOpenDraft, acceptDraftItem, rejectDraftItem } from '../api/drafts';
+import { shouldWhere } from '../api/curated';
 import type { ConflictCase, ConflictDiagnosis, CuratedDraft, OperationPlan } from '../api/types';
 import { ApiError } from '../api/types';
 import { useDemoUser } from '../auth/DemoUserContext';
@@ -45,6 +46,7 @@ export default function ConflictDetailPage() {
   const [planError, setPlanError] = useState<string | null>(null);
   const [draft, setDraft] = useState<CuratedDraft | null>(null);
   const [draftError, setDraftError] = useState<string | null>(null);
+  const [shouldWhereBySubject, setShouldWhereBySubject] = useState<Record<string, string>>({});
   const [selectedForkId, setSelectedForkId] = useState<string>(FIX_ACTUAL_FORK);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -98,8 +100,21 @@ export default function ConflictDetailPage() {
         const dft = await getOpenDraft(id);
         setDraft(dft);
         setDraftError(null);
+        const whereEntries = await Promise.all(
+          dft.items.map(async (item) => {
+            try {
+              const answer = await shouldWhere(item.subjectId);
+              const host = answer.curatedValue.hostName ?? answer.curatedValue.hostId;
+              return [item.subjectId, host] as const;
+            } catch {
+              return [item.subjectId, '—'] as const;
+            }
+          }),
+        );
+        setShouldWhereBySubject(Object.fromEntries(whereEntries));
       } catch (err) {
         setDraft(null);
+        setShouldWhereBySubject({});
         if (err instanceof ApiError && err.code === 'DRAFT_NOT_FOUND') {
           setDraftError(null);
         } else {
@@ -310,10 +325,40 @@ export default function ConflictDetailPage() {
             </Descriptions>
             <List
               size="small"
-              header="条目（待确认，本页只读列出）"
+              header="条目（逐条确认；接受即写入策展，拒绝不写）"
               dataSource={draft.items}
               renderItem={(item) => (
-                <List.Item>
+                <List.Item
+                  actions={
+                    accepted && item.status === 'PENDING'
+                      ? [
+                          <Button
+                            key="accept"
+                            type="primary"
+                            size="small"
+                            loading={busy}
+                            onClick={() =>
+                              void runAction('条目已接受（含写入）', () =>
+                                acceptDraftItem(draft.id, item.id),
+                              )
+                            }
+                          >
+                            接受
+                          </Button>,
+                          <Button
+                            key="reject"
+                            size="small"
+                            loading={busy}
+                            onClick={() =>
+                              void runAction('条目已拒绝', () => rejectDraftItem(draft.id, item.id))
+                            }
+                          >
+                            拒绝
+                          </Button>,
+                        ]
+                      : undefined
+                  }
+                >
                   <Space direction="vertical" size={0}>
                     <Text>
                       {item.seq}. {item.subjectName ?? item.subjectId} 运行于{' '}
@@ -321,7 +366,8 @@ export default function ConflictDetailPage() {
                       {item.mergeKey ? '（合并键）' : '（兄弟）'}
                     </Text>
                     <Text type="secondary">
-                      {item.kind} · {item.status}
+                      {item.kind} · {item.status} · 应该在哪：
+                      {shouldWhereBySubject[item.subjectId] ?? '—'}
                     </Text>
                   </Space>
                 </List.Item>

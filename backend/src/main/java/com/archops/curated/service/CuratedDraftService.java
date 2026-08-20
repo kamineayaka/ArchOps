@@ -3,8 +3,10 @@ package com.archops.curated.service;
 import com.archops.common.exception.BusinessException;
 import com.archops.conflict.domain.ConflictCase;
 import com.archops.conflict.domain.ConflictEventType;
+import com.archops.conflict.domain.HandlerAcceptance;
 import com.archops.conflict.dto.ConflictDiagnosisResponse;
 import com.archops.conflict.mapper.ConflictCaseMapper;
+import com.archops.conflict.service.ConflictDetectionService;
 import com.archops.conflict.service.ConflictEventService;
 import com.archops.curated.domain.CuratedDraft;
 import com.archops.curated.domain.CuratedDraftItem;
@@ -21,6 +23,7 @@ import com.archops.curated.mapper.CuratedFactMapper;
 import com.archops.curated.mapper.CuratedObjectMapper;
 import com.archops.user.security.AuthUserPrincipal;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -35,7 +38,8 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Rule-templated 改理想 草案 (ticket 03). Confirmation-before-write is not 策展真相.
+ * Rule-templated 改理想 草案 (ticket 03) and itemized accept/reject (ticket 04).
+ * Confirmation-before-write is not 策展真相; accept writes immediately then compares.
  */
 @Service
 public class CuratedDraftService {
@@ -44,8 +48,10 @@ public class CuratedDraftService {
     private final CuratedDraftItemMapper curatedDraftItemMapper;
     private final CuratedFactMapper curatedFactMapper;
     private final CuratedObjectMapper curatedObjectMapper;
+    private final CuratedTruthService curatedTruthService;
     private final ConflictCaseMapper conflictCaseMapper;
     private final ConflictEventService conflictEventService;
+    private final ConflictDetectionService conflictDetectionService;
     private final ObjectMapper objectMapper;
 
     public CuratedDraftService(
@@ -53,16 +59,20 @@ public class CuratedDraftService {
             CuratedDraftItemMapper curatedDraftItemMapper,
             CuratedFactMapper curatedFactMapper,
             CuratedObjectMapper curatedObjectMapper,
+            CuratedTruthService curatedTruthService,
             ConflictCaseMapper conflictCaseMapper,
             ConflictEventService conflictEventService,
+            ConflictDetectionService conflictDetectionService,
             ObjectMapper objectMapper
     ) {
         this.curatedDraftMapper = curatedDraftMapper;
         this.curatedDraftItemMapper = curatedDraftItemMapper;
         this.curatedFactMapper = curatedFactMapper;
         this.curatedObjectMapper = curatedObjectMapper;
+        this.curatedTruthService = curatedTruthService;
         this.conflictCaseMapper = conflictCaseMapper;
         this.conflictEventService = conflictEventService;
+        this.conflictDetectionService = conflictDetectionService;
         this.objectMapper = objectMapper;
     }
 
@@ -127,6 +137,85 @@ public class CuratedDraftService {
                 "hint", "草案已创建"
         ));
         return toResponse(draft, items);
+    }
+
+    @Transactional
+    public CuratedDraftResponse acceptItem(String draftId, String itemId, AuthUserPrincipal actor) {
+        ReviewContext ctx = beginReview(draftId, itemId, actor);
+        markItem(ctx.item().getId(), CuratedDraftItemStatus.ACCEPTED);
+        curatedTruthService.applyAcceptedRunsOnTarget(ctx.item().getSubjectId(), ctx.item().getToHostId());
+        conflictEventService.append(ctx.draft().getConflictId(), ConflictEventType.ITEM_ACCEPTED, actor.getUserId(),
+                Map.of(
+                        "draftId", ctx.draft().getId(),
+                        "itemId", ctx.item().getId(),
+                        "subjectId", ctx.item().getSubjectId(),
+                        "toHostId", ctx.item().getToHostId(),
+                        "wroteCurated", true,
+                        "hint", "条目已接受（含写入）"
+                ));
+        conflictDetectionService.reconcileAfterCuratedWrite(
+                ctx.item().getSubjectId(), CuratedRelationType.RUNS_ON);
+        return toResponse(ctx.draft(), loadItems(ctx.draft().getId()));
+    }
+
+    @Transactional
+    public CuratedDraftResponse rejectItem(String draftId, String itemId, AuthUserPrincipal actor) {
+        ReviewContext ctx = beginReview(draftId, itemId, actor);
+        markItem(ctx.item().getId(), CuratedDraftItemStatus.REJECTED);
+        conflictEventService.append(ctx.draft().getConflictId(), ConflictEventType.ITEM_REJECTED, actor.getUserId(),
+                Map.of(
+                        "draftId", ctx.draft().getId(),
+                        "itemId", ctx.item().getId(),
+                        "subjectId", ctx.item().getSubjectId(),
+                        "wroteCurated", false,
+                        "hint", "条目已拒绝"
+                ));
+        return toResponse(ctx.draft(), loadItems(ctx.draft().getId()));
+    }
+
+    private ReviewContext beginReview(String draftId, String itemId, AuthUserPrincipal actor) {
+        CuratedDraft draft = curatedDraftMapper.selectById(draftId);
+        if (draft == null) {
+            throw new BusinessException("DRAFT_NOT_FOUND", "草案不存在: " + draftId);
+        }
+        if (draft.getStatus() != CuratedDraftStatus.OPEN) {
+            throw new BusinessException("DRAFT_NOT_OPEN", "只能审开放草案的条目");
+        }
+        ConflictCase conflict = conflictCaseMapper.selectById(draft.getConflictId());
+        if (conflict == null) {
+            throw new BusinessException("CONFLICT_NOT_FOUND", "Conflict not found: " + draft.getConflictId());
+        }
+        requireAcceptedHandler(conflict, actor);
+        CuratedDraftItem item = curatedDraftItemMapper.selectById(itemId);
+        if (item == null || !draft.getId().equals(item.getDraftId())) {
+            throw new BusinessException("DRAFT_ITEM_NOT_FOUND", "草案条目不存在: " + itemId);
+        }
+        if (item.getStatus() != CuratedDraftItemStatus.PENDING) {
+            throw new BusinessException("DRAFT_ITEM_NOT_PENDING", "只能审待确认条目");
+        }
+        return new ReviewContext(draft, item);
+    }
+
+    private void markItem(String itemId, CuratedDraftItemStatus next) {
+        Integer rows = curatedDraftItemMapper.update(null, new LambdaUpdateWrapper<CuratedDraftItem>()
+                .eq(CuratedDraftItem::getId, itemId)
+                .eq(CuratedDraftItem::getStatus, CuratedDraftItemStatus.PENDING)
+                .set(CuratedDraftItem::getStatus, next));
+        if (rows == null || rows != 1) {
+            throw new BusinessException("DRAFT_ITEM_NOT_PENDING", "只能审待确认条目");
+        }
+    }
+
+    private static void requireAcceptedHandler(ConflictCase conflict, AuthUserPrincipal actor) {
+        boolean ok = conflict.getHandlerAcceptance() == HandlerAcceptance.ACCEPTED
+                && actor.getUserId().equals(conflict.getHandlerUserId());
+        if (!ok) {
+            throw new BusinessException("PLAN_REQUIRES_ACCEPTED_HANDLER",
+                    "Only the 已接受冲突处理人 may accept or reject 草案条目");
+        }
+    }
+
+    private record ReviewContext(CuratedDraft draft, CuratedDraftItem item) {
     }
 
     private List<CuratedDraftItem> buildRunsOnItems(

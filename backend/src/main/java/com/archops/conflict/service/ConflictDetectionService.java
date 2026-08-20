@@ -77,6 +77,15 @@ public class ConflictDetectionService {
     }
 
     /**
+     * Reconcile active conflict for merge key (subject + relation) after an observed write
+     * or an accepted 草案 item write. Same engine — do not fork a second state machine.
+     */
+    @Transactional
+    public void reconcileAfterCuratedWrite(String subjectId, CuratedRelationType relationType) {
+        reconcileAfterObservedWrite(subjectId, relationType);
+    }
+
+    /**
      * Reconcile active conflict for merge key (subject + relation) after an observed write.
      */
     @Transactional

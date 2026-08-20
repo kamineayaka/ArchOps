@@ -14,6 +14,7 @@ import com.archops.curated.dto.ShouldWhereResponse;
 import com.archops.curated.mapper.CuratedFactMapper;
 import com.archops.curated.mapper.CuratedObjectMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -100,6 +101,32 @@ public class CuratedTruthService {
                 CuratedObjectResponse.from(host),
                 fact.getCreatedAt()
         );
+    }
+
+    /**
+     * Legal mutation of an existing 运行于 after a 草案 item is accepted.
+     * Bootstrap {@link #confirmRunsOn} remains insert-only.
+     */
+    @Transactional
+    public void applyAcceptedRunsOnTarget(String containerId, String toHostId) {
+        CuratedObject container = requireObject(containerId, CuratedObjectKind.DOCKER_CONTAINER,
+                "CURATED_CONTAINER_NOT_FOUND", "Docker container not found: ");
+        CuratedObject host = requireObject(toHostId, CuratedObjectKind.PHYSICAL_HOST,
+                "CURATED_HOST_NOT_FOUND", "Physical host not found: ");
+        CuratedFact existing = curatedFactMapper.selectOne(new LambdaQueryWrapper<CuratedFact>()
+                .eq(CuratedFact::getSubjectId, container.getId())
+                .eq(CuratedFact::getRelationType, CuratedRelationType.RUNS_ON));
+        if (existing == null) {
+            throw new BusinessException("CURATED_RUNS_ON_NOT_FOUND",
+                    "No curated 运行于 fact for container: " + container.getId());
+        }
+        Integer rows = curatedFactMapper.update(null, new LambdaUpdateWrapper<CuratedFact>()
+                .eq(CuratedFact::getId, existing.getId())
+                .set(CuratedFact::getTargetId, host.getId()));
+        if (rows == null || rows != 1) {
+            throw new BusinessException("CURATED_RUNS_ON_NOT_FOUND",
+                    "Failed to update curated 运行于 for container: " + container.getId());
+        }
     }
 
     @Transactional(readOnly = true)

@@ -160,6 +160,15 @@ export type CuratedDraft = {
   createdAt: string;
 };
 
+export type ShouldWhere = {
+  question: string;
+  track: string;
+  curatedValue: {
+    hostId: string;
+    hostName: string | null;
+  };
+};
+
 export class ApiError extends Error {
   readonly code: string;
   readonly httpStatus: number;
