@@ -77,3 +77,25 @@ BUILD SUCCESSFUL in 4s
 Already green from cycle 1 (create 草案 does not write 策展). Regression only; no extra production. GET 「应该在哪」 for X and Y stays host A (`question` / `track` literals).
 
 Refactor: HTTP helper `getShouldWhere`.
+
+### Step E — cycle 3: 选支后无活跃操作计划
+
+Ran:
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftHttpAcceptanceTest.selectChangeCuratedDoesNotCreateActiveOperationPlan
+BUILD SUCCESSFUL in 4s
+```
+
+Already green from cycle 1 (CHANGE_CURATED does not call 操作计划 create). GET active plan is 400 `PLAN_NOT_FOUND`. No SSH / 策展对齐步骤 because no plan exists.
+
+### Step F — cycle 4: 非处理人 cannot select 改理想
+
+Ran:
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftHttpAcceptanceTest.nonHandlerCannotSelectChangeCurated
+BUILD SUCCESSFUL in 5s
+```
+
+Already green: reused `requireAcceptedHandler` gate (`PLAN_REQUIRES_ACCEPTED_HANDLER`). Senior viewer is not the 已接受处理人. No extra production; collaboration not reimplemented.

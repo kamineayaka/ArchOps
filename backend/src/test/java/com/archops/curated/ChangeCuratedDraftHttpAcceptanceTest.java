@@ -28,6 +28,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class ChangeCuratedDraftHttpAcceptanceTest {
 
     private static final String GENERAL_ID = "user-general-demo";
+    private static final String SENIOR_ID = "user-senior-demo";
 
     @Autowired
     private MockMvc mockMvc;
@@ -98,6 +99,15 @@ class ChangeCuratedDraftHttpAcceptanceTest {
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code", is("PLAN_NOT_FOUND")));
+    }
+
+    @Test
+    void nonHandlerCannotSelectChangeCurated() throws Exception {
+        Fixture claimed = openConflictWithSiblingAndClaim("ccd-nh-a", "ccd-nh-b", "ctr-ccd-nh-x", "ctr-ccd-nh-y");
+        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, claimed.conflictId(), GENERAL_ID);
+        postBranch(claimed.conflictId(), SENIOR_ID, "CHANGE_CURATED_TO_OBSERVED", null)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("PLAN_REQUIRES_ACCEPTED_HANDLER")));
     }
 
     private org.springframework.test.web.servlet.ResultActions postBranch(
