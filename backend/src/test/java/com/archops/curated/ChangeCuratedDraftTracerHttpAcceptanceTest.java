@@ -23,6 +23,7 @@ import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -347,6 +348,51 @@ class ChangeCuratedDraftTracerHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data.curatedValue.hostId", is(hostA)));
     }
 
+    @Test
+    @Order(9)
+    void snapshotBtoCWhileDraftPendingUpgradesSameConflictAndVoidsDraft() throws Exception {
+        OpenDraft draft = openChangeCuratedDraft("ccd06-n6");
+        String hostC = snapshotXOnHostC(draft, "ccd06-n6-c");
+
+        getConflict(draft.conflictId())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.id", is(draft.conflictId())))
+                .andExpect(jsonPath("$.data.status", is("OPEN")))
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(draft.world().hostA())))
+                .andExpect(jsonPath("$.data.observedValue.hostId", is(hostC)))
+                .andExpect(jsonPath("$.data.observedLineage", hasSize(2)))
+                .andExpect(jsonPath("$.data.observedLineage[0].hostId", is(draft.world().hostB())))
+                .andExpect(jsonPath("$.data.observedLineage[1].hostId", is(hostC)));
+
+        assertEquals(1, countActiveForSubject(draft.world().containerX()));
+
+        getShouldWhere(draft.world().containerX())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.question", is("应该在哪")))
+                .andExpect(jsonPath("$.data.track", is("CURATED")))
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(draft.world().hostA())));
+        getShouldWhere(draft.world().containerY())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(draft.world().hostA())));
+
+        getOpenDraft(draft.conflictId())
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.code", is("DRAFT_NOT_FOUND")))
+                .andExpect(jsonPath("$.data", nullValue()));
+        getDraftById(draft.conflictId(), draft.draftId())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("VOIDED")))
+                .andExpect(jsonPath("$.data.items[?(@.id=='" + draft.itemXId() + "')].status",
+                        hasItem("PENDING")))
+                .andExpect(jsonPath("$.data.items[?(@.id=='" + draft.itemYId() + "')].status",
+                        hasItem("PENDING")));
+        postItemAction(draft.conflictId(), draft.itemXId(), "accept", GENERAL_ID)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("DRAFT_VOIDED")))
+                .andExpect(jsonPath("$.data", nullValue()));
+    }
+
     private World bootstrapHostsABCuratedXYOnA(String prefix) throws Exception {
         String objectX = prefix + "-x";
         String objectY = prefix + "-y";
@@ -438,6 +484,28 @@ class ChangeCuratedDraftTracerHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data.collaboration.handlerAcceptance", is("PENDING_ACCEPT")));
     }
 
+    private String snapshotXOnHostC(OpenDraft draft, String hostCName) throws Exception {
+        String hostC = createHost(hostCName);
+        heartbeatXOnHost(draft.world(), hostC, draft.world().agentIdOnC());
+        return hostC;
+    }
+
+    private int countActiveForSubject(String subjectId) throws Exception {
+        MvcResult result = mockMvc.perform(get("/api/conflicts")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn();
+        JsonNode data = objectMapper.readTree(result.getResponse().getContentAsString()).path("data");
+        int count = 0;
+        for (JsonNode node : data) {
+            if (subjectId.equals(node.path("mergeKey").path("subjectId").asText())) {
+                count++;
+            }
+        }
+        return count;
+    }
+
     private ResultActions postBranch(String conflictId, String userId, String forkId) throws Exception {
         return mockMvc.perform(post("/api/conflicts/{id}/branch-selection", conflictId)
                 .header(TempAuthHeaders.USER_ID, userId)
@@ -459,6 +527,13 @@ class ChangeCuratedDraftTracerHttpAcceptanceTest {
 
     private ResultActions getOpenDraft(String conflictId) throws Exception {
         return mockMvc.perform(get("/api/conflicts/{id}/curated-drafts/open", conflictId)
+                .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                .accept(MediaType.APPLICATION_JSON));
+    }
+
+    private ResultActions getDraftById(String conflictId, String draftId) throws Exception {
+        return mockMvc.perform(get("/api/conflicts/{conflictId}/curated-drafts/{draftId}",
+                conflictId, draftId)
                 .header(TempAuthHeaders.USER_ID, GENERAL_ID)
                 .accept(MediaType.APPLICATION_JSON));
     }
@@ -580,6 +655,10 @@ class ChangeCuratedDraftTracerHttpAcceptanceTest {
     ) {
         String agentIdOnB() {
             return "agent-" + objectX;
+        }
+
+        String agentIdOnC() {
+            return "agent-" + objectX + "-c";
         }
     }
 }

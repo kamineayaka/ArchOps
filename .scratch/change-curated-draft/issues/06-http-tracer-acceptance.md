@@ -207,3 +207,45 @@ BUILD SUCCESSFUL in 5s
 4 actionable tasks: 2 executed, 2 up-to-date
 ```
 
+### Cycle 7 — 负面 5 建底 POST 覆盖已有运行于 → 拒绝
+
+`reuse/regression`（首次即绿；未改生产）。对应 `CuratedTruthHttpAcceptanceTest.bootstrapPostRejectsOverwriteToDifferentHost` / `bootstrapPostRejectsOverwriteToSameHost`。容器 Z 策展运行于 A 后，再 POST 指向 B 或再指向 A 皆 `CURATED_RUNS_ON_EXISTS`，`data=null`，「应该在哪」仍为 A。
+
+命令：
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftTracerHttpAcceptanceTest.bootstrapPostRejectsOverwriteOfExistingRunsOn
+```
+
+首次输出（witnessed green）：
+
+```text
+> Task :compileTestJava
+> Task :testClasses
+> Task :test
+
+BUILD SUCCESSFUL in 5s
+4 actionable tasks: 2 executed, 2 up-to-date
+```
+
+### Cycle 8 — 负面 6 草案待审时快照 X 到 C
+
+`reuse/regression`（夹具编译笔误修完即绿；未改生产）。对应 `ChangeCuratedDraftVoidHttpAcceptanceTest.snapshotBtoCWhileDraftPendingUpgradesSameConflictAndVoidsOpenDraftWithoutWritingCurated` 与 `acceptAndRejectAfterUpgradeAreDraftVoidedAndCuratedStaysA` / `getDraftByIdAfterUpgradeShowsVoidedWithPendingItems`。agentId 用 `agent-{objectX}-c`，不与 B 撞车。
+
+命令：
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftTracerHttpAcceptanceTest.snapshotBtoCWhileDraftPendingUpgradesSameConflictAndVoidsDraft
+```
+
+首次红灯是测试写错（插入 helper 时丢掉 `postBranch` 方法头 → compile-fail），修测试后：
+
+```text
+> Task :compileTestJava
+> Task :testClasses
+> Task :test
+
+BUILD SUCCESSFUL in 5s
+4 actionable tasks: 2 executed, 2 up-to-date
+```
+
