@@ -6,6 +6,8 @@
 
 **Status:** ready-for-agent
 
+**TDD:** `/implement` 走 [`docs/agents/tdd.md`](../../../docs/agents/tdd.md) 的 **Suite / tracer tickets**。01–05 已 TDD-done。本票钉有序 HTTP 套件，不实现新产品；禁止删除 01–05 生产来装红灯。开工 prompt：[`docs/implement-change-curated-draft-06-prompt.md`](../../../docs/implement-change-curated-draft-06-prompt.md)。
+
 从竖切 MVP 往上长：竖切票 13 的修实际 + SSH fake 闭环保持独立、不要重写。本票新开本刀套件（风格对齐既有 `*HttpAcceptanceTest` / 竖切有序 HTTP E2E：统一信封、只断言后续 HTTP 可读状态）。`FIX_ACTUAL` 回归用聚焦选支/出计划断言，不要求再跑受控 SSH。
 
 Happy path（须按序、可在 CI 稳定跑通）：
@@ -33,3 +35,7 @@ Happy path（须按序、可在 CI 稳定跑通）：
 - [ ] 断言只落 HTTP 状态码、统一信封、以及后续 GET 可读状态；不测 MyBatis/Redis 内部；不把前端自动化当完成门槛
 
 **Out of this ticket:** 实现新的业务能力（应已由 01–05 交付）；Playwright；SSH fake 作为第二接缝；重写竖切票 13。
+
+## Comments
+
+开工 prompt：[`docs/implement-change-curated-draft-06-prompt.md`](../../../docs/implement-change-curated-draft-06-prompt.md)。05 已合入 `main`（PR #72）。本票是本刀定义完成的有序 HTTP tracer，不是能力票。每圈先跑套件方法：首次即绿记 `reuse/regression` 并点名 01–05 聚焦测试；首次即红才是组合缺口，只补到既有语义。不要拆 01–05，不要改竖切 13，不要跑 SSH，不要在本对话 `/to-spec` 下一刀。

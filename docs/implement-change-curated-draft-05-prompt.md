@@ -330,4 +330,4 @@ cd backend && ./gradlew test
 
 ---
 
-完成后下一对话：本刀 HTTP 主接缝有序 tracer（票 06）。票路径 `.scratch/change-curated-draft/issues/06-http-tracer-acceptance.md`。06 被 05 挡住；本 prompt 对应的实现对话不要做 06。
+完成后下一对话：本刀 HTTP 主接缝有序 tracer（票 06）。开工贴 [`docs/implement-change-curated-draft-06-prompt.md`](implement-change-curated-draft-06-prompt.md)。票路径 `.scratch/change-curated-draft/issues/06-http-tracer-acceptance.md`。05 已合入 main；不要在读本文件时再做 05。

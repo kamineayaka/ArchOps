@@ -59,7 +59,7 @@
 11. ~~`/implement` `/tdd` 票 03（TDD 重做）~~：已完成（选改理想生成开放草案；witnessed red → green → refactor；`CHANGE_CURATED` 出草案、不写策展、不出计划）  
 12. ~~`/implement` `/tdd` 票 04~~：已完成（逐条确认：接受即写策展并立刻比对 → 待确认关闭；witnessed red → green → refactor；`DRAFT_ITEM_ACCEPTED` / `DRAFT_ITEM_REJECTED`）  
 13. ~~`/implement` `/tdd` 票 05~~：已完成（升级/空洞作废未完成草案；待确认关闭后再漂同一合并键升级；witnessed red → green → refactor；`DRAFT_VOIDED`）  
-14. **下一对话：`/implement` `/tdd` 票 06**（HTTP 主接缝有序 tracer）。票路径 [`.scratch/change-curated-draft/issues/06-http-tracer-acceptance.md`](../.scratch/change-curated-draft/issues/06-http-tracer-acceptance.md)。一次只做一张；不要重拆 01–05 或竖切 01–13。  
+14. **下一对话：`/implement` `/tdd` 票 06**（HTTP 主接缝有序 tracer）。开工贴 [`docs/implement-change-curated-draft-06-prompt.md`](implement-change-curated-draft-06-prompt.md)。票路径 [`.scratch/change-curated-draft/issues/06-http-tracer-acceptance.md`](../.scratch/change-curated-draft/issues/06-http-tracer-acceptance.md)。一次只做一张；不要重拆 01–05 或竖切 01–13；不要删除 01–05 生产来装红灯。本刀在 06 完成后闭合，不要在 06 对话里 `/to-spec` 下一刀。  
 
 ### 工单阻塞简图
 
