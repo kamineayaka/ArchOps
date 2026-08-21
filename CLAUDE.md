@@ -10,7 +10,7 @@ Claude / Cloud 编码助手请把本仓库的 **`AGENTS.md` 当作最高执行�
 4. [docs/specs/vertical-slice-mvp.md](./docs/specs/vertical-slice-mvp.md) — 竖切 Spec（01–13 已闭合）  
 5. [docs/specs/change-curated-draft.md](./docs/specs/change-curated-draft.md) — 下一刀 Spec（改策展/草案逐条确认）  
 6. [docs/dev-handoff.md](./docs/dev-handoff.md) — 进度与下一票  
-7. Tickets: 竖切 [.scratch/vertical-slice-mvp/issues/](./.scratch/vertical-slice-mvp/issues/) 已 done；改策展 [.scratch/change-curated-draft/issues/](./.scratch/change-curated-draft/issues/)（**01–05 TDD-done**；06 TDD；frontier = **06**）
+7. Tickets: 竖切 [.scratch/vertical-slice-mvp/issues/](./.scratch/vertical-slice-mvp/issues/) 已 done；改策展 [.scratch/change-curated-draft/issues/](./.scratch/change-curated-draft/issues/)（**01–05 TDD-done**；06 TDD；frontier = **06**；开工贴 [`docs/implement-change-curated-draft-06-prompt.md`](./docs/implement-change-curated-draft-06-prompt.md)）
 8. Cloud VM setup: [.cursor/CLOUD.md](./.cursor/CLOUD.md) · [.cursor/environment.json](./.cursor/environment.json)
 9. Matt tracker config: [`docs/agents/`](./docs/agents/)（含 [`docs/agents/tdd.md`](./docs/agents/tdd.md)）
 
