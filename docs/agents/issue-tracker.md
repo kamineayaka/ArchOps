@@ -16,7 +16,8 @@ Already published:
 | Feature | Canonical spec | Tickets |
 |---|---|---|
 | vertical-slice-mvp | `docs/specs/vertical-slice-mvp.md` | `.scratch/vertical-slice-mvp/issues/` (01–13 **done** — do not re-open) |
-| change-curated-draft | `docs/specs/change-curated-draft.md` | `.scratch/change-curated-draft/issues/`（**01–06 TDD-done**；本刀闭合。下一刀新 `.scratch/<slug>/`，见 `docs/grill-next-knife-prompt.md`） |
+| change-curated-draft | `docs/specs/change-curated-draft.md` | `.scratch/change-curated-draft/issues/`（**01–06 TDD-done**；本刀闭合） |
+| unbound-identity-rebind | `docs/specs/unbound-identity-rebind.md` | `.scratch/unbound-identity-rebind/issues/`（**待 `/to-tickets`**） |
 
 ## When a skill says "publish to the issue tracker"
 
