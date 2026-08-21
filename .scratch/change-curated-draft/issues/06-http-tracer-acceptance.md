@@ -98,3 +98,95 @@ BUILD SUCCESSFUL in 5s
 4 actionable tasks: 2 executed, 2 up-to-date
 ```
 
+### Cycle 3 — 负面 2 非处理人 / 待接受不能选、也不能审条
+
+拆成两方法。首次均绿；未改生产；错误码仍为 `PLAN_REQUIRES_ACCEPTED_HANDLER`（无新码）。
+
+**3a 不能选** `reuse/regression`：`ChangeCuratedDraftHttpAcceptanceTest.nonHandlerCannotSelectChangeCurated`、`pendingHandlerCannotSelectChangeCurated`。
+
+命令：
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftTracerHttpAcceptanceTest.nonHandlerAndPendingAcceptCannotSelectChangeCurated
+```
+
+首次输出（witnessed green）：
+
+```text
+> Task :compileTestJava
+> Task :testClasses
+> Task :test
+
+BUILD SUCCESSFUL in 5s
+4 actionable tasks: 2 executed, 2 up-to-date
+```
+
+Refactor 后同方法仍绿：`BUILD SUCCESSFUL in 5s`。
+
+**3b 不能审条** `reuse/regression`：`ChangeCuratedDraftItemHttpAcceptanceTest.nonHandlerCannotAcceptDraftItem`、`nonHandlerCannotRejectDraftItem`；待接受审条钉 `CuratedDraftService.requireAcceptedHandler`（`HandlerAcceptance.ACCEPTED` 且 actor 即处理人）。转让夹具：`POST /api/conflicts/{id}/transfer-handler` → `PENDING_ACCEPT`，`user-general-2-demo` accept/reject 皆 400，策展仍为 A。
+
+命令：
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftTracerHttpAcceptanceTest.nonHandlerAndPendingAcceptCannotReviewDraftItems
+```
+
+首次输出（witnessed green）：
+
+```text
+> Task :compileTestJava
+> Task :testClasses
+> Task :test
+
+BUILD SUCCESSFUL in 5s
+4 actionable tasks: 2 executed, 2 up-to-date
+```
+
+Refactor（抽出 `transferHandlerPending`）后同方法仍绿：`BUILD SUCCESSFUL in 5s`。
+
+### Cycle 3 — 负面 2 非处理人 / 待接受不能选、也不能审条
+
+拆成两方法。首次均绿；未改生产；错误码仍为 `PLAN_REQUIRES_ACCEPTED_HANDLER`（无新码）。
+
+**3a 不能选** `reuse/regression`：`ChangeCuratedDraftHttpAcceptanceTest.nonHandlerCannotSelectChangeCurated`、`pendingHandlerCannotSelectChangeCurated`。
+
+命令：
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftTracerHttpAcceptanceTest.nonHandlerAndPendingAcceptCannotSelectChangeCurated
+```
+
+首次输出（witnessed green）：
+
+```text
+> Task :compileTestJava
+> Task :testClasses
+> Task :test
+
+BUILD SUCCESSFUL in 5s
+4 actionable tasks: 2 executed, 2 up-to-date
+```
+
+Refactor 后同方法仍绿：`BUILD SUCCESSFUL in 5s`。
+
+**3b 不能审条** `reuse/regression`：`ChangeCuratedDraftItemHttpAcceptanceTest.nonHandlerCannotAcceptDraftItem`、`nonHandlerCannotRejectDraftItem`；待接受审条钉 `CuratedDraftService.requireAcceptedHandler`（`HandlerAcceptance.ACCEPTED` 且 actor 即处理人）。转让夹具：`POST /api/conflicts/{id}/transfer-handler` → `PENDING_ACCEPT`，`user-general-2-demo` accept/reject 皆 400，策展仍为 A。
+
+命令：
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftTracerHttpAcceptanceTest.nonHandlerAndPendingAcceptCannotReviewDraftItems
+```
+
+首次输出（witnessed green）：
+
+```text
+> Task :compileTestJava
+> Task :testClasses
+> Task :test
+
+BUILD SUCCESSFUL in 5s
+4 actionable tasks: 2 executed, 2 up-to-date
+```
+
+Refactor（抽出 `transferHandlerPending`）后同方法仍绿：`BUILD SUCCESSFUL in 5s`。
+

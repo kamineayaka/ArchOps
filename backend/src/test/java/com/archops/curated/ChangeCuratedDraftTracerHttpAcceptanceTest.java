@@ -22,6 +22,7 @@ import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -40,6 +41,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class ChangeCuratedDraftTracerHttpAcceptanceTest {
 
     private static final String GENERAL_ID = "user-general-demo";
+    private static final String GENERAL_2_ID = "user-general-2-demo";
     private static final String SENIOR_ID = "user-senior-demo";
 
     @Autowired
@@ -207,6 +209,65 @@ class ChangeCuratedDraftTracerHttpAcceptanceTest {
                         hasItem("PENDING")));
     }
 
+    @Test
+    @Order(3)
+    void nonHandlerAndPendingAcceptCannotSelectChangeCurated() throws Exception {
+        ClaimedConflict claimed = claimedReadyConflict("ccd06-n2s-nh");
+        postBranch(claimed.conflictId(), SENIOR_ID, "CHANGE_CURATED_TO_OBSERVED")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.code", is("PLAN_REQUIRES_ACCEPTED_HANDLER")));
+
+        String pendingId = openUnclaimedConflict("ccd06-n2s-pe");
+        acknowledgeAndAssignPending(pendingId, GENERAL_ID);
+        waitUntilDiagnosisReady(pendingId);
+        postBranch(pendingId, GENERAL_ID, "CHANGE_CURATED_TO_OBSERVED")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.code", is("PLAN_REQUIRES_ACCEPTED_HANDLER")));
+    }
+
+    @Test
+    @Order(4)
+    void nonHandlerAndPendingAcceptCannotReviewDraftItems() throws Exception {
+        OpenDraft nh = openChangeCuratedDraft("ccd06-n2r-nh");
+        postItemAction(nh.conflictId(), nh.itemXId(), "accept", SENIOR_ID)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.code", is("PLAN_REQUIRES_ACCEPTED_HANDLER")))
+                .andExpect(jsonPath("$.data", nullValue()));
+        postItemAction(nh.conflictId(), nh.itemYId(), "reject", SENIOR_ID)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.code", is("PLAN_REQUIRES_ACCEPTED_HANDLER")))
+                .andExpect(jsonPath("$.data", nullValue()));
+        getShouldWhere(nh.world().containerX())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(nh.world().hostA())));
+        getShouldWhere(nh.world().containerY())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(nh.world().hostA())));
+
+        OpenDraft pending = openChangeCuratedDraft("ccd06-n2r-pe");
+        transferHandlerPending(pending.conflictId(), GENERAL_ID, GENERAL_2_ID);
+        postItemAction(pending.conflictId(), pending.itemXId(), "accept", GENERAL_2_ID)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.code", is("PLAN_REQUIRES_ACCEPTED_HANDLER")))
+                .andExpect(jsonPath("$.data", nullValue()));
+        postItemAction(pending.conflictId(), pending.itemYId(), "reject", GENERAL_2_ID)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.code", is("PLAN_REQUIRES_ACCEPTED_HANDLER")))
+                .andExpect(jsonPath("$.data", nullValue()));
+        getShouldWhere(pending.world().containerX())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(pending.world().hostA())));
+        getShouldWhere(pending.world().containerY())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(pending.world().hostA())));
+    }
+
     private World bootstrapHostsABCuratedXYOnA(String prefix) throws Exception {
         String objectX = prefix + "-x";
         String objectY = prefix + "-y";
@@ -239,13 +300,63 @@ class ChangeCuratedDraftTracerHttpAcceptanceTest {
     private ClaimedConflict claimedReadyConflict(String prefix) throws Exception {
         World world = bootstrapHostsABCuratedXYOnA(prefix);
         heartbeatXOnHost(world, world.hostB(), world.agentIdOnB());
-        MvcResult warn = getByMergeKey(world.containerX())
+        String conflictId = readDataId(getByMergeKey(world.containerX())
                 .andExpect(status().isOk())
-                .andReturn();
-        String conflictId = readDataId(warn);
+                .andReturn());
         claimAsAcceptedHandler(conflictId);
         waitUntilDiagnosisReady(conflictId);
         return new ClaimedConflict(world, conflictId);
+    }
+
+    private String openUnclaimedConflict(String prefix) throws Exception {
+        World world = bootstrapHostsABCuratedXYOnA(prefix);
+        heartbeatXOnHost(world, world.hostB(), world.agentIdOnB());
+        return readDataId(getByMergeKey(world.containerX())
+                .andExpect(status().isOk())
+                .andReturn());
+    }
+
+    private void acknowledgeAndAssignPending(String conflictId, String assigneeUserId) throws Exception {
+        mockMvc.perform(post("/api/conflicts/{id}/acknowledge", conflictId)
+                        .header(TempAuthHeaders.USER_ID, SENIOR_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.collaboration.handlerAcceptance", is("NONE")));
+        mockMvc.perform(post("/api/conflicts/{id}/assign-handler", conflictId)
+                        .header(TempAuthHeaders.USER_ID, SENIOR_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"assigneeUserId\":\"" + assigneeUserId + "\"}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.collaboration.handlerAcceptance", is("PENDING_ACCEPT")));
+    }
+
+    private OpenDraft openChangeCuratedDraft(String prefix) throws Exception {
+        ClaimedConflict fx = claimedReadyConflict(prefix);
+        postBranch(fx.conflictId(), GENERAL_ID, "CHANGE_CURATED_TO_OBSERVED")
+                .andExpect(status().isOk());
+        MvcResult open = getOpenDraft(fx.conflictId())
+                .andExpect(status().isOk())
+                .andReturn();
+        JsonNode data = objectMapper.readTree(open.getResponse().getContentAsString()).path("data");
+        JsonNode items = data.path("items");
+        return new OpenDraft(
+                fx.world(),
+                fx.conflictId(),
+                data.path("id").asText(),
+                itemId(items, fx.world().containerX()),
+                itemId(items, fx.world().containerY()));
+    }
+
+    private void transferHandlerPending(String conflictId, String fromUserId, String toUserId) throws Exception {
+        mockMvc.perform(post("/api/conflicts/{id}/transfer-handler", conflictId)
+                        .header(TempAuthHeaders.USER_ID, fromUserId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"toUserId\":\"" + toUserId + "\"}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.collaboration.handlerUserId", is(toUserId)))
+                .andExpect(jsonPath("$.data.collaboration.handlerAcceptance", is("PENDING_ACCEPT")));
     }
 
     private ResultActions postBranch(String conflictId, String userId, String forkId) throws Exception {
@@ -363,6 +474,15 @@ class ChangeCuratedDraftTracerHttpAcceptanceTest {
             }
         }
         throw new AssertionError("No 草案 item for subject " + subjectId);
+    }
+
+    private record OpenDraft(
+            World world,
+            String conflictId,
+            String draftId,
+            String itemXId,
+            String itemYId
+    ) {
     }
 
     private record ClaimedConflict(World world, String conflictId) {
