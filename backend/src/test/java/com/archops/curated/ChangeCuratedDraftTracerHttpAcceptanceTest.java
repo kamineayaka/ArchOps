@@ -1,8 +1,11 @@
 package com.archops.curated;
 
 import com.archops.conflict.ConflictDiagnosisWait;
+import com.archops.observed.domain.HostAgent;
+import com.archops.observed.mapper.HostAgentMapper;
 import com.archops.support.HttpAcceptanceTest;
 import com.archops.user.security.TempAuthHeaders;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.MethodOrderer;
@@ -15,6 +18,9 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
+
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.hasItem;
@@ -50,6 +56,9 @@ class ChangeCuratedDraftTracerHttpAcceptanceTest {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private HostAgentMapper hostAgentMapper;
 
     @Test
     @Order(1)
@@ -393,6 +402,47 @@ class ChangeCuratedDraftTracerHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data", nullValue()));
     }
 
+    @Test
+    @Order(10)
+    void heartbeatTimeoutWhileDraftOpenSuspendsConflictAndVoidsDraft() throws Exception {
+        OpenDraft draft = openChangeCuratedDraft("ccd06-n7");
+        rewindHeartbeat(draft.world().agentIdOnB());
+
+        mockMvc.perform(post("/api/observed/scan-heartbeat-timeouts")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+
+        getConflict(draft.conflictId())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("SUSPENDED")))
+                .andExpect(jsonPath("$.data.status", not("CLOSED")))
+                .andExpect(jsonPath("$.data.status", not("OPEN")))
+                .andExpect(jsonPath("$.data.observationHollow", is(true)));
+
+        getActualWhere(draft.world().containerX())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.question", is("实际在哪")))
+                .andExpect(jsonPath("$.data.observedValue.availability", is("HOLLOW")))
+                .andExpect(jsonPath("$.data.observedValue.hostId", nullValue()));
+        getShouldWhere(draft.world().containerX())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.question", is("应该在哪")))
+                .andExpect(jsonPath("$.data.track", is("CURATED")))
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(draft.world().hostA())));
+
+        getOpenDraft(draft.conflictId())
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("DRAFT_NOT_FOUND")));
+        getDraftById(draft.conflictId(), draft.draftId())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("VOIDED")));
+        postItemAction(draft.conflictId(), draft.itemXId(), "accept", GENERAL_ID)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("DRAFT_VOIDED")))
+                .andExpect(jsonPath("$.data", nullValue()));
+    }
+
     private World bootstrapHostsABCuratedXYOnA(String prefix) throws Exception {
         String objectX = prefix + "-x";
         String objectY = prefix + "-y";
@@ -563,6 +613,19 @@ class ChangeCuratedDraftTracerHttpAcceptanceTest {
                 .param("containerId", containerId)
                 .header(TempAuthHeaders.USER_ID, GENERAL_ID)
                 .accept(MediaType.APPLICATION_JSON));
+    }
+
+    private ResultActions getActualWhere(String containerId) throws Exception {
+        return mockMvc.perform(get("/api/observed/asks/actual-where")
+                .param("containerId", containerId)
+                .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                .accept(MediaType.APPLICATION_JSON));
+    }
+
+    private void rewindHeartbeat(String agentId) {
+        hostAgentMapper.update(null, new LambdaUpdateWrapper<HostAgent>()
+                .eq(HostAgent::getAgentId, agentId)
+                .set(HostAgent::getLastHeartbeatAt, Instant.now().minus(2, ChronoUnit.MINUTES)));
     }
 
     private void heartbeatWithContainer(String hostId, String agentId, String objectId) throws Exception {
