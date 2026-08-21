@@ -57,7 +57,7 @@
 9. ~~`/implement` `/tdd` 票 01（TDD 重做）~~：已完成（关闭建底 POST 覆盖已有 `运行于`；witnessed red → green → refactor；`CURATED_RUNS_ON_EXISTS`）  
 10. ~~`/implement` `/tdd` 票 02（TDD 重做）~~：已完成（诊断同时给出「修实际」与「改理想」分叉；witnessed red → green → refactor；`CHANGE_CURATED_TO_OBSERVED`）  
 11. ~~`/implement` `/tdd` 票 03（TDD 重做）~~：已完成（选改理想生成开放草案；witnessed red → green → refactor；`CHANGE_CURATED` 出草案、不写策展、不出计划）  
-12. **下一对话：`/implement` `/tdd` 票 04**（逐条确认写入并立刻比对）。票路径 [`.scratch/change-curated-draft/issues/04-itemized-accept-write-compare.md`](../.scratch/change-curated-draft/issues/04-itemized-accept-write-compare.md)。一次只做一张；不要顺手做 05–06。  
+12. **下一对话：`/implement` `/tdd` 票 04**（逐条确认写入并立刻比对）。票路径 [`.scratch/change-curated-draft/issues/04-itemized-accept-write-compare.md`](../.scratch/change-curated-draft/issues/04-itemized-accept-write-compare.md)。**完整开工 prompt** [`docs/implement-change-curated-draft-04-prompt.md`](implement-change-curated-draft-04-prompt.md)（复制区整段贴进新对话；附 implement + tdd skill）。一次只做一张；不要顺手做 05–06。本票是首次实现按条接受/拒绝，诚实红灯是 404/编译失败，不要拆 01–03。  
 
 05 被 04 挡住。
 

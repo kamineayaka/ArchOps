@@ -25,3 +25,7 @@
 - [ ] 无「整单全接受」、无 AI 独自定稿、无策展对齐步骤推迟写入
 
 **Out of this ticket:** 选支瞬间写策展（03 已禁止，回归由 06 收束）、升级/空洞作废未完成草案（05）、有序总 tracer（06）、修实际 SSH 执行、Y2 对齐步。
+
+## Comments
+
+开工 prompt：[`docs/implement-change-curated-draft-04-prompt.md`](../../../docs/implement-change-curated-draft-04-prompt.md)。01–03 TDD-done。本票尚无 accept/reject HTTP；第一圈红灯应为 404 或编译失败。不要用建底 POST 覆盖已有 `运行于` 来写策展。不要做 05–06。
