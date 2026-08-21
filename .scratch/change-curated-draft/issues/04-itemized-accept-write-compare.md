@@ -155,3 +155,32 @@ BUILD SUCCESSFUL in 5s
 Already green: reuses 票 09 `POST /api/conflicts/{id}/confirm-close`. Proves cycle 4 did not auto-CLOSE. Non-handler still `CONFIRM_CLOSE_REQUIRES_ACCEPTED_HANDLER`. No second close engine.
 
 Refactor: HTTP helper `rejectSiblingThenAcceptMergeKey` for tracer mixed-confirm setup.
+
+### Step G — cycle 6: 只接受兄弟不得推进合并键待确认关闭
+
+Ran:
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftItemHttpAcceptanceTest.acceptingSiblingOnlyDoesNotPendingCloseMergeKeyConflict
+BUILD SUCCESSFUL in 5s
+```
+
+Independent method (not mixed-confirm). Already green: `reconcileMergeKey` is keyed by the accepted item's subject, so accepting Y writes Y to B and does not compare X. Merge-key conflict stays OPEN; X 「应该在哪」 stays A. No extra production.
+
+### Step H — cycle 7: HTTP 可读审计 (red)
+
+Red:
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftItemHttpAcceptanceTest.rejectAndAcceptDraftItemsWriteReadableAuditEvents
+```
+
+```text
+ChangeCuratedDraftItemHttpAcceptanceTest > rejectAndAcceptDraftItemsWriteReadableAuditEvents() FAILED
+    java.lang.AssertionError: JSON path "$.data[*].eventType"
+Expected: a collection containing "DRAFT_ITEM_REJECTED"
+     but: mismatches were: [was "WARNED", was "ACKNOWLEDGED", was "HANDLER_ACCEPTED", was "DRAFT_CREATED", was "PENDING_CLOSE"]
+BUILD FAILED in 4s
+```
+
+V13 CHECK has `DRAFT_CREATED` only. Reject/accept do not append item audit events.

@@ -211,6 +211,25 @@ class ChangeCuratedDraftItemHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data.observedValue.hostId", is(draft.fx().hostB())));
     }
 
+    @Test
+    void rejectAndAcceptDraftItemsWriteReadableAuditEvents() throws Exception {
+        OpenDraft draft = rejectSiblingThenAcceptMergeKey(
+                "ccd04-ev-a", "ccd04-ev-b", "ctr-ccd04-ev-x", "ctr-ccd04-ev-y");
+
+        mockMvc.perform(get("/api/conflicts/{id}/events", draft.fx().conflictId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[*].eventType", hasItem("DRAFT_ITEM_REJECTED")))
+                .andExpect(jsonPath("$.data[?(@.eventType=='DRAFT_ITEM_REJECTED')].detail.hint",
+                        hasItem("草案条目已拒绝")))
+                .andExpect(jsonPath("$.data[*].eventType", hasItem("DRAFT_ITEM_ACCEPTED")))
+                .andExpect(jsonPath("$.data[?(@.eventType=='DRAFT_ITEM_ACCEPTED')].detail.hint",
+                        hasItem("草案条目已接受并写入策展")))
+                .andExpect(jsonPath("$.data[?(@.eventType=='DRAFT_ITEM_ACCEPTED')].detail.written",
+                        hasItem(true)));
+    }
+
     private OpenDraft rejectSiblingThenAcceptMergeKey(
             String hostAName, String hostBName, String objectX, String objectY
     ) throws Exception {

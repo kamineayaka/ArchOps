@@ -1,7 +1,7 @@
 package com.archops.conflict.domain;
 
 /**
- * Minimal conflict lifecycle audit events (tickets 09 / 10 / change-curated 03).
+ * Minimal conflict lifecycle audit events (tickets 09 / 10 / change-curated 03–04).
  */
 public enum ConflictEventType {
     WARNED,
@@ -17,5 +17,7 @@ public enum ConflictEventType {
     CLOSED,
     SUSPENDED,
     PLAN_VOIDED,
-    DRAFT_CREATED
+    DRAFT_CREATED,
+    DRAFT_ITEM_ACCEPTED,
+    DRAFT_ITEM_REJECTED
 }

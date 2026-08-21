@@ -32,6 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -142,6 +143,11 @@ public class CuratedDraftService {
         OpenItemReview review = beginItemReview(conflictId, itemId, actor);
         writeAcceptedRunsOn(review.item());
         markItem(review.item(), CuratedDraftItemStatus.ACCEPTED);
+        conflictEventService.append(
+                conflictId,
+                ConflictEventType.DRAFT_ITEM_ACCEPTED,
+                actor.getUserId(),
+                itemAuditDetail(review, "草案条目已接受并写入策展", true));
         conflictDetectionService.reconcileMergeKey(review.item().getSubjectId(), CuratedRelationType.RUNS_ON);
         return respond(review.draft());
     }
@@ -150,6 +156,11 @@ public class CuratedDraftService {
     public CuratedDraftResponse rejectItem(String conflictId, String itemId, AuthUserPrincipal actor) {
         OpenItemReview review = beginItemReview(conflictId, itemId, actor);
         markItem(review.item(), CuratedDraftItemStatus.REJECTED);
+        conflictEventService.append(
+                conflictId,
+                ConflictEventType.DRAFT_ITEM_REJECTED,
+                actor.getUserId(),
+                itemAuditDetail(review, "草案条目已拒绝", false));
         return respond(review.draft());
     }
 
@@ -321,6 +332,18 @@ public class CuratedDraftService {
         } catch (JsonProcessingException ex) {
             return "{}";
         }
+    }
+
+    private static Map<String, Object> itemAuditDetail(OpenItemReview review, String hint, boolean written) {
+        Map<String, Object> detail = new LinkedHashMap<>();
+        detail.put("draftId", review.draft().getId());
+        detail.put("itemId", review.item().getId());
+        detail.put("subjectId", review.item().getSubjectId());
+        if (written) {
+            detail.put("written", true);
+        }
+        detail.put("hint", hint);
+        return detail;
     }
 
     private record OpenItemReview(CuratedDraft draft, CuratedDraftItem item) {
