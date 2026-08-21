@@ -186,3 +186,24 @@ BUILD SUCCESSFUL in 5s
 4 actionable tasks: 2 executed, 2 up-to-date
 ```
 
+### Cycle 5b — 负面 4 活跃操作计划挡住改理想
+
+`reuse/regression`（首次即绿；未改生产；未执行计划）。对应 `ChangeCuratedDraftHttpAcceptanceTest.activePlanBlocksChangeCuratedSelection`。先选 FIX_ACTUAL 出计划，再选 CHANGE_CURATED → `PLAN_ALREADY_ACTIVE`；GET open 仍 `DRAFT_NOT_FOUND`。
+
+命令：
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftTracerHttpAcceptanceTest.activePlanBlocksChangeCuratedSelection
+```
+
+首次输出（witnessed green）：
+
+```text
+> Task :compileTestJava
+> Task :testClasses
+> Task :test
+
+BUILD SUCCESSFUL in 5s
+4 actionable tasks: 2 executed, 2 up-to-date
+```
+

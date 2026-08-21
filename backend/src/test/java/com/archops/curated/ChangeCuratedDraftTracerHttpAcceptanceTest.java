@@ -322,6 +322,31 @@ class ChangeCuratedDraftTracerHttpAcceptanceTest {
                 .andExpect(jsonPath("$.code", is("DRAFT_NOT_FOUND")));
     }
 
+    @Test
+    @Order(8)
+    void bootstrapPostRejectsOverwriteOfExistingRunsOn() throws Exception {
+        String hostA = createHost("ccd06-n5-a");
+        String hostB = createHost("ccd06-n5-b");
+        String containerZ = createContainer("app-ccd06-n5-z", "ccd06-n5-z");
+        confirmRunsOn(containerZ, hostA);
+
+        postRunsOn(containerZ, hostB)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.code", is("CURATED_RUNS_ON_EXISTS")))
+                .andExpect(jsonPath("$.data", nullValue()));
+        postRunsOn(containerZ, hostA)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.code", is("CURATED_RUNS_ON_EXISTS")))
+                .andExpect(jsonPath("$.data", nullValue()));
+
+        getShouldWhere(containerZ)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.question", is("应该在哪")))
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(hostA)));
+    }
+
     private World bootstrapHostsABCuratedXYOnA(String prefix) throws Exception {
         String objectX = prefix + "-x";
         String objectY = prefix + "-y";
@@ -508,12 +533,15 @@ class ChangeCuratedDraftTracerHttpAcceptanceTest {
     }
 
     private void confirmRunsOn(String containerId, String hostId) throws Exception {
-        mockMvc.perform(post("/api/curated/facts/runs-on")
-                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"containerId\":\"" + containerId + "\",\"hostId\":\"" + hostId + "\"}")
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk());
+        postRunsOn(containerId, hostId).andExpect(status().isOk());
+    }
+
+    private ResultActions postRunsOn(String containerId, String hostId) throws Exception {
+        return mockMvc.perform(post("/api/curated/facts/runs-on")
+                .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"containerId\":\"" + containerId + "\",\"hostId\":\"" + hostId + "\"}")
+                .accept(MediaType.APPLICATION_JSON));
     }
 
     private String readDataId(MvcResult result) throws Exception {
