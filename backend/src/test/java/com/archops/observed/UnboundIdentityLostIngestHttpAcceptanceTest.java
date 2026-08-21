@@ -152,6 +152,43 @@ class UnboundIdentityLostIngestHttpAcceptanceTest {
         assertThat(candidate.path("labels").path("archops.object_id").asText(), is("u01b-never-curated"));
     }
 
+    @Test
+    void curatedHostSnapshotInfersIdentityLostWithoutAgentDeclaration() throws Exception {
+        String hostA = createHost("u01c-h");
+        String containerId = createContainer("u01c-x", "u01c-oid");
+        confirmRunsOn(containerId, hostA);
+
+        mockMvc.perform(post("/api/agent/heartbeat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "agentId": "u01c-ag",
+                                  "hostId": "%s",
+                                  "snapshot": {
+                                    "containers": [
+                                      {
+                                        "runtimeId": "u01c-rt-miss",
+                                        "name": "u01c-miss",
+                                        "labels": {}
+                                      }
+                                    ],
+                                    "absentObjectIds": []
+                                  }
+                                }
+                                """.formatted(hostA))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)));
+
+        mockMvc.perform(get("/api/observed/identity-lost/{id}", containerId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.upgradeChainPromised", is(false)))
+                .andExpect(jsonPath("$.data.reason", is("LABEL_CLUE_LOST")));
+    }
+
     private JsonNode unboundByRuntimeId(MvcResult listed, String runtimeId) throws Exception {
         JsonNode data = objectMapper.readTree(listed.getResponse().getContentAsString()).path("data");
         for (JsonNode node : data) {
@@ -171,6 +208,26 @@ class UnboundIdentityLostIngestHttpAcceptanceTest {
                 .andExpect(status().isOk())
                 .andReturn();
         return readDataId(result);
+    }
+
+    private String createContainer(String name, String objectId) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/curated/containers")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"" + name + "\",\"objectId\":\"" + objectId + "\"}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn();
+        return readDataId(result);
+    }
+
+    private void confirmRunsOn(String containerId, String hostId) throws Exception {
+        mockMvc.perform(post("/api/curated/facts/runs-on")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"containerId\":\"" + containerId + "\",\"hostId\":\"" + hostId + "\"}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
     }
 
     private String readDataId(MvcResult result) throws Exception {

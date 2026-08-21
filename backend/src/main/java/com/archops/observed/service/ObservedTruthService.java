@@ -37,8 +37,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -217,6 +220,9 @@ public class ObservedTruthService {
     ) {
         AgentHeartbeatRequest.SnapshotPayload snapshot = request.snapshot();
         String agentId = request.agentId().trim();
+        Map<String, ObservedFact> observedRunsOnAtStart = observedRunsOnBySubject();
+        Set<String> matchedCuratedIds = new HashSet<>();
+        Set<String> absentCuratedIds = new HashSet<>();
 
         List<AgentHeartbeatRequest.SnapshotContainer> containers =
                 snapshot.containers() == null ? List.of() : snapshot.containers();
@@ -233,6 +239,7 @@ public class ObservedTruthService {
                 unbound.add(upsertUnbound(agentId, host.getId(), container, labels, UnboundReason.UNKNOWN_OBJECT_ID, now));
                 continue;
             }
+            matchedCuratedIds.add(curated.getId());
             upsertObservedPresent(curated, host, agentId, now);
             matched.add(new AgentHeartbeatResponse.MatchedObserved(
                     curated.getId(),
@@ -251,6 +258,7 @@ public class ObservedTruthService {
             if (curated == null) {
                 continue;
             }
+            absentCuratedIds.add(curated.getId());
             upsertObservedAbsent(curated, host, agentId, now);
             absent.add(new AgentHeartbeatResponse.AbsentObserved(
                     curated.getId(),
@@ -278,6 +286,77 @@ public class ObservedTruthService {
                     false
             ));
         }
+
+        inferIdentityLost(
+                host,
+                agentId,
+                now,
+                matchedCuratedIds,
+                absentCuratedIds,
+                observedRunsOnAtStart,
+                identityLost
+        );
+    }
+
+    private void inferIdentityLost(
+            CuratedObject reportingHost,
+            String agentId,
+            Instant now,
+            Set<String> matchedCuratedIds,
+            Set<String> absentCuratedIds,
+            Map<String, ObservedFact> observedRunsOnAtStart,
+            List<AgentHeartbeatResponse.IdentityLost> identityLost
+    ) {
+        List<CuratedFact> curatedRunsOn = curatedFactMapper.selectList(new LambdaQueryWrapper<CuratedFact>()
+                .eq(CuratedFact::getRelationType, CuratedRelationType.RUNS_ON));
+        Set<String> alreadyListed = new HashSet<>();
+        for (AgentHeartbeatResponse.IdentityLost listed : identityLost) {
+            alreadyListed.add(listed.curatedObjectId());
+        }
+        for (CuratedFact fact : curatedRunsOn) {
+            CuratedObject curated = curatedObjectMapper.selectById(fact.getSubjectId());
+            if (curated == null || curated.getKind() != CuratedObjectKind.DOCKER_CONTAINER) {
+                continue;
+            }
+            if (matchedCuratedIds.contains(curated.getId()) || absentCuratedIds.contains(curated.getId())) {
+                continue;
+            }
+            if (!reportingHostInIdentityLostScope(reportingHost.getId(), fact, observedRunsOnAtStart.get(curated.getId()))) {
+                continue;
+            }
+            upsertIdentityLost(curated, reportingHost, agentId, now);
+            if (alreadyListed.add(curated.getId())) {
+                identityLost.add(new AgentHeartbeatResponse.IdentityLost(
+                        curated.getId(),
+                        curated.getImmutableObjectId(),
+                        false
+                ));
+            }
+        }
+    }
+
+    private boolean reportingHostInIdentityLostScope(
+            String reportingHostId,
+            CuratedFact curatedRunsOn,
+            ObservedFact observedAtStart
+    ) {
+        if (reportingHostId.equals(curatedRunsOn.getTargetId())) {
+            return true;
+        }
+        return observedAtStart != null
+                && observedAtStart.getAvailability() == ObservedAvailability.PRESENT
+                && !observationFreshnessService.isObservedFactStale(observedAtStart)
+                && reportingHostId.equals(observedAtStart.getTargetId());
+    }
+
+    private Map<String, ObservedFact> observedRunsOnBySubject() {
+        List<ObservedFact> facts = observedFactMapper.selectList(new LambdaQueryWrapper<ObservedFact>()
+                .eq(ObservedFact::getRelationType, CuratedRelationType.RUNS_ON));
+        Map<String, ObservedFact> bySubject = new HashMap<>();
+        for (ObservedFact fact : facts) {
+            bySubject.put(fact.getSubjectId(), fact);
+        }
+        return bySubject;
     }
 
     private void upsertHostAgent(String agentId, String hostId, Instant now, boolean hasSnapshot) {

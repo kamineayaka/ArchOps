@@ -56,4 +56,16 @@ Expected: is <1>
 ```
 Green command: 同上，BUILD SUCCESSFUL / exit 0。`unlabeledAndIdentityLostDoNotPromiseUpgradeChain` 仍绿（一次快照两个不同 runtimeId）。
 Refactor: `persistUnbound` 改名为 `upsertUnbound`，抽出 `applyUnboundSnapshot` / `toUnboundSummary`。
+Commit: 14a2e6a Upsert unbound candidates by host and runtime id.
+
+### Cycle C — 策展宿主快照无声明也推断身份失联
+Red command:
+cd backend && ./gradlew test --tests com.archops.observed.UnboundIdentityLostIngestHttpAcceptanceTest.curatedHostSnapshotInfersIdentityLostWithoutAgentDeclaration
+```
+UnboundIdentityLostIngestHttpAcceptanceTest > curatedHostSnapshotInfersIdentityLostWithoutAgentDeclaration() FAILED
+    java.lang.AssertionError: Status expected:<200> but was:<400>
+             Body = {"success":false,"code":"IDENTITY_LOST_NOT_FOUND",...}
+```
+Green command: 同上，BUILD SUCCESSFUL / exit 0。夹具未带 `identityLostObjectIds`。`unlabeledAndIdentityLostDoNotPromiseUpgradeChain` 仍绿。
+Refactor: 推断独立为 `inferIdentityLost` + `reportingHostInIdentityLostScope`；`identityLostObjectIds` 循环未加主机范围。
 Commit: （提交后填）
