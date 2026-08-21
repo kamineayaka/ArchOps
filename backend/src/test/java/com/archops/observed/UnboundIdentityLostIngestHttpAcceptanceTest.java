@@ -534,6 +534,33 @@ class UnboundIdentityLostIngestHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data").value(nullValue()));
     }
 
+    @Test
+    void heartbeatOnlyDoesNotInferIdentityLost() throws Exception {
+        String hostA = createHost("u01k-h");
+        String containerId = createContainer("u01k-x", "u01k-oid");
+        confirmRunsOn(containerId, hostA);
+
+        mockMvc.perform(post("/api/agent/heartbeat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "agentId": "u01k-ag",
+                                  "hostId": "%s"
+                                }
+                                """.formatted(hostA))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.freshness.lastHeartbeatAt").exists());
+
+        mockMvc.perform(get("/api/observed/identity-lost/{id}", containerId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("IDENTITY_LOST_NOT_FOUND")))
+                .andExpect(jsonPath("$.data").value(nullValue()));
+    }
+
     private JsonNode unboundByRuntimeId(MvcResult listed, String runtimeId) throws Exception {
         JsonNode data = objectMapper.readTree(listed.getResponse().getContentAsString()).path("data");
         for (JsonNode node : data) {

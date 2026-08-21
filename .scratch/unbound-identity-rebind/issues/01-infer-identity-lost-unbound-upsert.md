@@ -125,3 +125,11 @@ reuse/regression：首跑绿。推断已跳过 `absentCuratedIds`；`observedAsk
 Green command: 同上，且 `absentObjectIdIsUsableAbsentNotHollow` 仍绿。
 Refactor: 无结构改动。
 Commit: a2eeb15 Keep absentObjectIds as 观测消失, not identity lost.
+
+### Cycle J — 未打标同名不承诺升级链
+Red command:
+cd backend && ./gradlew test --tests com.archops.observed.UnboundIdentityLostIngestHttpAcceptanceTest.unlabeledSameNameDoesNotPromiseUpgradeChain
+reuse/regression：首跑绿。点名 `VerticalSliceHttpE2eAcceptanceTest.negative_unlabeledSnapshotDoesNotPromiseUpgradeChain`。GET `/api/conflicts/by-merge-key` 仍 400 `CONFLICT_NOT_FOUND`。不另写生产、不按 name 匹配。
+Green command: 同上，BUILD SUCCESSFUL / exit 0。
+Refactor: 无结构改动。
+Commit: 839723b Keep unlabeled same-name snapshots off the upgrade chain.
