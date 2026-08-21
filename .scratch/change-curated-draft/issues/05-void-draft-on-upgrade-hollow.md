@@ -159,6 +159,45 @@ BUILD SUCCESSFUL in 6s
 
 Refactor: none beyond the one call site. Must still assert 策展 B (different from cycle 1 keeping A).
 
+### Step G — cycle 6: HTTP 可读「草案已作废」审计 (red)
+
+Red:
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftVoidHttpAcceptanceTest.upgradeThatVoidsDraftWritesReadableDraftVoidedAudit
+```
+
+```text
+ChangeCuratedDraftVoidHttpAcceptanceTest > upgradeThatVoidsDraftWritesReadableDraftVoidedAudit() FAILED
+    java.lang.AssertionError: JSON path "$.data[*].eventType"
+Expected: a collection containing "DRAFT_VOIDED"
+     but: mismatches were: [was "WARNED", was "ACKNOWLEDGED", was "HANDLER_ACCEPTED", was "DRAFT_CREATED", was "UPGRADED"]
+BUILD FAILED in 5s
+```
+
+UPGRADED remains; DRAFT_VOIDED is missing. V14 CHECK does not include DRAFT_VOIDED.
+
+Green: additive V15 CHECK + `ConflictEventType.DRAFT_VOIDED`; `voidOpenForConflict(conflictId, reason)` appends event with `draftId`, `reason`, hint `草案已作废`. Did not edit V13/V14.
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftVoidHttpAcceptanceTest.upgradeThatVoidsDraftWritesReadableDraftVoidedAudit
+BUILD SUCCESSFUL in 5s
+```
+
+Refactor: void selects the OPEN row then updates that id (same as plan void). UPGRADED still present.
+
+### Step H — cycle 7: 作废后的选支不能继续当处理路径 (reuse)
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftVoidHttpAcceptanceTest.staleChangeCuratedSelectionAfterUpgradeIsRejectedAndDraftStaysVoided
+BUILD SUCCESSFUL in 5s
+```
+
+reuse/regression: `scheduleAsyncDiagnosis` already marks the draft's diagnosis STALE; POST with that `diagnosisId` is `DIAGNOSIS_NOT_READY`. No new branch-selection product. Value of this cycle is pinning 选支作废 + 草案作废 on HTTP together (accept still `DRAFT_VOIDED`; GET open is not a new OPEN). Did not create a second draft targeting C. Did not dismantle production to fake a red.
+
+
+
+
 
 
 

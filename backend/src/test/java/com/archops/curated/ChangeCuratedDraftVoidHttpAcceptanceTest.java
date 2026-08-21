@@ -263,6 +263,31 @@ class ChangeCuratedDraftVoidHttpAcceptanceTest {
                         hasItem("conflict_upgrade")));
     }
 
+    @Test
+    void staleChangeCuratedSelectionAfterUpgradeIsRejectedAndDraftStaysVoided() throws Exception {
+        OpenDraft draft = openChangeCuratedDraft(
+                "ccd05-br-a", "ccd05-br-b", "ctr-ccd05-br-x", "ctr-ccd05-br-y");
+        snapshotXOnHostC(draft, "ccd05-br-c");
+
+        postBranch(draft.fx().conflictId(), GENERAL_ID, "CHANGE_CURATED_TO_OBSERVED", draft.diagnosisId())
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.code", is("DIAGNOSIS_NOT_READY")))
+                .andExpect(jsonPath("$.data", nullValue()));
+
+        postItemAction(draft.fx().conflictId(), draft.itemXId(), "accept", GENERAL_ID)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("DRAFT_VOIDED")))
+                .andExpect(jsonPath("$.data", nullValue()));
+
+        getOpenDraft(draft.fx().conflictId(), GENERAL_ID)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("DRAFT_NOT_FOUND")));
+        getDraftById(draft.fx().conflictId(), draft.draftId())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("VOIDED")));
+    }
+
     private String snapshotXOnHostC(OpenDraft draft, String hostCName) throws Exception {
         String hostC = createHost(hostCName);
         heartbeatWithContainer(hostC, "agent-" + draft.fx().objectX() + "-c", draft.fx().objectX());
@@ -274,13 +299,14 @@ class ChangeCuratedDraftVoidHttpAcceptanceTest {
     ) throws Exception {
         Fixture fx = openConflictWithSiblingAndClaim(hostAName, hostBName, objectX, objectY);
         ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, fx.conflictId(), GENERAL_ID);
-        postBranch(fx.conflictId(), GENERAL_ID, "CHANGE_CURATED_TO_OBSERVED")
+        postBranch(fx.conflictId(), GENERAL_ID, "CHANGE_CURATED_TO_OBSERVED", null)
                 .andExpect(status().isOk());
         JsonNode data = readOpenDraft(fx.conflictId());
         JsonNode items = data.path("items");
         return new OpenDraft(
                 fx,
                 data.path("id").asText(),
+                data.path("diagnosisId").asText(),
                 itemId(items, fx.containerX()),
                 itemId(items, fx.containerY()));
     }
@@ -296,11 +322,15 @@ class ChangeCuratedDraftVoidHttpAcceptanceTest {
                 .accept(MediaType.APPLICATION_JSON));
     }
 
-    private ResultActions postBranch(String conflictId, String userId, String forkId) throws Exception {
+    private ResultActions postBranch(String conflictId, String userId, String forkId, String diagnosisId)
+            throws Exception {
+        String body = diagnosisId == null
+                ? "{\"forkId\":\"" + forkId + "\"}"
+                : "{\"forkId\":\"" + forkId + "\",\"diagnosisId\":\"" + diagnosisId + "\"}";
         return mockMvc.perform(post("/api/conflicts/{id}/branch-selection", conflictId)
                 .header(TempAuthHeaders.USER_ID, userId)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"forkId\":\"" + forkId + "\"}")
+                .content(body)
                 .accept(MediaType.APPLICATION_JSON));
     }
 
@@ -456,6 +486,12 @@ class ChangeCuratedDraftVoidHttpAcceptanceTest {
     ) {
     }
 
-    private record OpenDraft(Fixture fx, String draftId, String itemXId, String itemYId) {
+    private record OpenDraft(
+            Fixture fx,
+            String draftId,
+            String diagnosisId,
+            String itemXId,
+            String itemYId
+    ) {
     }
 }
