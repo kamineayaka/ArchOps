@@ -6,6 +6,7 @@ import com.archops.conflict.domain.ConflictEventType;
 import com.archops.conflict.domain.HandlerAcceptance;
 import com.archops.conflict.dto.ConflictDiagnosisResponse;
 import com.archops.conflict.mapper.ConflictCaseMapper;
+import com.archops.conflict.service.ConflictDetectionService;
 import com.archops.conflict.service.ConflictEventService;
 import com.archops.curated.domain.CuratedDraft;
 import com.archops.curated.domain.CuratedDraftItem;
@@ -48,6 +49,7 @@ public class CuratedDraftService {
     private final CuratedObjectMapper curatedObjectMapper;
     private final ConflictCaseMapper conflictCaseMapper;
     private final ConflictEventService conflictEventService;
+    private final ConflictDetectionService conflictDetectionService;
     private final CuratedTruthService curatedTruthService;
     private final ObjectMapper objectMapper;
 
@@ -58,6 +60,7 @@ public class CuratedDraftService {
             CuratedObjectMapper curatedObjectMapper,
             ConflictCaseMapper conflictCaseMapper,
             ConflictEventService conflictEventService,
+            ConflictDetectionService conflictDetectionService,
             CuratedTruthService curatedTruthService,
             ObjectMapper objectMapper
     ) {
@@ -67,6 +70,7 @@ public class CuratedDraftService {
         this.curatedObjectMapper = curatedObjectMapper;
         this.conflictCaseMapper = conflictCaseMapper;
         this.conflictEventService = conflictEventService;
+        this.conflictDetectionService = conflictDetectionService;
         this.curatedTruthService = curatedTruthService;
         this.objectMapper = objectMapper;
     }
@@ -130,13 +134,15 @@ public class CuratedDraftService {
     }
 
     /**
-     * Accept writes that item's 策展 运行于 immediately. Compare is a later cycle.
+     * Accept writes that item's 策展 运行于 immediately, then runs the same merge-key compare
+     * as snapshot ingest (equal → 待确认关闭, never auto CLOSED).
      */
     @Transactional
     public CuratedDraftResponse acceptItem(String conflictId, String itemId, AuthUserPrincipal actor) {
         OpenItemReview review = beginItemReview(conflictId, itemId, actor);
         writeAcceptedRunsOn(review.item());
         markItem(review.item(), CuratedDraftItemStatus.ACCEPTED);
+        conflictDetectionService.reconcileMergeKey(review.item().getSubjectId(), CuratedRelationType.RUNS_ON);
         return respond(review.draft());
     }
 

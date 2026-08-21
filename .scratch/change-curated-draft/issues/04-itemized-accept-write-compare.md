@@ -106,3 +106,39 @@ BUILD FAILED in 5s
 ```
 
 Accept route exists but does not write 策展 or mark ACCEPTED. Reject-Y setup still holds.
+
+Green: accept updates existing 运行于 target via `applyAcceptedDraftRunsOn` (not bootstrap POST). X 「应该在哪」 is B; Y stays A; bootstrap overwrite still `CURATED_RUNS_ON_EXISTS`. Compare not wired yet.
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftItemHttpAcceptanceTest.acceptedHandlerAcceptsMergeKeyWritesCuratedShouldWhereToObservedHost
+BUILD SUCCESSFUL in 5s
+```
+
+Refactor: `writeAcceptedRunsOn` / `markItem`. Cycle 2 + 01 overwrite-reject still green.
+
+### Step E — cycle 4: 接受 X 后立刻比对 → 待确认关闭 (red)
+
+Red:
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftItemHttpAcceptanceTest.acceptMergeKeyComparesImmediatelyToPendingCloseWithoutNewSnapshot
+```
+
+```text
+ChangeCuratedDraftItemHttpAcceptanceTest > acceptMergeKeyComparesImmediatelyToPendingCloseWithoutNewSnapshot() FAILED
+    java.lang.AssertionError: JSON path "$.data.status"
+Expected: is "PENDING_CLOSE"
+     but: was "OPEN"
+BUILD FAILED in 5s
+```
+
+No new snapshot. Curated X is already B; compare still only runs after observed writes.
+
+Green: accept path calls `reconcileMergeKey` in the same `@Transactional` as the 策展 write. Same engine as snapshot ingest; equal → `PENDING_CLOSE`, never auto `CLOSED`. 「实际在哪」 still OBSERVED track at B.
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftItemHttpAcceptanceTest.acceptMergeKeyComparesImmediatelyToPendingCloseWithoutNewSnapshot
+BUILD SUCCESSFUL in 5s
+```
+
+Refactor: `reconcileAfterObservedWrite` delegates to `reconcileMergeKey` (no second compare engine).

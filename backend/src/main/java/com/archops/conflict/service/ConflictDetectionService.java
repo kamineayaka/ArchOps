@@ -81,6 +81,14 @@ public class ConflictDetectionService {
      */
     @Transactional
     public void reconcileAfterObservedWrite(String subjectId, CuratedRelationType relationType) {
+        reconcileMergeKey(subjectId, relationType);
+    }
+
+    /**
+     * Same compare/upgrade/pending-close/suspend engine for observed ingest and accepted 草案 writes.
+     */
+    @Transactional
+    public void reconcileMergeKey(String subjectId, CuratedRelationType relationType) {
         CuratedFact curated = curatedFactMapper.selectOne(new LambdaQueryWrapper<CuratedFact>()
                 .eq(CuratedFact::getSubjectId, subjectId)
                 .eq(CuratedFact::getRelationType, relationType));

@@ -14,6 +14,7 @@ import org.springframework.test.web.servlet.ResultActions;
 
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -122,6 +123,42 @@ class ChangeCuratedDraftItemHttpAcceptanceTest {
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code", is("CURATED_RUNS_ON_EXISTS")));
+    }
+
+    @Test
+    void acceptMergeKeyComparesImmediatelyToPendingCloseWithoutNewSnapshot() throws Exception {
+        OpenDraft draft = openChangeCuratedDraft("ccd04-pc-a", "ccd04-pc-b", "ctr-ccd04-pc-x", "ctr-ccd04-pc-y");
+        postItemAction(draft.fx().conflictId(), draft.itemYId(), "reject", GENERAL_ID)
+                .andExpect(status().isOk());
+        postItemAction(draft.fx().conflictId(), draft.itemXId(), "accept", GENERAL_ID)
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/conflicts/{id}", draft.fx().conflictId())
+                        .header(TempAuthHeaders.USER_ID, SENIOR_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("PENDING_CLOSE")))
+                .andExpect(jsonPath("$.data.status", not("CLOSED")))
+                .andExpect(jsonPath("$.data.status", not("OPEN")))
+                .andExpect(jsonPath("$.data.pendingCloseReminderVisible", is(true)))
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(draft.fx().hostB())))
+                .andExpect(jsonPath("$.data.observedValue.hostId", is(draft.fx().hostB())));
+
+        mockMvc.perform(get("/api/observed/asks/actual-where")
+                        .param("containerId", draft.fx().containerX())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.question", is("实际在哪")))
+                .andExpect(jsonPath("$.data.track", is("OBSERVED")))
+                .andExpect(jsonPath("$.data.observedValue.hostId", is(draft.fx().hostB())))
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(draft.fx().hostB())));
+
+        mockMvc.perform(get("/api/conflicts/{id}/events", draft.fx().conflictId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[*].eventType", hasItem("PENDING_CLOSE")));
     }
 
     private OpenDraft openChangeCuratedDraft(
