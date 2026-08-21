@@ -75,8 +75,7 @@ public class CuratedDraftService {
 
     @Transactional(readOnly = true)
     public CuratedDraftResponse getOpen(String conflictId) {
-        CuratedDraft draft = requireOpen(conflictId);
-        return toResponse(draft, loadItems(draft.getId()));
+        return respond(requireOpen(conflictId));
     }
 
     @Transactional
@@ -128,23 +127,35 @@ public class CuratedDraftService {
     }
 
     /**
-     * Ticket 04 cycle 1: gate only. Item status / 策展 write land in later cycles.
+     * Ticket 04: accept waits for 策展 write (later cycle). Reject only marks the item.
      */
     @Transactional
     public CuratedDraftResponse acceptItem(String conflictId, String itemId, AuthUserPrincipal actor) {
-        return reviewItemGate(conflictId, itemId, actor);
+        OpenItemReview review = beginItemReview(conflictId, itemId, actor);
+        return respond(review.draft());
     }
 
     @Transactional
     public CuratedDraftResponse rejectItem(String conflictId, String itemId, AuthUserPrincipal actor) {
-        return reviewItemGate(conflictId, itemId, actor);
+        OpenItemReview review = beginItemReview(conflictId, itemId, actor);
+        requirePending(review.item());
+        review.item().setStatus(CuratedDraftItemStatus.REJECTED);
+        curatedDraftItemMapper.updateById(review.item());
+        return respond(review.draft());
     }
 
-    private CuratedDraftResponse reviewItemGate(String conflictId, String itemId, AuthUserPrincipal actor) {
+    private OpenItemReview beginItemReview(String conflictId, String itemId, AuthUserPrincipal actor) {
         CuratedDraft draft = requireOpen(conflictId);
         requireAcceptedHandler(requireConflict(conflictId), actor);
-        requireItemOnDraft(draft.getId(), itemId);
-        return toResponse(draft, loadItems(draft.getId()));
+        CuratedDraftItem item = requireItemOnDraft(draft.getId(), itemId);
+        return new OpenItemReview(draft, item);
+    }
+
+    private static void requirePending(CuratedDraftItem item) {
+        if (item.getStatus() != CuratedDraftItemStatus.PENDING) {
+            throw new BusinessException("DRAFT_ITEM_NOT_PENDING",
+                    "草案条目已不是待确认: " + item.getId());
+        }
     }
 
     private CuratedDraft requireOpen(String conflictId) {
@@ -239,6 +250,10 @@ public class CuratedDraftService {
                 .orderByAsc(CuratedDraftItem::getSeq));
     }
 
+    private CuratedDraftResponse respond(CuratedDraft draft) {
+        return toResponse(draft, loadItems(draft.getId()));
+    }
+
     private CuratedDraftResponse toResponse(CuratedDraft draft, List<CuratedDraftItem> items) {
         ConflictCase conflict = conflictCaseMapper.selectById(draft.getConflictId());
         String mergeKeySubjectId = conflict == null ? null : conflict.getSubjectId();
@@ -283,5 +298,8 @@ public class CuratedDraftService {
         } catch (JsonProcessingException ex) {
             return "{}";
         }
+    }
+
+    private record OpenItemReview(CuratedDraft draft, CuratedDraftItem item) {
     }
 }

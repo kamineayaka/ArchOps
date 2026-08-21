@@ -63,6 +63,34 @@ class ChangeCuratedDraftItemHttpAcceptanceTest {
                         hasItem("PENDING")));
     }
 
+    @Test
+    void acceptedHandlerRejectsSiblingDoesNotWriteCurated() throws Exception {
+        OpenDraft draft = openChangeCuratedDraft("ccd04-rj-a", "ccd04-rj-b", "ctr-ccd04-rj-x", "ctr-ccd04-rj-y");
+
+        postItemAction(draft.fx().conflictId(), draft.itemYId(), "reject", GENERAL_ID)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.items[?(@.id=='" + draft.itemYId() + "')].status",
+                        hasItem("REJECTED")))
+                .andExpect(jsonPath("$.data.items[?(@.id=='" + draft.itemXId() + "')].status",
+                        hasItem("PENDING")));
+
+        getShouldWhere(draft.fx().containerY())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.question", is("应该在哪")))
+                .andExpect(jsonPath("$.data.track", is("CURATED")))
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(draft.fx().hostA())));
+        getShouldWhere(draft.fx().containerX())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(draft.fx().hostA())));
+
+        mockMvc.perform(get("/api/conflicts/{id}", draft.fx().conflictId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("OPEN")));
+    }
+
     private OpenDraft openChangeCuratedDraft(
             String hostAName, String hostBName, String objectX, String objectY
     ) throws Exception {

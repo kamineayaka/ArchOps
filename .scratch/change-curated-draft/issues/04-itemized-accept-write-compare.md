@@ -61,3 +61,21 @@ BUILD SUCCESSFUL in 5s
 ```
 
 Refactor: `getOpen` reuses `requireOpen`. Same test + 03 `acceptedHandlerSelectsChangeCuratedOpensDraftWithTwoPendingRunsOnItems` still green.
+
+### Step C — cycle 2: 已接受处理人拒绝兄弟 Y (red)
+
+Red:
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftItemHttpAcceptanceTest.acceptedHandlerRejectsSiblingDoesNotWriteCurated
+```
+
+```text
+ChangeCuratedDraftItemHttpAcceptanceTest > acceptedHandlerRejectsSiblingDoesNotWriteCurated() FAILED
+    java.lang.AssertionError: JSON path "$.data.items[?(@.id=='ditem-...')].status"
+Expected: a collection containing "REJECTED"
+     but: mismatches were: [was "PENDING"]
+BUILD FAILED in 5s
+```
+
+Reject route exists (cycle 1 gate) but does not change item status. 策展 still A.
