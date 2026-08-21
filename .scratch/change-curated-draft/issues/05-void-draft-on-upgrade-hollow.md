@@ -21,3 +21,35 @@
 ## Comments
 
 开工 prompt：[`docs/implement-change-curated-draft-05-prompt.md`](../../../docs/implement-change-curated-draft-05-prompt.md)。01–04 TDD-done（04 已合入 `main`）。本票要把竖切已有的升级/空洞接到开放草案；第一圈诚实红灯是 B→C 后草案仍 OPEN（或仍能 accept），不要拆 04 的接受写入与比对，不要重做挂起/计划作废。不要做 06。
+
+### Step A — seams
+
+04 `openChangeCuratedDraft` takes `itemXId`/`itemYId` from GET `/api/conflicts/{id}/curated-drafts/open` (`data.items[].id` by subject). `draftId` is `data.id` on that same GET; 04's `OpenDraft` did not keep it. B→C is `POST /api/curated/hosts` then heartbeat+snapshot with a different `agentId` (`agent-{objectX}-c`). Heartbeat timeout is backdate `HostAgent.lastHeartbeatAt` + `POST /api/observed/scan-heartbeat-timeouts`. GET open only queries `status=OPEN`; after VOIDED, GET open is `DRAFT_NOT_FOUND` unless GET by id exists.
+
+### Step B — cycle 1: 待审草案时快照 B→C 升级并作废开放草案 (red)
+
+New test `ChangeCuratedDraftVoidHttpAcceptanceTest.snapshotBtoCWhileDraftPendingUpgradesSameConflictAndVoidsOpenDraftWithoutWritingCurated`. Conflict upgrade (same id, lineage B then C, 策展 still A) reused 竖切 `upgradeOpen`; this cycle's missing behavior is the open 草案.
+
+Red:
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftVoidHttpAcceptanceTest.snapshotBtoCWhileDraftPendingUpgradesSameConflictAndVoidsOpenDraftWithoutWritingCurated
+```
+
+```text
+ChangeCuratedDraftVoidHttpAcceptanceTest > snapshotBtoCWhileDraftPendingUpgradesSameConflictAndVoidsOpenDraftWithoutWritingCurated() FAILED
+    java.lang.AssertionError: Status expected:<400> but was:<200>
+	at ...ChangeCuratedDraftVoidHttpAcceptanceTest.java:72
+BUILD FAILED in 16s
+```
+
+GET open after B→C still 200 OPEN. Conflict GET / lineage / 「应该在哪」A already green — 竖切 upgrade, not this cycle's failure.
+
+Green: `upgradeOpen` calls `CuratedDraftService.voidOpenForConflict` (`@Lazy` to avoid the detection↔draft cycle). PENDING items are not written.
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftVoidHttpAcceptanceTest.snapshotBtoCWhileDraftPendingUpgradesSameConflictAndVoidsOpenDraftWithoutWritingCurated
+BUILD SUCCESSFUL in 5s
+```
+
+Refactor: javadoc only; same test + 04 accept still green.

@@ -23,6 +23,7 @@ import com.archops.curated.mapper.CuratedFactMapper;
 import com.archops.curated.mapper.CuratedObjectMapper;
 import com.archops.user.security.AuthUserPrincipal;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -38,7 +39,8 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Rule-templated 改理想 草案 (ticket 03) and per-item review gate (ticket 04).
+ * Rule-templated 改理想 草案 (ticket 03), per-item review (ticket 04),
+ * and OPEN-draft voiding on 冲突升级/空洞 (ticket 05).
  * Confirmation-before-write is not 策展真相.
  */
 @Service
@@ -138,6 +140,18 @@ public class CuratedDraftService {
      * Accept writes that item's 策展 运行于 immediately, then runs the same merge-key compare
      * as snapshot ingest (equal → 待确认关闭, never auto CLOSED).
      */
+    /**
+     * Ticket 05: 冲突升级/空洞作废该冲突上仍 OPEN 的改理想草案.
+     * PENDING items stay PENDING and are never written to 策展.
+     */
+    @Transactional
+    public void voidOpenForConflict(String conflictId) {
+        curatedDraftMapper.update(null, new LambdaUpdateWrapper<CuratedDraft>()
+                .eq(CuratedDraft::getConflictId, conflictId)
+                .eq(CuratedDraft::getStatus, CuratedDraftStatus.OPEN)
+                .set(CuratedDraft::getStatus, CuratedDraftStatus.VOIDED));
+    }
+
     @Transactional
     public CuratedDraftResponse acceptItem(String conflictId, String itemId, AuthUserPrincipal actor) {
         OpenItemReview review = beginItemReview(conflictId, itemId, actor);
