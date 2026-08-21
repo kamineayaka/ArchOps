@@ -17,3 +17,7 @@
 - [ ] 不把空洞或观测消失收成「策展改为不存在」；不重做修实际计划作废语义（已有计划作废保持）
 
 **Out of this ticket:** 本刀总 E2E 套件（06）、Y2 对齐步、改策展后再出 SSH 计划、自我迭代。
+
+## Comments
+
+开工 prompt：[`docs/implement-change-curated-draft-05-prompt.md`](../../../docs/implement-change-curated-draft-05-prompt.md)。01–04 TDD-done（04 已合入 `main`）。本票要把竖切已有的升级/空洞接到开放草案；第一圈诚实红灯是 B→C 后草案仍 OPEN（或仍能 accept），不要拆 04 的接受写入与比对，不要重做挂起/计划作废。不要做 06。

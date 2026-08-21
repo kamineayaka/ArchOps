@@ -58,7 +58,7 @@
 10. ~~`/implement` `/tdd` 票 02（TDD 重做）~~：已完成（诊断同时给出「修实际」与「改理想」分叉；witnessed red → green → refactor；`CHANGE_CURATED_TO_OBSERVED`）  
 11. ~~`/implement` `/tdd` 票 03（TDD 重做）~~：已完成（选改理想生成开放草案；witnessed red → green → refactor；`CHANGE_CURATED` 出草案、不写策展、不出计划）  
 12. ~~`/implement` `/tdd` 票 04~~：已完成（逐条确认：接受即写策展并立刻比对 → 待确认关闭；witnessed red → green → refactor；`DRAFT_ITEM_ACCEPTED` / `DRAFT_ITEM_REJECTED`）  
-13. **下一对话：`/implement` `/tdd` 票 05**（升级/空洞作废未完成草案）。票路径 [`.scratch/change-curated-draft/issues/05-void-draft-on-upgrade-hollow.md`](../.scratch/change-curated-draft/issues/05-void-draft-on-upgrade-hollow.md)。一次只做一张；不要顺手做 06。  
+13. **下一对话：`/implement` `/tdd` 票 05**（升级/空洞作废未完成草案）。票路径 [`.scratch/change-curated-draft/issues/05-void-draft-on-upgrade-hollow.md`](../.scratch/change-curated-draft/issues/05-void-draft-on-upgrade-hollow.md)。**完整开工 prompt** [`docs/implement-change-curated-draft-05-prompt.md`](implement-change-curated-draft-05-prompt.md)（复制区整段贴进新对话；附 implement + tdd skill）。一次只做一张；不要顺手做 06。本票是把竖切已有升级/空洞接到开放草案，诚实红灯是草案仍 OPEN / 作废后仍能审条，不要拆 04、不要重做挂起或计划作废。  
 
 06 被 05 挡住。
 
