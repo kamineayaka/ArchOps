@@ -11,7 +11,7 @@ Claude / Cloud 编码助手请把本仓库的 **`AGENTS.md` 当作最高执行�
 5. [docs/specs/change-curated-draft.md](./docs/specs/change-curated-draft.md) — 改策展/草案逐条确认 Spec（**已闭合**）  
 6. [docs/specs/unbound-identity-rebind.md](./docs/specs/unbound-identity-rebind.md) — 下一刀 Spec（未绑定观测候选 / 身份失联重绑；01–07 已拆）  
 7. [docs/dev-handoff.md](./docs/dev-handoff.md) — 进度与下一票  
-8. Tickets: 竖切 [.scratch/vertical-slice-mvp/issues/](./.scratch/vertical-slice-mvp/issues/) 已 done；改策展 [.scratch/change-curated-draft/issues/](./.scratch/change-curated-draft/issues/)（**01–06 TDD-done**；本刀闭合）。下一刀 [.scratch/unbound-identity-rebind/issues/](./.scratch/unbound-identity-rebind/issues/)（**frontier = 01**）
+8. Tickets: 竖切 [.scratch/vertical-slice-mvp/issues/](./.scratch/vertical-slice-mvp/issues/) 已 done；改策展 [.scratch/change-curated-draft/issues/](./.scratch/change-curated-draft/issues/)（**01–06 TDD-done**；本刀闭合）。下一刀 [.scratch/unbound-identity-rebind/issues/](./.scratch/unbound-identity-rebind/issues/)（**frontier = 01**；开工 [`docs/implement-unbound-identity-rebind-01-prompt.md`](./docs/implement-unbound-identity-rebind-01-prompt.md)）
 9. Cloud VM setup: [.cursor/CLOUD.md](./.cursor/CLOUD.md) · [.cursor/environment.json](./.cursor/environment.json)
 10. Matt tracker config: [`docs/agents/`](./docs/agents/)（含 [`docs/agents/tdd.md`](./docs/agents/tdd.md)）
 

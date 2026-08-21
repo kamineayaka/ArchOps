@@ -66,7 +66,7 @@
 15. ~~`/grill-with-docs` 定下一刀~~：已定为 **未绑定观测候选 / 身份失联重绑**（A；HTTP only；不改合同）。  
 16. ~~下一刀 `/to-spec`~~：已发布 [`docs/specs/unbound-identity-rebind.md`](specs/unbound-identity-rebind.md)。  
 17. ~~下一刀 `/to-tickets`~~：已发布至 `.scratch/unbound-identity-rebind/issues/`（01–07）。  
-18. **下一对话：`/implement` `/tdd` 未绑定票 01**（frontier）。一次一张；01 完成后 02 与 05 均 unblocked 时先做 02。不要加改策展 07。不要重拆竖切 01–13。  
+18. **下一对话：`/implement` `/tdd` 未绑定票 01**（frontier）。开工 prompt：[`docs/implement-unbound-identity-rebind-01-prompt.md`](implement-unbound-identity-rebind-01-prompt.md)。一次一张；01 完成后 02 与 05 均 unblocked 时先做 02。不要加改策展 07。不要重拆竖切 01–13。  
 
 ### 工单阻塞简图
 

@@ -25,3 +25,5 @@
 ## Comments
 
 Frontier。一次只做本票。HTTP 主接缝；Flyway 只增不改历史。不要做 02–07。
+
+开工 prompt：[`docs/implement-unbound-identity-rebind-01-prompt.md`](../../../docs/implement-unbound-identity-rebind-01-prompt.md)。`/implement` 走 [`docs/agents/tdd.md`](../../../docs/agents/tdd.md)：capability 票须 witnessed red；不要为装红灯删除竖切未打标 / 观测消失 / 命中 `运行于` 的生产。
