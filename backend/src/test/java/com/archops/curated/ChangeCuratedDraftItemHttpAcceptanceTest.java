@@ -65,6 +65,25 @@ class ChangeCuratedDraftItemHttpAcceptanceTest {
     }
 
     @Test
+    void nonHandlerCannotRejectDraftItem() throws Exception {
+        OpenDraft draft = openChangeCuratedDraft("ccd04-nhr-a", "ccd04-nhr-b", "ctr-ccd04-nhr-x", "ctr-ccd04-nhr-y");
+
+        postItemAction(draft.fx().conflictId(), draft.itemYId(), "reject", SENIOR_ID)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.code", is("PLAN_REQUIRES_ACCEPTED_HANDLER")))
+                .andExpect(jsonPath("$.data", nullValue()));
+
+        getShouldWhere(draft.fx().containerY())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(draft.fx().hostA())));
+        getOpenDraft(draft.fx().conflictId(), GENERAL_ID)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[?(@.id=='" + draft.itemYId() + "')].status",
+                        hasItem("PENDING")));
+    }
+
+    @Test
     void acceptedHandlerRejectsSiblingDoesNotWriteCurated() throws Exception {
         OpenDraft draft = openChangeCuratedDraft("ccd04-rj-a", "ccd04-rj-b", "ctr-ccd04-rj-x", "ctr-ccd04-rj-y");
 
