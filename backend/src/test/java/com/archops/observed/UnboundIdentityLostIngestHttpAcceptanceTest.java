@@ -14,6 +14,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -187,6 +188,55 @@ class UnboundIdentityLostIngestHttpAcceptanceTest {
                 .andExpect(jsonPath("$.success", is(true)))
                 .andExpect(jsonPath("$.data.upgradeChainPromised", is(false)))
                 .andExpect(jsonPath("$.data.reason", is("LABEL_CLUE_LOST")));
+    }
+
+    @Test
+    void otherHostSnapshotDoesNotMarkIdentityLost() throws Exception {
+        String hostA = createHost("u01d-ha");
+        String hostC = createHost("u01d-hc");
+        String containerId = createContainer("u01d-x", "u01d-oid");
+        confirmRunsOn(containerId, hostA);
+
+        mockMvc.perform(post("/api/agent/heartbeat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "agentId": "u01d-ag",
+                                  "hostId": "%s",
+                                  "snapshot": {
+                                    "containers": [
+                                      {
+                                        "runtimeId": "u01d-rt",
+                                        "name": "u01d-miss",
+                                        "labels": {}
+                                      }
+                                    ],
+                                    "absentObjectIds": []
+                                  }
+                                }
+                                """.formatted(hostC))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)));
+
+        mockMvc.perform(get("/api/observed/identity-lost/{id}", containerId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.code", is("IDENTITY_LOST_NOT_FOUND")))
+                .andExpect(jsonPath("$.data").value(nullValue()));
+
+        MvcResult listed = mockMvc.perform(get("/api/observed/unbound-candidates")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn();
+        JsonNode candidate = unboundByRuntimeId(listed, "u01d-rt");
+        assertThat(candidate, notNullValue());
+        assertThat(candidate.path("reason").asText(), is("MISSING_LABEL"));
+        assertThat(candidate.path("sourceHostId").asText(), is(hostC));
+        assertThat(candidate.path("upgradeChainPromised").asBoolean(), is(false));
     }
 
     private JsonNode unboundByRuntimeId(MvcResult listed, String runtimeId) throws Exception {

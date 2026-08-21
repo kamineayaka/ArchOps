@@ -68,4 +68,12 @@ UnboundIdentityLostIngestHttpAcceptanceTest > curatedHostSnapshotInfersIdentityL
 ```
 Green command: 同上，BUILD SUCCESSFUL / exit 0。夹具未带 `identityLostObjectIds`。`unlabeledAndIdentityLostDoNotPromiseUpgradeChain` 仍绿。
 Refactor: 推断独立为 `inferIdentityLost` + `reportingHostInIdentityLostScope`；`identityLostObjectIds` 循环未加主机范围。
+Commit: 6621092 Infer identity lost from in-scope unlabeled snapshots.
+
+### Cycle D — 他机快照不得给 X 打失联
+Red command:
+cd backend && ./gradlew test --tests com.archops.observed.UnboundIdentityLostIngestHttpAcceptanceTest.otherHostSnapshotDoesNotMarkIdentityLost
+reuse/regression：首跑绿。与 Cycle C 同一主机范围规则（`reportingHostInIdentityLostScope`：上报 host 须为策展「运行于」或当前可用观测宿主；他机 u01d-hc 不在范围）。不另写生产。
+Green command: 同上，BUILD SUCCESSFUL / exit 0。C 上未打标实体仍可按 runtimeId 列为未绑定。
+Refactor: 无结构改动。
 Commit: （提交后填）
