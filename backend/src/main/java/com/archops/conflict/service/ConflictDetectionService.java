@@ -208,7 +208,7 @@ public class ConflictDetectionService {
                     "reason", "observation_hollow_heartbeat_timeout"
             ));
         }
-        curatedDraftService.voidOpenForConflict(active.getId());
+        curatedDraftService.voidOpenForConflict(active.getId(), "observation_hollow_heartbeat_timeout");
         conflictDiagnosisService.scheduleAsyncDiagnosis(active.getId());
         return new HollowSuspendResult(active.getId(), voided);
     }
@@ -374,7 +374,7 @@ public class ConflictDetectionService {
                 "reason", "drift_after_pending_close",
                 "observedTargetId", observed.getTargetId() == null ? "" : observed.getTargetId()
         ));
-        curatedDraftService.voidOpenForConflict(pending.getId());
+        curatedDraftService.voidOpenForConflict(pending.getId(), "conflict_upgrade");
         conflictDiagnosisService.scheduleAsyncDiagnosis(pending.getId());
     }
 
@@ -427,7 +427,7 @@ public class ConflictDetectionService {
         conflictEventService.append(open.getId(), ConflictEventType.UPGRADED, null, Map.of(
                 "observedTargetId", observed.getTargetId() == null ? "" : observed.getTargetId()
         ));
-        curatedDraftService.voidOpenForConflict(open.getId());
+        curatedDraftService.voidOpenForConflict(open.getId(), "conflict_upgrade");
         conflictDiagnosisService.scheduleAsyncDiagnosis(open.getId());
     }
 

@@ -150,6 +150,16 @@ BUILD FAILED in 5s
 
 Same conflict id, leave PENDING_CLOSE, 策展 X stays B, 观测 C, one active conflict, Y still A — already green (`reopenFromPendingClose`). Failure: POST accept Y still 200 because void was only on `upgradeOpen`. Do not dismantle reopen to fake a red on conflict identity.
 
+Green: `reopenFromPendingClose` also calls `voidOpenForConflict`. Accepted X stays 策展 B; Y stays PENDING and is not written.
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftVoidHttpAcceptanceTest.acceptMergeKeyThenSnapshotCLeavesPendingCloseKeepsCuratedBAndVoidsDraft
+BUILD SUCCESSFUL in 6s
+```
+
+Refactor: none beyond the one call site. Must still assert 策展 B (different from cycle 1 keeping A).
+
+
 
 
 

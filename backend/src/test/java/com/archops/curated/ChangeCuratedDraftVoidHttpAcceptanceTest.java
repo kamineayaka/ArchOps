@@ -243,6 +243,26 @@ class ChangeCuratedDraftVoidHttpAcceptanceTest {
                         hasItem("PENDING")));
     }
 
+    @Test
+    void upgradeThatVoidsDraftWritesReadableDraftVoidedAudit() throws Exception {
+        OpenDraft draft = openChangeCuratedDraft(
+                "ccd05-ev-a", "ccd05-ev-b", "ctr-ccd05-ev-x", "ctr-ccd05-ev-y");
+        snapshotXOnHostC(draft, "ccd05-ev-c");
+
+        mockMvc.perform(get("/api/conflicts/{id}/events", draft.fx().conflictId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[*].eventType", hasItem("UPGRADED")))
+                .andExpect(jsonPath("$.data[*].eventType", hasItem("DRAFT_VOIDED")))
+                .andExpect(jsonPath("$.data[?(@.eventType=='DRAFT_VOIDED')].detail.draftId",
+                        hasItem(draft.draftId())))
+                .andExpect(jsonPath("$.data[?(@.eventType=='DRAFT_VOIDED')].detail.hint",
+                        hasItem("草案已作废")))
+                .andExpect(jsonPath("$.data[?(@.eventType=='DRAFT_VOIDED')].detail.reason",
+                        hasItem("conflict_upgrade")));
+    }
+
     private String snapshotXOnHostC(OpenDraft draft, String hostCName) throws Exception {
         String hostC = createHost(hostCName);
         heartbeatWithContainer(hostC, "agent-" + draft.fx().objectX() + "-c", draft.fx().objectX());

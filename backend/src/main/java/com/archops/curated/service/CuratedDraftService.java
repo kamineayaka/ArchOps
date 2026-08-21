@@ -155,11 +155,23 @@ public class CuratedDraftService {
      * PENDING items stay PENDING and are never written to 策展.
      */
     @Transactional
-    public void voidOpenForConflict(String conflictId) {
-        curatedDraftMapper.update(null, new LambdaUpdateWrapper<CuratedDraft>()
-                .eq(CuratedDraft::getConflictId, conflictId)
+    public void voidOpenForConflict(String conflictId, String reason) {
+        CuratedDraft open = findOpen(conflictId);
+        if (open == null) {
+            return;
+        }
+        int updated = curatedDraftMapper.update(null, new LambdaUpdateWrapper<CuratedDraft>()
+                .eq(CuratedDraft::getId, open.getId())
                 .eq(CuratedDraft::getStatus, CuratedDraftStatus.OPEN)
                 .set(CuratedDraft::getStatus, CuratedDraftStatus.VOIDED));
+        if (updated != 1) {
+            return;
+        }
+        Map<String, Object> detail = new LinkedHashMap<>();
+        detail.put("draftId", open.getId());
+        detail.put("reason", reason);
+        detail.put("hint", "草案已作废");
+        conflictEventService.append(conflictId, ConflictEventType.DRAFT_VOIDED, null, detail);
     }
 
     @Transactional
