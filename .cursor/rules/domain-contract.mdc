@@ -21,6 +21,6 @@ alwaysApply: true
 
 ## 工作方式
 
-- 一次一张 frontier 票（改策展 `.scratch/change-curated-draft/issues/` **01–06 已闭合**；竖切 `.scratch/vertical-slice-mvp/issues/` 已闭合）
+- 一次一张 frontier 票（竖切与改策展工单包均已闭合；下一刀须 `/grill-with-docs`，见 `docs/grill-next-knife-prompt.md`）
 - `/implement` 走 **red → green → refactor**（`docs/agents/tdd.md`）
 - 不复活旧域包；不扩票外范围（自我迭代、可达矩阵、完整 xterm 等）
