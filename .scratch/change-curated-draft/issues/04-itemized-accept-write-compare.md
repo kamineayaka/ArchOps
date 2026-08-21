@@ -184,3 +184,21 @@ BUILD FAILED in 4s
 ```
 
 V13 CHECK has `DRAFT_CREATED` only. Reject/accept do not append item audit events.
+
+Green: V14 extends `conflict_case_event` CHECK (does not edit V13). Reject/accept append `DRAFT_ITEM_REJECTED` / `DRAFT_ITEM_ACCEPTED` with 草案/条目/策展 hints; accept has `written=true`.
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftItemHttpAcceptanceTest.rejectAndAcceptDraftItemsWriteReadableAuditEvents
+BUILD SUCCESSFUL in 5s
+```
+
+Refactor: `itemAuditDetail`. 03 `DRAFT_CREATED` still green.
+
+### Step I — 薄 UI
+
+ConflictDetailPage: accepted handler can 接受/拒绝 PENDING items; ACCEPTED/REJECTED tags; per-item 「应该在哪」 via `frontend/src/api/curated.ts` + `drafts.ts`. Dual-track card still shows merge-key 应该 after reload. UI not in the HTTP test class.
+
+```text
+cd frontend && npm run build
+tsc --noEmit && vite build  (exit 0)
+```
