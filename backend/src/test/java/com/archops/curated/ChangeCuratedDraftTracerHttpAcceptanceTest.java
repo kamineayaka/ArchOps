@@ -1,0 +1,343 @@
+package com.archops.curated;
+
+import com.archops.conflict.ConflictDiagnosisWait;
+import com.archops.support.HttpAcceptanceTest;
+import com.archops.user.security.TempAuthHeaders;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.MethodOrderer;
+import org.junit.jupiter.api.Order;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestMethodOrder;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
+import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.ResultActions;
+
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.hasItems;
+import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+/**
+ * Change-curated ticket 06 HTTP tracer suite: ordered happy path + Spec negatives.
+ * {@code @Order} records Spec order only; each method builds its own fixture.
+ */
+@HttpAcceptanceTest
+@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
+@TestPropertySource(properties = {
+        "archops.observation.heartbeat-timeout=30s",
+        "archops.observation.hollow-scan-interval-ms=3600000"
+})
+class ChangeCuratedDraftTracerHttpAcceptanceTest {
+
+    private static final String GENERAL_ID = "user-general-demo";
+    private static final String SENIOR_ID = "user-senior-demo";
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @Test
+    @Order(1)
+    void happyPath_hostsAB_curatedRunsOnA_snapshotXOnB_claim_changeCurated_rejectY_acceptX_pendingClose_confirmClose()
+            throws Exception {
+        World world = bootstrapHostsABCuratedXYOnA("ccd06-hp");
+
+        // 1. 建底：主机 A/B；容器 X、Y；策展 X/Y 皆 运行于 A
+        getShouldWhere(world.containerX())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.question", is("应该在哪")))
+                .andExpect(jsonPath("$.data.track", is("CURATED")))
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(world.hostA())));
+        getShouldWhere(world.containerY())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.question", is("应该在哪")))
+                .andExpect(jsonPath("$.data.track", is("CURATED")))
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(world.hostA())));
+
+        // 2. Agent 快照：仅 X 在 B。冲突 OPEN；诊断可仍 PENDING
+        heartbeatXOnHost(world, world.hostB(), world.agentIdOnB());
+        MvcResult warn = getByMergeKey(world.containerX())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("OPEN")))
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(world.hostA())))
+                .andExpect(jsonPath("$.data.observedValue.hostId", is(world.hostB())))
+                .andExpect(jsonPath("$.data.observedValue.availability", is("PRESENT")))
+                .andExpect(jsonPath("$.data.mergeKey.relationLabel", is("运行于")))
+                .andReturn();
+        String conflictId = readDataId(warn);
+
+        // 3. 一般角色认领 → 已接受处理人
+        claimAsAcceptedHandler(conflictId);
+
+        // 4. 诊断 READY：分叉同时含 FIX_ACTUAL 与 CHANGE_CURATED
+        waitUntilDiagnosisReady(conflictId);
+        mockMvc.perform(get("/api/conflicts/{id}/diagnosis", conflictId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("READY")))
+                .andExpect(jsonPath("$.data.forks[*].id",
+                        hasItems("FIX_ACTUAL_TO_CURATED", "CHANGE_CURATED_TO_OBSERVED")))
+                .andExpect(jsonPath("$.data.forks[?(@.id=='FIX_ACTUAL_TO_CURATED')].kind",
+                        hasItem("FIX_ACTUAL")))
+                .andExpect(jsonPath("$.data.forks[?(@.id=='CHANGE_CURATED_TO_OBSERVED')].kind",
+                        hasItem("CHANGE_CURATED")));
+
+        // 5. 处理人选改理想 → 开放草案 ≥2 条；策展 X 仍为 A；无活跃操作计划
+        postBranch(conflictId, GENERAL_ID, "CHANGE_CURATED_TO_OBSERVED")
+                .andExpect(status().isOk());
+        MvcResult open = getOpenDraft(conflictId)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("OPEN")))
+                .andExpect(jsonPath("$.data.items", hasSize(greaterThanOrEqualTo(2))))
+                .andExpect(jsonPath("$.data.items[?(@.subjectId=='" + world.containerX() + "')].status",
+                        hasItem("PENDING")))
+                .andExpect(jsonPath("$.data.items[?(@.subjectId=='" + world.containerY() + "')].status",
+                        hasItem("PENDING")))
+                .andExpect(jsonPath("$.data.items[?(@.subjectId=='" + world.containerX() + "')].kind",
+                        hasItem("RUNS_ON_TARGET_CHANGE")))
+                .andExpect(jsonPath("$.data.items[?(@.subjectId=='" + world.containerY() + "')].kind",
+                        hasItem("RUNS_ON_TARGET_CHANGE")))
+                .andExpect(jsonPath("$.data.items[?(@.subjectId=='" + world.containerX() + "')].fromHostId",
+                        hasItem(world.hostA())))
+                .andExpect(jsonPath("$.data.items[?(@.subjectId=='" + world.containerX() + "')].toHostId",
+                        hasItem(world.hostB())))
+                .andExpect(jsonPath("$.data.items[?(@.subjectId=='" + world.containerY() + "')].fromHostId",
+                        hasItem(world.hostA())))
+                .andExpect(jsonPath("$.data.items[?(@.subjectId=='" + world.containerY() + "')].toHostId",
+                        hasItem(world.hostB())))
+                .andReturn();
+        JsonNode items = objectMapper.readTree(open.getResponse().getContentAsString())
+                .path("data").path("items");
+        String itemX = itemId(items, world.containerX());
+        String itemY = itemId(items, world.containerY());
+        getShouldWhere(world.containerX())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(world.hostA())));
+        getActivePlan(conflictId)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("PLAN_NOT_FOUND")));
+
+        // 6. 非处理人接受合并键 X → 拒绝；策展仍为 A
+        postItemAction(conflictId, itemX, "accept", SENIOR_ID)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("PLAN_REQUIRES_ACCEPTED_HANDLER")));
+        getShouldWhere(world.containerX())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(world.hostA())));
+
+        // 7. 处理人拒绝 Y → REJECTED；Y「应该在哪」仍为 A
+        postItemAction(conflictId, itemY, "reject", GENERAL_ID)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.items[?(@.id=='" + itemY + "')].status",
+                        hasItem("REJECTED")));
+        getShouldWhere(world.containerY())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(world.hostA())));
+
+        // 8. 处理人接受 X → ACCEPTED；X「应该在哪」为 B；Y 仍为 A
+        postItemAction(conflictId, itemX, "accept", GENERAL_ID)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.items[?(@.id=='" + itemX + "')].status",
+                        hasItem("ACCEPTED")));
+        getShouldWhere(world.containerX())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.question", is("应该在哪")))
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(world.hostB())));
+        getShouldWhere(world.containerY())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(world.hostA())));
+
+        // 9. 不发新快照。冲突 PENDING_CLOSE（不是 CLOSED）；策展 B = 观测 B
+        getConflict(conflictId)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("PENDING_CLOSE")))
+                .andExpect(jsonPath("$.data.status", not("CLOSED")))
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(world.hostB())))
+                .andExpect(jsonPath("$.data.observedValue.hostId", is(world.hostB())));
+
+        // 10. 处理人确认关闭 → CLOSED；再 GET 仍 CLOSED
+        mockMvc.perform(post("/api/conflicts/{id}/confirm-close", conflictId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.status", is("CLOSED")));
+        getConflict(conflictId)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("CLOSED")));
+    }
+
+    private World bootstrapHostsABCuratedXYOnA(String prefix) throws Exception {
+        String objectX = prefix + "-x";
+        String objectY = prefix + "-y";
+        String hostA = createHost(prefix + "-a");
+        String hostB = createHost(prefix + "-b");
+        String containerX = createContainer("app-" + objectX, objectX);
+        String containerY = createContainer("app-" + objectY, objectY);
+        confirmRunsOn(containerX, hostA);
+        confirmRunsOn(containerY, hostA);
+        return new World(hostA, hostB, containerX, containerY, objectX, objectY);
+    }
+
+    private void heartbeatXOnHost(World world, String hostId, String agentId) throws Exception {
+        heartbeatWithContainer(hostId, agentId, world.objectX());
+    }
+
+    private void claimAsAcceptedHandler(String conflictId) throws Exception {
+        mockMvc.perform(post("/api/conflicts/{id}/claim", conflictId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.collaboration.handlerAcceptance", is("ACCEPTED")))
+                .andExpect(jsonPath("$.data.collaboration.handlerUserId", is(GENERAL_ID)));
+    }
+
+    private void waitUntilDiagnosisReady(String conflictId) throws Exception {
+        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, conflictId, GENERAL_ID);
+    }
+
+    private ResultActions postBranch(String conflictId, String userId, String forkId) throws Exception {
+        return mockMvc.perform(post("/api/conflicts/{id}/branch-selection", conflictId)
+                .header(TempAuthHeaders.USER_ID, userId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"forkId\":\"" + forkId + "\"}")
+                .accept(MediaType.APPLICATION_JSON));
+    }
+
+    private ResultActions postItemAction(String conflictId, String itemId, String action, String userId)
+            throws Exception {
+        return mockMvc.perform(post(
+                "/api/conflicts/{conflictId}/curated-drafts/open/items/{itemId}/{action}",
+                conflictId, itemId, action)
+                .header(TempAuthHeaders.USER_ID, userId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}")
+                .accept(MediaType.APPLICATION_JSON));
+    }
+
+    private ResultActions getOpenDraft(String conflictId) throws Exception {
+        return mockMvc.perform(get("/api/conflicts/{id}/curated-drafts/open", conflictId)
+                .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                .accept(MediaType.APPLICATION_JSON));
+    }
+
+    private ResultActions getActivePlan(String conflictId) throws Exception {
+        return mockMvc.perform(get("/api/conflicts/{id}/operation-plans/active", conflictId)
+                .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                .accept(MediaType.APPLICATION_JSON));
+    }
+
+    private ResultActions getConflict(String conflictId) throws Exception {
+        return mockMvc.perform(get("/api/conflicts/{id}", conflictId)
+                .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                .accept(MediaType.APPLICATION_JSON));
+    }
+
+    private ResultActions getByMergeKey(String subjectId) throws Exception {
+        return mockMvc.perform(get("/api/conflicts/by-merge-key")
+                .param("subjectId", subjectId)
+                .param("relationType", "RUNS_ON")
+                .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                .accept(MediaType.APPLICATION_JSON));
+    }
+
+    private ResultActions getShouldWhere(String containerId) throws Exception {
+        return mockMvc.perform(get("/api/curated/asks/should-where")
+                .param("containerId", containerId)
+                .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                .accept(MediaType.APPLICATION_JSON));
+    }
+
+    private void heartbeatWithContainer(String hostId, String agentId, String objectId) throws Exception {
+        mockMvc.perform(post("/api/agent/heartbeat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "agentId":"%s",
+                                  "hostId":"%s",
+                                  "snapshot":{
+                                    "containers":[{
+                                      "runtimeId":"docker-x",
+                                      "name":"app",
+                                      "labels":{"archops.object_id":"%s"}
+                                    }]
+                                  }
+                                }
+                                """.formatted(agentId, hostId, objectId))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+    }
+
+    private String createHost(String name) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/curated/hosts")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"" + name + "\"}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn();
+        return readDataId(result);
+    }
+
+    private String createContainer(String name, String objectId) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/curated/containers")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"" + name + "\",\"objectId\":\"" + objectId + "\"}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn();
+        return readDataId(result);
+    }
+
+    private void confirmRunsOn(String containerId, String hostId) throws Exception {
+        mockMvc.perform(post("/api/curated/facts/runs-on")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"containerId\":\"" + containerId + "\",\"hostId\":\"" + hostId + "\"}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+    }
+
+    private String readDataId(MvcResult result) throws Exception {
+        return objectMapper.readTree(result.getResponse().getContentAsString())
+                .path("data").path("id").asText();
+    }
+
+    private static String itemId(JsonNode items, String subjectId) {
+        for (JsonNode item : items) {
+            if (subjectId.equals(item.path("subjectId").asText())) {
+                return item.path("id").asText();
+            }
+        }
+        throw new AssertionError("No 草案 item for subject " + subjectId);
+    }
+
+    private record World(
+            String hostA,
+            String hostB,
+            String containerX,
+            String containerY,
+            String objectX,
+            String objectY
+    ) {
+        String agentIdOnB() {
+            return "agent-" + objectX;
+        }
+    }
+}

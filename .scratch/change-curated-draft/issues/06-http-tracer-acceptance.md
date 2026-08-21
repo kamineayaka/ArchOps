@@ -39,3 +39,40 @@ Happy path（须按序、可在 CI 稳定跑通）：
 ## Comments
 
 开工 prompt：[`docs/implement-change-curated-draft-06-prompt.md`](../../../docs/implement-change-curated-draft-06-prompt.md)。05 已合入 `main`（PR #72）。本票是本刀定义完成的有序 HTTP tracer，不是能力票。每圈先跑套件方法：首次即绿记 `reuse/regression` 并点名 01–05 聚焦测试；首次即红才是组合缺口，只补到既有语义。不要拆 01–05，不要改竖切 13，不要跑 SSH，不要在本对话 `/to-spec` 下一刀。
+
+### Cycle 1 — happy path 1–10
+
+`reuse/regression`（首次即绿；未改生产）。组合覆盖：
+
+- `ChangeCuratedDraftHttpAcceptanceTest.acceptedHandlerSelectsChangeCuratedOpensDraftWithTwoPendingRunsOnItems`
+- `ChangeCuratedDraftHttpAcceptanceTest.selectChangeCuratedDoesNotWriteCuratedShouldWhere`
+- `ChangeCuratedDraftHttpAcceptanceTest.selectChangeCuratedDoesNotCreateActiveOperationPlan`
+- `ChangeCuratedDraftItemHttpAcceptanceTest.nonHandlerCannotAcceptDraftItem`
+- `ChangeCuratedDraftItemHttpAcceptanceTest.acceptedHandlerRejectsSiblingDoesNotWriteCurated`
+- `ChangeCuratedDraftItemHttpAcceptanceTest.acceptedHandlerAcceptsMergeKeyWritesCuratedShouldWhereToObservedHost`
+- `ChangeCuratedDraftItemHttpAcceptanceTest.acceptMergeKeyComparesImmediatelyToPendingCloseWithoutNewSnapshot`
+- `ChangeCuratedDraftItemHttpAcceptanceTest.acceptedHandlerConfirmCloseAfterDraftAcceptClosesConflict`
+- `ConflictDiagnosisHttpAcceptanceTest` 同时给出 `FIX_ACTUAL_TO_CURATED` 与 `CHANGE_CURATED_TO_OBSERVED`
+
+命令：
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftTracerHttpAcceptanceTest.happyPath_hostsAB_curatedRunsOnA_snapshotXOnB_claim_changeCurated_rejectY_acceptX_pendingClose_confirmClose
+```
+
+首次输出（witnessed green）：
+
+```text
+> Task :compileJava
+> Task :processResources
+> Task :classes
+> Task :compileTestJava
+> Task :processTestResources NO-SOURCE
+> Task :testClasses
+> Task :test
+
+BUILD SUCCESSFUL in 16s
+4 actionable tasks: 4 executed
+```
+
+Refactor 后同方法再跑仍绿：`BUILD SUCCESSFUL in 6s`。
