@@ -4,7 +4,7 @@ Loop rules live in `.cursor/skills/tdd/SKILL.md` (desktop: `.agents/skills/tdd/S
 
 ## Seam
 
-The ticket's spec `Testing seams (confirmed)` line is the seam. For `change-curated-draft` and the closed vertical-slice MVP that is the control-plane public HTTP API (unified `ApiResponse`, including Agent ingest). Gradle/`MockMvc` and Compose `bootRun`+`curl` are the same seam. Thin UI is demo-only and is not an automated seam.
+The ticket's spec `Testing seams (confirmed)` line is the seam. For `unbound-identity-rebind`, `change-curated-draft`, and the closed vertical-slice MVP that is the control-plane public HTTP API (unified `ApiResponse`, including Agent ingest). Gradle/`MockMvc` and Compose `bootRun`+`curl` are the same seam. Thin UI is demo-only and is not an automated seam.
 
 ## Cycle
 

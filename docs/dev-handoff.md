@@ -10,10 +10,11 @@
 2. `docs/adr/0039` … `0043`（尤其 **0043**）
 3. `docs/mvp-vertical-slice.md`（竖切范围对照）
 4. `docs/specs/vertical-slice-mvp.md`（竖切 Spec；01–13 已闭合）
-5. `docs/specs/change-curated-draft.md`（改策展/草案逐条确认 Spec；工单见 `.scratch/change-curated-draft/issues/`）
-6. `docs/agents/tdd.md`（`/implement` 的 TDD overlay：red → green → refactor）
-7. `docs/scaffold-bootstrap-prompt.md`（脚手架专用；已完成后可作审计对照）
-8. `.cursor/rules/project-map.mdc`
+5. `docs/specs/change-curated-draft.md`（改策展/草案逐条确认 Spec；**已闭合**）
+6. `docs/specs/unbound-identity-rebind.md`（未绑定 / 身份失联重绑 Spec；工单待 `/to-tickets`）
+7. `docs/agents/tdd.md`（`/implement` 的 TDD overlay：red → green → refactor）
+8. `docs/scaffold-bootstrap-prompt.md`（脚手架专用；已完成后可作审计对照）
+9. `.cursor/rules/project-map.mdc`
 
 ## 当前状态
 
@@ -40,6 +41,8 @@
 | 竖切工单 | 已本地发布 → [`.scratch/vertical-slice-mvp/issues/`](../.scratch/vertical-slice-mvp/issues/)（01–13 均 done；Flyway 至 V12） |
 | 改策展草案 Spec | **已发布** → [`docs/specs/change-curated-draft.md`](specs/change-curated-draft.md) |
 | 改策展草案工单 | **TDD-done 06 / 本刀闭合** → [`.scratch/change-curated-draft/issues/`](../.scratch/change-curated-draft/issues/)（**01–06 TDD-done**。从竖切 MVP 往上长，不重拆竖切 01–13） |
+| 未绑定 / 身份失联 Spec | **已发布** → [`docs/specs/unbound-identity-rebind.md`](specs/unbound-identity-rebind.md) |
+| 未绑定 / 身份失联工单 | **待 `/to-tickets`** → [`.scratch/unbound-identity-rebind/`](../.scratch/unbound-identity-rebind/)（不要写进 `change-curated-draft`） |
 | Matt 工作流 skills / tracker | **已入库**（`.cursor/skills/` + `.agents/skills/` + `docs/agents/`；TDD overlay [`docs/agents/tdd.md`](agents/tdd.md)；Cloud 不依赖本机 `~/.agents`） |
 | 国内镜像默认 | **已合并**（PR #53：Gradle 腾讯云 / Maven 阿里云 / npm npmmirror / Docker DaoCloud） |
 | kamiserver 人工验收 | **通过**（2026-08：Compose postgres+redis healthy 且宿主机端口已映射 → `./gradlew bootRun` → `GET /api/health`；竖切演示闭环已在该 VM 走通） |
@@ -59,8 +62,10 @@
 11. ~~`/implement` `/tdd` 票 03（TDD 重做）~~：已完成（选改理想生成开放草案；witnessed red → green → refactor；`CHANGE_CURATED` 出草案、不写策展、不出计划）  
 12. ~~`/implement` `/tdd` 票 04~~：已完成（逐条确认：接受即写策展并立刻比对 → 待确认关闭；witnessed red → green → refactor；`DRAFT_ITEM_ACCEPTED` / `DRAFT_ITEM_REJECTED`）  
 13. ~~`/implement` `/tdd` 票 05~~：已完成（升级/空洞作废未完成草案；待确认关闭后再漂同一合并键升级；witnessed red → green → refactor；`DRAFT_VOIDED`）  
-14. ~~`/implement` `/tdd` 票 06~~：已完成（HTTP 主接缝有序 tracer；suite/tracer 循环；`ChangeCuratedDraftTracerHttpAcceptanceTest`）。**本刀闭合。**  
-15. **下一对话不要默认 `/implement`。** 改策展工单包已闭合，不要加 07。下一步是 **`/grill-with-docs` 定下一刀**（不是先拆票、也不是先写代码）。完整开工 prompt：[`docs/grill-next-knife-prompt.md`](grill-next-knife-prompt.md)（复制区整段贴进新对话；附 grill-with-docs + grilling + domain-modeling）。grilling / to-spec / to-tickets 留在同一窗口；每个 `/implement` 另开。不要重拆竖切 01–13。推荐默认候选（可在 grilling 里推翻）：**未绑定观测候选 / 身份失联重绑**。不要默认 Y2：须先解决与「接受即写入」的双写。  
+14. ~~`/implement` `/tdd` 票 06~~：已完成（HTTP 主接缝有序 tracer；suite/tracer 循环；`ChangeCuratedDraftTracerHttpAcceptanceTest`）。**改策展刀闭合。**  
+15. ~~`/grill-with-docs` 定下一刀~~：已定为 **未绑定观测候选 / 身份失联重绑**（A；HTTP only；不改合同）。  
+16. ~~下一刀 `/to-spec`~~：已发布 [`docs/specs/unbound-identity-rebind.md`](specs/unbound-identity-rebind.md)。  
+17. **下一对话：`/to-tickets`**（先票清单 + 阻塞图，批准后再写 `.scratch/unbound-identity-rebind/issues/`）。**不要默认 `/implement`。** 不要加改策展 07。不要重拆竖切 01–13。  
 
 ### 工单阻塞简图
 
@@ -85,6 +90,8 @@
                                               └→ 05 升级/空洞作废草案（TDD-done）
                                                    → 06 HTTP tracer（TDD-done；本刀定义完成）
 ```
+
+未绑定 / 身份失联重绑（Spec 已发布；**工单待 `/to-tickets`**）：见 [`docs/specs/unbound-identity-rebind.md`](specs/unbound-identity-rebind.md)。
 
 （一次只做一张。）
 
