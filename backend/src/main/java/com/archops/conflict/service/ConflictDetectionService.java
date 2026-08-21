@@ -102,7 +102,7 @@ public class ConflictDetectionService {
                 .eq(ObservedFact::getRelationType, relationType));
 
         // 观测空洞: no usable observed value → do not open a both-sides conflict;
-        // if an OPEN/PENDING_CLOSE exists, suspend + void plans and open 草案.
+        // if an OPEN/PENDING_CLOSE exists, suspend + void plans and any OPEN 草案.
         if (curated == null) {
             return;
         }

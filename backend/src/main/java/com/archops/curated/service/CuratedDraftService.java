@@ -147,10 +147,6 @@ public class CuratedDraftService {
     }
 
     /**
-     * Accept writes that item's 策展 运行于 immediately, then runs the same merge-key compare
-     * as snapshot ingest (equal → 待确认关闭, never auto CLOSED).
-     */
-    /**
      * Ticket 05: 冲突升级/空洞作废该冲突上仍 OPEN 的改理想草案.
      * PENDING items stay PENDING and are never written to 策展.
      */
@@ -174,6 +170,10 @@ public class CuratedDraftService {
         conflictEventService.append(conflictId, ConflictEventType.DRAFT_VOIDED, null, detail);
     }
 
+    /**
+     * Accept writes that item's 策展 运行于 immediately, then runs the same merge-key compare
+     * as snapshot ingest (equal → 待确认关闭, never auto CLOSED).
+     */
     @Transactional
     public CuratedDraftResponse acceptItem(String conflictId, String itemId, AuthUserPrincipal actor) {
         OpenItemReview review = beginItemReview(conflictId, itemId, actor);

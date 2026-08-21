@@ -4,17 +4,19 @@
 
 **Blocked by:** 04 — 逐条确认：接受即写策展并立刻比对（相等 → 待确认关闭）
 
-**Status:** ready-for-agent
+**Status:** done
+
+**TDD:** `/implement` 走 [`docs/agents/tdd.md`](../../../docs/agents/tdd.md)。01–05 已 TDD-done；下一 frontier = 06。
 
 从竖切 MVP 往上长：升级、空洞挂起、作废活跃操作计划已在竖切交付。本票把同一触发接到开放草案（以及已选改理想），不重做挂起/升级/关单产品化，也不引入新的 SSH 计划。
 
-- [ ] 合并键条目仍待确认时，快照将 X 的可用观测从 B 改为 C：同一合并键升级（一条、留脉络），不新开并行开放冲突；开放草案作废；策展 X 仍为 A；待确认条目未写入
-- [ ] 心跳超时使合并键观测空洞、草案仍开放：冲突挂起（不关闭）；草案作废；再接受/拒绝被拒绝
-- [ ] GET 开放/该份草案可看出已作废；作废草案不可再修改
-- [ ] 合并键条目已接受且冲突已待确认关闭后，快照再报 X 运行于 C：离开待确认关闭，同一合并键升级/重开，不是第二条并行开放冲突
-- [ ] 已接受条目保持其已写入的策展值；后续比对以该新策展值为准（例如已改为 B 后再观测到 C）
-- [ ] HTTP 可读「草案已作废」审计；作废后的选支不能再当当前处理路径继续审条
-- [ ] 不把空洞或观测消失收成「策展改为不存在」；不重做修实际计划作废语义（已有计划作废保持）
+- [x] 合并键条目仍待确认时，快照将 X 的可用观测从 B 改为 C：同一合并键升级（一条、留脉络），不新开并行开放冲突；开放草案作废；策展 X 仍为 A；待确认条目未写入
+- [x] 心跳超时使合并键观测空洞、草案仍开放：冲突挂起（不关闭）；草案作废；再接受/拒绝被拒绝
+- [x] GET 开放/该份草案可看出已作废；作废草案不可再修改
+- [x] 合并键条目已接受且冲突已待确认关闭后，快照再报 X 运行于 C：离开待确认关闭，同一合并键升级/重开，不是第二条并行开放冲突
+- [x] 已接受条目保持其已写入的策展值；后续比对以该新策展值为准（例如已改为 B 后再观测到 C）
+- [x] HTTP 可读「草案已作废」审计；作废后的选支不能再当当前处理路径继续审条
+- [x] 不把空洞或观测消失收成「策展改为不存在」；不重做修实际计划作废语义（已有计划作废保持）
 
 **Out of this ticket:** 本刀总 E2E 套件（06）、Y2 对齐步、改策展后再出 SSH 计划、自我迭代。
 
@@ -194,6 +196,26 @@ BUILD SUCCESSFUL in 5s
 ```
 
 reuse/regression: `scheduleAsyncDiagnosis` already marks the draft's diagnosis STALE; POST with that `diagnosisId` is `DIAGNOSIS_NOT_READY`. No new branch-selection product. Value of this cycle is pinning 选支作废 + 草案作废 on HTTP together (accept still `DRAFT_VOIDED`; GET open is not a new OPEN). Did not create a second draft targeting C. Did not dismantle production to fake a red.
+
+### Step I — thin UI
+
+GET open failure falls back to remembered `draftId` via GET by id. VOIDED shows `已作废 / VOIDED` and hides accept/reject. OPEN behavior unchanged. `npm run build` passed. UI is not an automated seam.
+
+### Step J — ticket regression + `/code-review`
+
+```text
+cd backend && ./gradlew cleanTest test
+82 tests, 0 failures, 100% successful
+```
+
+Includes 01–04 change-curated HTTP, 竖切 upgrade / hollow / plan-void / E2E, and this ticket's 7 methods.
+
+`/code-review` vs `main` (`385cc57`):
+- Standards: 1 hard finding — hollow comment said "open 草案" (fixed to "void any OPEN 草案"); misplaced accept javadoc on `voidOpenForConflict` (moved back). Judgement: extra `status != OPEN` branch; duplicated UI `DRAFT_NOT_FOUND` checks.
+- Spec: no missing HTTP product clause; no 06 / Y2 / plan-void rewrite. Hollow accept-denied is asserted; reject shares the same `DRAFT_VOIDED` gate as the upgrade cycle.
+
+Frontier = 06. Did not implement 06.
+
 
 
 
