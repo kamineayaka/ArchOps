@@ -239,6 +239,72 @@ class UnboundIdentityLostIngestHttpAcceptanceTest {
         assertThat(candidate.path("upgradeChainPromised").asBoolean(), is(false));
     }
 
+    @Test
+    void currentlyUsableObservedHostSnapshotInfersIdentityLost() throws Exception {
+        String hostA = createHost("u01e-ha");
+        String hostB = createHost("u01e-hb");
+        String containerId = createContainer("u01e-x", "u01e-oid");
+        confirmRunsOn(containerId, hostA);
+
+        mockMvc.perform(post("/api/agent/heartbeat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "agentId": "u01e-ag",
+                                  "hostId": "%s",
+                                  "snapshot": {
+                                    "containers": [
+                                      {
+                                        "runtimeId": "u01e-rt-hit",
+                                        "name": "u01e-x",
+                                        "labels": { "archops.object_id": "u01e-oid" }
+                                      }
+                                    ]
+                                  }
+                                }
+                                """.formatted(hostB))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.matched[0].observedHostId", is(hostB)));
+
+        mockMvc.perform(get("/api/observed/asks/actual-where")
+                        .param("containerId", containerId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.observedValue.availability", is("PRESENT")))
+                .andExpect(jsonPath("$.data.observedValue.hostId", is(hostB)));
+
+        mockMvc.perform(post("/api/agent/heartbeat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "agentId": "u01e-ag",
+                                  "hostId": "%s",
+                                  "snapshot": {
+                                    "containers": [
+                                      {
+                                        "runtimeId": "u01e-rt-miss",
+                                        "name": "u01e-miss",
+                                        "labels": {}
+                                      }
+                                    ],
+                                    "absentObjectIds": []
+                                  }
+                                }
+                                """.formatted(hostB))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/observed/identity-lost/{id}", containerId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.upgradeChainPromised", is(false)))
+                .andExpect(jsonPath("$.data.reason", is("LABEL_CLUE_LOST")));
+    }
+
     private JsonNode unboundByRuntimeId(MvcResult listed, String runtimeId) throws Exception {
         JsonNode data = objectMapper.readTree(listed.getResponse().getContentAsString()).path("data");
         for (JsonNode node : data) {

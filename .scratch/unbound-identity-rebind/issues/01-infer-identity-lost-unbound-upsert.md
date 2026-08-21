@@ -76,4 +76,12 @@ cd backend && ./gradlew test --tests com.archops.observed.UnboundIdentityLostIng
 reuse/regression：首跑绿。与 Cycle C 同一主机范围规则（`reportingHostInIdentityLostScope`：上报 host 须为策展「运行于」或当前可用观测宿主；他机 u01d-hc 不在范围）。不另写生产。
 Green command: 同上，BUILD SUCCESSFUL / exit 0。C 上未打标实体仍可按 runtimeId 列为未绑定。
 Refactor: 无结构改动。
+Commit: ece05d4 Reject identity-lost inference from an out-of-scope host.
+
+### Cycle E — 当前可用观测宿主也可推断身份失联
+Red command:
+cd backend && ./gradlew test --tests com.archops.observed.UnboundIdentityLostIngestHttpAcceptanceTest.currentlyUsableObservedHostSnapshotInfersIdentityLost
+reuse/regression：首跑绿。与 Cycle C 同一主机范围（`reportingHostInIdentityLostScope` 已认 `observed_fact` PRESENT 且未超时的观测宿主）。不另写生产。命中那一次仍写 PRESENT（本圈不改 actualWhere）。
+Green command: 同上，BUILD SUCCESSFUL / exit 0。
+Refactor: 无结构改动。
 Commit: （提交后填）
