@@ -161,6 +161,6 @@ Green command: 同上，exit 0。声明循环跳过本快照 `absentCuratedIds`�
 Refactor: 无额外结构改动。
 /code-review（merge-base `origin/main` a151169）：Standards 无硬违规；Spec 该缺口已修。气味（重复 IdentityLost 构造）按 judgement 未扩到 02–07。
 `./gradlew cleanTest test`：105 tests, 0 failures。
-Commit: （提交后填）
+Commit: 027416b Prefer 观测消失 over identity-lost on the same snapshot.
 
 Frontier 已指向 02。不要实现 02–07。
