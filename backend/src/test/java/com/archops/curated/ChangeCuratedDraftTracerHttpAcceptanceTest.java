@@ -443,6 +443,54 @@ class ChangeCuratedDraftTracerHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data", nullValue()));
     }
 
+    @Test
+    @Order(11)
+    void acceptMergeKeyThenSnapshotCLeavesPendingCloseKeepsCuratedB() throws Exception {
+        OpenDraft draft = openChangeCuratedDraft("ccd06-n8");
+        postItemAction(draft.conflictId(), draft.itemXId(), "accept", GENERAL_ID)
+                .andExpect(status().isOk());
+        getConflict(draft.conflictId())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("PENDING_CLOSE")));
+        getShouldWhere(draft.world().containerX())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(draft.world().hostB())));
+
+        String hostC = snapshotXOnHostC(draft, "ccd06-n8-c");
+
+        getConflict(draft.conflictId())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.id", is(draft.conflictId())))
+                .andExpect(jsonPath("$.data.status", is("OPEN")))
+                .andExpect(jsonPath("$.data.status", not("PENDING_CLOSE")))
+                .andExpect(jsonPath("$.data.status", not("CLOSED")))
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(draft.world().hostB())))
+                .andExpect(jsonPath("$.data.observedValue.hostId", is(hostC)));
+
+        getShouldWhere(draft.world().containerX())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.question", is("应该在哪")))
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(draft.world().hostB())));
+        getActualWhere(draft.world().containerX())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.question", is("实际在哪")))
+                .andExpect(jsonPath("$.data.observedValue.hostId", is(hostC)))
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(draft.world().hostB())));
+
+        assertEquals(1, countActiveForSubject(draft.world().containerX()));
+
+        getShouldWhere(draft.world().containerY())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(draft.world().hostA())));
+        postItemAction(draft.conflictId(), draft.itemYId(), "accept", GENERAL_ID)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("DRAFT_VOIDED")))
+                .andExpect(jsonPath("$.data", nullValue()));
+        getDraftById(draft.conflictId(), draft.draftId())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("VOIDED")));
+    }
+
     private World bootstrapHostsABCuratedXYOnA(String prefix) throws Exception {
         String objectX = prefix + "-x";
         String objectY = prefix + "-y";

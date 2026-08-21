@@ -249,3 +249,24 @@ BUILD SUCCESSFUL in 5s
 4 actionable tasks: 2 executed, 2 up-to-date
 ```
 
+### Cycle 9 — 负面 7 心跳超时 / 空洞且草案开放
+
+`reuse/regression`（首次即绿；未改生产；未 Thread.sleep；未换 agent）。对应 `ChangeCuratedDraftVoidHttpAcceptanceTest.heartbeatTimeoutWhileDraftOpenSuspendsConflictAndVoidsDraft`。回拨 `agent-{objectX}` 的 lastHeartbeatAt，POST `/api/observed/scan-heartbeat-timeouts`。冲突 SUSPENDED + observationHollow；「实际在哪」HOLLOW；「应该在哪」仍为 A（不是不存在）；草案 VOIDED / DRAFT_VOIDED。
+
+命令：
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftTracerHttpAcceptanceTest.heartbeatTimeoutWhileDraftOpenSuspendsConflictAndVoidsDraft
+```
+
+首次输出（witnessed green）：
+
+```text
+> Task :compileTestJava
+> Task :testClasses
+> Task :test
+
+BUILD SUCCESSFUL in 5s
+4 actionable tasks: 2 executed, 2 up-to-date
+```
+
