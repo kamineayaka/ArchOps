@@ -60,7 +60,7 @@
 12. ~~`/implement` `/tdd` 票 04~~：已完成（逐条确认：接受即写策展并立刻比对 → 待确认关闭；witnessed red → green → refactor；`DRAFT_ITEM_ACCEPTED` / `DRAFT_ITEM_REJECTED`）  
 13. ~~`/implement` `/tdd` 票 05~~：已完成（升级/空洞作废未完成草案；待确认关闭后再漂同一合并键升级；witnessed red → green → refactor；`DRAFT_VOIDED`）  
 14. ~~`/implement` `/tdd` 票 06~~：已完成（HTTP 主接缝有序 tracer；suite/tracer 循环；`ChangeCuratedDraftTracerHttpAcceptanceTest`）。**本刀闭合。**  
-15. **下一对话不要默认 `/implement`。** 须用户明示下一刀 Spec（例如 `/to-spec` / grilling）。不要在未点名的情况下开工新产品或重拆竖切。  
+15. **下一对话不要默认 `/implement`。** 改策展工单包已闭合，不要加 07。下一步是 **`/grill-with-docs` 定下一刀**（不是先拆票、也不是先写代码）。完整开工 prompt：[`docs/grill-next-knife-prompt.md`](grill-next-knife-prompt.md)（复制区整段贴进新对话；附 grill-with-docs + grilling + domain-modeling）。grilling / to-spec / to-tickets 留在同一窗口；每个 `/implement` 另开。不要重拆竖切 01–13。推荐默认候选（可在 grilling 里推翻）：**未绑定观测候选 / 身份失联重绑**。不要默认 Y2：须先解决与「接受即写入」的双写。  
 
 ### 工单阻塞简图
 

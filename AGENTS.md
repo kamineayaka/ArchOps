@@ -9,8 +9,8 @@
 3. `docs/adr/0039-domain-contract-frozen.md` — 合同已冻结
 4. `docs/adr/0043-tech-stack.md` — **技术栈唯一真相**
 5. `docs/specs/vertical-slice-mvp.md` — 竖切 Spec（01–13 已闭合）
-6. `docs/specs/change-curated-draft.md` — 改策展/草案逐条确认 Spec（工单已拆，见下一则）
-7. 当前工单：见 `docs/dev-handoff.md`；竖切 `.scratch/vertical-slice-mvp/issues/` 已 done；改策展 `.scratch/change-curated-draft/issues/`（**01–06 TDD-done**；本刀闭合；下一刀须用户明示 Spec）
+6. `docs/specs/change-curated-draft.md` — 改策展/草案逐条确认 Spec（**01–06 TDD-done，本刀闭合**）
+7. 当前工单：见 `docs/dev-handoff.md`；竖切与改策展工单包均已闭合。**下一刀须 `/grill-with-docs`**（prompt：[`docs/grill-next-knife-prompt.md`](docs/grill-next-knife-prompt.md)），不要默认 `/implement`、不要加改策展 07
 8. `docs/dev-handoff.md` — 进度与下一票
 9. `docs/agents/tdd.md` — ArchOps TDD overlay（`/implement` 必读）
 10. `.cursor/rules/project-map.mdc`、`backend-java.mdc`、`frontend-react.mdc`
@@ -103,12 +103,12 @@ Single-context: frozen `CONTEXT.md` + `docs/adr/` (ADR-0039 / ADR-0043). Skills 
 ## 6. Matt 进度（勿倒退）
 
 - 领域 grilling / 合同冻结 / 技术选型 / 空脚手架 / 竖切 Spec / 竖切 Tickets / 竖切实现：**已完成**
-- 下一刀 Spec：`docs/specs/change-curated-draft.md`（已发布）；工单 `.scratch/change-curated-draft/issues/`（01–06 已拆）。**01–06 TDD-done**（关闭建底覆盖；诊断改理想分叉；选改理想生成草案；逐条确认写入并立刻比对；升级/空洞作废未完成草案；HTTP 有序 tracer）。**本刀闭合。** 下一对话不要默认 `/implement`；须用户明示下一刀 Spec。
+- 改策展 Spec：`docs/specs/change-curated-draft.md`（已发布）；工单 `.scratch/change-curated-draft/issues/`（01–06 已拆）。**01–06 TDD-done**（关闭建底覆盖；诊断改理想分叉；选改理想生成草案；逐条确认写入并立刻比对；升级/空洞作废未完成草案；HTTP 有序 tracer）。**本刀闭合。** 下一对话不要默认 `/implement`；先 [`docs/grill-next-knife-prompt.md`](docs/grill-next-knife-prompt.md) 跑 `/grill-with-docs` 定下一刀，再同一窗口 `/to-spec` → `/to-tickets`。
 - `/implement` 必须走 TDD overlay：[`docs/agents/tdd.md`](docs/agents/tdd.md)
 - 不需要再开技术选型或推倒栈，除非用户明示新 ADR
 
 ## 7. 云端提示词建议（用户可贴）
 
-改策展 01–06 已 TDD-done，本刀闭合。下一对话须用户明示下一刀 Spec，不要默认 `/implement`。纪律摘要：
+改策展 01–06 已 TDD-done，本刀闭合。下一对话跑 `/grill-with-docs` 定下一刀，不要默认 `/implement`，不要加改策展 07。完整 prompt：[`docs/grill-next-knife-prompt.md`](docs/grill-next-knife-prompt.md)。
 
-> 读 AGENTS.md、CONTEXT.md 与 ADR-0043。不要默认开工下一张实现票。若用户明示下一刀，先 `/to-spec` / grilling，不要复活 Vue/JPA/Neo4j/Maven/LangChain。
+> 读 AGENTS.md、CONTEXT.md 与 ADR-0043。加载 grill-with-docs / grilling / domain-modeling。不要写业务代码。不要复活 Vue/JPA/Neo4j/Maven/LangChain。推荐默认下一刀：未绑定观测候选 / 身份失联重绑（grilling 里可推翻）。

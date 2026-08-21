@@ -20,7 +20,8 @@ alwaysApply: true
 | `.cursor/skills/` | Cloud Agent 技能（Matt 工程链 + ArchOps `add-*`） |
 | `.scratch/vertical-slice-mvp/issues/` | 竖切工单（01–13 已闭合） |
 | `.scratch/change-curated-draft/issues/` | 改策展/草案工单（**01–06 TDD-done**；本刀闭合） |
-| `docs/specs/change-curated-draft.md` | 改策展/草案 Spec（已拆票） |
+| `docs/specs/change-curated-draft.md` | 改策展/草案 Spec（已闭合） |
+| `docs/grill-next-knife-prompt.md` | 下一刀 `/grill-with-docs` 开工 prompt |
 
 ## 模块边界
 

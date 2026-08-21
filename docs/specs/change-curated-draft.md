@@ -227,9 +227,9 @@
 ## Further Notes
 
 - **Issue tracker**: 本地 markdown，见 `docs/agents/issue-tracker.md`。本 Spec 已发布为 `docs/specs/change-curated-draft.md`。工单已写入 [`.scratch/change-curated-draft/issues/`](../../.scratch/change-curated-draft/issues/)（01–06）。
-- **Next Matt step**: 改策展 01–06 已 TDD-done，**本刀闭合**。下一对话不要默认 `/implement`；须用户明示下一刀 Spec。不要重拆竖切 01–13。
+- **Next Matt step**: 改策展 01–06 已 TDD-done，**本刀闭合**。下一对话不要默认 `/implement`，不要加 07。先 [`docs/grill-next-knife-prompt.md`](../grill-next-knife-prompt.md) 跑 `/grill-with-docs` 定下一刀，再同一窗口 `/to-spec` → `/to-tickets`。不要重拆竖切 01–13。
 - **Why no 策展对齐步骤 in this knife**: CONTEXT 同时写了「接受的条目立即写入策展」与「计划内对齐步为另一合法路径」。本刀按用户钉死的故事走前者。Y2 是后续 Spec，不得在实现里用对齐步推迟写入，也不得在选支瞬间写入。
 - **Why ≥2 items**: 合同禁止整单全有或全无作为确认单位；单条草案无法在 HTTP 上把「逐条」与「整单确认」分开。1-item drafts 仍符合合同，但本刀规则夹具必须给出两条。
 - **Glossary**: 策展真相、观测真相、冲突、草案、逐条确认、已接受的冲突处理人、待确认关闭、冲突升级、观测空洞、规范问法、操作计划、策展对齐步骤（仅在 Out of Scope 中出现）。不要发明「以现场为准」「待确认策展」等合同已 Avoid 的词。
 - **Acceptance motto (this knife)**: 选支不写策展；接受的条目才写；拒绝的不写；写入后立刻比对；相等只进待确认关闭；升级/空洞作废未确认草案。
-- **Prompt for next chat**: 进度见 [`docs/dev-handoff.md`](../dev-handoff.md)。票 01–06 已 done，本刀闭合。下一对话须用户明示下一刀 Spec。
+- **Prompt for next chat**: [`docs/grill-next-knife-prompt.md`](../grill-next-knife-prompt.md)。进度见 [`docs/dev-handoff.md`](../dev-handoff.md)。票 01–06 已 done，本刀闭合。

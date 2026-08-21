@@ -311,5 +311,5 @@ JUnit：93 tests, 0 failures, 0 errors, 0 skipped。本套件 11 方法全绿。
 - Standards：无硬违规。判断：负面 2 审条方法内 400 信封重复（未抽以保持断言可读）。
 - Spec：无缺失、无范围漂移、无实现错误。待接受审条钉 `PLAN_REQUIRES_ACCEPTED_HANDLER`。
 
-本刀闭合。下一对话不要默认 `/implement`；须用户明示下一刀 Spec。
+本刀闭合。下一对话不要默认 `/implement`，不要加 07。下一刀见 [`docs/grill-next-knife-prompt.md`](../../../docs/grill-next-knife-prompt.md)（`/grill-with-docs`）。
 
