@@ -181,6 +181,36 @@ class ChangeCuratedDraftItemHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data.status", is("CLOSED")));
     }
 
+    @Test
+    void acceptingSiblingOnlyDoesNotPendingCloseMergeKeyConflict() throws Exception {
+        OpenDraft draft = openChangeCuratedDraft("ccd04-sib-a", "ccd04-sib-b", "ctr-ccd04-sib-x", "ctr-ccd04-sib-y");
+
+        postItemAction(draft.fx().conflictId(), draft.itemYId(), "accept", GENERAL_ID)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[?(@.id=='" + draft.itemYId() + "')].status",
+                        hasItem("ACCEPTED")))
+                .andExpect(jsonPath("$.data.items[?(@.id=='" + draft.itemXId() + "')].status",
+                        hasItem("PENDING")));
+
+        getShouldWhere(draft.fx().containerY())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.question", is("应该在哪")))
+                .andExpect(jsonPath("$.data.track", is("CURATED")))
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(draft.fx().hostB())));
+        getShouldWhere(draft.fx().containerX())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(draft.fx().hostA())));
+
+        mockMvc.perform(get("/api/conflicts/{id}", draft.fx().conflictId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("OPEN")))
+                .andExpect(jsonPath("$.data.status", not("PENDING_CLOSE")))
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(draft.fx().hostA())))
+                .andExpect(jsonPath("$.data.observedValue.hostId", is(draft.fx().hostB())));
+    }
+
     private OpenDraft rejectSiblingThenAcceptMergeKey(
             String hostAName, String hostBName, String objectX, String objectY
     ) throws Exception {
