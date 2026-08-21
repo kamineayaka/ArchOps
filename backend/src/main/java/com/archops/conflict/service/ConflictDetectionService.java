@@ -374,6 +374,7 @@ public class ConflictDetectionService {
                 "reason", "drift_after_pending_close",
                 "observedTargetId", observed.getTargetId() == null ? "" : observed.getTargetId()
         ));
+        curatedDraftService.voidOpenForConflict(pending.getId());
         conflictDiagnosisService.scheduleAsyncDiagnosis(pending.getId());
     }
 

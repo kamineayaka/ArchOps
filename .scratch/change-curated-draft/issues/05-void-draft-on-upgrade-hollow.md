@@ -133,6 +133,24 @@ BUILD SUCCESSFUL in 5s
 
 Refactor: javadoc. `HeartbeatTimeoutHollowHttpAcceptanceTest` still green (plan voiding unchanged).
 
+### Step F — cycle 5: 接受 X 待确认关闭后再漂到 C (red)
+
+Red:
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftVoidHttpAcceptanceTest.acceptMergeKeyThenSnapshotCLeavesPendingCloseKeepsCuratedBAndVoidsDraft
+```
+
+```text
+ChangeCuratedDraftVoidHttpAcceptanceTest > acceptMergeKeyThenSnapshotCLeavesPendingCloseKeepsCuratedBAndVoidsDraft() FAILED
+    java.lang.AssertionError: Status expected:<400> but was:<200>
+	at ...ChangeCuratedDraftVoidHttpAcceptanceTest.java:234
+BUILD FAILED in 5s
+```
+
+Same conflict id, leave PENDING_CLOSE, 策展 X stays B, 观测 C, one active conflict, Y still A — already green (`reopenFromPendingClose`). Failure: POST accept Y still 200 because void was only on `upgradeOpen`. Do not dismantle reopen to fake a red on conflict identity.
+
+
 
 
 

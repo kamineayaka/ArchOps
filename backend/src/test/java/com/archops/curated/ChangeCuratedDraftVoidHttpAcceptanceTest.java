@@ -183,6 +183,66 @@ class ChangeCuratedDraftVoidHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data", nullValue()));
     }
 
+    @Test
+    void acceptMergeKeyThenSnapshotCLeavesPendingCloseKeepsCuratedBAndVoidsDraft() throws Exception {
+        OpenDraft draft = openChangeCuratedDraft(
+                "ccd05-pc-a", "ccd05-pc-b", "ctr-ccd05-pc-x", "ctr-ccd05-pc-y");
+        postItemAction(draft.fx().conflictId(), draft.itemXId(), "accept", GENERAL_ID)
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/conflicts/{id}", draft.fx().conflictId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("PENDING_CLOSE")));
+        getShouldWhere(draft.fx().containerX())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(draft.fx().hostB())));
+
+        String hostC = snapshotXOnHostC(draft, "ccd05-pc-c");
+
+        mockMvc.perform(get("/api/conflicts/{id}", draft.fx().conflictId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.id", is(draft.fx().conflictId())))
+                .andExpect(jsonPath("$.data.status", is("OPEN")))
+                .andExpect(jsonPath("$.data.status", not("PENDING_CLOSE")))
+                .andExpect(jsonPath("$.data.status", not("CLOSED")))
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(draft.fx().hostB())))
+                .andExpect(jsonPath("$.data.observedValue.hostId", is(hostC)));
+
+        getShouldWhere(draft.fx().containerX())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.question", is("应该在哪")))
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(draft.fx().hostB())));
+        mockMvc.perform(get("/api/observed/asks/actual-where")
+                        .param("containerId", draft.fx().containerX())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.question", is("实际在哪")))
+                .andExpect(jsonPath("$.data.observedValue.hostId", is(hostC)))
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(draft.fx().hostB())));
+
+        assertEquals(1, countActiveForSubject(draft.fx().containerX()));
+
+        getShouldWhere(draft.fx().containerY())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(draft.fx().hostA())));
+        postItemAction(draft.fx().conflictId(), draft.itemYId(), "accept", GENERAL_ID)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("DRAFT_VOIDED")))
+                .andExpect(jsonPath("$.data", nullValue()));
+        getDraftById(draft.fx().conflictId(), draft.draftId())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("VOIDED")))
+                .andExpect(jsonPath("$.data.items[?(@.id=='" + draft.itemXId() + "')].status",
+                        hasItem("ACCEPTED")))
+                .andExpect(jsonPath("$.data.items[?(@.id=='" + draft.itemYId() + "')].status",
+                        hasItem("PENDING")));
+    }
+
     private String snapshotXOnHostC(OpenDraft draft, String hostCName) throws Exception {
         String hostC = createHost(hostCName);
         heartbeatWithContainer(hostC, "agent-" + draft.fx().objectX() + "-c", draft.fx().objectX());
