@@ -85,3 +85,15 @@ reuse/regression：首跑绿。与 Cycle C 同一主机范围（`reportingHostIn
 Green command: 同上，BUILD SUCCESSFUL / exit 0。
 Refactor: 无结构改动。
 Commit: bdd05ae Infer identity lost from the currently usable observed host.
+
+### Cycle F — 从未观测仅推断失联时「实际在哪」不是空洞
+Red command:
+cd backend && ./gradlew test --tests com.archops.observed.UnboundIdentityLostIngestHttpAcceptanceTest.neverObservedIdentityLostActualWhereIsNotHollow
+```
+UnboundIdentityLostIngestHttpAcceptanceTest > neverObservedIdentityLostActualWhereIsNotHollow() FAILED
+    java.lang.AssertionError: No value at JSON path "$.data.identityLost"
+Caused by: com.jayway.jsonpath.PathNotFoundException: No results for path: $['data']['identityLost']
+```
+Green command: 同上，BUILD SUCCESSFUL / exit 0。`actualWhereWithoutObservationIsHollowWithCuratedOnScreen` 仍绿。未改 `observed_fact.availability` CHECK。
+Refactor: 抽出 `observedAskValue`；IDENTITY_LOST 仅读模型。
+Commit: 46a5fa4 Project identity lost on 实际在哪 without calling it hollow.
