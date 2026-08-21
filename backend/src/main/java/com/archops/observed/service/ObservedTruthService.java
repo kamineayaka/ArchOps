@@ -130,9 +130,7 @@ public class ObservedTruthService {
     @Transactional(readOnly = true)
     public ActualWhereResponse actualWhere(String containerId) {
         CuratedObject container = requireContainer(containerId.trim());
-        CuratedFact curatedRunsOn = curatedFactMapper.selectOne(new LambdaQueryWrapper<CuratedFact>()
-                .eq(CuratedFact::getSubjectId, container.getId())
-                .eq(CuratedFact::getRelationType, CuratedRelationType.RUNS_ON));
+        CuratedFact curatedRunsOn = findCuratedRunsOn(container.getId());
         if (curatedRunsOn == null) {
             throw new BusinessException("CURATED_RUNS_ON_NOT_FOUND",
                     "No curated 运行于 fact for container: " + container.getId());
@@ -287,6 +285,14 @@ public class ObservedTruthService {
                 if (curated == null || curated.getKind() != CuratedObjectKind.DOCKER_CONTAINER) {
                     continue;
                 }
+            }
+            CuratedFact curatedRunsOn = findCuratedRunsOn(curated.getId());
+            if (curatedRunsOn == null
+                    || !reportingHostInIdentityLostScope(
+                            host.getId(),
+                            curatedRunsOn,
+                            observedRunsOnAtStart.get(curated.getId()))) {
+                continue;
             }
             upsertIdentityLost(curated, host, agentId, now);
             identityLost.add(new AgentHeartbeatResponse.IdentityLost(
@@ -524,6 +530,12 @@ public class ObservedTruthService {
         existing.setSourceHostId(host.getId());
         existing.setUpgradeChainPromised(false);
         identityLostMarkMapper.updateById(existing);
+    }
+
+    private CuratedFact findCuratedRunsOn(String containerId) {
+        return curatedFactMapper.selectOne(new LambdaQueryWrapper<CuratedFact>()
+                .eq(CuratedFact::getSubjectId, containerId)
+                .eq(CuratedFact::getRelationType, CuratedRelationType.RUNS_ON));
     }
 
     private CuratedObject findContainerByImmutableObjectId(String objectId) {

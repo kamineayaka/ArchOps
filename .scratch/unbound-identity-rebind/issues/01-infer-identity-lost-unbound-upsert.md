@@ -97,3 +97,11 @@ Caused by: com.jayway.jsonpath.PathNotFoundException: No results for path: $['da
 Green command: 同上，BUILD SUCCESSFUL / exit 0。`actualWhereWithoutObservationIsHollowWithCuratedOnScreen` 仍绿。未改 `observed_fact.availability` CHECK。
 Refactor: 抽出 `observedAskValue`；IDENTITY_LOST 仅读模型。
 Commit: 46a5fa4 Project identity lost on 实际在哪 without calling it hollow.
+
+### Cycle G — 失联后「实际在哪」不得报旧宿主
+Red command:
+cd backend && ./gradlew test --tests com.archops.observed.UnboundIdentityLostIngestHttpAcceptanceTest.identityLostActualWhereDoesNotReportStaleObservedHost
+reuse/regression：首跑绿。与 Cycle F 同一读模型（`observedAskValue` 在有 identity_lost_mark 时忽略库内旧 PRESENT）。不另写生产、不清失联标。
+Green command: 同上，BUILD SUCCESSFUL / exit 0。
+Refactor: 无结构改动。
+Commit: 7e1a3ba Keep stale observed hosts off 实际在哪 after identity loss.
