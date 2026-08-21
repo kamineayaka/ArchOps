@@ -39,7 +39,7 @@
 | 竖切 Spec | 已发布 → [`docs/specs/vertical-slice-mvp.md`](specs/vertical-slice-mvp.md) |
 | 竖切工单 | 已本地发布 → [`.scratch/vertical-slice-mvp/issues/`](../.scratch/vertical-slice-mvp/issues/)（01–13 均 done；Flyway 至 V12） |
 | 改策展草案 Spec | **已发布** → [`docs/specs/change-curated-draft.md`](specs/change-curated-draft.md) |
-| 改策展草案工单 | **TDD-done 05** → [`.scratch/change-curated-draft/issues/`](../.scratch/change-curated-draft/issues/)（**01–05 TDD-done**；06 `ready-for-agent`；**frontier = 06**。从竖切 MVP 往上长，不重拆竖切 01–13） |
+| 改策展草案工单 | **TDD-done 06 / 本刀闭合** → [`.scratch/change-curated-draft/issues/`](../.scratch/change-curated-draft/issues/)（**01–06 TDD-done**。从竖切 MVP 往上长，不重拆竖切 01–13） |
 | Matt 工作流 skills / tracker | **已入库**（`.cursor/skills/` + `.agents/skills/` + `docs/agents/`；TDD overlay [`docs/agents/tdd.md`](agents/tdd.md)；Cloud 不依赖本机 `~/.agents`） |
 | 国内镜像默认 | **已合并**（PR #53：Gradle 腾讯云 / Maven 阿里云 / npm npmmirror / Docker DaoCloud） |
 | kamiserver 人工验收 | **通过**（2026-08：Compose postgres+redis healthy 且宿主机端口已映射 → `./gradlew bootRun` → `GET /api/health`；竖切演示闭环已在该 VM 走通） |
@@ -59,7 +59,8 @@
 11. ~~`/implement` `/tdd` 票 03（TDD 重做）~~：已完成（选改理想生成开放草案；witnessed red → green → refactor；`CHANGE_CURATED` 出草案、不写策展、不出计划）  
 12. ~~`/implement` `/tdd` 票 04~~：已完成（逐条确认：接受即写策展并立刻比对 → 待确认关闭；witnessed red → green → refactor；`DRAFT_ITEM_ACCEPTED` / `DRAFT_ITEM_REJECTED`）  
 13. ~~`/implement` `/tdd` 票 05~~：已完成（升级/空洞作废未完成草案；待确认关闭后再漂同一合并键升级；witnessed red → green → refactor；`DRAFT_VOIDED`）  
-14. **下一对话：`/implement` `/tdd` 票 06**（HTTP 主接缝有序 tracer）。开工贴 [`docs/implement-change-curated-draft-06-prompt.md`](implement-change-curated-draft-06-prompt.md)。票路径 [`.scratch/change-curated-draft/issues/06-http-tracer-acceptance.md`](../.scratch/change-curated-draft/issues/06-http-tracer-acceptance.md)。一次只做一张；不要重拆 01–05 或竖切 01–13；不要删除 01–05 生产来装红灯。本刀在 06 完成后闭合，不要在 06 对话里 `/to-spec` 下一刀。  
+14. ~~`/implement` `/tdd` 票 06~~：已完成（HTTP 主接缝有序 tracer；suite/tracer 循环；`ChangeCuratedDraftTracerHttpAcceptanceTest`）。**本刀闭合。**  
+15. **下一对话不要默认 `/implement`。** 须用户明示下一刀 Spec（例如 `/to-spec` / grilling）。不要在未点名的情况下开工新产品或重拆竖切。  
 
 ### 工单阻塞简图
 
@@ -74,7 +75,7 @@
 05 → 11（指派/拒绝/转让 Should，done）
 ```
 
-改策展 / 改理想草案（现行 frontier = **06**）：
+改策展 / 改理想草案（**01–06 TDD-done；本刀闭合**）：
 
 ```
 01 关闭建底覆盖（TDD-done） ─────────────────┐
@@ -82,7 +83,7 @@
 02 诊断改理想分叉（TDD-done） → 03 选支出草案（TDD-done） → 04 逐条确认写入并立刻比对（TDD-done）
                                               │
                                               └→ 05 升级/空洞作废草案（TDD-done）
-                                                   → 06 HTTP tracer（本刀定义完成）
+                                                   → 06 HTTP tracer（TDD-done；本刀定义完成）
 ```
 
 （一次只做一张。）

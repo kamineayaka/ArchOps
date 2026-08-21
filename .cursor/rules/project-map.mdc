@@ -19,7 +19,7 @@ alwaysApply: true
 | `docs/` | 合同、ADR、Spec、prompts、`docs/agents/`（Matt tracker + TDD overlay） |
 | `.cursor/skills/` | Cloud Agent 技能（Matt 工程链 + ArchOps `add-*`） |
 | `.scratch/vertical-slice-mvp/issues/` | 竖切工单（01–13 已闭合） |
-| `.scratch/change-curated-draft/issues/` | 改策展/草案工单（**01–05 TDD-done**；frontier = **06**） |
+| `.scratch/change-curated-draft/issues/` | 改策展/草案工单（**01–06 TDD-done**；本刀闭合） |
 | `docs/specs/change-curated-draft.md` | 改策展/草案 Spec（已拆票） |
 
 ## 模块边界
