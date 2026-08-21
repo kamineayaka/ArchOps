@@ -76,3 +76,25 @@ BUILD SUCCESSFUL in 16s
 ```
 
 Refactor 后同方法再跑仍绿：`BUILD SUCCESSFUL in 6s`。
+
+### Cycle 2 — 负面 1 选择改理想不改变策展
+
+`reuse/regression`（首次即绿；未改生产）。对应 `ChangeCuratedDraftHttpAcceptanceTest.selectChangeCuratedDoesNotWriteCuratedShouldWhere`。06 套件钉：选支之后、任何 accept 之前，X/Y「应该在哪」仍为 A，开放草案两条均为 PENDING。
+
+命令：
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftTracerHttpAcceptanceTest.selectChangeCuratedDoesNotWriteCuratedBeforeAnyItemAccept
+```
+
+首次输出（witnessed green）：
+
+```text
+> Task :compileTestJava
+> Task :testClasses
+> Task :test
+
+BUILD SUCCESSFUL in 5s
+4 actionable tasks: 2 executed, 2 up-to-date
+```
+

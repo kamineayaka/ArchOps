@@ -182,6 +182,31 @@ class ChangeCuratedDraftTracerHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data.status", is("CLOSED")));
     }
 
+    @Test
+    @Order(2)
+    void selectChangeCuratedDoesNotWriteCuratedBeforeAnyItemAccept() throws Exception {
+        ClaimedConflict fx = claimedReadyConflict("ccd06-n1");
+        postBranch(fx.conflictId(), GENERAL_ID, "CHANGE_CURATED_TO_OBSERVED")
+                .andExpect(status().isOk());
+
+        getShouldWhere(fx.world().containerX())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.question", is("应该在哪")))
+                .andExpect(jsonPath("$.data.track", is("CURATED")))
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(fx.world().hostA())));
+        getShouldWhere(fx.world().containerY())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(fx.world().hostA())));
+
+        getOpenDraft(fx.conflictId())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("OPEN")))
+                .andExpect(jsonPath("$.data.items[?(@.subjectId=='" + fx.world().containerX() + "')].status",
+                        hasItem("PENDING")))
+                .andExpect(jsonPath("$.data.items[?(@.subjectId=='" + fx.world().containerY() + "')].status",
+                        hasItem("PENDING")));
+    }
+
     private World bootstrapHostsABCuratedXYOnA(String prefix) throws Exception {
         String objectX = prefix + "-x";
         String objectY = prefix + "-y";
@@ -209,6 +234,18 @@ class ChangeCuratedDraftTracerHttpAcceptanceTest {
 
     private void waitUntilDiagnosisReady(String conflictId) throws Exception {
         ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, conflictId, GENERAL_ID);
+    }
+
+    private ClaimedConflict claimedReadyConflict(String prefix) throws Exception {
+        World world = bootstrapHostsABCuratedXYOnA(prefix);
+        heartbeatXOnHost(world, world.hostB(), world.agentIdOnB());
+        MvcResult warn = getByMergeKey(world.containerX())
+                .andExpect(status().isOk())
+                .andReturn();
+        String conflictId = readDataId(warn);
+        claimAsAcceptedHandler(conflictId);
+        waitUntilDiagnosisReady(conflictId);
+        return new ClaimedConflict(world, conflictId);
     }
 
     private ResultActions postBranch(String conflictId, String userId, String forkId) throws Exception {
@@ -326,6 +363,9 @@ class ChangeCuratedDraftTracerHttpAcceptanceTest {
             }
         }
         throw new AssertionError("No 草案 item for subject " + subjectId);
+    }
+
+    private record ClaimedConflict(World world, String conflictId) {
     }
 
     private record World(
