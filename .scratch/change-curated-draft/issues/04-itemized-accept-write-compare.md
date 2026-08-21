@@ -29,3 +29,35 @@
 ## Comments
 
 开工 prompt：[`docs/implement-change-curated-draft-04-prompt.md`](../../../docs/implement-change-curated-draft-04-prompt.md)。01–03 TDD-done。本票尚无 accept/reject HTTP；第一圈红灯应为 404 或编译失败。不要用建底 POST 覆盖已有 `运行于` 来写策展。不要做 05–06。
+
+### Step A — seams
+
+GET `/api/conflicts/{id}/curated-drafts/open` returns `items[].id` / `mergeKey` / `fromHostId` / `toHostId`. Confirm-close is `POST /api/conflicts/{id}/confirm-close`; events are `GET /api/conflicts/{id}/events`. No accept/reject routes yet.
+
+### Step B — cycle 1: 非处理人不能审条 (red)
+
+New test `ChangeCuratedDraftItemHttpAcceptanceTest.nonHandlerCannotAcceptDraftItem`. Fixture reuses 03 shape (X on B conflict, Y curated on A, general user accepted handler, then open 草案).
+
+Red:
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftItemHttpAcceptanceTest.nonHandlerCannotAcceptDraftItem
+```
+
+```text
+ChangeCuratedDraftItemHttpAcceptanceTest > nonHandlerCannotAcceptDraftItem() FAILED
+    java.lang.AssertionError: Status expected:<400> but was:<500>
+Body = {"success":false,"code":"INTERNAL_ERROR","message":"No static resource api/conflicts/.../curated-drafts/open/items/.../accept.","data":null}
+BUILD FAILED in 15s
+```
+
+Missing POST maps to `ResourceHttpRequestHandler` (`NoResourceFoundException` → 500 envelope). Not `PLAN_REQUIRES_ACCEPTED_HANDLER`. 策展 untouched.
+
+Green: POST accept/reject routes + 已接受处理人 gate only. No 策展 write; items stay PENDING.
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftItemHttpAcceptanceTest.nonHandlerCannotAcceptDraftItem
+BUILD SUCCESSFUL in 5s
+```
+
+Refactor: `getOpen` reuses `requireOpen`. Same test + 03 `acceptedHandlerSelectsChangeCuratedOpensDraftWithTwoPendingRunsOnItems` still green.

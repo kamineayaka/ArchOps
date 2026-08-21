@@ -3,6 +3,7 @@ package com.archops.curated.service;
 import com.archops.common.exception.BusinessException;
 import com.archops.conflict.domain.ConflictCase;
 import com.archops.conflict.domain.ConflictEventType;
+import com.archops.conflict.domain.HandlerAcceptance;
 import com.archops.conflict.dto.ConflictDiagnosisResponse;
 import com.archops.conflict.mapper.ConflictCaseMapper;
 import com.archops.conflict.service.ConflictEventService;
@@ -35,7 +36,8 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Rule-templated 改理想 草案 (ticket 03). Confirmation-before-write is not 策展真相.
+ * Rule-templated 改理想 草案 (ticket 03) and per-item review gate (ticket 04).
+ * Confirmation-before-write is not 策展真相.
  */
 @Service
 public class CuratedDraftService {
@@ -73,11 +75,7 @@ public class CuratedDraftService {
 
     @Transactional(readOnly = true)
     public CuratedDraftResponse getOpen(String conflictId) {
-        CuratedDraft draft = findOpen(conflictId);
-        if (draft == null) {
-            throw new BusinessException("DRAFT_NOT_FOUND",
-                    "No open 草案 for conflict: " + conflictId);
-        }
+        CuratedDraft draft = requireOpen(conflictId);
         return toResponse(draft, loadItems(draft.getId()));
     }
 
@@ -127,6 +125,61 @@ public class CuratedDraftService {
                 "hint", "草案已创建"
         ));
         return toResponse(draft, items);
+    }
+
+    /**
+     * Ticket 04 cycle 1: gate only. Item status / 策展 write land in later cycles.
+     */
+    @Transactional
+    public CuratedDraftResponse acceptItem(String conflictId, String itemId, AuthUserPrincipal actor) {
+        return reviewItemGate(conflictId, itemId, actor);
+    }
+
+    @Transactional
+    public CuratedDraftResponse rejectItem(String conflictId, String itemId, AuthUserPrincipal actor) {
+        return reviewItemGate(conflictId, itemId, actor);
+    }
+
+    private CuratedDraftResponse reviewItemGate(String conflictId, String itemId, AuthUserPrincipal actor) {
+        CuratedDraft draft = requireOpen(conflictId);
+        requireAcceptedHandler(requireConflict(conflictId), actor);
+        requireItemOnDraft(draft.getId(), itemId);
+        return toResponse(draft, loadItems(draft.getId()));
+    }
+
+    private CuratedDraft requireOpen(String conflictId) {
+        CuratedDraft draft = findOpen(conflictId);
+        if (draft == null) {
+            throw new BusinessException("DRAFT_NOT_FOUND",
+                    "No open 草案 for conflict: " + conflictId);
+        }
+        return draft;
+    }
+
+    private ConflictCase requireConflict(String conflictId) {
+        ConflictCase conflict = conflictCaseMapper.selectById(conflictId);
+        if (conflict == null) {
+            throw new BusinessException("CONFLICT_NOT_FOUND", "Conflict not found: " + conflictId);
+        }
+        return conflict;
+    }
+
+    private static void requireAcceptedHandler(ConflictCase conflict, AuthUserPrincipal actor) {
+        boolean ok = conflict.getHandlerAcceptance() == HandlerAcceptance.ACCEPTED
+                && actor.getUserId().equals(conflict.getHandlerUserId());
+        if (!ok) {
+            throw new BusinessException("PLAN_REQUIRES_ACCEPTED_HANDLER",
+                    "Only the 已接受冲突处理人 may accept or reject 草案 items");
+        }
+    }
+
+    private CuratedDraftItem requireItemOnDraft(String draftId, String itemId) {
+        CuratedDraftItem item = curatedDraftItemMapper.selectById(itemId);
+        if (item == null || !draftId.equals(item.getDraftId())) {
+            throw new BusinessException("DRAFT_ITEM_NOT_FOUND",
+                    "No 草案 item " + itemId + " on the open draft");
+        }
+        return item;
     }
 
     private List<CuratedDraftItem> buildRunsOnItems(
