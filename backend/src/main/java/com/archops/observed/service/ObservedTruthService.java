@@ -224,13 +224,13 @@ public class ObservedTruthService {
             Map<String, String> labels = container.labels() == null ? Map.of() : container.labels();
             String objectId = labels.get(CuratedObjectLabels.OBJECT_ID_KEY);
             if (objectId == null || objectId.isBlank()) {
-                unbound.add(persistUnbound(agentId, host.getId(), container, labels, UnboundReason.MISSING_LABEL, now));
+                unbound.add(upsertUnbound(agentId, host.getId(), container, labels, UnboundReason.MISSING_LABEL, now));
                 continue;
             }
             String trimmedObjectId = objectId.trim();
             CuratedObject curated = findContainerByImmutableObjectId(trimmedObjectId);
             if (curated == null) {
-                unbound.add(persistUnbound(agentId, host.getId(), container, labels, UnboundReason.UNKNOWN_OBJECT_ID, now));
+                unbound.add(upsertUnbound(agentId, host.getId(), container, labels, UnboundReason.UNKNOWN_OBJECT_ID, now));
                 continue;
             }
             upsertObservedPresent(curated, host, agentId, now);
@@ -358,7 +358,7 @@ public class ObservedTruthService {
         conflictDetectionService.reconcileAfterObservedWrite(container.getId(), CuratedRelationType.RUNS_ON);
     }
 
-    private AgentHeartbeatResponse.UnboundCandidate persistUnbound(
+    private AgentHeartbeatResponse.UnboundCandidate upsertUnbound(
             String agentId,
             String hostId,
             AgentHeartbeatRequest.SnapshotContainer container,
@@ -366,24 +366,55 @@ public class ObservedTruthService {
             UnboundReason reason,
             Instant now
     ) {
+        String runtimeId = container.runtimeId();
+        UnboundObservationCandidate existing = findUnboundByHostAndRuntime(hostId, runtimeId);
+        if (existing != null) {
+            applyUnboundSnapshot(existing, agentId, container, labels, reason, now);
+            unboundMapper.updateById(existing);
+            return toUnboundSummary(existing);
+        }
         UnboundObservationCandidate row = new UnboundObservationCandidate();
         row.setId(newId("unb"));
-        row.setSourceAgentId(agentId);
         row.setSourceHostId(hostId);
-        row.setRuntimeId(container.runtimeId());
+        row.setRuntimeId(runtimeId);
+        applyUnboundSnapshot(row, agentId, container, labels, reason, now);
+        unboundMapper.insert(row);
+        return toUnboundSummary(row);
+    }
+
+    private void applyUnboundSnapshot(
+            UnboundObservationCandidate row,
+            String agentId,
+            AgentHeartbeatRequest.SnapshotContainer container,
+            Map<String, String> labels,
+            UnboundReason reason,
+            Instant now
+    ) {
+        row.setSourceAgentId(agentId);
         row.setName(container.name());
         row.setLabelsJson(toJson(labels));
         row.setReason(reason);
         row.setUpgradeChainPromised(false);
         row.setObservedAt(now);
-        unboundMapper.insert(row);
+    }
+
+    private AgentHeartbeatResponse.UnboundCandidate toUnboundSummary(UnboundObservationCandidate row) {
         return new AgentHeartbeatResponse.UnboundCandidate(
                 row.getId(),
-                reason.name(),
+                row.getReason().name(),
                 row.getRuntimeId(),
                 row.getName(),
                 false
         );
+    }
+
+    private UnboundObservationCandidate findUnboundByHostAndRuntime(String hostId, String runtimeId) {
+        if (runtimeId == null || runtimeId.isBlank()) {
+            return null;
+        }
+        return unboundMapper.selectOne(new LambdaQueryWrapper<UnboundObservationCandidate>()
+                .eq(UnboundObservationCandidate::getSourceHostId, hostId)
+                .eq(UnboundObservationCandidate::getRuntimeId, runtimeId));
     }
 
     private void upsertIdentityLost(CuratedObject curated, CuratedObject host, String agentId, Instant now) {

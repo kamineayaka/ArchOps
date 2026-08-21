@@ -11,6 +11,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -74,6 +75,81 @@ class UnboundIdentityLostIngestHttpAcceptanceTest {
         assertThat(candidate.path("upgradeChainPromised").asBoolean(), is(false));
         assertThat(candidate.path("labels").isObject(), is(true));
         assertThat(candidate.path("labels").path("archops.object_id").asText(), is("u01a-oid"));
+    }
+
+    @Test
+    void sameHostAndRuntimeIdUnboundCandidateIsUpserted() throws Exception {
+        String hostId = createHost("u01b-h");
+
+        mockMvc.perform(post("/api/agent/heartbeat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "agentId": "u01b-ag",
+                                  "hostId": "%s",
+                                  "snapshot": {
+                                    "containers": [
+                                      {
+                                        "runtimeId": "u01b-rt",
+                                        "name": "u01b-first",
+                                        "labels": {}
+                                      }
+                                    ]
+                                  }
+                                }
+                                """.formatted(hostId))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.unbound", hasSize(1)))
+                .andExpect(jsonPath("$.data.unbound[0].reason", is("MISSING_LABEL")));
+
+        mockMvc.perform(post("/api/agent/heartbeat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "agentId": "u01b-ag",
+                                  "hostId": "%s",
+                                  "snapshot": {
+                                    "containers": [
+                                      {
+                                        "runtimeId": "u01b-rt",
+                                        "name": "u01b-second",
+                                        "labels": { "archops.object_id": "u01b-never-curated" }
+                                      }
+                                    ]
+                                  }
+                                }
+                                """.formatted(hostId))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.unbound", hasSize(1)))
+                .andExpect(jsonPath("$.data.unbound[0].reason", is("UNKNOWN_OBJECT_ID")));
+
+        MvcResult listed = mockMvc.perform(get("/api/observed/unbound-candidates")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andReturn();
+
+        JsonNode data = objectMapper.readTree(listed.getResponse().getContentAsString()).path("data");
+        int matches = 0;
+        JsonNode candidate = null;
+        for (JsonNode node : data) {
+            if ("u01b-rt".equals(node.path("runtimeId").asText())) {
+                matches++;
+                candidate = node;
+            }
+        }
+        assertThat(matches, is(1));
+        assertThat(candidate, notNullValue());
+        assertThat(candidate.path("name").asText(), is("u01b-second"));
+        assertThat(candidate.path("reason").asText(), is("UNKNOWN_OBJECT_ID"));
+        assertThat(candidate.path("sourceHostId").asText(), is(hostId));
+        assertThat(candidate.path("upgradeChainPromised").asBoolean(), is(false));
+        assertThat(candidate.path("labels").path("archops.object_id").asText(), is("u01b-never-curated"));
     }
 
     private JsonNode unboundByRuntimeId(MvcResult listed, String runtimeId) throws Exception {

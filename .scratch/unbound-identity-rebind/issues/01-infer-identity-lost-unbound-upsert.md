@@ -42,4 +42,18 @@ Expected: is <true>
 （`labels` 缺失，`path("labels").isObject()` 为 false）
 Green command: 同上，BUILD SUCCESSFUL / exit 0。`unlabeledAndIdentityLostDoNotPromiseUpgradeChain` 仍绿。
 Refactor: `parseLabels` 抽出 `LABEL_MAP` TypeReference，空/坏 JSON 回空对象。
+Commit: a28cd49 Expose field labels on GET unbound candidates.
+
+### Cycle B — 同一 sourceHostId+runtimeId 未绑定 upsert
+Red command:
+cd backend && ./gradlew test --tests com.archops.observed.UnboundIdentityLostIngestHttpAcceptanceTest.sameHostAndRuntimeIdUnboundCandidateIsUpserted
+```
+UnboundIdentityLostIngestHttpAcceptanceTest > sameHostAndRuntimeIdUnboundCandidateIsUpserted() FAILED
+    java.lang.AssertionError at UnboundIdentityLostIngestHttpAcceptanceTest.java:146
+java.lang.AssertionError:
+Expected: is <1>
+     but: was <2>
+```
+Green command: 同上，BUILD SUCCESSFUL / exit 0。`unlabeledAndIdentityLostDoNotPromiseUpgradeChain` 仍绿（一次快照两个不同 runtimeId）。
+Refactor: `persistUnbound` 改名为 `upsertUnbound`，抽出 `applyUnboundSnapshot` / `toUnboundSummary`。
 Commit: （提交后填）
