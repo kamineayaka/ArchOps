@@ -179,7 +179,7 @@ public class CuratedDraftService {
     }
 
     private OpenItemReview beginItemReview(String conflictId, String itemId, AuthUserPrincipal actor) {
-        CuratedDraft draft = requireOpen(conflictId);
+        CuratedDraft draft = requireReviewableDraft(conflictId);
         requireAcceptedHandler(requireConflict(conflictId), actor);
         CuratedDraftItem item = requireItemOnDraft(draft.getId(), itemId);
         return new OpenItemReview(draft, item);
@@ -213,6 +213,33 @@ public class CuratedDraftService {
                     "No open 草案 for conflict: " + conflictId);
         }
         return draft;
+    }
+
+    /**
+     * Item review loads the latest 草案 including VOIDED so accept/reject can say
+     * 草案已作废 instead of pretending there was never a draft.
+     */
+    private CuratedDraft requireReviewableDraft(String conflictId) {
+        CuratedDraft draft = findLatest(conflictId);
+        if (draft == null) {
+            throw new BusinessException("DRAFT_NOT_FOUND",
+                    "No 草案 for conflict: " + conflictId);
+        }
+        if (draft.getStatus() == CuratedDraftStatus.VOIDED) {
+            throw new BusinessException("DRAFT_VOIDED", "草案已作废");
+        }
+        if (draft.getStatus() != CuratedDraftStatus.OPEN) {
+            throw new BusinessException("DRAFT_NOT_FOUND",
+                    "No open 草案 for conflict: " + conflictId);
+        }
+        return draft;
+    }
+
+    private CuratedDraft findLatest(String conflictId) {
+        return curatedDraftMapper.selectOne(new LambdaQueryWrapper<CuratedDraft>()
+                .eq(CuratedDraft::getConflictId, conflictId)
+                .orderByDesc(CuratedDraft::getCreatedAt)
+                .last("LIMIT 1"));
     }
 
     private ConflictCase requireConflict(String conflictId) {

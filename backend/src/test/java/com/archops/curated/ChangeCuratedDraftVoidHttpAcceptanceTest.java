@@ -41,8 +41,7 @@ class ChangeCuratedDraftVoidHttpAcceptanceTest {
             throws Exception {
         OpenDraft draft = openChangeCuratedDraft(
                 "ccd05-up-a", "ccd05-up-b", "ctr-ccd05-up-x", "ctr-ccd05-up-y");
-        String hostC = createHost("ccd05-up-c");
-        heartbeatWithContainer(hostC, "agent-" + draft.fx().objectX() + "-c", draft.fx().objectX());
+        String hostC = snapshotXOnHostC(draft, "ccd05-up-c");
 
         mockMvc.perform(get("/api/conflicts/{id}", draft.fx().conflictId())
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)
@@ -74,6 +73,39 @@ class ChangeCuratedDraftVoidHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data", nullValue()));
     }
 
+    @Test
+    void acceptAndRejectAfterUpgradeAreDraftVoidedAndCuratedStaysA() throws Exception {
+        OpenDraft draft = openChangeCuratedDraft(
+                "ccd05-acc-a", "ccd05-acc-b", "ctr-ccd05-acc-x", "ctr-ccd05-acc-y");
+        snapshotXOnHostC(draft, "ccd05-acc-c");
+
+        postItemAction(draft.fx().conflictId(), draft.itemXId(), "accept", GENERAL_ID)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.code", is("DRAFT_VOIDED")))
+                .andExpect(jsonPath("$.data", nullValue()));
+        postItemAction(draft.fx().conflictId(), draft.itemYId(), "reject", GENERAL_ID)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.code", is("DRAFT_VOIDED")))
+                .andExpect(jsonPath("$.data", nullValue()));
+
+        getShouldWhere(draft.fx().containerX())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.question", is("应该在哪")))
+                .andExpect(jsonPath("$.data.track", is("CURATED")))
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(draft.fx().hostA())));
+        getShouldWhere(draft.fx().containerY())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(draft.fx().hostA())));
+    }
+
+    private String snapshotXOnHostC(OpenDraft draft, String hostCName) throws Exception {
+        String hostC = createHost(hostCName);
+        heartbeatWithContainer(hostC, "agent-" + draft.fx().objectX() + "-c", draft.fx().objectX());
+        return hostC;
+    }
+
     private OpenDraft openChangeCuratedDraft(
             String hostAName, String hostBName, String objectX, String objectY
     ) throws Exception {
@@ -88,6 +120,17 @@ class ChangeCuratedDraftVoidHttpAcceptanceTest {
                 data.path("id").asText(),
                 itemId(items, fx.containerX()),
                 itemId(items, fx.containerY()));
+    }
+
+    private ResultActions postItemAction(String conflictId, String itemId, String action, String userId)
+            throws Exception {
+        return mockMvc.perform(post(
+                "/api/conflicts/{conflictId}/curated-drafts/open/items/{itemId}/{action}",
+                conflictId, itemId, action)
+                .header(TempAuthHeaders.USER_ID, userId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}")
+                .accept(MediaType.APPLICATION_JSON));
     }
 
     private ResultActions postBranch(String conflictId, String userId, String forkId) throws Exception {

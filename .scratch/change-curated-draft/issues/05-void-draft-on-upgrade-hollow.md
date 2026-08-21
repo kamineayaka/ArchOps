@@ -53,3 +53,32 @@ BUILD SUCCESSFUL in 5s
 ```
 
 Refactor: javadoc only; same test + 04 accept still green.
+
+### Step C — cycle 2: 作废后审条失败码是 DRAFT_VOIDED (red)
+
+Red:
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftVoidHttpAcceptanceTest.acceptAndRejectAfterUpgradeAreDraftVoidedAndCuratedStaysA
+```
+
+```text
+ChangeCuratedDraftVoidHttpAcceptanceTest > acceptAndRejectAfterUpgradeAreDraftVoidedAndCuratedStaysA() FAILED
+    java.lang.AssertionError: JSON path "$.code"
+Expected: is "DRAFT_VOIDED"
+     but: was "DRAFT_NOT_FOUND"
+BUILD FAILED in 5s
+```
+
+`requireOpen` after void looks like the draft never existed. Do not change the expectation to `DRAFT_NOT_FOUND`.
+
+Green: item review uses `requireReviewableDraft` (latest row including VOIDED) and throws `DRAFT_VOIDED`. GET open still uses `requireOpen` → `DRAFT_NOT_FOUND`.
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftVoidHttpAcceptanceTest.acceptAndRejectAfterUpgradeAreDraftVoidedAndCuratedStaysA
+BUILD SUCCESSFUL in 5s
+```
+
+Refactor: `findLatest`; test helper `snapshotXOnHostC`. Cycle 1 + 04 non-handler still green.
+
+
