@@ -117,3 +117,11 @@ UnboundIdentityLostIngestHttpAcceptanceTest > outOfScopeIdentityLostObjectIdsDoN
 Green command: 同上，BUILD SUCCESSFUL / exit 0。`unlabeledAndIdentityLostDoNotPromiseUpgradeChain` 仍绿（范围内声明）。
 Refactor: 抽出 `findCuratedRunsOn`；声明循环复用 `reportingHostInIdentityLostScope`。
 Commit: 10ce6e5 Ignore out-of-scope Agent identityLostObjectIds.
+
+### Cycle I — absentObjectIds 仍是观测消失不是失联
+Red command:
+cd backend && ./gradlew test --tests com.archops.observed.UnboundIdentityLostIngestHttpAcceptanceTest.absentObjectIdsRemainUsableAbsentNotIdentityLost
+reuse/regression：首跑绿。推断已跳过 `absentCuratedIds`；`observedAskValue` 在无 mark 时走 ABSENT。点名 `ObservedHeartbeatHttpAcceptanceTest.absentObjectIdIsUsableAbsentNotHollow`。不另写生产。
+Green command: 同上，且 `absentObjectIdIsUsableAbsentNotHollow` 仍绿。
+Refactor: 无结构改动。
+Commit: a2eeb15 Keep absentObjectIds as 观测消失, not identity lost.

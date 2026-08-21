@@ -498,6 +498,42 @@ class UnboundIdentityLostIngestHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data").value(nullValue()));
     }
 
+    @Test
+    void unlabeledSameNameDoesNotPromiseUpgradeChain() throws Exception {
+        String hostB = createHost("u01j-h");
+        String containerId = createContainer("u01j-x", "u01j-oid");
+        confirmRunsOn(containerId, hostB);
+
+        mockMvc.perform(post("/api/agent/heartbeat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "agentId": "u01j-ag",
+                                  "hostId": "%s",
+                                  "snapshot": {
+                                    "containers": [
+                                      {
+                                        "runtimeId": "u01j-rt",
+                                        "name": "u01j-x",
+                                        "labels": {}
+                                      }
+                                    ]
+                                  }
+                                }
+                                """.formatted(hostB))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/conflicts/by-merge-key")
+                        .param("subjectId", containerId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.code", is("CONFLICT_NOT_FOUND")))
+                .andExpect(jsonPath("$.data").value(nullValue()));
+    }
+
     private JsonNode unboundByRuntimeId(MvcResult listed, String runtimeId) throws Exception {
         JsonNode data = objectMapper.readTree(listed.getResponse().getContentAsString()).path("data");
         for (JsonNode node : data) {
