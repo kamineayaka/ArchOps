@@ -19,7 +19,7 @@
 
 | 项 | 状态 |
 |---|---|
-| Gradle + Spring Boot + MyBatis-Plus + Flyway | 有；至 V14（改理想开放草案 + 条目逐条确认审计） |
+| Gradle + Spring Boot + MyBatis-Plus + Flyway | 有；至 V15（改理想草案 + 条目确认 + 草案作废审计） |
 | React + Ant Design 薄页 | **已完成**（票 12：冲突列表/详情→协作→选支→审计划→确认关闭） |
 | Python agent 心跳+快照 stub + systemd 说明 | 有（契约见 `docs/contracts/agent-heartbeat-snapshot.md`） |
 | Compose + `archops:latest` 多阶段镜像 | 有 |
@@ -39,7 +39,7 @@
 | 竖切 Spec | 已发布 → [`docs/specs/vertical-slice-mvp.md`](specs/vertical-slice-mvp.md) |
 | 竖切工单 | 已本地发布 → [`.scratch/vertical-slice-mvp/issues/`](../.scratch/vertical-slice-mvp/issues/)（01–13 均 done；Flyway 至 V12） |
 | 改策展草案 Spec | **已发布** → [`docs/specs/change-curated-draft.md`](specs/change-curated-draft.md) |
-| 改策展草案工单 | **TDD-done 04** → [`.scratch/change-curated-draft/issues/`](../.scratch/change-curated-draft/issues/)（**01–04 TDD-done**；05 `ready-for-agent`；**frontier = 05**；06 仍被挡住。从竖切 MVP 往上长，不重拆竖切 01–13） |
+| 改策展草案工单 | **TDD-done 05** → [`.scratch/change-curated-draft/issues/`](../.scratch/change-curated-draft/issues/)（**01–05 TDD-done**；06 `ready-for-agent`；**frontier = 06**。从竖切 MVP 往上长，不重拆竖切 01–13） |
 | Matt 工作流 skills / tracker | **已入库**（`.cursor/skills/` + `.agents/skills/` + `docs/agents/`；TDD overlay [`docs/agents/tdd.md`](agents/tdd.md)；Cloud 不依赖本机 `~/.agents`） |
 | 国内镜像默认 | **已合并**（PR #53：Gradle 腾讯云 / Maven 阿里云 / npm npmmirror / Docker DaoCloud） |
 | kamiserver 人工验收 | **通过**（2026-08：Compose postgres+redis healthy 且宿主机端口已映射 → `./gradlew bootRun` → `GET /api/health`；竖切演示闭环已在该 VM 走通） |
@@ -58,9 +58,8 @@
 10. ~~`/implement` `/tdd` 票 02（TDD 重做）~~：已完成（诊断同时给出「修实际」与「改理想」分叉；witnessed red → green → refactor；`CHANGE_CURATED_TO_OBSERVED`）  
 11. ~~`/implement` `/tdd` 票 03（TDD 重做）~~：已完成（选改理想生成开放草案；witnessed red → green → refactor；`CHANGE_CURATED` 出草案、不写策展、不出计划）  
 12. ~~`/implement` `/tdd` 票 04~~：已完成（逐条确认：接受即写策展并立刻比对 → 待确认关闭；witnessed red → green → refactor；`DRAFT_ITEM_ACCEPTED` / `DRAFT_ITEM_REJECTED`）  
-13. **下一对话：`/implement` `/tdd` 票 05**（升级/空洞作废未完成草案）。票路径 [`.scratch/change-curated-draft/issues/05-void-draft-on-upgrade-hollow.md`](../.scratch/change-curated-draft/issues/05-void-draft-on-upgrade-hollow.md)。**完整开工 prompt** [`docs/implement-change-curated-draft-05-prompt.md`](implement-change-curated-draft-05-prompt.md)（复制区整段贴进新对话；附 implement + tdd skill）。一次只做一张；不要顺手做 06。本票是把竖切已有升级/空洞接到开放草案，诚实红灯是草案仍 OPEN / 作废后仍能审条，不要拆 04、不要重做挂起或计划作废。  
-
-06 被 05 挡住。
+13. ~~`/implement` `/tdd` 票 05~~：已完成（升级/空洞作废未完成草案；待确认关闭后再漂同一合并键升级；witnessed red → green → refactor；`DRAFT_VOIDED`）  
+14. **下一对话：`/implement` `/tdd` 票 06**（HTTP 主接缝有序 tracer）。票路径 [`.scratch/change-curated-draft/issues/06-http-tracer-acceptance.md`](../.scratch/change-curated-draft/issues/06-http-tracer-acceptance.md)。一次只做一张；不要重拆 01–05 或竖切 01–13。  
 
 ### 工单阻塞简图
 
@@ -75,18 +74,18 @@
 05 → 11（指派/拒绝/转让 Should，done）
 ```
 
-改策展 / 改理想草案（现行 frontier = **05**）：
+改策展 / 改理想草案（现行 frontier = **06**）：
 
 ```
 01 关闭建底覆盖（TDD-done） ─────────────────┐
                                               │
 02 诊断改理想分叉（TDD-done） → 03 选支出草案（TDD-done） → 04 逐条确认写入并立刻比对（TDD-done）
                                               │
-                                              └→ 05 升级/空洞作废草案
+                                              └→ 05 升级/空洞作废草案（TDD-done）
                                                    → 06 HTTP tracer（本刀定义完成）
 ```
 
-（一次只做一张。05 未完成前，不要开工 06。）
+（一次只做一张。）
 
 ## 本地启动摘要
 

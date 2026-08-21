@@ -13,7 +13,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Open 改理想 草案 reads (ticket 03) and per-item accept/reject (ticket 04).
+ * Open 改理想 草案 reads (ticket 03), per-item accept/reject (ticket 04),
+ * GET by id including VOIDED (ticket 05).
  */
 @RestController
 @RequestMapping("/api")
@@ -29,6 +30,14 @@ public class CuratedDraftController {
     @GetMapping("/conflicts/{conflictId}/curated-drafts/open")
     public ApiResponse<CuratedDraftResponse> openDraft(@PathVariable String conflictId) {
         return ApiResponse.ok(curatedDraftService.getOpen(conflictId));
+    }
+
+    @GetMapping("/conflicts/{conflictId}/curated-drafts/{draftId}")
+    public ApiResponse<CuratedDraftResponse> draftById(
+            @PathVariable String conflictId,
+            @PathVariable String draftId
+    ) {
+        return ApiResponse.ok(curatedDraftService.getById(conflictId, draftId));
     }
 
     @PostMapping("/conflicts/{conflictId}/curated-drafts/open/items/{itemId}/accept")

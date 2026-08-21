@@ -4,20 +4,226 @@
 
 **Blocked by:** 04 — 逐条确认：接受即写策展并立刻比对（相等 → 待确认关闭）
 
-**Status:** ready-for-agent
+**Status:** done
+
+**TDD:** `/implement` 走 [`docs/agents/tdd.md`](../../../docs/agents/tdd.md)。01–05 已 TDD-done；下一 frontier = 06。
 
 从竖切 MVP 往上长：升级、空洞挂起、作废活跃操作计划已在竖切交付。本票把同一触发接到开放草案（以及已选改理想），不重做挂起/升级/关单产品化，也不引入新的 SSH 计划。
 
-- [ ] 合并键条目仍待确认时，快照将 X 的可用观测从 B 改为 C：同一合并键升级（一条、留脉络），不新开并行开放冲突；开放草案作废；策展 X 仍为 A；待确认条目未写入
-- [ ] 心跳超时使合并键观测空洞、草案仍开放：冲突挂起（不关闭）；草案作废；再接受/拒绝被拒绝
-- [ ] GET 开放/该份草案可看出已作废；作废草案不可再修改
-- [ ] 合并键条目已接受且冲突已待确认关闭后，快照再报 X 运行于 C：离开待确认关闭，同一合并键升级/重开，不是第二条并行开放冲突
-- [ ] 已接受条目保持其已写入的策展值；后续比对以该新策展值为准（例如已改为 B 后再观测到 C）
-- [ ] HTTP 可读「草案已作废」审计；作废后的选支不能再当当前处理路径继续审条
-- [ ] 不把空洞或观测消失收成「策展改为不存在」；不重做修实际计划作废语义（已有计划作废保持）
+- [x] 合并键条目仍待确认时，快照将 X 的可用观测从 B 改为 C：同一合并键升级（一条、留脉络），不新开并行开放冲突；开放草案作废；策展 X 仍为 A；待确认条目未写入
+- [x] 心跳超时使合并键观测空洞、草案仍开放：冲突挂起（不关闭）；草案作废；再接受/拒绝被拒绝
+- [x] GET 开放/该份草案可看出已作废；作废草案不可再修改
+- [x] 合并键条目已接受且冲突已待确认关闭后，快照再报 X 运行于 C：离开待确认关闭，同一合并键升级/重开，不是第二条并行开放冲突
+- [x] 已接受条目保持其已写入的策展值；后续比对以该新策展值为准（例如已改为 B 后再观测到 C）
+- [x] HTTP 可读「草案已作废」审计；作废后的选支不能再当当前处理路径继续审条
+- [x] 不把空洞或观测消失收成「策展改为不存在」；不重做修实际计划作废语义（已有计划作废保持）
 
 **Out of this ticket:** 本刀总 E2E 套件（06）、Y2 对齐步、改策展后再出 SSH 计划、自我迭代。
 
 ## Comments
 
 开工 prompt：[`docs/implement-change-curated-draft-05-prompt.md`](../../../docs/implement-change-curated-draft-05-prompt.md)。01–04 TDD-done（04 已合入 `main`）。本票要把竖切已有的升级/空洞接到开放草案；第一圈诚实红灯是 B→C 后草案仍 OPEN（或仍能 accept），不要拆 04 的接受写入与比对，不要重做挂起/计划作废。不要做 06。
+
+### Step A — seams
+
+04 `openChangeCuratedDraft` takes `itemXId`/`itemYId` from GET `/api/conflicts/{id}/curated-drafts/open` (`data.items[].id` by subject). `draftId` is `data.id` on that same GET; 04's `OpenDraft` did not keep it. B→C is `POST /api/curated/hosts` then heartbeat+snapshot with a different `agentId` (`agent-{objectX}-c`). Heartbeat timeout is backdate `HostAgent.lastHeartbeatAt` + `POST /api/observed/scan-heartbeat-timeouts`. GET open only queries `status=OPEN`; after VOIDED, GET open is `DRAFT_NOT_FOUND` unless GET by id exists.
+
+### Step B — cycle 1: 待审草案时快照 B→C 升级并作废开放草案 (red)
+
+New test `ChangeCuratedDraftVoidHttpAcceptanceTest.snapshotBtoCWhileDraftPendingUpgradesSameConflictAndVoidsOpenDraftWithoutWritingCurated`. Conflict upgrade (same id, lineage B then C, 策展 still A) reused 竖切 `upgradeOpen`; this cycle's missing behavior is the open 草案.
+
+Red:
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftVoidHttpAcceptanceTest.snapshotBtoCWhileDraftPendingUpgradesSameConflictAndVoidsOpenDraftWithoutWritingCurated
+```
+
+```text
+ChangeCuratedDraftVoidHttpAcceptanceTest > snapshotBtoCWhileDraftPendingUpgradesSameConflictAndVoidsOpenDraftWithoutWritingCurated() FAILED
+    java.lang.AssertionError: Status expected:<400> but was:<200>
+	at ...ChangeCuratedDraftVoidHttpAcceptanceTest.java:72
+BUILD FAILED in 16s
+```
+
+GET open after B→C still 200 OPEN. Conflict GET / lineage / 「应该在哪」A already green — 竖切 upgrade, not this cycle's failure.
+
+Green: `upgradeOpen` calls `CuratedDraftService.voidOpenForConflict` (`@Lazy` to avoid the detection↔draft cycle). PENDING items are not written.
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftVoidHttpAcceptanceTest.snapshotBtoCWhileDraftPendingUpgradesSameConflictAndVoidsOpenDraftWithoutWritingCurated
+BUILD SUCCESSFUL in 5s
+```
+
+Refactor: javadoc only; same test + 04 accept still green.
+
+### Step C — cycle 2: 作废后审条失败码是 DRAFT_VOIDED (red)
+
+Red:
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftVoidHttpAcceptanceTest.acceptAndRejectAfterUpgradeAreDraftVoidedAndCuratedStaysA
+```
+
+```text
+ChangeCuratedDraftVoidHttpAcceptanceTest > acceptAndRejectAfterUpgradeAreDraftVoidedAndCuratedStaysA() FAILED
+    java.lang.AssertionError: JSON path "$.code"
+Expected: is "DRAFT_VOIDED"
+     but: was "DRAFT_NOT_FOUND"
+BUILD FAILED in 5s
+```
+
+`requireOpen` after void looks like the draft never existed. Do not change the expectation to `DRAFT_NOT_FOUND`.
+
+Green: item review uses `requireReviewableDraft` (latest row including VOIDED) and throws `DRAFT_VOIDED`. GET open still uses `requireOpen` → `DRAFT_NOT_FOUND`.
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftVoidHttpAcceptanceTest.acceptAndRejectAfterUpgradeAreDraftVoidedAndCuratedStaysA
+BUILD SUCCESSFUL in 5s
+```
+
+Refactor: `findLatest`; test helper `snapshotXOnHostC`. Cycle 1 + 04 non-handler still green.
+
+### Step D — cycle 3: GET 该份草案可见 VOIDED (red)
+
+Red:
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftVoidHttpAcceptanceTest.getDraftByIdAfterUpgradeShowsVoidedWithPendingItems
+```
+
+```text
+ChangeCuratedDraftVoidHttpAcceptanceTest > getDraftByIdAfterUpgradeShowsVoidedWithPendingItems() FAILED
+    java.lang.AssertionError: Status expected:<200> but was:<500>
+Body = {"success":false,"code":"INTERNAL_ERROR","message":"No static resource api/conflicts/.../curated-drafts/draft-....","data":null}
+BUILD FAILED in 5s
+```
+
+Missing GET maps to `ResourceHttpRequestHandler` (`NoResourceFoundException` → 500). Not 404. Same class of red as 04 cycle 1.
+
+Green: GET `/api/conflicts/{conflictId}/curated-drafts/{draftId}` returns OPEN or VOIDED; GET open still only OPEN.
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftVoidHttpAcceptanceTest.getDraftByIdAfterUpgradeShowsVoidedWithPendingItems
+BUILD SUCCESSFUL in 5s
+```
+
+Refactor: test helper `getDraftById`. GET open still 400 after void (cycle 1).
+
+### Step E — cycle 4: 空洞挂起并作废草案 (red)
+
+Red:
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftVoidHttpAcceptanceTest.heartbeatTimeoutWhileDraftOpenSuspendsConflictAndVoidsDraft
+```
+
+```text
+ChangeCuratedDraftVoidHttpAcceptanceTest > heartbeatTimeoutWhileDraftOpenSuspendsConflictAndVoidsDraft() FAILED
+    java.lang.AssertionError: Status expected:<400> but was:<200>
+	at ...ChangeCuratedDraftVoidHttpAcceptanceTest.java:174
+BUILD FAILED in 5s
+```
+
+Conflict `SUSPENDED` / 「实际在哪」HOLLOW / 「应该在哪」A already green (竖切 hollow). Failure is GET open still 200 — draft not voided. Do not rewrite HeartbeatTimeoutHollowHttpAcceptanceTest.
+
+Green: `onObservationBecameHollow` also calls `voidOpenForConflict` (same method as upgrade; no copied suspend engine).
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftVoidHttpAcceptanceTest.heartbeatTimeoutWhileDraftOpenSuspendsConflictAndVoidsDraft
+BUILD SUCCESSFUL in 5s
+```
+
+Refactor: javadoc. `HeartbeatTimeoutHollowHttpAcceptanceTest` still green (plan voiding unchanged).
+
+### Step F — cycle 5: 接受 X 待确认关闭后再漂到 C (red)
+
+Red:
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftVoidHttpAcceptanceTest.acceptMergeKeyThenSnapshotCLeavesPendingCloseKeepsCuratedBAndVoidsDraft
+```
+
+```text
+ChangeCuratedDraftVoidHttpAcceptanceTest > acceptMergeKeyThenSnapshotCLeavesPendingCloseKeepsCuratedBAndVoidsDraft() FAILED
+    java.lang.AssertionError: Status expected:<400> but was:<200>
+	at ...ChangeCuratedDraftVoidHttpAcceptanceTest.java:234
+BUILD FAILED in 5s
+```
+
+Same conflict id, leave PENDING_CLOSE, 策展 X stays B, 观测 C, one active conflict, Y still A — already green (`reopenFromPendingClose`). Failure: POST accept Y still 200 because void was only on `upgradeOpen`. Do not dismantle reopen to fake a red on conflict identity.
+
+Green: `reopenFromPendingClose` also calls `voidOpenForConflict`. Accepted X stays 策展 B; Y stays PENDING and is not written.
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftVoidHttpAcceptanceTest.acceptMergeKeyThenSnapshotCLeavesPendingCloseKeepsCuratedBAndVoidsDraft
+BUILD SUCCESSFUL in 6s
+```
+
+Refactor: none beyond the one call site. Must still assert 策展 B (different from cycle 1 keeping A).
+
+### Step G — cycle 6: HTTP 可读「草案已作废」审计 (red)
+
+Red:
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftVoidHttpAcceptanceTest.upgradeThatVoidsDraftWritesReadableDraftVoidedAudit
+```
+
+```text
+ChangeCuratedDraftVoidHttpAcceptanceTest > upgradeThatVoidsDraftWritesReadableDraftVoidedAudit() FAILED
+    java.lang.AssertionError: JSON path "$.data[*].eventType"
+Expected: a collection containing "DRAFT_VOIDED"
+     but: mismatches were: [was "WARNED", was "ACKNOWLEDGED", was "HANDLER_ACCEPTED", was "DRAFT_CREATED", was "UPGRADED"]
+BUILD FAILED in 5s
+```
+
+UPGRADED remains; DRAFT_VOIDED is missing. V14 CHECK does not include DRAFT_VOIDED.
+
+Green: additive V15 CHECK + `ConflictEventType.DRAFT_VOIDED`; `voidOpenForConflict(conflictId, reason)` appends event with `draftId`, `reason`, hint `草案已作废`. Did not edit V13/V14.
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftVoidHttpAcceptanceTest.upgradeThatVoidsDraftWritesReadableDraftVoidedAudit
+BUILD SUCCESSFUL in 5s
+```
+
+Refactor: void selects the OPEN row then updates that id (same as plan void). UPGRADED still present.
+
+### Step H — cycle 7: 作废后的选支不能继续当处理路径 (reuse)
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftVoidHttpAcceptanceTest.staleChangeCuratedSelectionAfterUpgradeIsRejectedAndDraftStaysVoided
+BUILD SUCCESSFUL in 5s
+```
+
+reuse/regression: `scheduleAsyncDiagnosis` already marks the draft's diagnosis STALE; POST with that `diagnosisId` is `DIAGNOSIS_NOT_READY`. No new branch-selection product. Value of this cycle is pinning 选支作废 + 草案作废 on HTTP together (accept still `DRAFT_VOIDED`; GET open is not a new OPEN). Did not create a second draft targeting C. Did not dismantle production to fake a red.
+
+### Step I — thin UI
+
+GET open failure falls back to remembered `draftId` via GET by id. VOIDED shows `已作废 / VOIDED` and hides accept/reject. OPEN behavior unchanged. `npm run build` passed. UI is not an automated seam.
+
+### Step J — ticket regression + `/code-review`
+
+```text
+cd backend && ./gradlew cleanTest test
+82 tests, 0 failures, 100% successful
+```
+
+Includes 01–04 change-curated HTTP, 竖切 upgrade / hollow / plan-void / E2E, and this ticket's 7 methods.
+
+`/code-review` vs `main` (`385cc57`):
+- Standards: 1 hard finding — hollow comment said "open 草案" (fixed to "void any OPEN 草案"); misplaced accept javadoc on `voidOpenForConflict` (moved back). Judgement: extra `status != OPEN` branch; duplicated UI `DRAFT_NOT_FOUND` checks.
+- Spec: no missing HTTP product clause; no 06 / Y2 / plan-void rewrite. Hollow accept-denied is asserted; reject shares the same `DRAFT_VOIDED` gate as the upgrade cycle.
+
+Frontier = 06. Did not implement 06.
+
+
+
+
+
+
+
+
+
+
+
+

@@ -7,6 +7,12 @@ export function getOpenDraft(conflictId: string): Promise<CuratedDraft> {
   );
 }
 
+export function getDraftById(conflictId: string, draftId: string): Promise<CuratedDraft> {
+  return apiRequest<CuratedDraft>(
+    `/api/conflicts/${encodeURIComponent(conflictId)}/curated-drafts/${encodeURIComponent(draftId)}`,
+  );
+}
+
 export function acceptDraftItem(conflictId: string, itemId: string): Promise<CuratedDraft> {
   return apiRequest<CuratedDraft>(
     `/api/conflicts/${encodeURIComponent(conflictId)}/curated-drafts/open/items/${encodeURIComponent(itemId)}/accept`,

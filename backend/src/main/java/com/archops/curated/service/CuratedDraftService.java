@@ -23,6 +23,7 @@ import com.archops.curated.mapper.CuratedFactMapper;
 import com.archops.curated.mapper.CuratedObjectMapper;
 import com.archops.user.security.AuthUserPrincipal;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -38,7 +39,8 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Rule-templated 改理想 草案 (ticket 03) and per-item review gate (ticket 04).
+ * Rule-templated 改理想 草案 (ticket 03), per-item review (ticket 04),
+ * and OPEN-draft voiding on 冲突升级/空洞 (ticket 05).
  * Confirmation-before-write is not 策展真相.
  */
 @Service
@@ -84,6 +86,16 @@ public class CuratedDraftService {
     @Transactional(readOnly = true)
     public CuratedDraftResponse getOpen(String conflictId) {
         return respond(requireOpen(conflictId));
+    }
+
+    @Transactional(readOnly = true)
+    public CuratedDraftResponse getById(String conflictId, String draftId) {
+        CuratedDraft draft = curatedDraftMapper.selectById(draftId);
+        if (draft == null || !conflictId.equals(draft.getConflictId())) {
+            throw new BusinessException("DRAFT_NOT_FOUND",
+                    "No 草案 " + draftId + " for conflict: " + conflictId);
+        }
+        return respond(draft);
     }
 
     @Transactional
@@ -135,6 +147,30 @@ public class CuratedDraftService {
     }
 
     /**
+     * Ticket 05: 冲突升级/空洞作废该冲突上仍 OPEN 的改理想草案.
+     * PENDING items stay PENDING and are never written to 策展.
+     */
+    @Transactional
+    public void voidOpenForConflict(String conflictId, String reason) {
+        CuratedDraft open = findOpen(conflictId);
+        if (open == null) {
+            return;
+        }
+        int updated = curatedDraftMapper.update(null, new LambdaUpdateWrapper<CuratedDraft>()
+                .eq(CuratedDraft::getId, open.getId())
+                .eq(CuratedDraft::getStatus, CuratedDraftStatus.OPEN)
+                .set(CuratedDraft::getStatus, CuratedDraftStatus.VOIDED));
+        if (updated != 1) {
+            return;
+        }
+        Map<String, Object> detail = new LinkedHashMap<>();
+        detail.put("draftId", open.getId());
+        detail.put("reason", reason);
+        detail.put("hint", "草案已作废");
+        conflictEventService.append(conflictId, ConflictEventType.DRAFT_VOIDED, null, detail);
+    }
+
+    /**
      * Accept writes that item's 策展 运行于 immediately, then runs the same merge-key compare
      * as snapshot ingest (equal → 待确认关闭, never auto CLOSED).
      */
@@ -165,7 +201,7 @@ public class CuratedDraftService {
     }
 
     private OpenItemReview beginItemReview(String conflictId, String itemId, AuthUserPrincipal actor) {
-        CuratedDraft draft = requireOpen(conflictId);
+        CuratedDraft draft = requireReviewableDraft(conflictId);
         requireAcceptedHandler(requireConflict(conflictId), actor);
         CuratedDraftItem item = requireItemOnDraft(draft.getId(), itemId);
         return new OpenItemReview(draft, item);
@@ -199,6 +235,33 @@ public class CuratedDraftService {
                     "No open 草案 for conflict: " + conflictId);
         }
         return draft;
+    }
+
+    /**
+     * Item review loads the latest 草案 including VOIDED so accept/reject can say
+     * 草案已作废 instead of pretending there was never a draft.
+     */
+    private CuratedDraft requireReviewableDraft(String conflictId) {
+        CuratedDraft draft = findLatest(conflictId);
+        if (draft == null) {
+            throw new BusinessException("DRAFT_NOT_FOUND",
+                    "No 草案 for conflict: " + conflictId);
+        }
+        if (draft.getStatus() == CuratedDraftStatus.VOIDED) {
+            throw new BusinessException("DRAFT_VOIDED", "草案已作废");
+        }
+        if (draft.getStatus() != CuratedDraftStatus.OPEN) {
+            throw new BusinessException("DRAFT_NOT_FOUND",
+                    "No open 草案 for conflict: " + conflictId);
+        }
+        return draft;
+    }
+
+    private CuratedDraft findLatest(String conflictId) {
+        return curatedDraftMapper.selectOne(new LambdaQueryWrapper<CuratedDraft>()
+                .eq(CuratedDraft::getConflictId, conflictId)
+                .orderByDesc(CuratedDraft::getCreatedAt)
+                .last("LIMIT 1"));
     }
 
     private ConflictCase requireConflict(String conflictId) {

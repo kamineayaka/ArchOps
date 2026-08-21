@@ -23,7 +23,7 @@ import {
   getDiagnosis,
 } from '../api/conflicts';
 import { approvePlan, getActivePlan, selectBranch, startExecution } from '../api/plans';
-import { getOpenDraft, acceptDraftItem, rejectDraftItem } from '../api/drafts';
+import { getOpenDraft, getDraftById, acceptDraftItem, rejectDraftItem } from '../api/drafts';
 import { getShouldWhere } from '../api/curated';
 import type { ConflictCase, ConflictDiagnosis, CuratedDraft, OperationPlan } from '../api/types';
 import { ApiError } from '../api/types';
@@ -34,6 +34,26 @@ const { Title, Paragraph, Text } = Typography;
 
 const FIX_ACTUAL_FORK = 'FIX_ACTUAL_TO_CURATED';
 const CHANGE_CURATED_FORK = 'CHANGE_CURATED_TO_OBSERVED';
+
+function draftMemoryKey(conflictId: string): string {
+  return `archops.curated-draft.${conflictId}`;
+}
+
+function rememberDraftId(conflictId: string, draftId: string): void {
+  try {
+    sessionStorage.setItem(draftMemoryKey(conflictId), draftId);
+  } catch {
+    // Demo recall only; private mode must still render GET open.
+  }
+}
+
+function recalledDraftId(conflictId: string): string | null {
+  try {
+    return sessionStorage.getItem(draftMemoryKey(conflictId));
+  } catch {
+    return null;
+  }
+}
 
 export default function ConflictDetailPage() {
   const { id = '' } = useParams<{ id: string }>();
@@ -97,31 +117,51 @@ export default function ConflictDetailPage() {
       }
 
       try {
-        const dft = await getOpenDraft(id);
-        setDraft(dft);
-        setDraftError(null);
-        const whereEntries = await Promise.all(
-          dft.items.map(async (item) => {
+        let dft: CuratedDraft | null = null;
+        try {
+          dft = await getOpenDraft(id);
+          rememberDraftId(id, dft.id);
+        } catch (err) {
+          if (!(err instanceof ApiError) || err.code !== 'DRAFT_NOT_FOUND') {
+            throw err;
+          }
+          const remembered = recalledDraftId(id);
+          if (remembered) {
             try {
-              const sw = await getShouldWhere(item.subjectId);
-              const host = sw.curatedValue.hostName
-                ? `${sw.curatedValue.hostName} (${sw.curatedValue.hostId})`
-                : sw.curatedValue.hostId;
-              return [item.subjectId, host] as const;
-            } catch {
-              return [item.subjectId, '—'] as const;
+              dft = await getDraftById(id, remembered);
+            } catch (inner) {
+              if (!(inner instanceof ApiError) || inner.code !== 'DRAFT_NOT_FOUND') {
+                throw inner;
+              }
             }
-          }),
-        );
-        setShouldWhereBySubject(Object.fromEntries(whereEntries));
+          }
+        }
+        if (!dft) {
+          setDraft(null);
+          setShouldWhereBySubject({});
+          setDraftError(null);
+        } else {
+          setDraft(dft);
+          setDraftError(null);
+          const whereEntries = await Promise.all(
+            dft.items.map(async (item) => {
+              try {
+                const sw = await getShouldWhere(item.subjectId);
+                const host = sw.curatedValue.hostName
+                  ? `${sw.curatedValue.hostName} (${sw.curatedValue.hostId})`
+                  : sw.curatedValue.hostId;
+                return [item.subjectId, host] as const;
+              } catch {
+                return [item.subjectId, '—'] as const;
+              }
+            }),
+          );
+          setShouldWhereBySubject(Object.fromEntries(whereEntries));
+        }
       } catch (err) {
         setDraft(null);
         setShouldWhereBySubject({});
-        if (err instanceof ApiError && err.code === 'DRAFT_NOT_FOUND') {
-          setDraftError(null);
-        } else {
-          setDraftError(err instanceof ApiError ? err.message : String(err));
-        }
+        setDraftError(err instanceof ApiError ? err.message : String(err));
       }
     } catch (err) {
       setConflict(null);
@@ -165,6 +205,8 @@ export default function ConflictDetailPage() {
 
   const collab = conflict.collaboration;
   const accepted = isAcceptedHandler(collab, userId);
+  const openDraft = draft?.status === 'OPEN';
+  const voidedDraft = draft?.status === 'VOIDED';
   const isSenior = user?.role === 'SENIOR';
   const isGeneral = user?.role === 'GENERAL';
   const canCollab =
@@ -282,7 +324,7 @@ export default function ConflictDetailPage() {
             <Divider style={{ margin: '12px 0' }} />
             <Button
               type="primary"
-              disabled={!accepted || diagnosis.status !== 'READY' || !!plan || !!draft}
+              disabled={!accepted || diagnosis.status !== 'READY' || !!plan || openDraft}
               loading={busy}
               onClick={() =>
                 void runAction(
@@ -302,7 +344,7 @@ export default function ConflictDetailPage() {
                 已有活跃计划，不可再选支。
               </Paragraph>
             )}
-            {draft && (
+            {openDraft && (
               <Paragraph type="secondary" style={{ marginTop: 8, marginBottom: 0 }}>
                 已有开放草案，不可再选支。
               </Paragraph>
@@ -321,7 +363,9 @@ export default function ConflictDetailPage() {
             <Descriptions column={1} size="small">
               <Descriptions.Item label="草案 ID">{draft.id}</Descriptions.Item>
               <Descriptions.Item label="状态">
-                <Tag>{draft.status}</Tag>
+                <Tag color={voidedDraft ? 'default' : undefined}>
+                  {voidedDraft ? '已作废 / VOIDED' : draft.status}
+                </Tag>
               </Descriptions.Item>
               <Descriptions.Item label="选支">{draft.selectedForkId}</Descriptions.Item>
             </Descriptions>
@@ -332,7 +376,7 @@ export default function ConflictDetailPage() {
               renderItem={(item) => (
                 <List.Item
                   actions={
-                    accepted && item.status === 'PENDING'
+                    accepted && openDraft && item.status === 'PENDING'
                       ? [
                           <Button
                             key="accept"

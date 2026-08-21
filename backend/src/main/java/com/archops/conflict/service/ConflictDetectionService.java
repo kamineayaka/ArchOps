@@ -14,6 +14,7 @@ import com.archops.curated.domain.CuratedRelationType;
 import com.archops.curated.dto.CuratedObjectResponse;
 import com.archops.curated.mapper.CuratedFactMapper;
 import com.archops.curated.mapper.CuratedObjectMapper;
+import com.archops.curated.service.CuratedDraftService;
 import com.archops.observed.domain.ObservedAvailability;
 import com.archops.observed.domain.ObservedFact;
 import com.archops.observed.mapper.ObservedFactMapper;
@@ -35,9 +36,10 @@ import java.util.Objects;
 import java.util.UUID;
 
 /**
- * Emits conflict warnings when curated ≠ currently available observed on a merge key.
- * When tracks become equal, transitions to PENDING_CLOSE (never auto-closes).
- */
+     * Emits conflict warnings when curated ≠ currently available observed on a merge key.
+     * When tracks become equal, transitions to PENDING_CLOSE (never auto-closes).
+     * OPEN 改理想草案 is voided on observed-target 升级 (ticket 05); SQL stays in CuratedDraftService.
+     */
 @Service
 public class ConflictDetectionService {
 
@@ -54,6 +56,7 @@ public class ConflictDetectionService {
     private final ConflictDiagnosisService conflictDiagnosisService;
     private final ConflictEventService conflictEventService;
     private final OperationPlanService operationPlanService;
+    private final CuratedDraftService curatedDraftService;
     private final ObjectMapper objectMapper;
 
     public ConflictDetectionService(
@@ -64,6 +67,7 @@ public class ConflictDetectionService {
             ConflictDiagnosisService conflictDiagnosisService,
             ConflictEventService conflictEventService,
             @Lazy OperationPlanService operationPlanService,
+            @Lazy CuratedDraftService curatedDraftService,
             ObjectMapper objectMapper
     ) {
         this.conflictCaseMapper = conflictCaseMapper;
@@ -73,6 +77,7 @@ public class ConflictDetectionService {
         this.conflictDiagnosisService = conflictDiagnosisService;
         this.conflictEventService = conflictEventService;
         this.operationPlanService = operationPlanService;
+        this.curatedDraftService = curatedDraftService;
         this.objectMapper = objectMapper;
     }
 
@@ -97,7 +102,7 @@ public class ConflictDetectionService {
                 .eq(ObservedFact::getRelationType, relationType));
 
         // 观测空洞: no usable observed value → do not open a both-sides conflict;
-        // if an OPEN/PENDING_CLOSE exists, suspend + void plans.
+        // if an OPEN/PENDING_CLOSE exists, suspend + void plans and any OPEN 草案.
         if (curated == null) {
             return;
         }
@@ -164,7 +169,8 @@ public class ConflictDetectionService {
     }
 
     /**
-     * Heartbeat timeout / fact retirement: suspend active conflict (not close) and void plans.
+     * Heartbeat timeout / fact retirement: suspend active conflict (not close),
+     * void plans, and void any OPEN 改理想草案.
      */
     @Transactional
     public HollowSuspendResult onObservationBecameHollow(String subjectId, CuratedRelationType relationType) {
@@ -202,6 +208,7 @@ public class ConflictDetectionService {
                     "reason", "observation_hollow_heartbeat_timeout"
             ));
         }
+        curatedDraftService.voidOpenForConflict(active.getId(), "observation_hollow_heartbeat_timeout");
         conflictDiagnosisService.scheduleAsyncDiagnosis(active.getId());
         return new HollowSuspendResult(active.getId(), voided);
     }
@@ -367,6 +374,7 @@ public class ConflictDetectionService {
                 "reason", "drift_after_pending_close",
                 "observedTargetId", observed.getTargetId() == null ? "" : observed.getTargetId()
         ));
+        curatedDraftService.voidOpenForConflict(pending.getId(), "conflict_upgrade");
         conflictDiagnosisService.scheduleAsyncDiagnosis(pending.getId());
     }
 
@@ -419,6 +427,7 @@ public class ConflictDetectionService {
         conflictEventService.append(open.getId(), ConflictEventType.UPGRADED, null, Map.of(
                 "observedTargetId", observed.getTargetId() == null ? "" : observed.getTargetId()
         ));
+        curatedDraftService.voidOpenForConflict(open.getId(), "conflict_upgrade");
         conflictDiagnosisService.scheduleAsyncDiagnosis(open.getId());
     }
 
