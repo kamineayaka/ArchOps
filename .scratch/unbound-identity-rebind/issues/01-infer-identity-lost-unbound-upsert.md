@@ -84,4 +84,4 @@ cd backend && ./gradlew test --tests com.archops.observed.UnboundIdentityLostIng
 reuse/regression：首跑绿。与 Cycle C 同一主机范围（`reportingHostInIdentityLostScope` 已认 `observed_fact` PRESENT 且未超时的观测宿主）。不另写生产。命中那一次仍写 PRESENT（本圈不改 actualWhere）。
 Green command: 同上，BUILD SUCCESSFUL / exit 0。
 Refactor: 无结构改动。
-Commit: （提交后填）
+Commit: bdd05ae Infer identity lost from the currently usable observed host.

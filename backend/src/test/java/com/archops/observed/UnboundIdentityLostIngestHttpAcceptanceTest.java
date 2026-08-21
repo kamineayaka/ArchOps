@@ -305,6 +305,56 @@ class UnboundIdentityLostIngestHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data.reason", is("LABEL_CLUE_LOST")));
     }
 
+    @Test
+    void neverObservedIdentityLostActualWhereIsNotHollow() throws Exception {
+        String hostA = createHost("u01f1-h");
+        String containerId = createContainer("u01f1-x", "u01f1-oid");
+        confirmRunsOn(containerId, hostA);
+
+        mockMvc.perform(post("/api/agent/heartbeat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "agentId": "u01f1-ag",
+                                  "hostId": "%s",
+                                  "snapshot": {
+                                    "containers": [
+                                      {
+                                        "runtimeId": "u01f1-rt-miss",
+                                        "name": "u01f1-miss",
+                                        "labels": {}
+                                      }
+                                    ],
+                                    "absentObjectIds": []
+                                  }
+                                }
+                                """.formatted(hostA))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/observed/asks/actual-where")
+                        .param("containerId", containerId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.question", is("实际在哪")))
+                .andExpect(jsonPath("$.data.track", is("OBSERVED")))
+                .andExpect(jsonPath("$.data.identityLost", is(true)))
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(hostA)))
+                .andExpect(jsonPath("$.data.observedValue.hostId", nullValue()))
+                .andExpect(jsonPath("$.data.observedValue.availability", is("IDENTITY_LOST")));
+
+        mockMvc.perform(get("/api/curated/asks/should-where")
+                        .param("containerId", containerId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.question", is("应该在哪")))
+                .andExpect(jsonPath("$.data.track", is("CURATED")))
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(hostA)));
+    }
+
     private JsonNode unboundByRuntimeId(MvcResult listed, String runtimeId) throws Exception {
         JsonNode data = objectMapper.readTree(listed.getResponse().getContentAsString()).path("data");
         for (JsonNode node : data) {

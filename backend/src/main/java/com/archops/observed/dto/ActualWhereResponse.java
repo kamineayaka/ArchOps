@@ -13,12 +13,14 @@ public record ActualWhereResponse(
         String relationLabel,
         CuratedObjectResponse subject,
         ObservedValue observedValue,
-        CuratedHostValue curatedValue
+        CuratedHostValue curatedValue,
+        boolean identityLost
 ) {
     public record ObservedValue(
             /**
-             * PRESENT / ABSENT / HOLLOW.
+             * PRESENT / ABSENT / HOLLOW / IDENTITY_LOST.
              * HOLLOW = no currently usable observed value (never written or later timeout).
+             * IDENTITY_LOST is ask-DTO only — never stored as observed_fact.availability.
              */
             String availability,
             String hostId,

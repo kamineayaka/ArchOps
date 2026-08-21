@@ -146,21 +146,8 @@ public class ObservedTruthService {
         ObservedFact observed = observedFactMapper.selectOne(new LambdaQueryWrapper<ObservedFact>()
                 .eq(ObservedFact::getSubjectId, container.getId())
                 .eq(ObservedFact::getRelationType, CuratedRelationType.RUNS_ON));
-
-        ActualWhereResponse.ObservedValue observedValue;
-        if (observed == null || observationFreshnessService.isObservedFactStale(observed)) {
-            // Never written, or heartbeat timed out → 观测空洞 (stale PRESENT is not 实际).
-            observedValue = new ActualWhereResponse.ObservedValue("HOLLOW", null, null);
-        } else if (observed.getAvailability() == ObservedAvailability.ABSENT) {
-            observedValue = new ActualWhereResponse.ObservedValue("ABSENT", null, null);
-        } else {
-            CuratedObject observedHost = curatedObjectMapper.selectById(observed.getTargetId());
-            observedValue = new ActualWhereResponse.ObservedValue(
-                    "PRESENT",
-                    observedHost != null ? observedHost.getId() : observed.getTargetId(),
-                    observedHost != null ? observedHost.getName() : null
-            );
-        }
+        IdentityLostMark lostMark = identityLostMarkMapper.selectById(container.getId());
+        boolean identityLost = lostMark != null;
 
         return new ActualWhereResponse(
                 "实际在哪",
@@ -168,8 +155,30 @@ public class ObservedTruthService {
                 CuratedRelationType.RUNS_ON,
                 CuratedRelationType.RUNS_ON.labelZh(),
                 CuratedObjectResponse.from(container),
-                observedValue,
-                new ActualWhereResponse.CuratedHostValue(curatedHost.getId(), curatedHost.getName())
+                observedAskValue(lostMark, observed),
+                new ActualWhereResponse.CuratedHostValue(curatedHost.getId(), curatedHost.getName()),
+                identityLost
+        );
+    }
+
+    /**
+     * 规范问法「实际在哪」投影。IDENTITY_LOST 只出现在此读模型，不写入 observed_fact.availability。
+     */
+    private ActualWhereResponse.ObservedValue observedAskValue(IdentityLostMark lostMark, ObservedFact observed) {
+        if (lostMark != null) {
+            return new ActualWhereResponse.ObservedValue("IDENTITY_LOST", null, null);
+        }
+        if (observed == null || observationFreshnessService.isObservedFactStale(observed)) {
+            return new ActualWhereResponse.ObservedValue("HOLLOW", null, null);
+        }
+        if (observed.getAvailability() == ObservedAvailability.ABSENT) {
+            return new ActualWhereResponse.ObservedValue("ABSENT", null, null);
+        }
+        CuratedObject observedHost = curatedObjectMapper.selectById(observed.getTargetId());
+        return new ActualWhereResponse.ObservedValue(
+                "PRESENT",
+                observedHost != null ? observedHost.getId() : observed.getTargetId(),
+                observedHost != null ? observedHost.getName() : null
         );
     }
 
