@@ -105,3 +105,15 @@ reuse/regression：首跑绿。与 Cycle F 同一读模型（`observedAskValue` 
 Green command: 同上，BUILD SUCCESSFUL / exit 0。
 Refactor: 无结构改动。
 Commit: 7e1a3ba Keep stale observed hosts off 实际在哪 after identity loss.
+
+### Cycle H — 超范围 identityLostObjectIds 不得给 X 打失联
+Red command:
+cd backend && ./gradlew test --tests com.archops.observed.UnboundIdentityLostIngestHttpAcceptanceTest.outOfScopeIdentityLostObjectIdsDoNotMarkContainer
+```
+UnboundIdentityLostIngestHttpAcceptanceTest > outOfScopeIdentityLostObjectIdsDoNotMarkContainer() FAILED
+    java.lang.AssertionError: Status expected:<400> but was:<200>
+```
+（独立 witnessed red：声明循环原先不看主机范围。）
+Green command: 同上，BUILD SUCCESSFUL / exit 0。`unlabeledAndIdentityLostDoNotPromiseUpgradeChain` 仍绿（范围内声明）。
+Refactor: 抽出 `findCuratedRunsOn`；声明循环复用 `reportingHostInIdentityLostScope`。
+Commit: 10ce6e5 Ignore out-of-scope Agent identityLostObjectIds.

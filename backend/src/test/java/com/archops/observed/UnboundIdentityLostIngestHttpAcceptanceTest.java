@@ -458,6 +458,46 @@ class UnboundIdentityLostIngestHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data").value(nullValue()));
     }
 
+    @Test
+    void absentObjectIdsRemainUsableAbsentNotIdentityLost() throws Exception {
+        String hostA = createHost("u01i-h");
+        String containerId = createContainer("u01i-x", "u01i-oid");
+        confirmRunsOn(containerId, hostA);
+
+        mockMvc.perform(post("/api/agent/heartbeat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "agentId": "u01i-ag",
+                                  "hostId": "%s",
+                                  "snapshot": {
+                                    "containers": [],
+                                    "absentObjectIds": ["u01i-oid"]
+                                  }
+                                }
+                                """.formatted(hostA))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.absent[0].availability", is("ABSENT")));
+
+        mockMvc.perform(get("/api/observed/asks/actual-where")
+                        .param("containerId", containerId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.observedValue.availability", is("ABSENT")))
+                .andExpect(jsonPath("$.data.observedValue.hostId", nullValue()))
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(hostA)))
+                .andExpect(jsonPath("$.data.identityLost", is(false)));
+
+        mockMvc.perform(get("/api/observed/identity-lost/{id}", containerId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("IDENTITY_LOST_NOT_FOUND")))
+                .andExpect(jsonPath("$.data").value(nullValue()));
+    }
+
     private JsonNode unboundByRuntimeId(MvcResult listed, String runtimeId) throws Exception {
         JsonNode data = objectMapper.readTree(listed.getResponse().getContentAsString()).path("data");
         for (JsonNode node : data) {
