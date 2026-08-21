@@ -144,16 +144,14 @@ BUILD SUCCESSFUL in 5s
 
 Refactor（抽出 `transferHandlerPending`）后同方法仍绿：`BUILD SUCCESSFUL in 5s`。
 
-### Cycle 3 — 负面 2 非处理人 / 待接受不能选、也不能审条
+### Cycle 4 — 负面 3 FIX_ACTUAL 仍跳过草案并仍创建操作计划
 
-拆成两方法。首次均绿；未改生产；错误码仍为 `PLAN_REQUIRES_ACCEPTED_HANDLER`（无新码）。
-
-**3a 不能选** `reuse/regression`：`ChangeCuratedDraftHttpAcceptanceTest.nonHandlerCannotSelectChangeCurated`、`pendingHandlerCannotSelectChangeCurated`。
+`reuse/regression`（首次即绿；未改生产；未跑 SSH / start-execution）。对应 `ChangeCuratedDraftHttpAcceptanceTest.fixActualStillSkipsDraftAndCreatesOperationPlan`。选 `FIX_ACTUAL_TO_CURATED`：`branchKind=FIX_ACTUAL`、`skipsDraft=true`、`status=DRAFT_REVIEW`；GET open → `DRAFT_NOT_FOUND`；GET active 200 且同一计划。
 
 命令：
 
 ```text
-cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftTracerHttpAcceptanceTest.nonHandlerAndPendingAcceptCannotSelectChangeCurated
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftTracerHttpAcceptanceTest.fixActualStillSkipsDraftAndCreatesOperationPlan
 ```
 
 首次输出（witnessed green）：
@@ -166,27 +164,4 @@ cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftTrace
 BUILD SUCCESSFUL in 5s
 4 actionable tasks: 2 executed, 2 up-to-date
 ```
-
-Refactor 后同方法仍绿：`BUILD SUCCESSFUL in 5s`。
-
-**3b 不能审条** `reuse/regression`：`ChangeCuratedDraftItemHttpAcceptanceTest.nonHandlerCannotAcceptDraftItem`、`nonHandlerCannotRejectDraftItem`；待接受审条钉 `CuratedDraftService.requireAcceptedHandler`（`HandlerAcceptance.ACCEPTED` 且 actor 即处理人）。转让夹具：`POST /api/conflicts/{id}/transfer-handler` → `PENDING_ACCEPT`，`user-general-2-demo` accept/reject 皆 400，策展仍为 A。
-
-命令：
-
-```text
-cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftTracerHttpAcceptanceTest.nonHandlerAndPendingAcceptCannotReviewDraftItems
-```
-
-首次输出（witnessed green）：
-
-```text
-> Task :compileTestJava
-> Task :testClasses
-> Task :test
-
-BUILD SUCCESSFUL in 5s
-4 actionable tasks: 2 executed, 2 up-to-date
-```
-
-Refactor（抽出 `transferHandlerPending`）后同方法仍绿：`BUILD SUCCESSFUL in 5s`。
 

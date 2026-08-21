@@ -268,6 +268,28 @@ class ChangeCuratedDraftTracerHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data.curatedValue.hostId", is(pending.world().hostA())));
     }
 
+    @Test
+    @Order(5)
+    void fixActualStillSkipsDraftAndCreatesOperationPlan() throws Exception {
+        ClaimedConflict fx = claimedReadyConflict("ccd06-n3");
+        MvcResult created = postBranch(fx.conflictId(), GENERAL_ID, "FIX_ACTUAL_TO_CURATED")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.branchKind", is("FIX_ACTUAL")))
+                .andExpect(jsonPath("$.data.skipsDraft", is(true)))
+                .andExpect(jsonPath("$.data.status", is("DRAFT_REVIEW")))
+                .andReturn();
+        String planId = readDataId(created);
+
+        getOpenDraft(fx.conflictId())
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("DRAFT_NOT_FOUND")));
+        getActivePlan(fx.conflictId())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.id", is(planId)))
+                .andExpect(jsonPath("$.data.branchKind", is("FIX_ACTUAL")));
+    }
+
     private World bootstrapHostsABCuratedXYOnA(String prefix) throws Exception {
         String objectX = prefix + "-x";
         String objectY = prefix + "-y";
