@@ -91,6 +91,39 @@ class ChangeCuratedDraftItemHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data.status", is("OPEN")));
     }
 
+    @Test
+    void acceptedHandlerAcceptsMergeKeyWritesCuratedShouldWhereToObservedHost() throws Exception {
+        OpenDraft draft = openChangeCuratedDraft("ccd04-ac-a", "ccd04-ac-b", "ctr-ccd04-ac-x", "ctr-ccd04-ac-y");
+        postItemAction(draft.fx().conflictId(), draft.itemYId(), "reject", GENERAL_ID)
+                .andExpect(status().isOk());
+
+        postItemAction(draft.fx().conflictId(), draft.itemXId(), "accept", GENERAL_ID)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.items[?(@.id=='" + draft.itemXId() + "')].status",
+                        hasItem("ACCEPTED")))
+                .andExpect(jsonPath("$.data.items[?(@.id=='" + draft.itemYId() + "')].status",
+                        hasItem("REJECTED")));
+
+        getShouldWhere(draft.fx().containerX())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.question", is("应该在哪")))
+                .andExpect(jsonPath("$.data.track", is("CURATED")))
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(draft.fx().hostB())));
+        getShouldWhere(draft.fx().containerY())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(draft.fx().hostA())));
+
+        mockMvc.perform(post("/api/curated/facts/runs-on")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"containerId\":\"" + draft.fx().containerX()
+                                + "\",\"hostId\":\"" + draft.fx().hostA() + "\"}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("CURATED_RUNS_ON_EXISTS")));
+    }
+
     private OpenDraft openChangeCuratedDraft(
             String hostAName, String hostBName, String objectX, String objectY
     ) throws Exception {

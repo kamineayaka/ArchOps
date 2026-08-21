@@ -48,6 +48,7 @@ public class CuratedDraftService {
     private final CuratedObjectMapper curatedObjectMapper;
     private final ConflictCaseMapper conflictCaseMapper;
     private final ConflictEventService conflictEventService;
+    private final CuratedTruthService curatedTruthService;
     private final ObjectMapper objectMapper;
 
     public CuratedDraftService(
@@ -57,6 +58,7 @@ public class CuratedDraftService {
             CuratedObjectMapper curatedObjectMapper,
             ConflictCaseMapper conflictCaseMapper,
             ConflictEventService conflictEventService,
+            CuratedTruthService curatedTruthService,
             ObjectMapper objectMapper
     ) {
         this.curatedDraftMapper = curatedDraftMapper;
@@ -65,6 +67,7 @@ public class CuratedDraftService {
         this.curatedObjectMapper = curatedObjectMapper;
         this.conflictCaseMapper = conflictCaseMapper;
         this.conflictEventService = conflictEventService;
+        this.curatedTruthService = curatedTruthService;
         this.objectMapper = objectMapper;
     }
 
@@ -127,20 +130,20 @@ public class CuratedDraftService {
     }
 
     /**
-     * Ticket 04: accept waits for 策展 write (later cycle). Reject only marks the item.
+     * Accept writes that item's 策展 运行于 immediately. Compare is a later cycle.
      */
     @Transactional
     public CuratedDraftResponse acceptItem(String conflictId, String itemId, AuthUserPrincipal actor) {
         OpenItemReview review = beginItemReview(conflictId, itemId, actor);
+        writeAcceptedRunsOn(review.item());
+        markItem(review.item(), CuratedDraftItemStatus.ACCEPTED);
         return respond(review.draft());
     }
 
     @Transactional
     public CuratedDraftResponse rejectItem(String conflictId, String itemId, AuthUserPrincipal actor) {
         OpenItemReview review = beginItemReview(conflictId, itemId, actor);
-        requirePending(review.item());
-        review.item().setStatus(CuratedDraftItemStatus.REJECTED);
-        curatedDraftItemMapper.updateById(review.item());
+        markItem(review.item(), CuratedDraftItemStatus.REJECTED);
         return respond(review.draft());
     }
 
@@ -156,6 +159,20 @@ public class CuratedDraftService {
             throw new BusinessException("DRAFT_ITEM_NOT_PENDING",
                     "草案条目已不是待确认: " + item.getId());
         }
+    }
+
+    private void writeAcceptedRunsOn(CuratedDraftItem item) {
+        if (item.getKind() != CuratedDraftItemKind.RUNS_ON_TARGET_CHANGE) {
+            throw new BusinessException("DRAFT_ITEM_KIND_UNSUPPORTED",
+                    "本刀只接受「运行于」目标变更条目");
+        }
+        curatedTruthService.applyAcceptedDraftRunsOn(item.getSubjectId(), item.getToHostId());
+    }
+
+    private void markItem(CuratedDraftItem item, CuratedDraftItemStatus status) {
+        requirePending(item);
+        item.setStatus(status);
+        curatedDraftItemMapper.updateById(item);
     }
 
     private CuratedDraft requireOpen(String conflictId) {

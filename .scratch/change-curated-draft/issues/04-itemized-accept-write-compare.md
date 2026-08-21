@@ -79,3 +79,30 @@ BUILD FAILED in 5s
 ```
 
 Reject route exists (cycle 1 gate) but does not change item status. 策展 still A.
+
+Green: reject sets that item `REJECTED` and does not write 策展. X stays PENDING; conflict stays OPEN.
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftItemHttpAcceptanceTest.acceptedHandlerRejectsSiblingDoesNotWriteCurated
+BUILD SUCCESSFUL in 5s
+```
+
+Refactor: shared `beginItemReview` / `respond`. Cycle 1 + 01 overwrite-reject still green.
+
+### Step D — cycle 3: 已接受处理人接受合并键 X (red)
+
+Red:
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftItemHttpAcceptanceTest.acceptedHandlerAcceptsMergeKeyWritesCuratedShouldWhereToObservedHost
+```
+
+```text
+ChangeCuratedDraftItemHttpAcceptanceTest > acceptedHandlerAcceptsMergeKeyWritesCuratedShouldWhereToObservedHost() FAILED
+    java.lang.AssertionError: JSON path "$.data.items[?(@.id=='ditem-...')].status"
+Expected: a collection containing "ACCEPTED"
+     but: mismatches were: [was "PENDING"]
+BUILD FAILED in 5s
+```
+
+Accept route exists but does not write 策展 or mark ACCEPTED. Reject-Y setup still holds.
