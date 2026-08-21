@@ -10,7 +10,7 @@
 4. `docs/adr/0043-tech-stack.md` — **技术栈唯一真相**
 5. `docs/specs/vertical-slice-mvp.md` — 竖切 Spec（01–13 已闭合）
 6. `docs/specs/change-curated-draft.md` — 改策展/草案逐条确认 Spec（工单已拆，见下一则）
-7. 当前工单：见 `docs/dev-handoff.md`；竖切 `.scratch/vertical-slice-mvp/issues/` 已 done；改策展 `.scratch/change-curated-draft/issues/`（**01–05 TDD-done**；06 `ready-for-agent`；**frontier = 06**）
+7. 当前工单：见 `docs/dev-handoff.md`；竖切 `.scratch/vertical-slice-mvp/issues/` 已 done；改策展 `.scratch/change-curated-draft/issues/`（**01–06 TDD-done**；本刀闭合；下一刀须用户明示 Spec）
 8. `docs/dev-handoff.md` — 进度与下一票
 9. `docs/agents/tdd.md` — ArchOps TDD overlay（`/implement` 必读）
 10. `.cursor/rules/project-map.mdc`、`backend-java.mdc`、`frontend-react.mdc`
@@ -103,12 +103,12 @@ Single-context: frozen `CONTEXT.md` + `docs/adr/` (ADR-0039 / ADR-0043). Skills 
 ## 6. Matt 进度（勿倒退）
 
 - 领域 grilling / 合同冻结 / 技术选型 / 空脚手架 / 竖切 Spec / 竖切 Tickets / 竖切实现：**已完成**
-- 下一刀 Spec：`docs/specs/change-curated-draft.md`（已发布）；工单 `.scratch/change-curated-draft/issues/`（01–06 已拆）。**01–05 TDD-done**（关闭建底覆盖；诊断改理想分叉；选改理想生成草案；逐条确认写入并立刻比对；升级/空洞作废未完成草案）。frontier = **06**（有序 HTTP tracer）。开工贴 [`docs/implement-change-curated-draft-06-prompt.md`](docs/implement-change-curated-draft-06-prompt.md)。06 是套件票，禁止拆 01–05 装红灯。
+- 下一刀 Spec：`docs/specs/change-curated-draft.md`（已发布）；工单 `.scratch/change-curated-draft/issues/`（01–06 已拆）。**01–06 TDD-done**（关闭建底覆盖；诊断改理想分叉；选改理想生成草案；逐条确认写入并立刻比对；升级/空洞作废未完成草案；HTTP 有序 tracer）。**本刀闭合。** 下一对话不要默认 `/implement`；须用户明示下一刀 Spec。
 - `/implement` 必须走 TDD overlay：[`docs/agents/tdd.md`](docs/agents/tdd.md)
 - 不需要再开技术选型或推倒栈，除非用户明示新 ADR
 
 ## 7. 云端提示词建议（用户可贴）
 
-现行 frontier **06** 完整开工贴：[`docs/implement-change-curated-draft-06-prompt.md`](docs/implement-change-curated-draft-06-prompt.md)（复制区整段粘贴）。纪律摘要：
+改策展 01–06 已 TDD-done，本刀闭合。下一对话须用户明示下一刀 Spec，不要默认 `/implement`。纪律摘要：
 
-> 读 AGENTS.md、docs/agents/tdd.md 与当前 frontier 工单并 /implement /tdd。遵守 ADR-0043 与 CONTEXT.md。06 是套件票：一圈一条 HTTP 套件方法；先跑再记 Comments。首次即绿写 reuse/regression，不要拆 01–05 装红灯。只做这一张票的验收项，完成后本刀闭合。不要引入 Vue/JPA/Neo4j/Maven/LangChain。在 Cloud VM 上用 Compose 的 Postgres/Redis 跑该圈测试。
+> 读 AGENTS.md、CONTEXT.md 与 ADR-0043。不要默认开工下一张实现票。若用户明示下一刀，先 `/to-spec` / grilling，不要复活 Vue/JPA/Neo4j/Maven/LangChain。

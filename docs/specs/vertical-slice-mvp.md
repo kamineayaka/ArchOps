@@ -201,7 +201,7 @@
 ## Further Notes
 
 - **Issue tracker**: 本地 markdown，见 `docs/agents/issue-tracker.md`。本 Spec 与 `.scratch/vertical-slice-mvp/issues/` 01–13 均已闭合。
-- **Next Matt step**: 竖切 01–13 已闭合。改策展 Spec：[`change-curated-draft.md`](change-curated-draft.md)；工单 [`.scratch/change-curated-draft/issues/`](../../.scratch/change-curated-draft/issues/)（**01–05 TDD-done**；frontier = **06**）。06 开工贴 [`docs/implement-change-curated-draft-06-prompt.md`](../implement-change-curated-draft-06-prompt.md)。不要重拆本 Spec。`/implement` 走 [`docs/agents/tdd.md`](../agents/tdd.md)。
+- **Next Matt step**: 竖切 01–13 已闭合。改策展 Spec：[`change-curated-draft.md`](change-curated-draft.md)；工单 [`.scratch/change-curated-draft/issues/`](../../.scratch/change-curated-draft/issues/)（**01–06 TDD-done**；本刀闭合）。不要重拆本 Spec。`/implement` 走 [`docs/agents/tdd.md`](../agents/tdd.md)。
 - **Acceptance motto** (from ADR-0041 vertical-slice): 没有心跳快照就不能假装有实际；没有人审就不能执行；计划失败不能改步重试；没对齐不能关单。
 - **Glossary authority**: prefer `CONTEXT.md` terms (策展真相、观测真相、冲突、已知悉、冲突归属、冲突处理人、操作计划、待确认关闭、观测空洞、心跳、规范问法, etc.). Do not invent parallel vocabulary in APIs/UI copy.
 - **Scaffold honesty**: until domain migrations and APIs land, only health is live; implementers must add schema and modules incrementally without treating health-only code as domain precedent.

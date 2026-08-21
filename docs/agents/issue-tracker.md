@@ -16,7 +16,7 @@ Already published:
 | Feature | Canonical spec | Tickets |
 |---|---|---|
 | vertical-slice-mvp | `docs/specs/vertical-slice-mvp.md` | `.scratch/vertical-slice-mvp/issues/` (01–13 **done** — do not re-open) |
-| change-curated-draft | `docs/specs/change-curated-draft.md` | `.scratch/change-curated-draft/issues/`（**01–05 TDD-done**；06 `ready-for-agent`；frontier = **06**；开工贴 `docs/implement-change-curated-draft-06-prompt.md`） |
+| change-curated-draft | `docs/specs/change-curated-draft.md` | `.scratch/change-curated-draft/issues/`（**01–06 TDD-done**；本刀闭合） |
 
 ## When a skill says "publish to the issue tracker"
 

@@ -1,6 +1,6 @@
 # Spec: 改策展 / 改理想（草案逐条确认）
 
-**Status**: ready-for-agent（本地发布；tracker = `docs/agents/issue-tracker.md`）  
+**Status**: done（01–06 TDD-done；本刀闭合。tracker = `docs/agents/issue-tracker.md`）  
 **Basis**: ADR-0039 领域合同、`CONTEXT.md`、ADR-0043 技术栈、ADR-0006（草案逐条写入）、ADR-0009（双轨偏差）、ADR-0019（相等后待确认关闭；本刀**不含** Y2 策展对齐步骤）、ADR-0038（改策展须草案人审；纯修现场跳过草案）、ADR-0041（竖切范围 + AI 出站）  
 **Predecessor**: [`docs/specs/vertical-slice-mvp.md`](vertical-slice-mvp.md)（票 01–13 已实现并经 VM 人工验收）。本 Spec 从该实现往上长，不从空骨架重写，不复活旧域包。  
 **Testing seams (confirmed)**: **唯一验收主接缝 = 控制面公开 HTTP API**（含 Agent 心跳/快照 ingest）。驱动可以是 Gradle/`MockMvc` 或 Compose 上 `bootRun`+`curl`，仍是同一条接缝。前端最小 UI 手工/冒烟，不进自动化主接缝。本刀无 SSH 计划，不引入 SSH fake 作为接缝或替身。`/implement` 按 [`docs/agents/tdd.md`](../agents/tdd.md) 走 **red → green → refactor**；下文 HTTP tracer 是循环顺序，不是一次写完全部测试再实现。
@@ -227,9 +227,9 @@
 ## Further Notes
 
 - **Issue tracker**: 本地 markdown，见 `docs/agents/issue-tracker.md`。本 Spec 已发布为 `docs/specs/change-curated-draft.md`。工单已写入 [`.scratch/change-curated-draft/issues/`](../../.scratch/change-curated-draft/issues/)（01–06）。
-- **Next Matt step**: 另开对话 `/implement` `/tdd` 票 **06**（HTTP 主接缝有序 tracer）。开工贴 [`docs/implement-change-curated-draft-06-prompt.md`](../implement-change-curated-draft-06-prompt.md)。票路径 [`.scratch/change-curated-draft/issues/06-http-tracer-acceptance.md`](../../.scratch/change-curated-draft/issues/06-http-tracer-acceptance.md)。一次只做一张；不要重拆竖切 01–13；不要删 01–05 生产装红灯。
+- **Next Matt step**: 改策展 01–06 已 TDD-done，**本刀闭合**。下一对话不要默认 `/implement`；须用户明示下一刀 Spec。不要重拆竖切 01–13。
 - **Why no 策展对齐步骤 in this knife**: CONTEXT 同时写了「接受的条目立即写入策展」与「计划内对齐步为另一合法路径」。本刀按用户钉死的故事走前者。Y2 是后续 Spec，不得在实现里用对齐步推迟写入，也不得在选支瞬间写入。
 - **Why ≥2 items**: 合同禁止整单全有或全无作为确认单位；单条草案无法在 HTTP 上把「逐条」与「整单确认」分开。1-item drafts 仍符合合同，但本刀规则夹具必须给出两条。
 - **Glossary**: 策展真相、观测真相、冲突、草案、逐条确认、已接受的冲突处理人、待确认关闭、冲突升级、观测空洞、规范问法、操作计划、策展对齐步骤（仅在 Out of Scope 中出现）。不要发明「以现场为准」「待确认策展」等合同已 Avoid 的词。
 - **Acceptance motto (this knife)**: 选支不写策展；接受的条目才写；拒绝的不写；写入后立刻比对；相等只进待确认关闭；升级/空洞作废未确认草案。
-- **Prompt for next chat**: [`docs/implement-change-curated-draft-06-prompt.md`](../implement-change-curated-draft-06-prompt.md)。票 01–05 已 done。下一对话只做 06。
+- **Prompt for next chat**: 进度见 [`docs/dev-handoff.md`](../dev-handoff.md)。票 01–06 已 done，本刀闭合。下一对话须用户明示下一刀 Spec。
