@@ -4,21 +4,21 @@
 
 **Blocked by:** None — can start immediately
 
-**Status:** ready-for-agent
+**Status:** done
 
 **TDD:** `/implement` 走 [`docs/agents/tdd.md`](../../../docs/agents/tdd.md)：**red → green → refactor**，一圈一条 HTTP 测试。先 witnessed red，再写本票生产代码。Spec：[`docs/specs/unbound-identity-rebind.md`](../../../docs/specs/unbound-identity-rebind.md)。
 
 从竖切往上长：今日未绑定每次快照都插入新行；身份失联只信 Agent 声明；GET 未绑定不含 labels；标签稍后命中也不清失联。本票只把观测侧认得出、列得出、问得清；不发起草案、不绑定、不闸门选支。
 
-- [ ] 缺标快照 → 未绑定 `MISSING_LABEL`，`upgradeChainPromised=false`；未知 `archops.object_id` → `UNKNOWN_OBJECT_ID`
-- [ ] 同一 `sourceHostId` + `runtimeId` 再心跳 → upsert（刷新 `observedAt` / 名称 / 标签 / 原因），列表不因每拍多一行
-- [ ] GET 未绑定含 labels（至少现场 `archops.object_id`）、`runtimeId`、`name`、`reason`、`sourceHostId`；`upgradeChainPromised` 恒为 false
-- [ ] 策展/可用观测宿主上的快照未标签命中且未声明观测消失 → 该 Docker 容器身份失联；Agent `identityLostObjectIds` 在同一主机范围内仍有效
-- [ ] 既非策展 `运行于` 宿主、也非当前可用观测宿主的快照，不得给该容器打身份失联
-- [ ] `absentObjectIds` 仍写入观测消失（可用值不存在），不是身份失联，也不是观测空洞
-- [ ] 「应该在哪」仍答策展；「实际在哪」在失联时同屏策展，且不得把失联前宿主当实际（`availability` 不得为 `PRESENT`；不得单因失联报 `HOLLOW` / `ABSENT`）
-- [ ] 未打标同名路径：`by-merge-key` 仍不承诺升级链（竖切票 13 负面不回归）
-- [ ] 心跳契约文档写明：控制面推断失联、未绑定 upsert、主机范围；不改 `CONTEXT.md`
+- [x] 缺标快照 → 未绑定 `MISSING_LABEL`，`upgradeChainPromised=false`；未知 `archops.object_id` → `UNKNOWN_OBJECT_ID`
+- [x] 同一 `sourceHostId` + `runtimeId` 再心跳 → upsert（刷新 `observedAt` / 名称 / 标签 / 原因），列表不因每拍多一行
+- [x] GET 未绑定含 labels（至少现场 `archops.object_id`）、`runtimeId`、`name`、`reason`、`sourceHostId`；`upgradeChainPromised` 恒为 false
+- [x] 策展/可用观测宿主上的快照未标签命中且未声明观测消失 → 该 Docker 容器身份失联；Agent `identityLostObjectIds` 在同一主机范围内仍有效
+- [x] 既非策展 `运行于` 宿主、也非当前可用观测宿主的快照，不得给该容器打身份失联
+- [x] `absentObjectIds` 仍写入观测消失（可用值不存在），不是身份失联，也不是观测空洞
+- [x] 「应该在哪」仍答策展；「实际在哪」在失联时同屏策展，且不得把失联前宿主当实际（`availability` 不得为 `PRESENT`；不得单因失联报 `HOLLOW` / `ABSENT`）
+- [x] 未打标同名路径：`by-merge-key` 仍不承诺升级链（竖切票 13 负面不回归）
+- [x] 心跳契约文档写明：控制面推断失联、未绑定 upsert、主机范围；不改 `CONTEXT.md`
 
 **Out of this ticket:** 未绑定草案、绑定记忆、新建策展对象、失联时选支/诊断闸门、标签命中收尾、薄 UI、SSH、Y2、LLM。
 
@@ -140,4 +140,27 @@ cd backend && ./gradlew test --tests com.archops.observed.UnboundIdentityLostIng
 reuse/regression：首跑绿。推断只发生在 `processSnapshot`（`snapshot != null`）。不要为它删推断。
 Green command: 同上，BUILD SUCCESSFUL / exit 0。
 Refactor: 无结构改动。
+Commit: 17ca701 Leave heartbeat-only freshness pings out of identity-lost inference.
+
+### Cycle L — 心跳契约文档跟上推断与 upsert
+Red command: n/a（文档圈）
+Green: `docs/contracts/agent-heartbeat-snapshot.md` 写明主机范围推断、`identityLostObjectIds` 同范围、未绑定 upsert、GET labels、问法 `IDENTITY_LOST` 仅读模型。不改 `CONTEXT.md`，不新开 ADR。
+Refactor: 无结构改动。
+Commit: 94669a0 Document inferred identity lost and unbound upsert on the heartbeat contract.
+
+### Cycle M / code-review — 同一快照 absent 优先于 identityLostObjectIds
+Red command:
+cd backend && ./gradlew test --tests com.archops.observed.UnboundIdentityLostIngestHttpAcceptanceTest.absentObjectIdsWinOverIdentityLostObjectIdsOnSameSnapshot
+```
+UnboundIdentityLostIngestHttpAcceptanceTest > absentObjectIdsWinOverIdentityLostObjectIdsOnSameSnapshot() FAILED
+    java.lang.AssertionError: JSON path "$.data.observedValue.availability"
+Expected: is "ABSENT"
+     but: was "IDENTITY_LOST"
+```
+Green command: 同上，exit 0。声明循环跳过本快照 `absentCuratedIds`。
+Refactor: 无额外结构改动。
+/code-review（merge-base `origin/main` a151169）：Standards 无硬违规；Spec 该缺口已修。气味（重复 IdentityLost 构造）按 judgement 未扩到 02–07。
+`./gradlew cleanTest test`：105 tests, 0 failures。
 Commit: （提交后填）
+
+Frontier 已指向 02。不要实现 02–07。

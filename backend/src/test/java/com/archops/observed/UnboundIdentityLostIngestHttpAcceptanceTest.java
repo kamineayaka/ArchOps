@@ -499,6 +499,45 @@ class UnboundIdentityLostIngestHttpAcceptanceTest {
     }
 
     @Test
+    void absentObjectIdsWinOverIdentityLostObjectIdsOnSameSnapshot() throws Exception {
+        String hostA = createHost("u01i2-h");
+        String containerId = createContainer("u01i2-x", "u01i2-oid");
+        confirmRunsOn(containerId, hostA);
+
+        mockMvc.perform(post("/api/agent/heartbeat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "agentId": "u01i2-ag",
+                                  "hostId": "%s",
+                                  "snapshot": {
+                                    "containers": [],
+                                    "absentObjectIds": ["u01i2-oid"],
+                                    "identityLostObjectIds": ["u01i2-oid"]
+                                  }
+                                }
+                                """.formatted(hostA))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.absent[0].availability", is("ABSENT")));
+
+        mockMvc.perform(get("/api/observed/asks/actual-where")
+                        .param("containerId", containerId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.observedValue.availability", is("ABSENT")))
+                .andExpect(jsonPath("$.data.observedValue.hostId", nullValue()))
+                .andExpect(jsonPath("$.data.identityLost", is(false)));
+
+        mockMvc.perform(get("/api/observed/identity-lost/{id}", containerId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("IDENTITY_LOST_NOT_FOUND")));
+    }
+
+    @Test
     void unlabeledSameNameDoesNotPromiseUpgradeChain() throws Exception {
         String hostB = createHost("u01j-h");
         String containerId = createContainer("u01j-x", "u01j-oid");

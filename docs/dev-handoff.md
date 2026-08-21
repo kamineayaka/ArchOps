@@ -11,7 +11,7 @@
 3. `docs/mvp-vertical-slice.md`（竖切范围对照）
 4. `docs/specs/vertical-slice-mvp.md`（竖切 Spec；01–13 已闭合）
 5. `docs/specs/change-curated-draft.md`（改策展/草案逐条确认 Spec；**已闭合**）
-6. `docs/specs/unbound-identity-rebind.md`（未绑定 / 身份失联重绑 Spec；工单 01–07 已拆，**frontier = 01**）
+6. `docs/specs/unbound-identity-rebind.md`（未绑定 / 身份失联重绑 Spec；工单 01–07 已拆，**frontier = 02**；01 TDD-done）
 7. `docs/agents/tdd.md`（`/implement` 的 TDD overlay：red → green → refactor）
 8. `docs/scaffold-bootstrap-prompt.md`（脚手架专用；已完成后可作审计对照）
 9. `.cursor/rules/project-map.mdc`
@@ -42,7 +42,7 @@
 | 改策展草案 Spec | **已发布** → [`docs/specs/change-curated-draft.md`](specs/change-curated-draft.md) |
 | 改策展草案工单 | **TDD-done 06 / 本刀闭合** → [`.scratch/change-curated-draft/issues/`](../.scratch/change-curated-draft/issues/)（**01–06 TDD-done**。从竖切 MVP 往上长，不重拆竖切 01–13） |
 | 未绑定 / 身份失联 Spec | **已发布** → [`docs/specs/unbound-identity-rebind.md`](specs/unbound-identity-rebind.md) |
-| 未绑定 / 身份失联工单 | **01–07 已拆；frontier = 01** → [`.scratch/unbound-identity-rebind/issues/`](../.scratch/unbound-identity-rebind/issues/)（不要写进 `change-curated-draft`） |
+| 未绑定 / 身份失联工单 | **01 TDD-done；frontier = 02** → [`.scratch/unbound-identity-rebind/issues/`](../.scratch/unbound-identity-rebind/issues/)（不要写进 `change-curated-draft`） |
 | Matt 工作流 skills / tracker | **已入库**（`.cursor/skills/` + `.agents/skills/` + `docs/agents/`；TDD overlay [`docs/agents/tdd.md`](agents/tdd.md)；Cloud 不依赖本机 `~/.agents`） |
 | 国内镜像默认 | **已合并**（PR #53：Gradle 腾讯云 / Maven 阿里云 / npm npmmirror / Docker DaoCloud） |
 | kamiserver 人工验收 | **通过**（2026-08：Compose postgres+redis healthy 且宿主机端口已映射 → `./gradlew bootRun` → `GET /api/health`；竖切演示闭环已在该 VM 走通） |
@@ -66,7 +66,8 @@
 15. ~~`/grill-with-docs` 定下一刀~~：已定为 **未绑定观测候选 / 身份失联重绑**（A；HTTP only；不改合同）。  
 16. ~~下一刀 `/to-spec`~~：已发布 [`docs/specs/unbound-identity-rebind.md`](specs/unbound-identity-rebind.md)。  
 17. ~~下一刀 `/to-tickets`~~：已发布至 `.scratch/unbound-identity-rebind/issues/`（01–07）。  
-18. **下一对话：`/implement` `/tdd` 未绑定票 01**（frontier）。开工 prompt：[`docs/implement-unbound-identity-rebind-01-prompt.md`](implement-unbound-identity-rebind-01-prompt.md)。一次一张；01 完成后 02 与 05 均 unblocked 时先做 02。不要加改策展 07。不要重拆竖切 01–13。  
+18. ~~`/implement` `/tdd` 未绑定票 01~~：已完成（推断身份失联 + 未绑定 upsert + 规范问法 `IDENTITY_LOST` 读模型；witnessed red → green → refactor）。  
+19. **下一对话：`/implement` `/tdd` 未绑定票 02**（frontier；从不挂冲突的候选发草案）。02 与 05 均 unblocked 时先做 02。不要加改策展 07。不要重拆竖切 01–13。不要做 03–07。  
 
 ### 工单阻塞简图
 
@@ -92,7 +93,7 @@
                                                    → 06 HTTP tracer（TDD-done；本刀定义完成）
 ```
 
-未绑定 / 身份失联重绑（01–07 已拆；**frontier = 01**）：
+未绑定 / 身份失联重绑（01–07 已拆；**01 TDD-done；frontier = 02**）：
 
 ```
 01 推断失联 + 未绑定 upsert + 规范问法

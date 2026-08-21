@@ -286,6 +286,9 @@ public class ObservedTruthService {
                     continue;
                 }
             }
+            if (absentCuratedIds.contains(curated.getId())) {
+                continue;
+            }
             CuratedFact curatedRunsOn = findCuratedRunsOn(curated.getId());
             if (curatedRunsOn == null
                     || !reportingHostInIdentityLostScope(
