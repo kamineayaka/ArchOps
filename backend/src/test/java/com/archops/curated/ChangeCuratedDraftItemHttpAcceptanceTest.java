@@ -127,12 +127,8 @@ class ChangeCuratedDraftItemHttpAcceptanceTest {
 
     @Test
     void acceptMergeKeyComparesImmediatelyToPendingCloseWithoutNewSnapshot() throws Exception {
-        OpenDraft draft = openChangeCuratedDraft("ccd04-pc-a", "ccd04-pc-b", "ctr-ccd04-pc-x", "ctr-ccd04-pc-y");
-        postItemAction(draft.fx().conflictId(), draft.itemYId(), "reject", GENERAL_ID)
-                .andExpect(status().isOk());
-        postItemAction(draft.fx().conflictId(), draft.itemXId(), "accept", GENERAL_ID)
-                .andExpect(status().isOk());
-
+        OpenDraft draft = rejectSiblingThenAcceptMergeKey(
+                "ccd04-pc-a", "ccd04-pc-b", "ctr-ccd04-pc-x", "ctr-ccd04-pc-y");
         mockMvc.perform(get("/api/conflicts/{id}", draft.fx().conflictId())
                         .header(TempAuthHeaders.USER_ID, SENIOR_ID)
                         .accept(MediaType.APPLICATION_JSON))
@@ -159,6 +155,41 @@ class ChangeCuratedDraftItemHttpAcceptanceTest {
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[*].eventType", hasItem("PENDING_CLOSE")));
+    }
+
+    @Test
+    void acceptedHandlerConfirmCloseAfterDraftAcceptClosesConflict() throws Exception {
+        OpenDraft draft = rejectSiblingThenAcceptMergeKey(
+                "ccd04-cc-a", "ccd04-cc-b", "ctr-ccd04-cc-x", "ctr-ccd04-cc-y");
+        mockMvc.perform(get("/api/conflicts/{id}", draft.fx().conflictId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("PENDING_CLOSE")));
+
+        mockMvc.perform(post("/api/conflicts/{id}/confirm-close", draft.fx().conflictId())
+                        .header(TempAuthHeaders.USER_ID, SENIOR_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("CONFIRM_CLOSE_REQUIRES_ACCEPTED_HANDLER")));
+
+        mockMvc.perform(post("/api/conflicts/{id}/confirm-close", draft.fx().conflictId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.status", is("CLOSED")));
+    }
+
+    private OpenDraft rejectSiblingThenAcceptMergeKey(
+            String hostAName, String hostBName, String objectX, String objectY
+    ) throws Exception {
+        OpenDraft draft = openChangeCuratedDraft(hostAName, hostBName, objectX, objectY);
+        postItemAction(draft.fx().conflictId(), draft.itemYId(), "reject", GENERAL_ID)
+                .andExpect(status().isOk());
+        postItemAction(draft.fx().conflictId(), draft.itemXId(), "accept", GENERAL_ID)
+                .andExpect(status().isOk());
+        return draft;
     }
 
     private OpenDraft openChangeCuratedDraft(

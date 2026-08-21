@@ -142,3 +142,16 @@ BUILD SUCCESSFUL in 5s
 ```
 
 Refactor: `reconcileAfterObservedWrite` delegates to `reconcileMergeKey` (no second compare engine).
+
+### Step F — cycle 5: 既有确认关闭 API → CLOSED
+
+Ran:
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftItemHttpAcceptanceTest.acceptedHandlerConfirmCloseAfterDraftAcceptClosesConflict
+BUILD SUCCESSFUL in 5s
+```
+
+Already green: reuses 票 09 `POST /api/conflicts/{id}/confirm-close`. Proves cycle 4 did not auto-CLOSE. Non-handler still `CONFIRM_CLOSE_REQUIRES_ACCEPTED_HANDLER`. No second close engine.
+
+Refactor: HTTP helper `rejectSiblingThenAcceptMergeKey` for tracer mixed-confirm setup.
