@@ -1,20 +1,28 @@
 package com.archops.curated;
 
 import com.archops.conflict.ConflictDiagnosisWait;
+import com.archops.observed.domain.HostAgent;
+import com.archops.observed.mapper.HostAgentMapper;
 import com.archops.support.HttpAcceptanceTest;
 import com.archops.user.security.TempAuthHeaders;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -27,6 +35,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Cycle 1: pending 草案 + snapshot B→C → same-merge-key 升级, open 草案 gone, 策展 stays A.
  */
 @HttpAcceptanceTest
+@TestPropertySource(properties = {
+        "archops.observation.heartbeat-timeout=30s",
+        "archops.observation.hollow-scan-interval-ms=3600000"
+})
 class ChangeCuratedDraftVoidHttpAcceptanceTest {
 
     private static final String GENERAL_ID = "user-general-demo";
@@ -36,6 +48,9 @@ class ChangeCuratedDraftVoidHttpAcceptanceTest {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private HostAgentMapper hostAgentMapper;
 
     @Test
     void snapshotBtoCWhileDraftPendingUpgradesSameConflictAndVoidsOpenDraftWithoutWritingCurated()
@@ -116,6 +131,56 @@ class ChangeCuratedDraftVoidHttpAcceptanceTest {
                         hasItem("PENDING")))
                 .andExpect(jsonPath("$.data.items[?(@.id=='" + draft.itemYId() + "')].status",
                         hasItem("PENDING")));
+    }
+
+    @Test
+    void heartbeatTimeoutWhileDraftOpenSuspendsConflictAndVoidsDraft() throws Exception {
+        OpenDraft draft = openChangeCuratedDraft(
+                "ccd05-hl-a", "ccd05-hl-b", "ctr-ccd05-hl-x", "ctr-ccd05-hl-y");
+        hostAgentMapper.update(null, new LambdaUpdateWrapper<HostAgent>()
+                .eq(HostAgent::getAgentId, "agent-" + draft.fx().objectX())
+                .set(HostAgent::getLastHeartbeatAt, Instant.now().minus(2, ChronoUnit.MINUTES)));
+
+        mockMvc.perform(post("/api/observed/scan-heartbeat-timeouts")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/conflicts/{id}", draft.fx().conflictId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("SUSPENDED")))
+                .andExpect(jsonPath("$.data.status", not("CLOSED")))
+                .andExpect(jsonPath("$.data.status", not("OPEN")))
+                .andExpect(jsonPath("$.data.observationHollow", is(true)));
+
+        mockMvc.perform(get("/api/observed/asks/actual-where")
+                        .param("containerId", draft.fx().containerX())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.question", is("实际在哪")))
+                .andExpect(jsonPath("$.data.observedValue.availability", is("HOLLOW")))
+                .andExpect(jsonPath("$.data.observedValue.hostId", nullValue()));
+
+        getShouldWhere(draft.fx().containerX())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.question", is("应该在哪")))
+                .andExpect(jsonPath("$.data.track", is("CURATED")))
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(draft.fx().hostA())));
+
+        getOpenDraft(draft.fx().conflictId(), GENERAL_ID)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("DRAFT_NOT_FOUND")))
+                .andExpect(jsonPath("$.data", nullValue()));
+        getDraftById(draft.fx().conflictId(), draft.draftId())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("VOIDED")));
+        postItemAction(draft.fx().conflictId(), draft.itemXId(), "accept", GENERAL_ID)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("DRAFT_VOIDED")))
+                .andExpect(jsonPath("$.data", nullValue()));
     }
 
     private String snapshotXOnHostC(OpenDraft draft, String hostCName) throws Exception {

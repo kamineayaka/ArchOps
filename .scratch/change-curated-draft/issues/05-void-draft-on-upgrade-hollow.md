@@ -98,5 +98,43 @@ BUILD FAILED in 5s
 
 Missing GET maps to `ResourceHttpRequestHandler` (`NoResourceFoundException` → 500). Not 404. Same class of red as 04 cycle 1.
 
+Green: GET `/api/conflicts/{conflictId}/curated-drafts/{draftId}` returns OPEN or VOIDED; GET open still only OPEN.
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftVoidHttpAcceptanceTest.getDraftByIdAfterUpgradeShowsVoidedWithPendingItems
+BUILD SUCCESSFUL in 5s
+```
+
+Refactor: test helper `getDraftById`. GET open still 400 after void (cycle 1).
+
+### Step E — cycle 4: 空洞挂起并作废草案 (red)
+
+Red:
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftVoidHttpAcceptanceTest.heartbeatTimeoutWhileDraftOpenSuspendsConflictAndVoidsDraft
+```
+
+```text
+ChangeCuratedDraftVoidHttpAcceptanceTest > heartbeatTimeoutWhileDraftOpenSuspendsConflictAndVoidsDraft() FAILED
+    java.lang.AssertionError: Status expected:<400> but was:<200>
+	at ...ChangeCuratedDraftVoidHttpAcceptanceTest.java:174
+BUILD FAILED in 5s
+```
+
+Conflict `SUSPENDED` / 「实际在哪」HOLLOW / 「应该在哪」A already green (竖切 hollow). Failure is GET open still 200 — draft not voided. Do not rewrite HeartbeatTimeoutHollowHttpAcceptanceTest.
+
+Green: `onObservationBecameHollow` also calls `voidOpenForConflict` (same method as upgrade; no copied suspend engine).
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftVoidHttpAcceptanceTest.heartbeatTimeoutWhileDraftOpenSuspendsConflictAndVoidsDraft
+BUILD SUCCESSFUL in 5s
+```
+
+Refactor: javadoc. `HeartbeatTimeoutHollowHttpAcceptanceTest` still green (plan voiding unchanged).
+
+
+
+
 
 

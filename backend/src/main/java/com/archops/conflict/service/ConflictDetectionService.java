@@ -102,7 +102,7 @@ public class ConflictDetectionService {
                 .eq(ObservedFact::getRelationType, relationType));
 
         // 观测空洞: no usable observed value → do not open a both-sides conflict;
-        // if an OPEN/PENDING_CLOSE exists, suspend + void plans.
+        // if an OPEN/PENDING_CLOSE exists, suspend + void plans and open 草案.
         if (curated == null) {
             return;
         }
@@ -169,7 +169,8 @@ public class ConflictDetectionService {
     }
 
     /**
-     * Heartbeat timeout / fact retirement: suspend active conflict (not close) and void plans.
+     * Heartbeat timeout / fact retirement: suspend active conflict (not close),
+     * void plans, and void any OPEN 改理想草案.
      */
     @Transactional
     public HollowSuspendResult onObservationBecameHollow(String subjectId, CuratedRelationType relationType) {
@@ -207,6 +208,7 @@ public class ConflictDetectionService {
                     "reason", "observation_hollow_heartbeat_timeout"
             ));
         }
+        curatedDraftService.voidOpenForConflict(active.getId());
         conflictDiagnosisService.scheduleAsyncDiagnosis(active.getId());
         return new HollowSuspendResult(active.getId(), voided);
     }
