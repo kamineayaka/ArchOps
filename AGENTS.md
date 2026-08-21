@@ -10,8 +10,8 @@
 4. `docs/adr/0043-tech-stack.md` — **技术栈唯一真相**
 5. `docs/specs/vertical-slice-mvp.md` — 竖切 Spec（01–13 已闭合）
 6. `docs/specs/change-curated-draft.md` — 改策展/草案逐条确认 Spec（**01–06 TDD-done，本刀闭合**）
-7. `docs/specs/unbound-identity-rebind.md` — 下一刀 Spec（未绑定观测候选 / 身份失联重绑；工单待 `/to-tickets`）
-8. 当前工单：见 `docs/dev-handoff.md`；竖切与改策展工单包均已闭合。不要默认 `/implement`、不要加改策展 07
+7. `docs/specs/unbound-identity-rebind.md` — 下一刀 Spec（未绑定观测候选 / 身份失联重绑；工单 01–07 已拆）
+8. 当前工单：见 `docs/dev-handoff.md`；**frontier = 未绑定票 01**。竖切与改策展工单包已闭合。不要加改策展 07
 9. `docs/dev-handoff.md` — 进度与下一票
 10. `docs/agents/tdd.md` — ArchOps TDD overlay（`/implement` 必读）
 11. `.cursor/rules/project-map.mdc`、`backend-java.mdc`、`frontend-react.mdc`
@@ -105,12 +105,12 @@ Single-context: frozen `CONTEXT.md` + `docs/adr/` (ADR-0039 / ADR-0043). Skills 
 
 - 领域 grilling / 合同冻结 / 技术选型 / 空脚手架 / 竖切 Spec / 竖切 Tickets / 竖切实现：**已完成**
 - 改策展 Spec：`docs/specs/change-curated-draft.md`（已发布）；工单 `.scratch/change-curated-draft/issues/`（01–06 已拆）。**01–06 TDD-done。本刀闭合。**
-- 下一刀 Spec：[`docs/specs/unbound-identity-rebind.md`](docs/specs/unbound-identity-rebind.md)（未绑定观测候选 / 身份失联重绑）已发布；工单待 `/to-tickets`（`.scratch/unbound-identity-rebind/`）。**不要默认 `/implement`。** 不要加改策展 07。
+- 下一刀 Spec：[`docs/specs/unbound-identity-rebind.md`](docs/specs/unbound-identity-rebind.md)；工单 `.scratch/unbound-identity-rebind/issues/`（01–07 已拆）。**frontier = 01**（推断身份失联 + 未绑定 upsert + 规范问法）。`/implement` 走 TDD overlay，一次一张。不要加改策展 07。
 - `/implement` 必须走 TDD overlay：[`docs/agents/tdd.md`](docs/agents/tdd.md)
 - 不需要再开技术选型或推倒栈，除非用户明示新 ADR
 
 ## 7. 云端提示词建议（用户可贴）
 
-改策展 01–06 已 TDD-done。下一刀 Spec [`docs/specs/unbound-identity-rebind.md`](docs/specs/unbound-identity-rebind.md) 已发布；先 `/to-tickets`，不要默认 `/implement`，不要加改策展 07。
+改策展 01–06 已闭合。未绑定 / 身份失联工单已拆；**frontier = 01**。一次一张 `/implement` `/tdd`，不要加改策展 07。
 
-> 读 AGENTS.md、CONTEXT.md 与 ADR-0043。下一刀是未绑定观测候选 / 身份失联重绑。工单未拆完前不要 `/implement`。不要复活 Vue/JPA/Neo4j/Maven/LangChain。
+> 读 AGENTS.md、CONTEXT.md、ADR-0043 与 `docs/specs/unbound-identity-rebind.md`。只做 `.scratch/unbound-identity-rebind/issues/01-infer-identity-lost-unbound-upsert.md`。不要复活 Vue/JPA/Neo4j/Maven/LangChain。
