@@ -12,6 +12,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
 
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
@@ -100,6 +101,23 @@ class ChangeCuratedDraftVoidHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data.curatedValue.hostId", is(draft.fx().hostA())));
     }
 
+    @Test
+    void getDraftByIdAfterUpgradeShowsVoidedWithPendingItems() throws Exception {
+        OpenDraft draft = openChangeCuratedDraft(
+                "ccd05-gid-a", "ccd05-gid-b", "ctr-ccd05-gid-x", "ctr-ccd05-gid-y");
+        snapshotXOnHostC(draft, "ccd05-gid-c");
+
+        getDraftById(draft.fx().conflictId(), draft.draftId())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.id", is(draft.draftId())))
+                .andExpect(jsonPath("$.data.status", is("VOIDED")))
+                .andExpect(jsonPath("$.data.items[?(@.id=='" + draft.itemXId() + "')].status",
+                        hasItem("PENDING")))
+                .andExpect(jsonPath("$.data.items[?(@.id=='" + draft.itemYId() + "')].status",
+                        hasItem("PENDING")));
+    }
+
     private String snapshotXOnHostC(OpenDraft draft, String hostCName) throws Exception {
         String hostC = createHost(hostCName);
         heartbeatWithContainer(hostC, "agent-" + draft.fx().objectX() + "-c", draft.fx().objectX());
@@ -144,6 +162,13 @@ class ChangeCuratedDraftVoidHttpAcceptanceTest {
     private ResultActions getOpenDraft(String conflictId, String userId) throws Exception {
         return mockMvc.perform(get("/api/conflicts/{id}/curated-drafts/open", conflictId)
                 .header(TempAuthHeaders.USER_ID, userId)
+                .accept(MediaType.APPLICATION_JSON));
+    }
+
+    private ResultActions getDraftById(String conflictId, String draftId) throws Exception {
+        return mockMvc.perform(get("/api/conflicts/{conflictId}/curated-drafts/{draftId}",
+                conflictId, draftId)
+                .header(TempAuthHeaders.USER_ID, GENERAL_ID)
                 .accept(MediaType.APPLICATION_JSON));
     }
 

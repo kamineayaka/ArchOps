@@ -88,6 +88,16 @@ public class CuratedDraftService {
         return respond(requireOpen(conflictId));
     }
 
+    @Transactional(readOnly = true)
+    public CuratedDraftResponse getById(String conflictId, String draftId) {
+        CuratedDraft draft = curatedDraftMapper.selectById(draftId);
+        if (draft == null || !conflictId.equals(draft.getConflictId())) {
+            throw new BusinessException("DRAFT_NOT_FOUND",
+                    "No 草案 " + draftId + " for conflict: " + conflictId);
+        }
+        return respond(draft);
+    }
+
     @Transactional
     public CuratedDraftResponse createForChangeCurated(
             ConflictCase conflict,

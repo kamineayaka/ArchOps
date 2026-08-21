@@ -81,4 +81,22 @@ BUILD SUCCESSFUL in 5s
 
 Refactor: `findLatest`; test helper `snapshotXOnHostC`. Cycle 1 + 04 non-handler still green.
 
+### Step D — cycle 3: GET 该份草案可见 VOIDED (red)
+
+Red:
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftVoidHttpAcceptanceTest.getDraftByIdAfterUpgradeShowsVoidedWithPendingItems
+```
+
+```text
+ChangeCuratedDraftVoidHttpAcceptanceTest > getDraftByIdAfterUpgradeShowsVoidedWithPendingItems() FAILED
+    java.lang.AssertionError: Status expected:<200> but was:<500>
+Body = {"success":false,"code":"INTERNAL_ERROR","message":"No static resource api/conflicts/.../curated-drafts/draft-....","data":null}
+BUILD FAILED in 5s
+```
+
+Missing GET maps to `ResourceHttpRequestHandler` (`NoResourceFoundException` → 500). Not 404. Same class of red as 04 cycle 1.
+
+
 
