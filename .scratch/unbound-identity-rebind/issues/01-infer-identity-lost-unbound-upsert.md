@@ -133,3 +133,11 @@ reuse/regression：首跑绿。点名 `VerticalSliceHttpE2eAcceptanceTest.negati
 Green command: 同上，BUILD SUCCESSFUL / exit 0。
 Refactor: 无结构改动。
 Commit: 839723b Keep unlabeled same-name snapshots off the upgrade chain.
+
+### Cycle K — 心跳-only 不推断身份失联
+Red command:
+cd backend && ./gradlew test --tests com.archops.observed.UnboundIdentityLostIngestHttpAcceptanceTest.heartbeatOnlyDoesNotInferIdentityLost
+reuse/regression：首跑绿。推断只发生在 `processSnapshot`（`snapshot != null`）。不要为它删推断。
+Green command: 同上，BUILD SUCCESSFUL / exit 0。
+Refactor: 无结构改动。
+Commit: （提交后填）
