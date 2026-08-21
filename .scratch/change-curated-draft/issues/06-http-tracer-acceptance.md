@@ -165,3 +165,24 @@ BUILD SUCCESSFUL in 5s
 4 actionable tasks: 2 executed, 2 up-to-date
 ```
 
+### Cycle 5a — 负面 4 开放草案挡住 FIX_ACTUAL
+
+`reuse/regression`（首次即绿；未改生产；未执行计划）。对应 `ChangeCuratedDraftHttpAcceptanceTest.openDraftBlocksFixActualSelection`。先选 CHANGE_CURATED，再选 FIX_ACTUAL → `OPEN_DRAFT_BLOCKS_FIX_ACTUAL`；GET open 仍 OPEN；GET active 仍 `PLAN_NOT_FOUND`。
+
+命令：
+
+```text
+cd backend && ./gradlew test --tests com.archops.curated.ChangeCuratedDraftTracerHttpAcceptanceTest.openDraftBlocksFixActualSelection
+```
+
+首次输出（witnessed green）：
+
+```text
+> Task :compileTestJava
+> Task :testClasses
+> Task :test
+
+BUILD SUCCESSFUL in 5s
+4 actionable tasks: 2 executed, 2 up-to-date
+```
+

@@ -306,6 +306,22 @@ class ChangeCuratedDraftTracerHttpAcceptanceTest {
                 .andExpect(jsonPath("$.code", is("PLAN_NOT_FOUND")));
     }
 
+    @Test
+    @Order(7)
+    void activePlanBlocksChangeCuratedSelection() throws Exception {
+        ClaimedConflict fx = claimedReadyConflict("ccd06-n4b");
+        postBranch(fx.conflictId(), GENERAL_ID, "FIX_ACTUAL_TO_CURATED")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.branchKind", is("FIX_ACTUAL")));
+        postBranch(fx.conflictId(), GENERAL_ID, "CHANGE_CURATED_TO_OBSERVED")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.code", is("PLAN_ALREADY_ACTIVE")));
+        getOpenDraft(fx.conflictId())
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("DRAFT_NOT_FOUND")));
+    }
+
     private World bootstrapHostsABCuratedXYOnA(String prefix) throws Exception {
         String objectX = prefix + "-x";
         String objectY = prefix + "-y";
