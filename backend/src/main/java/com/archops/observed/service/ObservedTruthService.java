@@ -29,6 +29,7 @@ import com.archops.observed.mapper.UnboundObservationCandidateMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
@@ -42,6 +43,9 @@ import java.util.UUID;
 
 @Service
 public class ObservedTruthService {
+
+    private static final TypeReference<Map<String, String>> LABEL_MAP = new TypeReference<>() {
+    };
 
     private final HostAgentMapper hostAgentMapper;
     private final ObservedFactMapper observedFactMapper;
@@ -177,6 +181,7 @@ public class ObservedTruthService {
                         row.getSourceHostId(),
                         row.getRuntimeId(),
                         row.getName(),
+                        parseLabels(row.getLabelsJson()),
                         row.getReason(),
                         Boolean.TRUE.equals(row.getUpgradeChainPromised()),
                         row.getObservedAt()
@@ -422,6 +427,18 @@ public class ObservedTruthService {
             throw new BusinessException("CURATED_CONTAINER_NOT_FOUND", "Docker container not found: " + containerId);
         }
         return container;
+    }
+
+    private Map<String, String> parseLabels(String labelsJson) {
+        if (labelsJson == null || labelsJson.isBlank()) {
+            return Map.of();
+        }
+        try {
+            Map<String, String> labels = objectMapper.readValue(labelsJson, LABEL_MAP);
+            return labels == null ? Map.of() : labels;
+        } catch (JsonProcessingException ex) {
+            return Map.of();
+        }
     }
 
     private String toJson(Map<String, String> labels) {

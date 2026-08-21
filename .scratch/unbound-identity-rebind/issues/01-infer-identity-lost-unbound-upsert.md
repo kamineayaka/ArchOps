@@ -27,3 +27,19 @@
 Frontier。一次只做本票。HTTP 主接缝；Flyway 只增不改历史。不要做 02–07。
 
 开工 prompt：[`docs/implement-unbound-identity-rebind-01-prompt.md`](../../../docs/implement-unbound-identity-rebind-01-prompt.md)。`/implement` 走 [`docs/agents/tdd.md`](../../../docs/agents/tdd.md)：capability 票须 witnessed red；不要为装红灯删除竖切未打标 / 观测消失 / 命中 `运行于` 的生产。
+
+### Cycle A — GET 未绑定含现场 labels JSON 对象
+Red command:
+cd backend && ./gradlew test --tests com.archops.observed.UnboundIdentityLostIngestHttpAcceptanceTest.unknownObjectIdUnboundCandidateListsFieldLabels
+```
+UnboundIdentityLostIngestHttpAcceptanceTest > unknownObjectIdUnboundCandidateListsFieldLabels() FAILED
+    java.lang.AssertionError at UnboundIdentityLostIngestHttpAcceptanceTest.java:75
+java.lang.AssertionError:
+Expected: is <true>
+     but: was <false>
+	at com.archops.observed.UnboundIdentityLostIngestHttpAcceptanceTest.unknownObjectIdUnboundCandidateListsFieldLabels(UnboundIdentityLostIngestHttpAcceptanceTest.java:75)
+```
+（`labels` 缺失，`path("labels").isObject()` 为 false）
+Green command: 同上，BUILD SUCCESSFUL / exit 0。`unlabeledAndIdentityLostDoNotPromiseUpgradeChain` 仍绿。
+Refactor: `parseLabels` 抽出 `LABEL_MAP` TypeReference，空/坏 JSON 回空对象。
+Commit: （提交后填）
