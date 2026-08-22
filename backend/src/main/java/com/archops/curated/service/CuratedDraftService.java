@@ -19,6 +19,10 @@ import com.archops.curated.domain.CuratedRelationType;
 import com.archops.curated.dto.CuratedDraftResponse;
 import com.archops.curated.mapper.CuratedDraftItemMapper;
 import com.archops.curated.mapper.CuratedDraftMapper;
+import com.archops.curated.mapper.CuratedDraftEventMapper;
+import com.archops.curated.dto.CuratedDraftEventResponse;
+import com.archops.curated.domain.CuratedDraftEventType;
+import com.archops.curated.domain.CuratedDraftEvent;
 import com.archops.curated.mapper.CuratedFactMapper;
 import com.archops.curated.mapper.CuratedObjectMapper;
 import com.archops.curated.domain.CuratedDraftOrigin;
@@ -64,6 +68,7 @@ public class CuratedDraftService {
     private final CuratedTruthService curatedTruthService;
     private final UnboundObservationCandidateMapper unboundObservationCandidateMapper;
     private final IdentityLostMarkMapper identityLostMarkMapper;
+    private final CuratedDraftEventMapper curatedDraftEventMapper;
     private final ObjectMapper objectMapper;
 
     public CuratedDraftService(
@@ -77,6 +82,7 @@ public class CuratedDraftService {
             CuratedTruthService curatedTruthService,
             UnboundObservationCandidateMapper unboundObservationCandidateMapper,
             IdentityLostMarkMapper identityLostMarkMapper,
+            CuratedDraftEventMapper curatedDraftEventMapper,
             ObjectMapper objectMapper
     ) {
         this.curatedDraftMapper = curatedDraftMapper;
@@ -89,6 +95,7 @@ public class CuratedDraftService {
         this.curatedTruthService = curatedTruthService;
         this.unboundObservationCandidateMapper = unboundObservationCandidateMapper;
         this.identityLostMarkMapper = identityLostMarkMapper;
+        this.curatedDraftEventMapper = curatedDraftEventMapper;
         this.objectMapper = objectMapper;
     }
 
@@ -208,7 +215,53 @@ public class CuratedDraftService {
         for (CuratedDraftItem item : items) {
             curatedDraftItemMapper.insert(item);
         }
+        appendDraftEvent(draft.getId(), CuratedDraftEventType.DRAFT_CREATED, actor.getUserId(), Map.of(
+                "draftId", draft.getId(),
+                "hint", "草案已创建",
+                "origin", CuratedDraftOrigin.UNBOUND_CANDIDATE.name()
+        ));
         return toResponse(draft, items);
+    }
+
+    @Transactional(readOnly = true)
+    public List<CuratedDraftEventResponse> listEvents(String draftId) {
+        CuratedDraft draft = curatedDraftMapper.selectById(draftId);
+        if (draft == null) {
+            throw new BusinessException("DRAFT_NOT_FOUND", "No 草案: " + draftId);
+        }
+        return curatedDraftEventMapper.selectList(new LambdaQueryWrapper<CuratedDraftEvent>()
+                        .eq(CuratedDraftEvent::getDraftId, draftId)
+                        .orderByAsc(CuratedDraftEvent::getCreatedAt))
+                .stream()
+                .map(this::toEventResponse)
+                .toList();
+    }
+
+    private void appendDraftEvent(
+            String draftId,
+            CuratedDraftEventType type,
+            String actorUserId,
+            Map<String, Object> detail
+    ) {
+        CuratedDraftEvent event = new CuratedDraftEvent();
+        event.setId("devt-" + UUID.randomUUID());
+        event.setDraftId(draftId);
+        event.setEventType(type);
+        event.setActorUserId(actorUserId);
+        event.setDetailJson(writeJson(detail == null ? Map.of() : detail));
+        event.setCreatedAt(Instant.now());
+        curatedDraftEventMapper.insert(event);
+    }
+
+    private CuratedDraftEventResponse toEventResponse(CuratedDraftEvent row) {
+        return new CuratedDraftEventResponse(
+                row.getId(),
+                row.getDraftId(),
+                row.getEventType(),
+                row.getActorUserId(),
+                readPayloadMap(row.getDetailJson()),
+                row.getCreatedAt()
+        );
     }
 
     /**

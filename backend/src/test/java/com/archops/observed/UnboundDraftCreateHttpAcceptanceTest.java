@@ -16,6 +16,8 @@ import java.util.List;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
@@ -266,6 +268,384 @@ class UnboundDraftCreateHttpAcceptanceTest {
                 .andReturn();
         assertThat(unboundByRuntimeId(listedAfter, "u02c-rt-unknown"), notNullValue());
     }
+
+
+    @Test
+    void unauthenticatedOpenDraftIsRejected() throws Exception {
+        String hostId = createHost("u02d-h");
+        mockMvc.perform(post("/api/agent/heartbeat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "agentId": "u02d-ag",
+                                  "hostId": "%s",
+                                  "snapshot": {
+                                    "containers": [{
+                                      "runtimeId": "u02d-rt-unknown",
+                                      "name": "u02d-unknown",
+                                      "labels": { "archops.object_id": "u02d-never" }
+                                    }]
+                                  }
+                                }
+                                """.formatted(hostId))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+        MvcResult listed = mockMvc.perform(get("/api/observed/unbound-candidates")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn();
+        String candidateId = unboundByRuntimeId(listed, "u02d-rt-unknown").path("id").asText();
+
+        mockMvc.perform(post("/api/observed/unbound-candidates/{id}/drafts", candidateId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.code", is("AUTH_REQUIRED")))
+                .andExpect(jsonPath("$.data").value(nullValue()));
+    }
+
+    @Test
+    void seniorOperatorCanOpenDraftFromUnknownCandidate() throws Exception {
+        String hostId = createHost("u02e-h");
+        mockMvc.perform(post("/api/agent/heartbeat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "agentId": "u02e-ag",
+                                  "hostId": "%s",
+                                  "snapshot": {
+                                    "containers": [{
+                                      "runtimeId": "u02e-rt-unknown",
+                                      "name": "u02e-unknown",
+                                      "labels": { "archops.object_id": "u02e-never" }
+                                    }]
+                                  }
+                                }
+                                """.formatted(hostId))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+        MvcResult listed = mockMvc.perform(get("/api/observed/unbound-candidates")
+                        .header(TempAuthHeaders.USER_ID, SENIOR_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn();
+        String candidateId = unboundByRuntimeId(listed, "u02e-rt-unknown").path("id").asText();
+
+        MvcResult created = mockMvc.perform(post("/api/observed/unbound-candidates/{id}/drafts", candidateId)
+                        .header(TempAuthHeaders.USER_ID, SENIOR_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("OPEN")))
+                .andExpect(jsonPath("$.data.createdBy", is(SENIOR_ID)))
+                .andReturn();
+        List<JsonNode> items = sortedItems(objectMapper.readTree(created.getResponse().getContentAsString()).path("data").path("items"));
+        assertThat(items.size() >= 2, is(true));
+        assertThat(items.stream().map(n -> n.path("status").asText()).distinct().toList(), is(List.of("PENDING")));
+    }
+
+    @Test
+    void identityLostMissingLabelDraftOffersBindVersusCreate() throws Exception {
+        String hostId = createHost("u02f-h");
+        String containerX = createContainer("u02f-x", "u02f-oid");
+        confirmRunsOn(containerX, hostId);
+
+        mockMvc.perform(post("/api/agent/heartbeat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "agentId": "u02f-ag",
+                                  "hostId": "%s",
+                                  "snapshot": {
+                                    "containers": [{
+                                      "runtimeId": "u02f-rt-miss",
+                                      "name": "u02f-similar",
+                                      "labels": {}
+                                    }],
+                                    "absentObjectIds": []
+                                  }
+                                }
+                                """.formatted(hostId))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/observed/identity-lost/{id}", containerX)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+
+        MvcResult listed = mockMvc.perform(get("/api/observed/unbound-candidates")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn();
+        JsonNode candidate = unboundByRuntimeId(listed, "u02f-rt-miss");
+        assertThat(candidate, notNullValue());
+        assertThat(candidate.path("reason").asText(), is("MISSING_LABEL"));
+
+        MvcResult created = mockMvc.perform(post("/api/observed/unbound-candidates/{id}/drafts", candidate.path("id").asText())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("OPEN")))
+                .andReturn();
+
+        List<JsonNode> items = sortedItems(objectMapper.readTree(created.getResponse().getContentAsString()).path("data").path("items"));
+        assertThat(items.size(), is(2));
+        assertThat(items.stream().map(n -> n.path("kind").asText()).toList(),
+                containsInAnyOrder("BIND_UNBOUND_TO_EXISTING", "CREATE_CONTAINER_FROM_UNBOUND"));
+        assertThat(items.stream().noneMatch(n -> "CURATED_RUNS_ON_INSERT".equals(n.path("kind").asText())), is(true));
+        JsonNode bind = items.stream().filter(n -> "BIND_UNBOUND_TO_EXISTING".equals(n.path("kind").asText())).findFirst().orElseThrow();
+        assertThat(bind.path("subjectId").asText(), is(containerX));
+        assertThat(bind.path("status").asText(), is("PENDING"));
+        JsonNode create = items.stream().filter(n -> "CREATE_CONTAINER_FROM_UNBOUND".equals(n.path("kind").asText())).findFirst().orElseThrow();
+        assertThat(create.path("subjectId").isNull() || create.path("subjectId").isMissingNode(), is(true));
+        assertThat(create.path("payload").path("immutableObjectId").isNull()
+                || create.path("payload").path("immutableObjectId").isMissingNode()
+                || create.path("payload").path("immutableObjectId").isNull(), is(true));
+        assertThat(create.path("status").asText(), is("PENDING"));
+
+        mockMvc.perform(get("/api/observed/identity-lost/{id}", containerX)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/observed/asks/actual-where")
+                        .param("containerId", containerX)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.identityLost", is(true)))
+                .andExpect(jsonPath("$.data.observedValue.availability", is("IDENTITY_LOST")));
+        mockMvc.perform(get("/api/curated/asks/should-where")
+                        .param("containerId", containerX)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(hostId)));
+    }
+
+    @Test
+    void secondOpenDraftForSameFieldEntityIsRejected() throws Exception {
+        String hostId = createHost("u02g-h");
+        mockMvc.perform(post("/api/agent/heartbeat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "agentId": "u02g-ag",
+                                  "hostId": "%s",
+                                  "snapshot": {
+                                    "containers": [{
+                                      "runtimeId": "u02g-rt-unknown",
+                                      "name": "u02g-unknown",
+                                      "labels": { "archops.object_id": "u02g-never" }
+                                    }]
+                                  }
+                                }
+                                """.formatted(hostId))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+        MvcResult listed = mockMvc.perform(get("/api/observed/unbound-candidates")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn();
+        String candidateId = unboundByRuntimeId(listed, "u02g-rt-unknown").path("id").asText();
+
+        MvcResult first = mockMvc.perform(post("/api/observed/unbound-candidates/{id}/drafts", candidateId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn();
+        String draftId = objectMapper.readTree(first.getResponse().getContentAsString()).path("data").path("id").asText();
+
+        mockMvc.perform(post("/api/observed/unbound-candidates/{id}/drafts", candidateId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.code", is("UNBOUND_DRAFT_ALREADY_OPEN")))
+                .andExpect(jsonPath("$.data").value(nullValue()));
+
+        mockMvc.perform(get("/api/curated-drafts/{id}", draftId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("OPEN")))
+                .andExpect(jsonPath("$.data.items.length()", is(2)));
+    }
+
+    @Test
+    void unboundDraftIsInvisibleOnConflictCuratedDraftApis() throws Exception {
+        // Unbound entity set
+        String hostA1 = createHost("u02h1-h");
+        String containerX = createContainer("u02h1-x", "u02h1-oid");
+        confirmRunsOn(containerX, hostA1);
+        mockMvc.perform(post("/api/agent/heartbeat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "agentId": "u02h1-ag",
+                                  "hostId": "%s",
+                                  "snapshot": {
+                                    "containers": [{
+                                      "runtimeId": "u02h1-rt-miss",
+                                      "name": "u02h1-similar",
+                                      "labels": {}
+                                    }],
+                                    "absentObjectIds": []
+                                  }
+                                }
+                                """.formatted(hostA1))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+        MvcResult listed = mockMvc.perform(get("/api/observed/unbound-candidates")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn();
+        String candidateId = unboundByRuntimeId(listed, "u02h1-rt-miss").path("id").asText();
+        MvcResult created = mockMvc.perform(post("/api/observed/unbound-candidates/{id}/drafts", candidateId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn();
+        String unboundDraftId = objectMapper.readTree(created.getResponse().getContentAsString()).path("data").path("id").asText();
+
+        // Separate conflict canvas for Y
+        String hostA2 = createHost("u02h2-ha");
+        String hostB2 = createHost("u02h2-hb");
+        String containerY = createContainer("u02h2-y", "u02h2-oid");
+        confirmRunsOn(containerY, hostA2);
+        mockMvc.perform(post("/api/agent/heartbeat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "agentId": "u02h2-ag",
+                                  "hostId": "%s",
+                                  "snapshot": {
+                                    "containers": [{
+                                      "runtimeId": "u02h2-rt",
+                                      "name": "u02h2-y",
+                                      "labels": { "archops.object_id": "u02h2-oid" }
+                                    }]
+                                  }
+                                }
+                                """.formatted(hostB2))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+        MvcResult conflictResult = mockMvc.perform(get("/api/conflicts/by-merge-key")
+                        .param("subjectId", containerY)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn();
+        String conflictId = objectMapper.readTree(conflictResult.getResponse().getContentAsString()).path("data").path("id").asText();
+
+        mockMvc.perform(get("/api/conflicts/{id}/curated-drafts/open", conflictId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("DRAFT_NOT_FOUND")));
+        mockMvc.perform(get("/api/conflicts/{cid}/curated-drafts/{did}", conflictId, unboundDraftId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("DRAFT_NOT_FOUND")));
+        mockMvc.perform(get("/api/curated-drafts/{id}", unboundDraftId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.conflictId").value(nullValue()))
+                .andExpect(jsonPath("$.data.origin", is("UNBOUND_CANDIDATE")));
+        mockMvc.perform(get("/api/conflicts/by-merge-key")
+                        .param("subjectId", containerX)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("CONFLICT_NOT_FOUND")));
+
+        mockMvc.perform(get("/api/conflicts/{id}/operation-plans/active", conflictId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("PLAN_NOT_FOUND")));
+    }
+
+    @Test
+    void draftCreatedEventIsReadableOnDraftEventsApi() throws Exception {
+        String hostId = createHost("u02j-h");
+        mockMvc.perform(post("/api/agent/heartbeat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "agentId": "u02j-ag",
+                                  "hostId": "%s",
+                                  "snapshot": {
+                                    "containers": [{
+                                      "runtimeId": "u02j-rt-unknown",
+                                      "name": "u02j-unknown",
+                                      "labels": { "archops.object_id": "u02j-never" }
+                                    }]
+                                  }
+                                }
+                                """.formatted(hostId))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+        MvcResult listed = mockMvc.perform(get("/api/observed/unbound-candidates")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn();
+        String candidateId = unboundByRuntimeId(listed, "u02j-rt-unknown").path("id").asText();
+        MvcResult created = mockMvc.perform(post("/api/observed/unbound-candidates/{id}/drafts", candidateId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn();
+        String draftId = objectMapper.readTree(created.getResponse().getContentAsString()).path("data").path("id").asText();
+
+        mockMvc.perform(get("/api/curated-drafts/{id}/events", draftId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[*].eventType", hasItem("DRAFT_CREATED")))
+                .andExpect(jsonPath("$.data[?(@.eventType=='DRAFT_CREATED')].detail.hint",
+                        hasItem(containsString("草案已创建"))))
+                .andExpect(jsonPath("$.data[?(@.eventType=='DRAFT_CREATED')].actorUserId",
+                        hasItem(GENERAL_ID)))
+                .andExpect(jsonPath("$.data[?(@.eventType=='DRAFT_CREATED')].detail.draftId",
+                        hasItem(draftId)))
+                .andExpect(jsonPath("$.data[?(@.eventType=='DRAFT_CREATED')].detail.origin",
+                        hasItem("UNBOUND_CANDIDATE")));
+    }
+
+    @Test
+    void unknownCandidateIdOpenDraftIsBusinessError() throws Exception {
+        mockMvc.perform(post("/api/observed/unbound-candidates/{id}/drafts", "u02k-missing")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.code", is("UNBOUND_CANDIDATE_NOT_FOUND")))
+                .andExpect(jsonPath("$.data").value(nullValue()));
+    }
+
 
     private List<JsonNode> sortedItems(JsonNode itemsNode) {
         List<JsonNode> items = new ArrayList<>();

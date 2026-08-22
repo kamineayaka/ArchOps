@@ -43,3 +43,38 @@ Refactor: none beyond endpoint wiring.
 Red: first run PathNotFoundException on $.data.hostId (test expected flat hostId; GET runs-on returns data.target.id). After aligning assertion to curatedValue.hostId / target.id, green without new production — reuse of Cycle A create (no curated write, candidate remains).
 Green: should-where unchanged; bootstrap objectId still free; unbound list still has runtime.
 Refactor: none.
+
+### Cycle D — unauthenticated open rejected
+Red: reuse/regression — SecurityConfig already requires auth on /api/**; first run green with AUTH_REQUIRED. Named TempAuthHttpAcceptanceTest / SecurityConfig.
+Green: same.
+Refactor: none.
+
+### Cycle E — senior can open
+Red: reuse of Cycle A (no role gate on POST drafts); first run green with createdBy=user-senior-demo.
+Green: same.
+Refactor: none.
+
+### Cycle F — identity-lost + MISSING_LABEL → BIND vs CREATE
+Red: reuse of Cycle A fixture builder (MISSING_LABEL branch already implemented for green of A schema); first run green with BIND_UNBOUND_TO_EXISTING + CREATE_CONTAINER_FROM_UNBOUND pending.
+Green: same; identity-lost and should-where unchanged.
+Refactor: none.
+
+### Cycle G — second OPEN → UNBOUND_DRAFT_ALREADY_OPEN
+Red: reuse of unique open-unbound index + service guard from Cycle A; first run green.
+Green: same; first draft remains OPEN with 2 items.
+Refactor: none.
+
+### Cycle H/I — unbound draft invisible on conflict curated-draft APIs; no operation plan
+Red: reuse — conflictId null + conflict-scoped GET requires matching conflictId; PLAN_NOT_FOUND for active plan. First run green.
+Green: same.
+Refactor: none.
+
+### Cycle J — DRAFT_CREATED on draft events API
+Red: GET /api/curated-drafts/{id}/events returned 500/no handler (AssertionError at events assert).
+Green: curated_draft_event write on create + GET events; detail.hint contains 草案已创建; actorUserId; origin UNBOUND_CANDIDATE.
+Refactor: mirrored ConflictEventService append/list shape.
+
+### Cycle K — unknown candidateId
+Red: reuse of UNBOUND_CANDIDATE_NOT_FOUND guard from Cycle A create; first run green.
+Green: same.
+Refactor: none.
