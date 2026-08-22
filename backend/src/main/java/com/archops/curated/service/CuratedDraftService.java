@@ -186,9 +186,10 @@ public class CuratedDraftService {
             throw new BusinessException("UNBOUND_CANDIDATE_NOT_FOUND",
                     "No unbound observation candidate: " + candidateId);
         }
-        if (findOpenUnbound(candidateId) != null) {
+        if (findOpenUnboundForCandidate(candidateId) != null
+                || findOpenUnboundForHostRuntime(candidate.getSourceHostId(), candidate.getRuntimeId()) != null) {
             throw new BusinessException("UNBOUND_DRAFT_ALREADY_OPEN",
-                    "Candidate already has an open 未绑定草案");
+                    "Field entity already has an open 未绑定草案");
         }
 
         Instant now = Instant.now();
@@ -208,7 +209,7 @@ public class CuratedDraftService {
             curatedDraftMapper.insert(draft);
         } catch (DataIntegrityViolationException ex) {
             throw new BusinessException("UNBOUND_DRAFT_ALREADY_OPEN",
-                    "Candidate already has an open 未绑定草案");
+                    "Field entity already has an open 未绑定草案");
         }
 
         List<CuratedDraftItem> items = buildUnboundItems(draft.getId(), candidate, now);
@@ -519,9 +520,22 @@ public class CuratedDraftService {
         );
     }
 
-    private CuratedDraft findOpenUnbound(String candidateId) {
+    private CuratedDraft findOpenUnboundForCandidate(String candidateId) {
         return curatedDraftMapper.selectOne(new LambdaQueryWrapper<CuratedDraft>()
                 .eq(CuratedDraft::getCandidateId, candidateId)
+                .eq(CuratedDraft::getOrigin, CuratedDraftOrigin.UNBOUND_CANDIDATE)
+                .eq(CuratedDraft::getStatus, CuratedDraftStatus.OPEN)
+                .orderByDesc(CuratedDraft::getCreatedAt)
+                .last("LIMIT 1"));
+    }
+
+    private CuratedDraft findOpenUnboundForHostRuntime(String sourceHostId, String runtimeId) {
+        if (sourceHostId == null || runtimeId == null || runtimeId.isBlank()) {
+            return null;
+        }
+        return curatedDraftMapper.selectOne(new LambdaQueryWrapper<CuratedDraft>()
+                .eq(CuratedDraft::getSourceHostId, sourceHostId)
+                .eq(CuratedDraft::getRuntimeId, runtimeId)
                 .eq(CuratedDraft::getOrigin, CuratedDraftOrigin.UNBOUND_CANDIDATE)
                 .eq(CuratedDraft::getStatus, CuratedDraftStatus.OPEN)
                 .orderByDesc(CuratedDraft::getCreatedAt)
@@ -549,7 +563,7 @@ public class CuratedDraftService {
         } else if (candidate.getReason() == UnboundReason.MISSING_LABEL) {
             IdentityLostMark lost = findIdentityLostOnHost(candidate.getSourceHostId());
             if (lost == null) {
-                throw new BusinessException("UNBOUND_CANDIDATE_NOT_FOUND",
+                throw new BusinessException("UNBOUND_DRAFT_FIXTURE_UNAVAILABLE",
                         "MISSING_LABEL candidate has no identity-lost target on host");
             }
             items.add(newItem(draftId, seq++, CuratedDraftItemKind.BIND_UNBOUND_TO_EXISTING,
@@ -560,12 +574,16 @@ public class CuratedDraftService {
             items.add(newItem(draftId, seq++, CuratedDraftItemKind.CREATE_CONTAINER_FROM_UNBOUND,
                     null, null, null, writeJson(createPayload), now));
         } else {
-            throw new BusinessException("UNBOUND_CANDIDATE_NOT_FOUND",
+            throw new BusinessException("UNBOUND_DRAFT_FIXTURE_UNAVAILABLE",
                     "Unsupported unbound reason for draft fixture");
         }
         return items;
     }
 
+    /**
+     * Rule fixture for MISSING_LABEL: pick one identity-lost object on the candidate host.
+     * Deterministic when several marks exist (curatedObjectId asc); ticket 03 owns bind conflicts.
+     */
     private IdentityLostMark findIdentityLostOnHost(String hostId) {
         return identityLostMarkMapper.selectOne(new LambdaQueryWrapper<IdentityLostMark>()
                 .eq(IdentityLostMark::getSourceHostId, hostId)

@@ -43,10 +43,18 @@ ALTER TABLE curated_draft
     ADD CONSTRAINT curated_draft_candidate_fk
         FOREIGN KEY (candidate_id) REFERENCES unbound_observation_candidate (id);
 
--- One OPEN unbound draft per candidate (field entity).
+-- One OPEN unbound draft per field entity.
+-- Candidate rows are already unique on (source_host_id, runtime_id) when runtime_id is set (V16);
+-- index both candidate_id and host+runtime so the ticket mutex is enforced even if candidate identity drifts.
 CREATE UNIQUE INDEX curated_draft_open_unbound_candidate_uq
     ON curated_draft (candidate_id)
     WHERE status = 'OPEN' AND origin = 'UNBOUND_CANDIDATE';
+
+CREATE UNIQUE INDEX curated_draft_open_unbound_host_runtime_uq
+    ON curated_draft (source_host_id, runtime_id)
+    WHERE status = 'OPEN'
+      AND origin = 'UNBOUND_CANDIDATE'
+      AND runtime_id IS NOT NULL;
 
 -- Keep “one OPEN per conflict” for change-curated (conflict_id NOT NULL).
 -- Existing curated_draft_open_conflict_uq remains valid for non-null conflict_id.
