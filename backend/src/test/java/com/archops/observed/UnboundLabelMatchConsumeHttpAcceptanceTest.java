@@ -16,6 +16,7 @@ import java.util.Comparator;
 import java.util.List;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
@@ -126,6 +127,54 @@ class UnboundLabelMatchConsumeHttpAcceptanceTest {
                 .andExpect(jsonPath("$.success", is(true)))
                 .andExpect(jsonPath("$.data.items[?(@.kind=='BIND_UNBOUND_TO_EXISTING')].status",
                         hasItem("ACCEPTED")));
+    }
+
+    @Test
+    void labelMatchVoidsOpenUnboundDraftAndRejectsFurtherReview() throws Exception {
+        String hostA = createHost("u04c-h");
+        String containerX = createContainer("u04c-x", "u04c-oid");
+        confirmRunsOn(containerX, hostA);
+        heartbeatMissingLabel(hostA, "u04c-ag", "u04c-rt-miss", "u04c-similar");
+        OpenUnboundDraft draft = openDraftFromRuntime("u04c-rt-miss");
+        JsonNode bindItem = itemByKind(draft.items(), "BIND_UNBOUND_TO_EXISTING");
+        JsonNode createItem = itemByKind(draft.items(), "CREATE_CONTAINER_FROM_UNBOUND");
+        String bindItemId = bindItem.path("id").asText();
+        assertThat(bindItem.path("status").asText(), is("PENDING"));
+        assertThat(createItem.path("status").asText(), is("PENDING"));
+
+        heartbeatLabeled(hostA, "u04c-ag", "u04c-rt-hit", "u04c-x", "u04c-oid");
+
+        MvcResult got = mockMvc.perform(get("/api/curated-drafts/{draftId}", draft.draftId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.status", is("VOIDED")))
+                .andReturn();
+        JsonNode items = objectMapper.readTree(got.getResponse().getContentAsString()).path("data").path("items");
+        assertThat(itemByKind(sortedItems(items), "BIND_UNBOUND_TO_EXISTING").path("status").asText(), is("PENDING"));
+        assertThat(itemByKind(sortedItems(items), "CREATE_CONTAINER_FROM_UNBOUND").path("status").asText(), is("PENDING"));
+
+        postUnboundItem(draft.draftId(), bindItemId, "accept")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.code", is("DRAFT_VOIDED")))
+                .andExpect(jsonPath("$.data").value(nullValue()));
+
+        mockMvc.perform(get("/api/curated-drafts/{draftId}/events", draft.draftId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[*].eventType", hasItem("DRAFT_VOIDED")))
+                .andExpect(jsonPath("$.data[?(@.eventType=='DRAFT_VOIDED')].detail.hint",
+                        hasItem(containsString("草案已作废"))));
+
+        mockMvc.perform(get("/api/curated/facts/runs-on/{containerId}", containerX)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.target.id", is(hostA)))
+                .andExpect(jsonPath("$.data.subject.objectId", is("u04c-oid")));
     }
 
     private void heartbeatMissingLabel(String hostId, String agentId, String runtimeId, String name) throws Exception {

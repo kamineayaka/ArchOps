@@ -12,6 +12,7 @@ import com.archops.curated.domain.CuratedRelationType;
 import com.archops.curated.dto.CuratedObjectResponse;
 import com.archops.curated.mapper.CuratedFactMapper;
 import com.archops.curated.mapper.CuratedObjectMapper;
+import com.archops.curated.service.CuratedDraftService;
 import com.archops.observed.domain.HostAgent;
 import com.archops.observed.domain.IdentityLostMark;
 import com.archops.observed.domain.ObservedAvailability;
@@ -61,6 +62,7 @@ public class ObservedTruthService {
     private final CuratedFactMapper curatedFactMapper;
     private final ConflictDetectionService conflictDetectionService;
     private final ObservationFreshnessService observationFreshnessService;
+    private final CuratedDraftService curatedDraftService;
     private final ObjectMapper objectMapper;
 
     public ObservedTruthService(
@@ -73,6 +75,7 @@ public class ObservedTruthService {
             CuratedFactMapper curatedFactMapper,
             ConflictDetectionService conflictDetectionService,
             @Lazy ObservationFreshnessService observationFreshnessService,
+            @Lazy CuratedDraftService curatedDraftService,
             ObjectMapper objectMapper
     ) {
         this.hostAgentMapper = hostAgentMapper;
@@ -84,6 +87,7 @@ public class ObservedTruthService {
         this.curatedFactMapper = curatedFactMapper;
         this.conflictDetectionService = conflictDetectionService;
         this.observationFreshnessService = observationFreshnessService;
+        this.curatedDraftService = curatedDraftService;
         this.objectMapper = objectMapper;
     }
 
@@ -545,6 +549,24 @@ public class ObservedTruthService {
         List<UnboundBindMemory> memories = unboundBindMemoryMapper.selectList(
                 new LambdaQueryWrapper<UnboundBindMemory>()
                         .eq(UnboundBindMemory::getCuratedObjectId, curatedObjectId));
+        Set<String> candidateIds = new HashSet<>();
+        Set<String> hostRuntimeKeys = new HashSet<>();
+        for (UnboundBindMemory memory : memories) {
+            hostRuntimeKeys.add(bindKey(memory.getSourceHostId(), memory.getRuntimeId()));
+            UnboundObservationCandidate row = findUnboundByHostAndRuntime(
+                    memory.getSourceHostId(), memory.getRuntimeId());
+            if (row != null) {
+                candidateIds.add(row.getId());
+            }
+        }
+        if (runtimeId != null && !runtimeId.isBlank()) {
+            hostRuntimeKeys.add(bindKey(reportingHostId, runtimeId));
+            UnboundObservationCandidate hitRow = findUnboundByHostAndRuntime(reportingHostId, runtimeId);
+            if (hitRow != null) {
+                candidateIds.add(hitRow.getId());
+            }
+        }
+        curatedDraftService.voidOpenUnboundAfterLabelMatch(curatedObjectId, candidateIds, hostRuntimeKeys);
         for (UnboundBindMemory memory : memories) {
             deleteUnboundCandidate(memory.getSourceHostId(), memory.getRuntimeId());
         }

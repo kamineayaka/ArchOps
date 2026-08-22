@@ -6,5 +6,6 @@ package com.archops.curated.domain;
 public enum CuratedDraftEventType {
     DRAFT_CREATED,
     DRAFT_ITEM_ACCEPTED,
-    DRAFT_ITEM_REJECTED
+    DRAFT_ITEM_REJECTED,
+    DRAFT_VOIDED
 }
