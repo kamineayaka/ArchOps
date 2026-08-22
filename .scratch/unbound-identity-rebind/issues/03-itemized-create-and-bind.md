@@ -20,7 +20,7 @@
 - [x] `MISSING_LABEL` 新建不是成功路径（无现场标签则无不可变 object id 可写）
 - [x] `UNKNOWN_OBJECT_ID` 绑到已有允许，且不得把错标签写成 X 的新主键
 - [x] 未认证不可审条；无冲突处理人要求
-- [ ] 建底插入第一条 `运行于` 仍成功；覆盖已有仍 `CURATED_RUNS_ON_EXISTS`
+- [x] 建底插入第一条 `运行于` 仍成功；覆盖已有仍 `CURATED_RUNS_ON_EXISTS`
 - [ ] HTTP 可读条目已接受 / 已拒绝审计；无整单全接受、无操作计划、无策展对齐步骤
 
 **Out of this ticket:** 标签命中后清失联并写观测（见 04）；选支闸门（见 05）；tracer 总套件（见 06）；UI。
@@ -108,6 +108,14 @@ Commit: `5c7e128` feat(unbound): offer BIND on UNKNOWN when the host has 失联
 Red command:
 `cd backend && ./gradlew test --tests com.archops.observed.UnboundDraftItemReviewHttpAcceptanceTest.unauthenticatedItemAcceptIsRejected --tests com.archops.observed.UnboundDraftItemReviewHttpAcceptanceTest.seniorOperatorCanAcceptCreateOnUnboundDraft`
 reuse/regression: unauthenticated 401 `AUTH_REQUIRED` from existing `/api/**` SecurityConfig; senior accept CREATE 200 reuses Cycle A (no role gate, `@PreAuthorize("isAuthenticated()")` only). First-run green. No 未绑定处理人; change-curated handler gate untouched.
+Green command: same; exit 0.
+Refactor: 无结构改动
+Commit: `db7b049` test(unbound): item review stays authenticated for 一般 and 高级
+
+### Cycle K — 建底插入第一条「运行于」仍成功；覆盖已有仍 CURATED_RUNS_ON_EXISTS
+Red command:
+`cd backend && ./gradlew test --tests com.archops.observed.UnboundDraftItemReviewHttpAcceptanceTest.bootstrapFirstRunsOnStillInsertsAndOverwriteStillRejected`
+reuse/regression: `CuratedTruthHttpAcceptanceTest.bootstrapPostRejectsOverwriteToSameHost` / `createHostsContainerConfirmRunsOnAndAskShouldWhere`. First-run green. Ticket 03 did not disable bootstrap insert or overwrite reject.
 Green command: same; exit 0.
 Refactor: 无结构改动
 Commit: (this slice)

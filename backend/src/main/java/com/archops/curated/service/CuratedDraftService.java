@@ -315,6 +315,8 @@ public class CuratedDraftService {
         }
         applyUnboundAccept(review.draft(), review.item(), actor.getUserId());
         markItem(review.item(), CuratedDraftItemStatus.ACCEPTED);
+        appendDraftEvent(review.draft().getId(), CuratedDraftEventType.DRAFT_ITEM_ACCEPTED, actor.getUserId(),
+                unboundItemAuditDetail(review, "草案条目已接受"));
         return respond(review.draft());
     }
 
@@ -322,6 +324,8 @@ public class CuratedDraftService {
     public CuratedDraftResponse rejectUnboundItem(String draftId, String itemId, AuthUserPrincipal actor) {
         UnboundItemReview review = beginUnboundItemReview(draftId, itemId);
         markItem(review.item(), CuratedDraftItemStatus.REJECTED);
+        appendDraftEvent(review.draft().getId(), CuratedDraftEventType.DRAFT_ITEM_REJECTED, actor.getUserId(),
+                unboundItemAuditDetail(review, "草案条目已拒绝"));
         return respond(review.draft());
     }
 
@@ -812,6 +816,15 @@ public class CuratedDraftService {
         } catch (JsonProcessingException ex) {
             return "{}";
         }
+    }
+
+    private static Map<String, Object> unboundItemAuditDetail(UnboundItemReview review, String hint) {
+        Map<String, Object> detail = new LinkedHashMap<>();
+        detail.put("draftId", review.draft().getId());
+        detail.put("itemId", review.item().getId());
+        detail.put("subjectId", review.item().getSubjectId());
+        detail.put("hint", hint);
+        return detail;
     }
 
     private static Map<String, Object> itemAuditDetail(OpenItemReview review, String hint, boolean written) {

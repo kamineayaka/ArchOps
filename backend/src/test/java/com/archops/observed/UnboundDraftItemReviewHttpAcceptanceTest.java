@@ -16,6 +16,7 @@ import java.util.Comparator;
 import java.util.List;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
@@ -544,6 +545,58 @@ class UnboundDraftItemReviewHttpAcceptanceTest {
                 .andExpect(jsonPath("$.success", is(false)))
                 .andExpect(jsonPath("$.code", is("CURATED_RUNS_ON_EXISTS")))
                 .andExpect(jsonPath("$.data").value(nullValue()));
+    }
+
+    @Test
+    void itemReviewEventsAreReadableAndWholeDraftAcceptDoesNotExist() throws Exception {
+        String hostId = createHost("u03l-h");
+        heartbeatUnknown(hostId, "u03l-ag", "u03l-rt-unknown", "u03l-unknown", "u03l-never");
+        OpenUnboundDraft draft = openDraftFromRuntime("u03l-rt-unknown");
+        JsonNode createItem = itemByKind(draft.items(), "CREATE_CONTAINER_FROM_UNBOUND");
+        JsonNode runsOnItem = itemByKind(draft.items(), "CURATED_RUNS_ON_INSERT");
+        String createItemId = createItem.path("id").asText();
+        String runsOnItemId = runsOnItem.path("id").asText();
+
+        postUnboundItem(draft.draftId(), createItemId, "accept")
+                .andExpect(status().isOk());
+        postUnboundItem(draft.draftId(), runsOnItemId, "reject")
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/curated-drafts/{draftId}/events", draft.draftId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[*].eventType", hasItem("DRAFT_CREATED")))
+                .andExpect(jsonPath("$.data[*].eventType", hasItem("DRAFT_ITEM_ACCEPTED")))
+                .andExpect(jsonPath("$.data[*].eventType", hasItem("DRAFT_ITEM_REJECTED")))
+                .andExpect(jsonPath("$.data[?(@.eventType=='DRAFT_ITEM_ACCEPTED')].detail.hint",
+                        hasItem(containsString("草案条目已接受"))))
+                .andExpect(jsonPath("$.data[?(@.eventType=='DRAFT_ITEM_REJECTED')].detail.hint",
+                        hasItem(containsString("草案条目已拒绝"))))
+                .andExpect(jsonPath("$.data[?(@.eventType=='DRAFT_ITEM_ACCEPTED')].actorUserId",
+                        hasItem(GENERAL_ID)))
+                .andExpect(jsonPath("$.data[?(@.eventType=='DRAFT_ITEM_REJECTED')].actorUserId",
+                        hasItem(GENERAL_ID)))
+                .andExpect(jsonPath("$.data[?(@.eventType=='DRAFT_ITEM_ACCEPTED')].detail.draftId",
+                        hasItem(draft.draftId())))
+                .andExpect(jsonPath("$.data[?(@.eventType=='DRAFT_ITEM_ACCEPTED')].detail.itemId",
+                        hasItem(createItemId)))
+                .andExpect(jsonPath("$.data[?(@.eventType=='DRAFT_ITEM_REJECTED')].detail.itemId",
+                        hasItem(runsOnItemId)));
+
+        mockMvc.perform(post("/api/curated-drafts/{draftId}/accept", draft.draftId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.success", is(false)));
+
+        mockMvc.perform(get("/api/conflicts/{conflictId}/operation-plans/active", "u03l-none")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("CONFLICT_NOT_FOUND")));
     }
 
     private ResultActions postUnboundItem(String draftId, String itemId, String action) throws Exception {
