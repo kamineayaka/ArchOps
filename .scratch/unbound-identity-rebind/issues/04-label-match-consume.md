@@ -48,4 +48,18 @@ java.lang.AssertionError: Status expected:<400> but was:<200>
 Green command: 同上，exit 0。命中分支删除该对象的 `identity_lost_mark`（在 `upsertObservedPresent` / reconcile 之前）；同一快照的 `identityLostObjectIds` 不再把刚命中的对象重新打标。问法 `identityLost=false`、`availability=PRESENT`、上报宿主；「应该在哪」仍是策展宿主。
 Regression: `UnboundDraftItemReviewHttpAcceptanceTest` 全类绿（审计 S-4：`bindingToLabelMatchedPresentTargetIsRejected` 末尾改为 `400 IDENTITY_LOST_NOT_FOUND`；主断言仍 `UNBOUND_BIND_TARGET_HEALTHY`）。`UnboundIdentityLostIngestHttpAcceptanceTest.currentlyUsableObservedHostSnapshotInfersIdentityLost` 与 `identityLostActualWhereDoesNotReportStaleObservedHost` 仍绿。`UnboundBindGateHttpAcceptanceTest` 全类绿。
 Refactor: `clearIdentityLostMark` 抽出并注明状态表语义；显式失联声明跳过本快照已命中对象，避免清标被同请求写回。
+Commit: `dcbf5c5` feat(unbound): clear 身份失联 on label match
+
+### Cycle B — 命中消费绑定记忆，误绑后可再绑
+Red command:
+`cd backend && ./gradlew test --tests com.archops.observed.UnboundLabelMatchConsumeHttpAcceptanceTest.labelMatchConsumesBindMemorySoALaterEntityCanBindAgain`
+```
+UnboundLabelMatchConsumeHttpAcceptanceTest > labelMatchConsumesBindMemorySoALaterEntityCanBindAgain() FAILED
+    java.lang.AssertionError at UnboundLabelMatchConsumeHttpAcceptanceTest.java:232
+java.lang.AssertionError: Status expected:<200> but was:<400>
+```
+（命中后记忆仍在：夹具跳过已被绑的 X，对 u04b-rt-2 发起草案得到 400 `UNBOUND_DRAFT_FIXTURE_UNAVAILABLE`。随后补实现时又撞上 V17 `curated_draft_candidate_fk`，删除候选行会 500，故新增 V20 去掉该 FK，草案仍保留 `candidate_id` 审计指针。）
+Green command: 同上，exit 0。命中时删除 `curated_object_id = X` 的绑定记忆，并删除这些记忆键与本次命中 `(hostId, runtimeId)` 的未绑定候选行。补标 → 重新失联 → 重绑在 HTTP 上走通。
+Regression: `UnboundBindGateHttpAcceptanceTest` 全类绿（V19 目标唯一未被削弱）。Cycle A 同套件仍绿。
+Refactor: `consumeAfterLabelMatch` / `deleteUnboundCandidate` 抽出；V20 只增不改历史脚本。
 Commit: （提交后回填）

@@ -2,14 +2,23 @@ package com.archops.observed;
 
 import com.archops.support.HttpAcceptanceTest;
 import com.archops.user.security.TempAuthHeaders;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.ResultActions;
 
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -71,6 +80,52 @@ class UnboundLabelMatchConsumeHttpAcceptanceTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.question", is("应该在哪")))
                 .andExpect(jsonPath("$.data.curatedValue.hostId", is(hostA)));
+    }
+
+    @Test
+    void labelMatchConsumesBindMemorySoALaterEntityCanBindAgain() throws Exception {
+        String hostA = createHost("u04b-h");
+        String containerX = createContainer("u04b-x", "u04b-oid");
+        confirmRunsOn(containerX, hostA);
+        heartbeatMissingLabel(hostA, "u04b-ag", "u04b-rt-1", "u04b-similar");
+        OpenUnboundDraft first = openDraftFromRuntime("u04b-rt-1");
+        JsonNode firstBind = itemByKind(first.items(), "BIND_UNBOUND_TO_EXISTING");
+        assertThat(firstBind.path("subjectId").asText(), is(containerX));
+        postUnboundItem(first.draftId(), firstBind.path("id").asText(), "accept")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[?(@.kind=='BIND_UNBOUND_TO_EXISTING')].status",
+                        hasItem("ACCEPTED")));
+
+        heartbeatLabeled(hostA, "u04b-ag", "u04b-rt-hit", "u04b-x", "u04b-oid");
+
+        MvcResult afterHit = mockMvc.perform(get("/api/observed/unbound-candidates")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn();
+        assertThat(unboundByRuntimeId(afterHit, "u04b-rt-1"), nullValue());
+
+        heartbeatMissingLabel(hostA, "u04b-ag", "u04b-rt-2", "u04b-similar");
+
+        mockMvc.perform(get("/api/observed/identity-lost/{id}", containerX)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+        MvcResult listed = mockMvc.perform(get("/api/observed/unbound-candidates")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn();
+        assertThat(unboundByRuntimeId(listed, "u04b-rt-2"), notNullValue());
+
+        OpenUnboundDraft second = openDraftFromRuntime("u04b-rt-2");
+        JsonNode secondBind = itemByKind(second.items(), "BIND_UNBOUND_TO_EXISTING");
+        assertThat(secondBind.path("subjectId").asText(), is(containerX));
+        postUnboundItem(second.draftId(), secondBind.path("id").asText(), "accept")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.items[?(@.kind=='BIND_UNBOUND_TO_EXISTING')].status",
+                        hasItem("ACCEPTED")));
     }
 
     private void heartbeatMissingLabel(String hostId, String agentId, String runtimeId, String name) throws Exception {
@@ -149,5 +204,62 @@ class UnboundLabelMatchConsumeHttpAcceptanceTest {
                         .content("{\"containerId\":\"" + containerId + "\",\"hostId\":\"" + hostId + "\"}")
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk());
+    }
+
+    private ResultActions postUnboundItem(String draftId, String itemId, String action) throws Exception {
+        return mockMvc.perform(post("/api/curated-drafts/{draftId}/items/{itemId}/{action}",
+                        draftId, itemId, action)
+                .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}")
+                .accept(MediaType.APPLICATION_JSON));
+    }
+
+    private OpenUnboundDraft openDraftFromRuntime(String runtimeId) throws Exception {
+        MvcResult listed = mockMvc.perform(get("/api/observed/unbound-candidates")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn();
+        JsonNode candidate = unboundByRuntimeId(listed, runtimeId);
+        assertThat(candidate, notNullValue());
+        MvcResult created = mockMvc.perform(post("/api/observed/unbound-candidates/{id}/drafts",
+                        candidate.path("id").asText())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("OPEN")))
+                .andReturn();
+        JsonNode data = objectMapper.readTree(created.getResponse().getContentAsString()).path("data");
+        return new OpenUnboundDraft(data.path("id").asText(), sortedItems(data.path("items")));
+    }
+
+    private JsonNode itemByKind(List<JsonNode> items, String kind) {
+        return items.stream()
+                .filter(n -> kind.equals(n.path("kind").asText()))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("missing item kind " + kind));
+    }
+
+    private List<JsonNode> sortedItems(JsonNode itemsNode) {
+        List<JsonNode> items = new ArrayList<>();
+        itemsNode.forEach(items::add);
+        items.sort(Comparator.comparingInt(n -> n.path("seq").asInt()));
+        return items;
+    }
+
+    private JsonNode unboundByRuntimeId(MvcResult listed, String runtimeId) throws Exception {
+        JsonNode data = objectMapper.readTree(listed.getResponse().getContentAsString()).path("data");
+        for (JsonNode node : data) {
+            if (runtimeId.equals(node.path("runtimeId").asText())) {
+                return node;
+            }
+        }
+        return null;
+    }
+
+    private record OpenUnboundDraft(String draftId, List<JsonNode> items) {
     }
 }

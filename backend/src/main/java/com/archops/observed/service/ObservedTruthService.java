@@ -262,6 +262,7 @@ public class ObservedTruthService {
             }
             matchedCuratedIds.add(curated.getId());
             clearIdentityLostMark(curated.getId());
+            consumeAfterLabelMatch(curated.getId(), host.getId(), container.runtimeId());
             upsertObservedPresent(curated, host, agentId, now);
             matched.add(new AgentHeartbeatResponse.MatchedObserved(
                     curated.getId(),
@@ -534,6 +535,31 @@ public class ObservedTruthService {
      */
     private void clearIdentityLostMark(String curatedObjectId) {
         identityLostMarkMapper.deleteById(curatedObjectId);
+    }
+
+    /**
+     * 命中即消费：删除该策展对象上的绑定记忆，以及这些记忆键与本次命中
+     * ({@code reportingHostId}, {@code runtimeId}) 对应的未绑定候选行。
+     */
+    private void consumeAfterLabelMatch(String curatedObjectId, String reportingHostId, String runtimeId) {
+        List<UnboundBindMemory> memories = unboundBindMemoryMapper.selectList(
+                new LambdaQueryWrapper<UnboundBindMemory>()
+                        .eq(UnboundBindMemory::getCuratedObjectId, curatedObjectId));
+        for (UnboundBindMemory memory : memories) {
+            deleteUnboundCandidate(memory.getSourceHostId(), memory.getRuntimeId());
+        }
+        unboundBindMemoryMapper.delete(new LambdaQueryWrapper<UnboundBindMemory>()
+                .eq(UnboundBindMemory::getCuratedObjectId, curatedObjectId));
+        deleteUnboundCandidate(reportingHostId, runtimeId);
+    }
+
+    private void deleteUnboundCandidate(String hostId, String runtimeId) {
+        if (runtimeId == null || runtimeId.isBlank()) {
+            return;
+        }
+        unboundMapper.delete(new LambdaQueryWrapper<UnboundObservationCandidate>()
+                .eq(UnboundObservationCandidate::getSourceHostId, hostId)
+                .eq(UnboundObservationCandidate::getRuntimeId, runtimeId));
     }
 
     private void upsertIdentityLost(CuratedObject curated, CuratedObject host, String agentId, Instant now) {
