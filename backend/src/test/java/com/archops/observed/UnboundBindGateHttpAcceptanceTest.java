@@ -93,6 +93,62 @@ class UnboundBindGateHttpAcceptanceTest {
                 .andExpect(jsonPath("$.code", is("CONFLICT_NOT_FOUND")));
     }
 
+    /**
+     * The bind target's observed host differs from the candidate's host, so a leaked observed
+     * `运行于` write (or a promised 升级链) would show up as the 冲突 flipping to 待确认关闭.
+     */
+    @Test
+    void bindingLeavesTheObservedTrackAndTheUpgradeChainUntouched() throws Exception {
+        String hostA = createHost("u08d-ha");
+        String hostB = createHost("u08d-hb");
+        String containerX = createContainer("u08d-x", "u08d-oid");
+        confirmRunsOn(containerX, hostA);
+        heartbeatLabeled(hostB, "u08d-agb", "u08d-rt-hit", "u08d-x", "u08d-oid");
+        heartbeatMissingLabel(hostA, "u08d-aga", "u08d-rt-miss", "u08d-similar");
+
+        mockMvc.perform(get("/api/conflicts/by-merge-key")
+                        .param("subjectId", containerX)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("OPEN")))
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(hostA)))
+                .andExpect(jsonPath("$.data.observedValue.hostId", is(hostB)));
+
+        OpenUnboundDraft draft = openDraftFromRuntime("u08d-rt-miss");
+        JsonNode bindItem = itemByKind(draft.items(), "BIND_UNBOUND_TO_EXISTING");
+        assertThat(bindItem.path("subjectId").asText(), is(containerX));
+        postUnboundItem(draft.draftId(), bindItem.path("id").asText(), "accept")
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/conflicts/by-merge-key")
+                        .param("subjectId", containerX)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("OPEN")))
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(hostA)))
+                .andExpect(jsonPath("$.data.observedValue.hostId", is(hostB)));
+
+        mockMvc.perform(get("/api/observed/asks/actual-where")
+                        .param("containerId", containerX)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.identityLost", is(true)))
+                .andExpect(jsonPath("$.data.observedValue.availability", is("IDENTITY_LOST")))
+                .andExpect(jsonPath("$.data.observedValue.hostId").value(nullValue()));
+
+        mockMvc.perform(get("/api/curated/facts/runs-on/{containerId}", containerX)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.subject.objectId", is("u08d-oid")))
+                .andExpect(jsonPath("$.data.target.id", is(hostA)));
+
+        assertThat(unboundByRuntimeId(listUnbound(), "u08d-rt-miss"), nullValue());
+    }
+
     @Test
     void secondFieldEntityCannotBeBoundToAnAlreadyBoundTarget() throws Exception {
         String hostA = createHost("u08b-h");

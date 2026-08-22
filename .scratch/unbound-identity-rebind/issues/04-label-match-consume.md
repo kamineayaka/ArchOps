@@ -31,3 +31,5 @@
 3. **绑定记忆分不清绑定与新建**（审计 ST-1）：`unbound_bind_memory` 没有来源列，而故事 50（`absentObjectIds` 解除记忆）只针对待补标的**绑定**。若需区分，用**新增** Flyway 加 `origin`，不要改 V18 / V19。
 
 另：票 08 已把绑定门禁判据改成「失联之后是否又标签命中」（`labelMatchedAfterIdentityLoss`）。清标之后该判据自然退化为「有没有失联标」，不必回改。
+
+4. **绑定记忆现在按策展对象唯一**（票 08 的 `V19`），而解绑只可能发生在命中收尾或 `absentObjectIds`。因此故事 37（`runtimeId` 变化算新候选）与故事 50（`absentObjectIds` 解除记忆）在 04 是**必做**：否则误绑之后没有任何 HTTP 回退路径。

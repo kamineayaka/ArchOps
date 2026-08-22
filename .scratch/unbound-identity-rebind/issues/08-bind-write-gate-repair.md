@@ -62,5 +62,23 @@ Green command: 同上，exit 0。`findIdentityLostOnHost` 改为在该宿主的�
 Regression：01/02/03 三个未绑定验收类全绿。
 Refactor: `requireTargetNotAlreadyBound` 与夹具共用 `alreadyBound`。
 
+### Cycle D — 绑定不碰观测轨、不点亮升级链（判别性夹具）
+Command:
+`cd backend && ./gradlew test --tests com.archops.observed.UnboundBindGateHttpAcceptanceTest.bindingLeavesTheObservedTrackAndTheUpgradeChainUntouched`
+reuse/regression：首跑绿。既有断言由 `UnboundDraftItemReviewHttpAcceptanceTest.acceptingBindToIdentityLostLeavesPrimaryKeyAndDoesNotWriteObservedRunsOn` 与 `unlabeledReheartbeatAfterBindStaysConsumedAndIdentityLost` 覆盖；本圈只是把 Cycle A 那条不具判别力的声明补成可判别的夹具（Spec 轴审查指出：Cycle A 里策展宿主与观测宿主同为 A，泄漏的观测写入会被掩盖）。现在目标的观测宿主 B ≠ 候选所在宿主 A，若绑定泄漏观测 `运行于` 或点亮升级链，冲突会翻成待确认关闭。不另写生产。
+Green command: 同上，exit 0。
+
+### `/code-review`（票尾第二道闸门，非 refactor 步）
+两轴并行、互不 rerank，结论都是通过：**Standards = no hard violations**（栈未漂、分层未破、构造器注入未动、事务边界仍在 service、无新路由且错误码沿用 `BusinessException`、Flyway 只增、Redis 未参与；TDD 记录与独立复跑一致）；**Spec = spec-faithful**（票内五条验收都在 HTTP 接缝上被钉住；未实现 04 / 05 任何行为；判据放宽到「失联之后未再命中」以及目标唯一性都出自 ADR-0012 B1 / ADR-0011 与 CONTEXT，而不是 Spec 自由裁量）。
+
+按两轴共同点名的 in-scope 项当场处置（均不改验收语义）：
+
+- `rememberBind` 的 `DataIntegrityViolationException` 原先把两条唯一约束混成一个错误码：现在按约束名判别，现场实体键冲突回 `UNBOUND_CANDIDATE_CONSUMED`（新建路径的竞态也不再谎报「目标已被绑定」），策展对象键冲突才回 `UNBOUND_BIND_TARGET_ALREADY_BOUND`。事务在约束失败后已中止，只能靠异常本身判别，故无法在 HTTP 接缝上钉住——确定性路径由 Cycle B 的前置检查覆盖。
+- 错误码与文案不再两处重复：`targetAlreadyBound()` / `candidateConsumed()` 各一个工厂。
+- `labelMatchedAfterIdentityLoss` 去掉与 `lost.getCuratedObjectId()` 恒等的冗余首参。
+- `V19` 的 `DROP INDEX` 补 `IF EXISTS`（对齐 V10 / V11 先例），并写明**不做去重**：脏库上两条记忆哪条为真是人没确认过的并入，让唯一索引响亮失败比替人选一条更诚实。V19 尚未合入 main，本次编辑不算改历史脚本。
+
+审查提出但**未**在本票动的（有意留下，均已记档）：`CuratedDraftService` 的 Divergent Change / 跨模块 mapper 依赖（票内明令不重构）；`findIdentityLostOnHost` 在草案发起路径上的 N+1；验收测试类之间的夹具助手重复（本仓既有风格）；`observedAt` 与 `markedAt` 恰好相等时判为「已再命中」的潜在边界（当前无可达路径，失败方向偏保守）。Spec 轴另点出一条 04 继承项：`curated_object_id` 唯一之后、在标签命中或 `absentObjectIds` 落地之前没有解绑路径，故事 37 与故事 50 的联动在 04 变成必做而非可选（已写进票 04 Comments 的第 3 条附近语境）。
+
 ### 票尾
-`cd backend && ./gradlew cleanTest test` → exit 0（**22 个测试类 / 132 tests / 0 failures**；含竖切负面与 `ChangeCuratedDraft*`）。
+`cd backend && ./gradlew cleanTest test` → exit 0（**22 个测试类 / 133 tests / 0 failures**；含竖切负面与 `ChangeCuratedDraft*`）。
