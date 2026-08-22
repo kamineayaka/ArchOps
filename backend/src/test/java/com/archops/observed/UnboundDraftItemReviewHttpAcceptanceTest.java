@@ -34,6 +34,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class UnboundDraftItemReviewHttpAcceptanceTest {
 
     private static final String GENERAL_ID = "user-general-demo";
+    private static final String SENIOR_ID = "user-senior-demo";
 
     @Autowired
     private MockMvc mockMvc;
@@ -483,6 +484,42 @@ class UnboundDraftItemReviewHttpAcceptanceTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code", is("UNBOUND_CANDIDATE_CONSUMED")))
                 .andExpect(jsonPath("$.data").value(nullValue()));
+    }
+
+    @Test
+    void unauthenticatedItemAcceptIsRejected() throws Exception {
+        String hostId = createHost("u03j-h");
+        heartbeatUnknown(hostId, "u03j-ag", "u03j-rt-unknown", "u03j-unknown", "u03j-never");
+        OpenUnboundDraft draft = openDraftFromRuntime("u03j-rt-unknown");
+        JsonNode createItem = itemByKind(draft.items(), "CREATE_CONTAINER_FROM_UNBOUND");
+
+        mockMvc.perform(post("/api/curated-drafts/{draftId}/items/{itemId}/accept",
+                        draft.draftId(), createItem.path("id").asText())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.code", is("AUTH_REQUIRED")))
+                .andExpect(jsonPath("$.data").value(nullValue()));
+    }
+
+    @Test
+    void seniorOperatorCanAcceptCreateOnUnboundDraft() throws Exception {
+        String hostId = createHost("u03js-h");
+        heartbeatUnknown(hostId, "u03js-ag", "u03js-rt-unknown", "u03js-unknown", "u03js-never");
+        OpenUnboundDraft draft = openDraftFromRuntime("u03js-rt-unknown");
+        JsonNode createItem = itemByKind(draft.items(), "CREATE_CONTAINER_FROM_UNBOUND");
+        mockMvc.perform(post("/api/curated-drafts/{draftId}/items/{itemId}/accept",
+                        draft.draftId(), createItem.path("id").asText())
+                        .header(TempAuthHeaders.USER_ID, SENIOR_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.items[?(@.kind=='CREATE_CONTAINER_FROM_UNBOUND')].status",
+                        hasItem("ACCEPTED")));
     }
 
     private ResultActions postUnboundItem(String draftId, String itemId, String action) throws Exception {

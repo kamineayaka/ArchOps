@@ -18,7 +18,7 @@
 - [x] 绑定与新建都接受 → 第二次失败，不得把一个现场实体变成两个策展对象
 - [x] 绑到仍标签命中、升级链有效的对象 → 失败
 - [x] `MISSING_LABEL` 新建不是成功路径（无现场标签则无不可变 object id 可写）
-- [ ] `UNKNOWN_OBJECT_ID` 绑到已有允许，且不得把错标签写成 X 的新主键
+- [x] `UNKNOWN_OBJECT_ID` 绑到已有允许，且不得把错标签写成 X 的新主键
 - [ ] 未认证不可审条；无冲突处理人要求
 - [ ] 建底插入第一条 `运行于` 仍成功；覆盖已有仍 `CURATED_RUNS_ON_EXISTS`
 - [ ] HTTP 可读条目已接受 / 已拒绝审计；无整单全接受、无操作计划、无策展对齐步骤
@@ -94,5 +94,13 @@ Red command:
 reuse/regression: Cycle A `writeAcceptedCreateContainer` already rejects blank `immutableObjectId` as `UNBOUND_CREATE_IMMUTABLE_ID_MISSING`. First-run green. Reject CREATE → REJECTED, still no new object.
 Green command: same; exit 0.
 Refactor: 无结构改动
+Commit: `e218921` test(unbound): MISSING_LABEL CREATE cannot mint an object id
+
+### Cycle I — UNKNOWN 绑到已有：允许，且不得把错标签写成 X 的主键
+Red command:
+`cd backend && ./gradlew test --tests com.archops.observed.UnboundDraftItemReviewHttpAcceptanceTest.unknownBindToExistingDoesNotRewriteWrongLabelAsPrimaryKey`
+Failure (witnessed): `missing item kind BIND_UNBOUND_TO_EXISTING` (UNKNOWN fixture had only CREATE+RUNS_ON).
+Green command: same; exit 0. UNKNOWN+same-host 身份失联 adds BIND; accept BIND does not rewrite X.objectId to the wrong label; CREATE-then-BIND on a second runtime is `UNBOUND_CANDIDATE_CONSUMED`.
+Refactor: BIND prepended only when an identity-lost object exists on the candidate host; no-lost UNKNOWN stays 2 items.
 Commit: (this slice)
 
