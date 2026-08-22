@@ -140,5 +140,6 @@ Refactor: 无结构改动
 
 Frontier → 04. Do not implement 04–07.
 
-Handoff docs commit: (this slice)
+Commit: (this slice)
+Handoff docs commit: (docs slice)
 
