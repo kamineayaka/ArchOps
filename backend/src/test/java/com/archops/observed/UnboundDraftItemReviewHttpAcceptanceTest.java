@@ -387,6 +387,38 @@ class UnboundDraftItemReviewHttpAcceptanceTest {
                 .andExpect(status().isOk());
     }
 
+    @Test
+    void missingLabelCreateAcceptIsNotASuccessPath() throws Exception {
+        String hostId = createHost("u03h-h");
+        String containerX = createContainer("u03h-x", "u03h-oid");
+        confirmRunsOn(containerX, hostId);
+        heartbeatMissingLabel(hostId, "u03h-ag", "u03h-rt-miss", "u03h-similar");
+        OpenUnboundDraft draft = openDraftFromRuntime("u03h-rt-miss");
+        JsonNode createItem = itemByKind(draft.items(), "CREATE_CONTAINER_FROM_UNBOUND");
+        String createItemId = createItem.path("id").asText();
+
+        postUnboundItem(draft.draftId(), createItemId, "accept")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.code", is("UNBOUND_CREATE_IMMUTABLE_ID_MISSING")))
+                .andExpect(jsonPath("$.data").value(nullValue()));
+
+        MvcResult got = mockMvc.perform(get("/api/curated-drafts/{draftId}", draft.draftId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn();
+        JsonNode createAfter = itemByKind(
+                sortedItems(objectMapper.readTree(got.getResponse().getContentAsString()).path("data").path("items")),
+                "CREATE_CONTAINER_FROM_UNBOUND");
+        assertThat(createAfter.path("status").asText(), is("PENDING"));
+
+        postUnboundItem(draft.draftId(), createItemId, "reject")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[?(@.id=='" + createItemId + "')].status",
+                        hasItem("REJECTED")));
+    }
+
     private ResultActions postUnboundItem(String draftId, String itemId, String action) throws Exception {
         return mockMvc.perform(post("/api/curated-drafts/{draftId}/items/{itemId}/{action}",
                         draftId, itemId, action)

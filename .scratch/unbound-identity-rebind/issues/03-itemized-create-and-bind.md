@@ -16,7 +16,7 @@
 - [x] 接受绑到已有失联对象 X → X 的 `容器ID` / 不可变标签不变；「实际在哪」仍不得把弱线索当可靠 `运行于`；该 `runtimeId` 不再出现在待并入列表
 - [x] 再心跳同一 `runtimeId` 仍缺标/错标 → 仍不待并入、仍身份失联、仍不承诺升级链
 - [x] 绑定与新建都接受 → 第二次失败，不得把一个现场实体变成两个策展对象
-- [ ] 绑到仍标签命中、升级链有效的对象 → 失败
+- [x] 绑到仍标签命中、升级链有效的对象 → 失败
 - [ ] `MISSING_LABEL` 新建不是成功路径（无现场标签则无不可变 object id 可写）
 - [ ] `UNKNOWN_OBJECT_ID` 绑到已有允许，且不得把错标签写成 X 的新主键
 - [ ] 未认证不可审条；无冲突处理人要求
@@ -78,5 +78,13 @@ Red command:
 Failure (witnessed): JSON path `$.code` expected `UNBOUND_CANDIDATE_CONSUMED` but was `UNBOUND_CREATE_IMMUTABLE_ID_MISSING`.
 Green command: same; exit 0. BIND/CREATE accept checks bind memory first; CREATE stays PENDING.
 Refactor: consume check only on BIND/CREATE so CURATED_RUNS_ON_INSERT after CREATE can still write first 运行于.
+Commit: `ad61239` feat(unbound): reject a second 并入 of the same field entity
+
+### Cycle G — 绑到仍标签命中、升级链有效的对象 → 失败
+Red command:
+`cd backend && ./gradlew test --tests com.archops.observed.UnboundDraftItemReviewHttpAcceptanceTest.bindingToLabelMatchedPresentTargetIsRejected`
+Failure (witnessed): Status expected:<400> but was:<200> (BIND accepted because identity-lost mark still exists after labeled heartbeat).
+Green command: same; exit 0. BIND refuses when observed 运行于 is PRESENT. Heartbeat matched proves label hit; identity-lost GET still 200 (04 clears the mark). Ask DTO stays IDENTITY_LOST while the mark remains — 01 projection; gate uses observed PRESENT not mark disappearance.
+Refactor: 无结构改动
 Commit: (this slice)
 
