@@ -68,7 +68,7 @@
 17. ~~下一刀 `/to-tickets`~~：已发布至 `.scratch/unbound-identity-rebind/issues/`（01–07）。  
 18. ~~`/implement` `/tdd` 未绑定票 01~~：已完成（推断身份失联 + 未绑定 upsert + 规范问法 `IDENTITY_LOST` 读模型；witnessed red → green → refactor）。  
 19. ~~`/implement` `/tdd` 未绑定票 02~~：已完成（从不挂冲突的候选发 OPEN 草案；规则夹具 PENDING 条目；witnessed red → green → refactor；`UNBOUND_CANDIDATE` origin）。  
-20. **下一对话：`/implement` `/tdd` 未绑定票 03**（frontier；逐条确认：新建写入对象；绑定只记对应关系）。票路径：[`.scratch/unbound-identity-rebind/issues/03-itemized-create-and-bind.md`](../.scratch/unbound-identity-rebind/issues/03-itemized-create-and-bind.md)。不要加改策展 07。不要重拆竖切 01–13。不要做 04–07。  
+20. **下一对话：`/implement` `/tdd` 未绑定票 03**（frontier；逐条确认：新建写入对象；绑定只记对应关系）。开工 prompt：[`docs/implement-unbound-identity-rebind-03-prompt.md`](implement-unbound-identity-rebind-03-prompt.md)。票路径：[`.scratch/unbound-identity-rebind/issues/03-itemized-create-and-bind.md`](../.scratch/unbound-identity-rebind/issues/03-itemized-create-and-bind.md)。不要加改策展 07。不要重拆竖切 01–13。不要做 04–07。  
 
 ### 工单阻塞简图
 
