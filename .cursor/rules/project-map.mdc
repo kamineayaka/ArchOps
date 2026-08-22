@@ -22,7 +22,7 @@ alwaysApply: true
 | `.scratch/change-curated-draft/issues/` | 改策展/草案工单（**01–06 TDD-done**；本刀闭合） |
 | `docs/specs/change-curated-draft.md` | 改策展/草案 Spec（已闭合） |
 | `docs/specs/unbound-identity-rebind.md` | 未绑定 / 身份失联重绑 Spec（已发布；01–07 已拆） |
-| `.scratch/unbound-identity-rebind/issues/` | 下一刀工单（**01 TDD-done；frontier = 02**） |
+| `.scratch/unbound-identity-rebind/issues/` | 下一刀工单（**01–02 TDD-done；frontier = 03**） |
 
 ## 模块边界
 

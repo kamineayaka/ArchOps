@@ -1,6 +1,7 @@
 package com.archops.curated.controller;
 
 import com.archops.common.api.ApiResponse;
+import com.archops.curated.dto.CuratedDraftEventResponse;
 import com.archops.curated.dto.CuratedDraftResponse;
 import com.archops.curated.service.CuratedDraftService;
 import com.archops.user.security.AuthUserPrincipal;
@@ -11,6 +12,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 /**
  * Open 改理想 草案 reads (ticket 03), per-item accept/reject (ticket 04),
@@ -25,6 +28,16 @@ public class CuratedDraftController {
 
     public CuratedDraftController(CuratedDraftService curatedDraftService) {
         this.curatedDraftService = curatedDraftService;
+    }
+
+    @GetMapping("/curated-drafts/{draftId}")
+    public ApiResponse<CuratedDraftResponse> draftByGlobalId(@PathVariable String draftId) {
+        return ApiResponse.ok(curatedDraftService.getByDraftId(draftId));
+    }
+
+    @GetMapping("/curated-drafts/{draftId}/events")
+    public ApiResponse<List<CuratedDraftEventResponse>> draftEvents(@PathVariable String draftId) {
+        return ApiResponse.ok(curatedDraftService.listEvents(draftId));
     }
 
     @GetMapping("/conflicts/{conflictId}/curated-drafts/open")

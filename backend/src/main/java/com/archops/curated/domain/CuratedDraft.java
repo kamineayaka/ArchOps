@@ -14,6 +14,10 @@ public class CuratedDraft {
     private String conflictId;
     private String diagnosisId;
     private String selectedForkId;
+    private CuratedDraftOrigin origin;
+    private String candidateId;
+    private String sourceHostId;
+    private String runtimeId;
     private CuratedDraftStatus status;
     private String createdBy;
     private Instant createdAt;
@@ -72,5 +76,37 @@ public class CuratedDraft {
 
     public void setCreatedAt(Instant createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public CuratedDraftOrigin getOrigin() {
+        return origin;
+    }
+
+    public void setOrigin(CuratedDraftOrigin origin) {
+        this.origin = origin;
+    }
+
+    public String getCandidateId() {
+        return candidateId;
+    }
+
+    public void setCandidateId(String candidateId) {
+        this.candidateId = candidateId;
+    }
+
+    public String getSourceHostId() {
+        return sourceHostId;
+    }
+
+    public void setSourceHostId(String sourceHostId) {
+        this.sourceHostId = sourceHostId;
+    }
+
+    public String getRuntimeId() {
+        return runtimeId;
+    }
+
+    public void setRuntimeId(String runtimeId) {
+        this.runtimeId = runtimeId;
     }
 }

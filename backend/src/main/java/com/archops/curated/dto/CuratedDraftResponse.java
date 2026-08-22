@@ -3,16 +3,22 @@ package com.archops.curated.dto;
 import com.archops.common.api.BranchSelectionResult;
 import com.archops.curated.domain.CuratedDraftItemKind;
 import com.archops.curated.domain.CuratedDraftItemStatus;
+import com.archops.curated.domain.CuratedDraftOrigin;
 import com.archops.curated.domain.CuratedDraftStatus;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 public record CuratedDraftResponse(
         String id,
         String conflictId,
         String diagnosisId,
         String selectedForkId,
+        CuratedDraftOrigin origin,
+        String candidateId,
+        String sourceHostId,
+        String runtimeId,
         CuratedDraftStatus status,
         List<Item> items,
         String createdBy,
@@ -29,7 +35,8 @@ public record CuratedDraftResponse(
             String fromHostName,
             String toHostId,
             String toHostName,
-            boolean mergeKey
+            boolean mergeKey,
+            Map<String, Object> payload
     ) {
     }
 }
