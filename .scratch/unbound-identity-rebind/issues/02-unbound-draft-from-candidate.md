@@ -95,3 +95,5 @@ Commit: `4f9b965`
 /code-review（merge-base `origin/main`）：Standards 无硬栈违规；Spec 开放草案互斥按 sourceHostId+runtimeId 补强；夹具失败码与缺候选分离。气味按 judgement 未扩到 03–07。
 
 Frontier 已指向 03。不要实现 03–07。
+
+Handoff docs commit: `d372de0`.
