@@ -702,6 +702,11 @@ public class CuratedDraftService {
         List<CuratedDraftItem> items = new ArrayList<>();
         int seq = 1;
         if (candidate.getReason() == UnboundReason.UNKNOWN_OBJECT_ID) {
+            IdentityLostMark lost = findIdentityLostOnHost(candidate.getSourceHostId());
+            if (lost != null) {
+                items.add(newItem(draftId, seq++, CuratedDraftItemKind.BIND_UNBOUND_TO_EXISTING,
+                        lost.getCuratedObjectId(), null, null, "{}", now));
+            }
             Map<String, String> labels = readStringMap(candidate.getLabelsJson());
             String immutableObjectId = labels.get(CuratedObjectLabels.OBJECT_ID_KEY);
             Map<String, Object> createPayload = new LinkedHashMap<>();

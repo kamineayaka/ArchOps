@@ -17,7 +17,7 @@
 - [x] 再心跳同一 `runtimeId` 仍缺标/错标 → 仍不待并入、仍身份失联、仍不承诺升级链
 - [x] 绑定与新建都接受 → 第二次失败，不得把一个现场实体变成两个策展对象
 - [x] 绑到仍标签命中、升级链有效的对象 → 失败
-- [ ] `MISSING_LABEL` 新建不是成功路径（无现场标签则无不可变 object id 可写）
+- [x] `MISSING_LABEL` 新建不是成功路径（无现场标签则无不可变 object id 可写）
 - [ ] `UNKNOWN_OBJECT_ID` 绑到已有允许，且不得把错标签写成 X 的新主键
 - [ ] 未认证不可审条；无冲突处理人要求
 - [ ] 建底插入第一条 `运行于` 仍成功；覆盖已有仍 `CURATED_RUNS_ON_EXISTS`
@@ -85,6 +85,14 @@ Red command:
 `cd backend && ./gradlew test --tests com.archops.observed.UnboundDraftItemReviewHttpAcceptanceTest.bindingToLabelMatchedPresentTargetIsRejected`
 Failure (witnessed): Status expected:<400> but was:<200> (BIND accepted because identity-lost mark still exists after labeled heartbeat).
 Green command: same; exit 0. BIND refuses when observed 运行于 is PRESENT. Heartbeat matched proves label hit; identity-lost GET still 200 (04 clears the mark). Ask DTO stays IDENTITY_LOST while the mark remains — 01 projection; gate uses observed PRESENT not mark disappearance.
+Refactor: 无结构改动
+Commit: `fd3d1e5` feat(unbound): refuse BIND onto a label-matched object
+
+### Cycle H — MISSING_LABEL 新建不是成功路径
+Red command:
+`cd backend && ./gradlew test --tests com.archops.observed.UnboundDraftItemReviewHttpAcceptanceTest.missingLabelCreateAcceptIsNotASuccessPath`
+reuse/regression: Cycle A `writeAcceptedCreateContainer` already rejects blank `immutableObjectId` as `UNBOUND_CREATE_IMMUTABLE_ID_MISSING`. First-run green. Reject CREATE → REJECTED, still no new object.
+Green command: same; exit 0.
 Refactor: 无结构改动
 Commit: (this slice)
 

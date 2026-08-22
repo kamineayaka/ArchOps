@@ -419,6 +419,72 @@ class UnboundDraftItemReviewHttpAcceptanceTest {
                         hasItem("REJECTED")));
     }
 
+    @Test
+    void unknownBindToExistingDoesNotRewriteWrongLabelAsPrimaryKey() throws Exception {
+        String hostId = createHost("u03i-h");
+        String containerX = createContainer("u03i-x", "u03i-oid");
+        confirmRunsOn(containerX, hostId);
+        heartbeatUnknown(hostId, "u03i-ag", "u03i-rt-unknown", "u03i-unknown", "u03i-wrong");
+        mockMvc.perform(get("/api/observed/identity-lost/{id}", containerX)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+        OpenUnboundDraft draft = openDraftFromRuntime("u03i-rt-unknown");
+        JsonNode bindItem = itemByKind(draft.items(), "BIND_UNBOUND_TO_EXISTING");
+        assertThat(bindItem.path("subjectId").asText(), is(containerX));
+
+        postUnboundItem(draft.draftId(), bindItem.path("id").asText(), "accept")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[?(@.kind=='BIND_UNBOUND_TO_EXISTING')].status",
+                        hasItem("ACCEPTED")));
+
+        mockMvc.perform(get("/api/curated/facts/runs-on/{containerId}", containerX)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.subject.id", is(containerX)))
+                .andExpect(jsonPath("$.data.subject.objectId", is("u03i-oid")));
+
+        mockMvc.perform(post("/api/curated/containers")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"u03i-probe\",\"objectId\":\"u03i-wrong\"}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)));
+
+        MvcResult listed = mockMvc.perform(get("/api/observed/unbound-candidates")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn();
+        assertThat(unboundByRuntimeId(listed, "u03i-rt-unknown"), nullValue());
+
+        mockMvc.perform(get("/api/observed/asks/actual-where")
+                        .param("containerId", containerX)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.identityLost", is(true)))
+                .andExpect(jsonPath("$.data.observedValue.availability", is("IDENTITY_LOST")));
+
+        String host2 = createHost("u03i2-h");
+        String containerX2 = createContainer("u03i2-x", "u03i2-oid");
+        confirmRunsOn(containerX2, host2);
+        heartbeatUnknown(host2, "u03i2-ag", "u03i2-rt-unknown", "u03i2-unknown", "u03i2-wrong");
+        OpenUnboundDraft draft2 = openDraftFromRuntime("u03i2-rt-unknown");
+        JsonNode create2 = itemByKind(draft2.items(), "CREATE_CONTAINER_FROM_UNBOUND");
+        JsonNode bind2 = itemByKind(draft2.items(), "BIND_UNBOUND_TO_EXISTING");
+        postUnboundItem(draft2.draftId(), create2.path("id").asText(), "accept")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[?(@.kind=='CREATE_CONTAINER_FROM_UNBOUND')].status",
+                        hasItem("ACCEPTED")));
+        postUnboundItem(draft2.draftId(), bind2.path("id").asText(), "accept")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("UNBOUND_CANDIDATE_CONSUMED")))
+                .andExpect(jsonPath("$.data").value(nullValue()));
+    }
+
     private ResultActions postUnboundItem(String draftId, String itemId, String action) throws Exception {
         return mockMvc.perform(post("/api/curated-drafts/{draftId}/items/{itemId}/{action}",
                         draftId, itemId, action)
