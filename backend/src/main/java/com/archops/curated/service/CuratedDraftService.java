@@ -446,18 +446,25 @@ public class CuratedDraftService {
                     "绑到已有缺少目标策展对象");
         }
         IdentityLostMark lost = identityLostMarkMapper.selectById(targetId);
-        if (lost == null || observedRunsOnPresent(targetId)) {
+        if (lost == null || labelMatchedAfterIdentityLoss(targetId, lost)) {
             throw new BusinessException("UNBOUND_BIND_TARGET_HEALTHY",
-                    "只能绑到仍身份失联且尚未标签命中的对象");
+                    "只能绑到仍身份失联、且失联之后未再标签命中的对象");
         }
         rememberBind(draft, targetId);
     }
 
-    private boolean observedRunsOnPresent(String containerId) {
+    /**
+     * 只有晚于失联标的 PRESENT 才证明标签又命中了。失联之前留下的旧观测 `运行于`
+     * 不是可靠实际（ADR-0012 B1：标签被删或被改的既有容器仍须能经草案绑回）。
+     */
+    private boolean labelMatchedAfterIdentityLoss(String containerId, IdentityLostMark lost) {
         ObservedFact observed = observedFactMapper.selectOne(new LambdaQueryWrapper<ObservedFact>()
                 .eq(ObservedFact::getSubjectId, containerId)
                 .eq(ObservedFact::getRelationType, CuratedRelationType.RUNS_ON));
-        return observed != null && observed.getAvailability() == ObservedAvailability.PRESENT;
+        if (observed == null || observed.getAvailability() != ObservedAvailability.PRESENT) {
+            return false;
+        }
+        return !observed.getObservedAt().isBefore(lost.getMarkedAt());
     }
 
     private void rememberBind(CuratedDraft draft, String curatedObjectId) {
