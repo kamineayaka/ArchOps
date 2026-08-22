@@ -386,7 +386,10 @@ class UnboundDraftItemReviewHttpAcceptanceTest {
         mockMvc.perform(get("/api/observed/identity-lost/{id}", containerX)
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)
                         .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.code", is("IDENTITY_LOST_NOT_FOUND")))
+                .andExpect(jsonPath("$.data").value(nullValue()));
     }
 
     @Test

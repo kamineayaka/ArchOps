@@ -35,3 +35,17 @@
 另：票 08 已把绑定门禁判据改成「失联之后是否又标签命中」（`labelMatchedAfterIdentityLoss`）。清标之后该判据自然退化为「有没有失联标」，不必回改。
 
 4. **绑定记忆现在按策展对象唯一**（票 08 的 `V19`），而解绑只可能发生在命中收尾或 `absentObjectIds`。因此故事 37（`runtimeId` 变化算新候选）与故事 50（`absentObjectIds` 解除记忆）在 04 是**必做**：否则误绑之后没有任何 HTTP 回退路径。
+
+### Cycle A — 标签命中清除身份失联，问法当场翻转
+Red command:
+`cd backend && ./gradlew test --tests com.archops.observed.UnboundLabelMatchConsumeHttpAcceptanceTest.labelMatchClearsIdentityLostAndFlipsActualWhere`
+```
+UnboundLabelMatchConsumeHttpAcceptanceTest > labelMatchClearsIdentityLostAndFlipsActualWhere() FAILED
+    java.lang.AssertionError at UnboundLabelMatchConsumeHttpAcceptanceTest.java:51
+java.lang.AssertionError: Status expected:<400> but was:<200>
+```
+（命中写观测 PRESENT 后 `identity_lost_mark` 仍在；`GET /api/observed/identity-lost/{X}` 仍 200。这是审计 C-3 的诚实红灯，不是未认证、不是既有 PRESENT / ABSENT 绿灯。）
+Green command: 同上，exit 0。命中分支删除该对象的 `identity_lost_mark`（在 `upsertObservedPresent` / reconcile 之前）；同一快照的 `identityLostObjectIds` 不再把刚命中的对象重新打标。问法 `identityLost=false`、`availability=PRESENT`、上报宿主；「应该在哪」仍是策展宿主。
+Regression: `UnboundDraftItemReviewHttpAcceptanceTest` 全类绿（审计 S-4：`bindingToLabelMatchedPresentTargetIsRejected` 末尾改为 `400 IDENTITY_LOST_NOT_FOUND`；主断言仍 `UNBOUND_BIND_TARGET_HEALTHY`）。`UnboundIdentityLostIngestHttpAcceptanceTest.currentlyUsableObservedHostSnapshotInfersIdentityLost` 与 `identityLostActualWhereDoesNotReportStaleObservedHost` 仍绿。`UnboundBindGateHttpAcceptanceTest` 全类绿。
+Refactor: `clearIdentityLostMark` 抽出并注明状态表语义；显式失联声明跳过本快照已命中对象，避免清标被同请求写回。
+Commit: （提交后回填）

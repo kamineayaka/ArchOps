@@ -261,6 +261,7 @@ public class ObservedTruthService {
                 continue;
             }
             matchedCuratedIds.add(curated.getId());
+            clearIdentityLostMark(curated.getId());
             upsertObservedPresent(curated, host, agentId, now);
             matched.add(new AgentHeartbeatResponse.MatchedObserved(
                     curated.getId(),
@@ -300,7 +301,7 @@ public class ObservedTruthService {
                     continue;
                 }
             }
-            if (absentCuratedIds.contains(curated.getId())) {
+            if (matchedCuratedIds.contains(curated.getId()) || absentCuratedIds.contains(curated.getId())) {
                 continue;
             }
             CuratedFact curatedRunsOn = findCuratedRunsOn(curated.getId());
@@ -526,6 +527,13 @@ public class ObservedTruthService {
         return unboundMapper.selectOne(new LambdaQueryWrapper<UnboundObservationCandidate>()
                 .eq(UnboundObservationCandidate::getSourceHostId, hostId)
                 .eq(UnboundObservationCandidate::getRuntimeId, runtimeId));
+    }
+
+    /**
+     * 标签命中即认回：{@code identity_lost_mark} 是当前是否失联的状态表，不是历史。
+     */
+    private void clearIdentityLostMark(String curatedObjectId) {
+        identityLostMarkMapper.deleteById(curatedObjectId);
     }
 
     private void upsertIdentityLost(CuratedObject curated, CuratedObject host, String agentId, Instant now) {
