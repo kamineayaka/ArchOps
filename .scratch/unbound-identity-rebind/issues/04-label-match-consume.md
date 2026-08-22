@@ -24,6 +24,8 @@
 
 03 TDD-done 后再开。不要做 05–07。不要把命中写成观测空洞恢复。
 
+开工 prompt：[`docs/implement-unbound-identity-rebind-04-prompt.md`](../../../docs/implement-unbound-identity-rebind-04-prompt.md)（钉死消费键、作废范围、absent 与过期记忆释放、第一圈红灯，并把下面四条义务写进步骤）。`/implement` 走 [`docs/agents/tdd.md`](../../../docs/agents/tdd.md)：capability 票须 witnessed red；第一圈必须是「命中后 `GET /api/observed/identity-lost/{X}` 期望 400」的诚实红灯，不要用未认证 401 或既有 PRESENT / ABSENT 绿灯冒充。
+
 ### 来自 01–03 合同审计的三条约束（`audit-01-03-opus.md`）
 
 1. **第一圈就钉住问法翻转**（审计 C-3）：标签命中之前，`GET /api/observed/asks/actual-where` 会在冲突已按合并键开出「策展 A / 实际 B」的同时仍答 `IDENTITY_LOST`——两条读路径互相矛盾。命中收尾必须让 `availability=PRESENT`、`identityLost=false`、`GET /api/observed/identity-lost/{id}` 400，并且 `by-merge-key` 恢复升级链。

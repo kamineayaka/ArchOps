@@ -72,8 +72,8 @@
 20. ~~`/implement` `/tdd` 未绑定票 03~~：已完成（逐条确认：新建写入对象；绑定只记对应关系；witnessed red → green → refactor；`UNBOUND_CANDIDATE_CONSUMED` / bind memory）。  
 21. ~~未绑定 01–03 合同审计~~：已完成（三轴只读审计；报告 [`.scratch/unbound-identity-rebind/audit-01-03-opus.md`](../.scratch/unbound-identity-rebind/audit-01-03-opus.md)；未改生产）。  
 22. ~~`/implement` `/tdd` 未绑定票 08~~：已完成（绑定写入门禁：判据改「失联之后是否又标签命中」；同一策展对象只能是一个现场实体的本体；夹具给出未被绑的目标；witnessed red → green → refactor；`UNBOUND_BIND_TARGET_ALREADY_BOUND` / V19）。  
-23. **下一对话：`/implement` `/tdd` 未绑定票 04**（frontier；标签命中收尾：清失联、消费候选、恢复升级链）。票路径：[`.scratch/unbound-identity-rebind/issues/04-label-match-consume.md`](../.scratch/unbound-identity-rebind/issues/04-label-match-consume.md)，票内 Comments 有审计给 04 的三条约束。不要加改策展 07。不要重拆竖切 01–13。不要做 05–07。  
-24. 之后（与 04 分开一张）：未绑定票 09（失联叠加心跳超时时问法仍须说出观测空洞；审计 C-1）。  
+23. **下一对话：`/implement` `/tdd` 未绑定票 04**（frontier；标签命中收尾：清失联、消费候选与绑定记忆、作废相关未绑定草案、恢复升级链）。票路径：[`.scratch/unbound-identity-rebind/issues/04-label-match-consume.md`](../.scratch/unbound-identity-rebind/issues/04-label-match-consume.md)；**开工 prompt**：[`docs/implement-unbound-identity-rebind-04-prompt.md`](implement-unbound-identity-rebind-04-prompt.md)（票内 Comments 有审计给 04 的四条约束）。不要加改策展 07。不要重拆竖切 01–13。不要做 05–07。  
+24. 04 之后按编号最小 = 未绑定票 05（失联闸门）。未绑定票 09（失联叠加心跳超时时问法仍须说出观测空洞；审计 C-1）与 04 / 05 相互独立，由人决定何时插队——不要与 04 混在一张票里。  
 
 ### 工单阻塞简图
 
