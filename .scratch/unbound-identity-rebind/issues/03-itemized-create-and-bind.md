@@ -141,5 +141,5 @@ Refactor: 无结构改动
 Frontier → 04. Do not implement 04–07.
 
 Commit: `56cb95d` test(unbound): accept CREATE then first 运行于 insert
-Handoff docs commit: (docs slice)
+Handoff docs commit: `219d3e1`.
 
