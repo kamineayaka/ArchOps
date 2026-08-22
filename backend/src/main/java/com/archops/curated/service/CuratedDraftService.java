@@ -375,8 +375,7 @@ public class CuratedDraftService {
                 .eq(UnboundBindMemory::getSourceHostId, draft.getSourceHostId())
                 .eq(UnboundBindMemory::getRuntimeId, draft.getRuntimeId()));
         if (existing != null && existing > 0) {
-            throw new BusinessException("UNBOUND_CANDIDATE_CONSUMED",
-                    "该现场实体已因绑定或新建被消费，不能再次并入");
+            throw candidateConsumed();
         }
     }
 
@@ -446,18 +445,41 @@ public class CuratedDraftService {
                     "绑到已有缺少目标策展对象");
         }
         IdentityLostMark lost = identityLostMarkMapper.selectById(targetId);
-        if (lost == null || observedRunsOnPresent(targetId)) {
+        if (lost == null || labelMatchedAfterIdentityLoss(lost)) {
             throw new BusinessException("UNBOUND_BIND_TARGET_HEALTHY",
-                    "只能绑到仍身份失联且尚未标签命中的对象");
+                    "只能绑到仍身份失联、且失联之后未再标签命中的对象");
         }
+        requireTargetNotAlreadyBound(targetId);
         rememberBind(draft, targetId);
     }
 
-    private boolean observedRunsOnPresent(String containerId) {
+    /**
+     * 一个策展对象只能是一个现场实体的本体（ADR-0011）：另一个候选已绑到它时拒绝。
+     */
+    private void requireTargetNotAlreadyBound(String targetId) {
+        if (alreadyBound(targetId)) {
+            throw targetAlreadyBound();
+        }
+    }
+
+    private boolean alreadyBound(String curatedObjectId) {
+        Long bound = unboundBindMemoryMapper.selectCount(new LambdaQueryWrapper<UnboundBindMemory>()
+                .eq(UnboundBindMemory::getCuratedObjectId, curatedObjectId));
+        return bound != null && bound > 0;
+    }
+
+    /**
+     * 只有晚于失联标的 PRESENT 才证明标签又命中了。失联之前留下的旧观测 `运行于`
+     * 不是可靠实际（ADR-0012 B1：标签被删或被改的既有容器仍须能经草案绑回）。
+     */
+    private boolean labelMatchedAfterIdentityLoss(IdentityLostMark lost) {
         ObservedFact observed = observedFactMapper.selectOne(new LambdaQueryWrapper<ObservedFact>()
-                .eq(ObservedFact::getSubjectId, containerId)
+                .eq(ObservedFact::getSubjectId, lost.getCuratedObjectId())
                 .eq(ObservedFact::getRelationType, CuratedRelationType.RUNS_ON));
-        return observed != null && observed.getAvailability() == ObservedAvailability.PRESENT;
+        if (observed == null || observed.getAvailability() != ObservedAvailability.PRESENT) {
+            return false;
+        }
+        return !observed.getObservedAt().isBefore(lost.getMarkedAt());
     }
 
     private void rememberBind(CuratedDraft draft, String curatedObjectId) {
@@ -467,7 +489,33 @@ public class CuratedDraftService {
         memory.setRuntimeId(draft.getRuntimeId());
         memory.setCuratedObjectId(curatedObjectId);
         memory.setCreatedAt(Instant.now());
-        unboundBindMemoryMapper.insert(memory);
+        try {
+            unboundBindMemoryMapper.insert(memory);
+        } catch (DataIntegrityViolationException ex) {
+            throw bindMemoryRace(ex);
+        }
+    }
+
+    /**
+     * 两条唯一约束语义不同：现场实体键冲突说明该候选已被并入（`UNBOUND_CANDIDATE_CONSUMED`），
+     * 策展对象键冲突才是「目标已被别的现场实体绑定」。事务已因约束失败中止，只能靠异常本身判别。
+     */
+    private static BusinessException bindMemoryRace(DataIntegrityViolationException ex) {
+        Throwable cause = ex.getMostSpecificCause();
+        String detail = cause == null ? "" : String.valueOf(cause.getMessage());
+        return detail.contains("unbound_bind_memory_object_uq")
+                ? targetAlreadyBound()
+                : candidateConsumed();
+    }
+
+    private static BusinessException targetAlreadyBound() {
+        return new BusinessException("UNBOUND_BIND_TARGET_ALREADY_BOUND",
+                "该策展对象已由另一个现场实体绑定，不能再绑第二个");
+    }
+
+    private static BusinessException candidateConsumed() {
+        return new BusinessException("UNBOUND_CANDIDATE_CONSUMED",
+                "该现场实体已因绑定或新建被消费，不能再次并入");
     }
 
     private static String stringPayload(Map<String, Object> payload, String key) {
@@ -742,14 +790,20 @@ public class CuratedDraftService {
     }
 
     /**
-     * Rule fixture for MISSING_LABEL: pick one identity-lost object on the candidate host.
-     * Deterministic when several marks exist (curatedObjectId asc); ticket 03 owns bind conflicts.
+     * Rule fixture: pick one identity-lost object on the candidate host that no other field
+     * entity is already bound to. Deterministic when several marks qualify (curatedObjectId asc).
      */
     private IdentityLostMark findIdentityLostOnHost(String hostId) {
-        return identityLostMarkMapper.selectOne(new LambdaQueryWrapper<IdentityLostMark>()
-                .eq(IdentityLostMark::getSourceHostId, hostId)
-                .orderByAsc(IdentityLostMark::getCuratedObjectId)
-                .last("LIMIT 1"));
+        List<IdentityLostMark> marks = identityLostMarkMapper.selectList(
+                new LambdaQueryWrapper<IdentityLostMark>()
+                        .eq(IdentityLostMark::getSourceHostId, hostId)
+                        .orderByAsc(IdentityLostMark::getCuratedObjectId));
+        for (IdentityLostMark mark : marks) {
+            if (!alreadyBound(mark.getCuratedObjectId())) {
+                return mark;
+            }
+        }
+        return null;
     }
 
     private CuratedDraftItem newItem(

@@ -22,7 +22,7 @@ alwaysApply: true
 | `.scratch/change-curated-draft/issues/` | 改策展/草案工单（**01–06 TDD-done**；本刀闭合） |
 | `docs/specs/change-curated-draft.md` | 改策展/草案 Spec（已闭合） |
 | `docs/specs/unbound-identity-rebind.md` | 未绑定 / 身份失联重绑 Spec（已发布；01–07 已拆） |
-| `.scratch/unbound-identity-rebind/issues/` | 下一刀工单（**01–03 TDD-done；编号 frontier = 04，实现已暂停**；先合同审计） |
+| `.scratch/unbound-identity-rebind/issues/` | 下一刀工单（**01–03 + 08 TDD-done；frontier = 04**；审计报告同目录 `audit-01-03-opus.md`） |
 
 ## 模块边界
 
@@ -33,4 +33,4 @@ alwaysApply: true
 - 遵守 `AGENTS.md`；禁止 Maven、JPA 当地基、Vue 当前端、Neo4j v1 必选、LangChain 主干、Redis 当真相 SSOT
 - SSH：MINA SSHD + Redis 锁；禁止旁路直连与绕过计划冻结
 - Flyway：只增不改历史脚本
-- 一次只做一张 ready 工单；本阶段 **不要** `/implement` 04（先合同审计，见 `docs/dev-handoff.md`）；`/implement` 走 **red → green → refactor**（`docs/agents/tdd.md`）
+- 一次只做一张 ready 工单；`/implement` 走 **red → green → refactor**（`docs/agents/tdd.md`）；进度见 `docs/dev-handoff.md`
