@@ -103,6 +103,16 @@ public class CuratedDraftService {
     }
 
     @Transactional(readOnly = true)
+    public CuratedDraftResponse getByDraftId(String draftId) {
+        CuratedDraft draft = curatedDraftMapper.selectById(draftId);
+        if (draft == null) {
+            throw new BusinessException("DRAFT_NOT_FOUND",
+                    "No 草案: " + draftId);
+        }
+        return respond(draft);
+    }
+
+    @Transactional(readOnly = true)
     public CuratedDraftResponse getById(String conflictId, String draftId) {
         CuratedDraft draft = curatedDraftMapper.selectById(draftId);
         if (draft == null || !conflictId.equals(draft.getConflictId())) {

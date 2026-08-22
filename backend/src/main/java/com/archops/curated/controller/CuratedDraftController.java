@@ -27,6 +27,11 @@ public class CuratedDraftController {
         this.curatedDraftService = curatedDraftService;
     }
 
+    @GetMapping("/curated-drafts/{draftId}")
+    public ApiResponse<CuratedDraftResponse> draftByGlobalId(@PathVariable String draftId) {
+        return ApiResponse.ok(curatedDraftService.getByDraftId(draftId));
+    }
+
     @GetMapping("/conflicts/{conflictId}/curated-drafts/open")
     public ApiResponse<CuratedDraftResponse> openDraft(@PathVariable String conflictId) {
         return ApiResponse.ok(curatedDraftService.getOpen(conflictId));

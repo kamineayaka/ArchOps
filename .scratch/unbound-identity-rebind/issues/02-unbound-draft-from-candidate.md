@@ -33,3 +33,8 @@ Failure (witnessed): Status expected:<200> but was:<500>; No static resource api
 Green command: same; exit 0 after V17 + createFromUnboundCandidate + POST /api/observed/unbound-candidates/{id}/drafts.
 Refactor: extended CuratedDraftResponse with origin/candidate/sourceHost/runtime + item payload; null-safe toItem lookups.
 Commit: (pending)
+
+### Cycle B — GET /api/curated-drafts/{draftId} reads OPEN unbound draft
+Red: Status expected 200 was 500 (NoResourceFoundException for /api/curated-drafts/{id}).
+Green: GET /api/curated-drafts/{draftId} → getByDraftId; same OPEN/origin/items as create.
+Refactor: none beyond endpoint wiring.

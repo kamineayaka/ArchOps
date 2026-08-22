@@ -122,6 +122,77 @@ class UnboundDraftCreateHttpAcceptanceTest {
         assertThat(runsOn.path("toHostId").asText(), is(hostId));
     }
 
+
+    @Test
+    void getCuratedDraftByIdReadsOpenUnboundDraft() throws Exception {
+        String hostId = createHost("u02b-h");
+
+        mockMvc.perform(post("/api/agent/heartbeat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "agentId": "u02b-ag",
+                                  "hostId": "%s",
+                                  "snapshot": {
+                                    "containers": [
+                                      {
+                                        "runtimeId": "u02b-rt-unknown",
+                                        "name": "u02b-unknown",
+                                        "labels": { "archops.object_id": "u02b-never" }
+                                      }
+                                    ]
+                                  }
+                                }
+                                """.formatted(hostId))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+
+        MvcResult listed = mockMvc.perform(get("/api/observed/unbound-candidates")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn();
+        JsonNode candidate = unboundByRuntimeId(listed, "u02b-rt-unknown");
+        assertThat(candidate, notNullValue());
+        String candidateId = candidate.path("id").asText();
+
+        MvcResult created = mockMvc.perform(post("/api/observed/unbound-candidates/{id}/drafts", candidateId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("OPEN")))
+                .andReturn();
+        String draftId = objectMapper.readTree(created.getResponse().getContentAsString())
+                .path("data").path("id").asText();
+
+        MvcResult got = mockMvc.perform(get("/api/curated-drafts/{draftId}", draftId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.id", is(draftId)))
+                .andExpect(jsonPath("$.data.status", is("OPEN")))
+                .andExpect(jsonPath("$.data.origin", is("UNBOUND_CANDIDATE")))
+                .andExpect(jsonPath("$.data.conflictId").value(nullValue()))
+                .andExpect(jsonPath("$.data.diagnosisId").value(nullValue()))
+                .andExpect(jsonPath("$.data.selectedForkId").value(nullValue()))
+                .andExpect(jsonPath("$.data.candidateId", is(candidateId)))
+                .andExpect(jsonPath("$.data.sourceHostId", is(hostId)))
+                .andExpect(jsonPath("$.data.runtimeId", is("u02b-rt-unknown")))
+                .andExpect(jsonPath("$.data.createdBy", is(GENERAL_ID)))
+                .andReturn();
+
+        JsonNode data = objectMapper.readTree(got.getResponse().getContentAsString()).path("data");
+        List<JsonNode> items = sortedItems(data.path("items"));
+        assertThat(items.size(), is(2));
+        assertThat(items.stream().map(n -> n.path("kind").asText()).toList(),
+                containsInAnyOrder("CREATE_CONTAINER_FROM_UNBOUND", "CURATED_RUNS_ON_INSERT"));
+        assertThat(items.stream().map(n -> n.path("status").asText()).distinct().toList(),
+                is(List.of("PENDING")));
+    }
+
     private List<JsonNode> sortedItems(JsonNode itemsNode) {
         List<JsonNode> items = new ArrayList<>();
         itemsNode.forEach(items::add);
