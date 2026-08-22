@@ -31,10 +31,13 @@ import com.archops.curated.mapper.CuratedObjectMapper;
 import com.archops.curated.domain.CuratedDraftOrigin;
 import com.archops.curated.CuratedObjectLabels;
 import com.archops.observed.domain.IdentityLostMark;
+import com.archops.observed.domain.ObservedAvailability;
+import com.archops.observed.domain.ObservedFact;
 import com.archops.observed.domain.UnboundBindMemory;
 import com.archops.observed.domain.UnboundObservationCandidate;
 import com.archops.observed.domain.UnboundReason;
 import com.archops.observed.mapper.IdentityLostMarkMapper;
+import com.archops.observed.mapper.ObservedFactMapper;
 import com.archops.observed.mapper.UnboundBindMemoryMapper;
 import com.archops.observed.mapper.UnboundObservationCandidateMapper;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -73,6 +76,7 @@ public class CuratedDraftService {
     private final CuratedTruthService curatedTruthService;
     private final UnboundObservationCandidateMapper unboundObservationCandidateMapper;
     private final IdentityLostMarkMapper identityLostMarkMapper;
+    private final ObservedFactMapper observedFactMapper;
     private final UnboundBindMemoryMapper unboundBindMemoryMapper;
     private final CuratedDraftEventMapper curatedDraftEventMapper;
     private final ObjectMapper objectMapper;
@@ -88,6 +92,7 @@ public class CuratedDraftService {
             CuratedTruthService curatedTruthService,
             UnboundObservationCandidateMapper unboundObservationCandidateMapper,
             IdentityLostMarkMapper identityLostMarkMapper,
+            ObservedFactMapper observedFactMapper,
             UnboundBindMemoryMapper unboundBindMemoryMapper,
             CuratedDraftEventMapper curatedDraftEventMapper,
             ObjectMapper objectMapper
@@ -102,6 +107,7 @@ public class CuratedDraftService {
         this.curatedTruthService = curatedTruthService;
         this.unboundObservationCandidateMapper = unboundObservationCandidateMapper;
         this.identityLostMarkMapper = identityLostMarkMapper;
+        this.observedFactMapper = observedFactMapper;
         this.unboundBindMemoryMapper = unboundBindMemoryMapper;
         this.curatedDraftEventMapper = curatedDraftEventMapper;
         this.objectMapper = objectMapper;
@@ -436,11 +442,18 @@ public class CuratedDraftService {
                     "绑到已有缺少目标策展对象");
         }
         IdentityLostMark lost = identityLostMarkMapper.selectById(targetId);
-        if (lost == null) {
+        if (lost == null || observedRunsOnPresent(targetId)) {
             throw new BusinessException("UNBOUND_BIND_TARGET_HEALTHY",
-                    "只能绑到仍身份失联的对象");
+                    "只能绑到仍身份失联且尚未标签命中的对象");
         }
         rememberBind(draft, targetId);
+    }
+
+    private boolean observedRunsOnPresent(String containerId) {
+        ObservedFact observed = observedFactMapper.selectOne(new LambdaQueryWrapper<ObservedFact>()
+                .eq(ObservedFact::getSubjectId, containerId)
+                .eq(ObservedFact::getRelationType, CuratedRelationType.RUNS_ON));
+        return observed != null && observed.getAvailability() == ObservedAvailability.PRESENT;
     }
 
     private void rememberBind(CuratedDraft draft, String curatedObjectId) {

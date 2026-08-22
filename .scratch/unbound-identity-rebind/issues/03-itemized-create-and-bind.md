@@ -15,7 +15,7 @@
 - [x] 新建所用 `archops.object_id` 已被占用 → 接受失败
 - [x] 接受绑到已有失联对象 X → X 的 `容器ID` / 不可变标签不变；「实际在哪」仍不得把弱线索当可靠 `运行于`；该 `runtimeId` 不再出现在待并入列表
 - [x] 再心跳同一 `runtimeId` 仍缺标/错标 → 仍不待并入、仍身份失联、仍不承诺升级链
-- [ ] 绑定与新建都接受 → 第二次失败，不得把一个现场实体变成两个策展对象
+- [x] 绑定与新建都接受 → 第二次失败，不得把一个现场实体变成两个策展对象
 - [ ] 绑到仍标签命中、升级链有效的对象 → 失败
 - [ ] `MISSING_LABEL` 新建不是成功路径（无现场标签则无不可变 object id 可写）
 - [ ] `UNKNOWN_OBJECT_ID` 绑到已有允许，且不得把错标签写成 X 的新主键
@@ -70,5 +70,13 @@ Red command:
 reuse/regression: Cycle D bind memory + listUnbound filter; 01 unlabeled upsert does not clear identity-lost or promise by-merge-key. First-run green. Refreshing observedAt does not VOID the OPEN unbound draft (04 defines hit-void).
 Green command: same; exit 0.
 Refactor: 无结构改动
+Commit: `8073d0f` test(unbound): unlabeled reheartbeat stays off 待并入
+
+### Cycle F — 绑定与新建都接受 → 第二次失败
+Red command:
+`cd backend && ./gradlew test --tests com.archops.observed.UnboundDraftItemReviewHttpAcceptanceTest.acceptingCreateAfterBindFailsAsCandidateConsumed`
+Failure (witnessed): JSON path `$.code` expected `UNBOUND_CANDIDATE_CONSUMED` but was `UNBOUND_CREATE_IMMUTABLE_ID_MISSING`.
+Green command: same; exit 0. BIND/CREATE accept checks bind memory first; CREATE stays PENDING.
+Refactor: consume check only on BIND/CREATE so CURATED_RUNS_ON_INSERT after CREATE can still write first 运行于.
 Commit: (this slice)
 
