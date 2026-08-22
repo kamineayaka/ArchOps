@@ -11,7 +11,7 @@
 5. `docs/specs/vertical-slice-mvp.md` — 竖切 Spec（01–13 已闭合）
 6. `docs/specs/change-curated-draft.md` — 改策展/草案逐条确认 Spec（**01–06 TDD-done，本刀闭合**）
 7. `docs/specs/unbound-identity-rebind.md` — 下一刀 Spec（未绑定观测候选 / 身份失联重绑；工单 01–07 已拆）
-8. 当前工单：见 `docs/dev-handoff.md`；**frontier = 未绑定票 04**（01–03 TDD-done）。竖切与改策展工单包已闭合。不要加改策展 07
+8. 当前工单：见 `docs/dev-handoff.md`；**frontier = 未绑定票 05**（01–04 + 08 TDD-done）。竖切与改策展工单包已闭合。不要加改策展 07。票 09 待人排期。
 9. `docs/dev-handoff.md` — 进度与下一票
 10. `docs/agents/tdd.md` — ArchOps TDD overlay（`/implement` 必读）
 11. `.cursor/rules/project-map.mdc`、`backend-java.mdc`、`frontend-react.mdc`
@@ -105,13 +105,13 @@ Single-context: frozen `CONTEXT.md` + `docs/adr/` (ADR-0039 / ADR-0043). Skills 
 
 - 领域 grilling / 合同冻结 / 技术选型 / 空脚手架 / 竖切 Spec / 竖切 Tickets / 竖切实现：**已完成**
 - 改策展 Spec：`docs/specs/change-curated-draft.md`（已发布）；工单 `.scratch/change-curated-draft/issues/`（01–06 已拆）。**01–06 TDD-done。本刀闭合。**
-- 下一刀 Spec：[`docs/specs/unbound-identity-rebind.md`](docs/specs/unbound-identity-rebind.md)；工单 `.scratch/unbound-identity-rebind/issues/`（01–07 已拆，审计后补 08 / 09）。**01–03 + 08 TDD-done。frontier = 04**（标签命中收尾）。`/implement` 走 TDD overlay，一次一张。不要加改策展 07。不要做 05–07。
-- 01–03 合同审计：[`.scratch/unbound-identity-rebind/audit-01-03-opus.md`](.scratch/unbound-identity-rebind/audit-01-03-opus.md)。票 08 已处置 C-4 / C-2 / S-3；C-1 留票 09；C-3 / S-4 / S-2 是票 04 的义务（见票 04 Comments）。
+- 下一刀 Spec：[`docs/specs/unbound-identity-rebind.md`](docs/specs/unbound-identity-rebind.md)；工单 `.scratch/unbound-identity-rebind/issues/`（01–07 已拆，审计后补 08 / 09）。**01–04 + 08 TDD-done。frontier = 05**（失联闸门）。`/implement` 走 TDD overlay，一次一张。不要加改策展 07。不要做 06–07。票 09（审计 C-1）待人排期。
+- 01–03 合同审计：[`.scratch/unbound-identity-rebind/audit-01-03-opus.md`](.scratch/unbound-identity-rebind/audit-01-03-opus.md)。票 08 已处置 C-4 / C-2 / S-3；票 04 已处置 C-3 / S-4 / S-2；C-1 留票 09。
 - `/implement` 必须走 TDD overlay：[`docs/agents/tdd.md`](docs/agents/tdd.md)
 - 不需要再开技术选型或推倒栈，除非用户明示新 ADR
 
 ## 7. 云端提示词建议（用户可贴）
 
-改策展 01–06 已闭合。未绑定票 **01–03 + 08 TDD-done**；**frontier = 04**。一次一张 `/implement` `/tdd`，不要加改策展 07。下一张：[`.scratch/unbound-identity-rebind/issues/04-label-match-consume.md`](.scratch/unbound-identity-rebind/issues/04-label-match-consume.md)，**开工 prompt 用** [`docs/implement-unbound-identity-rebind-04-prompt.md`](docs/implement-unbound-identity-rebind-04-prompt.md)（含审计给 04 的 C-3 / S-4 / S-2 义务与钉死的消费/作废规则）。不要用下面这句短指令替代票内循环纪律。
+改策展 01–06 已闭合。未绑定票 **01–04 + 08 TDD-done**；**frontier = 05**。一次一张 `/implement` `/tdd`，不要加改策展 07。下一张：[`.scratch/unbound-identity-rebind/issues/05-identity-lost-gates-conflict-pipeline.md`](.scratch/unbound-identity-rebind/issues/05-identity-lost-gates-conflict-pipeline.md)。票 09（失联叠加心跳超时的问法；审计 C-1）待人排期，不要与 05 混做。不要用下面这句短指令替代票内循环纪律。
 
-> 读 AGENTS.md、CONTEXT.md、ADR-0043 与 `docs/specs/unbound-identity-rebind.md`。只做 `.scratch/unbound-identity-rebind/issues/04-label-match-consume.md`。不要默认做 05–07。不要复活 Vue/JPA/Neo4j/Maven/LangChain。
+> 读 AGENTS.md、CONTEXT.md、ADR-0043 与 `docs/specs/unbound-identity-rebind.md`。只做 `.scratch/unbound-identity-rebind/issues/05-identity-lost-gates-conflict-pipeline.md`。不要默认做 06–07 或票 09。不要复活 Vue/JPA/Neo4j/Maven/LangChain。

@@ -4,19 +4,19 @@
 
 **Blocked by:** 03 — 逐条确认：新建写入对象；绑定只记对应关系
 
-**Status:** ready-for-agent
+**Status:** done
 
 **TDD:** `/implement` 走 [`docs/agents/tdd.md`](../../../docs/agents/tdd.md)：**red → green → refactor**。Spec：[`docs/specs/unbound-identity-rebind.md`](../../../docs/specs/unbound-identity-rebind.md)。
 
 补标本身不在本票用 SSH / 操作计划完成：测试夹具直接发带正确标签的快照。先策展后补标（ADR-0012）的正向收尾在本票闭合。
 
-- [ ] 命中 X 的标签 → 观测 `运行于` 为快照上报主机；身份失联清除；绑定记忆与该候选不再待并入
-- [ ] 命中时若有开放未绑定草案指向该候选或「绑到 X / 用该候选新建」→ 草案作废，再接受被拒
-- [ ] 同一 `runtimeId` 仅刷新观察时间、草案仍开放时 → **不**作废未绑定草案
-- [ ] 命中后若观测宿主与策展 `运行于` 不等 → 既有比对发出/升级冲突（升级链恢复）；同名弱线索在命中前仍不得升级
-- [ ] 新建两条都已接受且随后观测与策展位置相等 → 不人造冲突、不进待确认关闭
-- [ ] `runtimeId` 变化后的未打标实体是新的未绑定候选，不得按名称接到 X
-- [ ] 待补标绑定之后 `absentObjectIds` 含 X → 观测消失（不是失联）；绑定记忆解除；仍缺标的现场实体回到待并入
+- [x] 命中 X 的标签 → 观测 `运行于` 为快照上报主机；身份失联清除；绑定记忆与该候选不再待并入
+- [x] 命中时若有开放未绑定草案指向该候选或「绑到 X / 用该候选新建」→ 草案作废，再接受被拒
+- [x] 同一 `runtimeId` 仅刷新观察时间、草案仍开放时 → **不**作废未绑定草案
+- [x] 命中后若观测宿主与策展 `运行于` 不等 → 既有比对发出/升级冲突（升级链恢复）；同名弱线索在命中前仍不得升级
+- [x] 新建两条都已接受且随后观测与策展位置相等 → 不人造冲突、不进待确认关闭
+- [x] `runtimeId` 变化后的未打标实体是新的未绑定候选，不得按名称接到 X
+- [x] 待补标绑定之后 `absentObjectIds` 含 X → 观测消失（不是失联）；绑定记忆解除；仍缺标的现场实体回到待并入
 
 **Out of this ticket:** 失联时禁止选支/诊断落点（见 05）；有序总 tracer（见 06）；UI；受控 SSH 打标签。
 
@@ -112,7 +112,7 @@ java.lang.AssertionError: Status expected:<200> but was:<400>
 （删重建后 u04g-rt-2 出现在待并入，但 (A, u04g-rt-1)→X 的记忆仍在，夹具跳过 X，发起草案 400。）
 Green command: 同上，exit 0。带快照的心跳把未再报告的 runtime 上的绑定记忆与候选行过期释放；不清 X 的失联标；同名不点亮升级链。`unlabeledReheartbeatAfterBindStaysConsumedAndIdentityLost` 仍绿（同一 runtime 仍报告则不释放）。
 Refactor: `releaseStaleBindMemory` 抽出，只在 `processSnapshot` 末尾对报告清单求补。
-Commit: （提交后回填）
+Commit: `d8b0f97` feat(unbound): release stale bind memory and treat absent as 观测消失
 
 ### Cycle H — 待补标绑定之后 absentObjectIds 含 X → 观测消失并回到待并入
 Red command:
@@ -124,4 +124,15 @@ JSON path "$.data.identityLost" Expected: is <false> but: was <true>
 ```
 Green command: 同上，exit 0。absent 分支清失联标、释放该对象绑定记忆、不删仍缺标的候选行；问法 `ABSENT` / hostId JSON null / `identityLost=false`。01 `absentObjectIdsRemainUsableAbsentNotIdentityLost` 与 `absentObjectIdsWinOverIdentityLostObjectIdsOnSameSnapshot` 仍绿。
 Refactor: `releaseBindMemoryForObject` 抽出，与命中消费共用删除记忆、但不删候选。
-Commit: （提交后回填）
+Commit: `d8b0f97` feat(unbound): release stale bind memory and treat absent as 观测消失
+
+### Cycle I — 心跳契约文档跟上命中收尾与绑定记忆（审计 S-2）
+`docs/contracts/agent-heartbeat-snapshot.md`：绑定记忆 = 逐条确认后的匹配状态；命中收尾顺序；absent 释放记忆并回到待并入；快照不再报告的 runtime 过期释放；心跳-only 不释放、不推断。不改 `CONTEXT.md`，不新开 ADR。
+Commit: `2db2886` docs(unbound): describe bind memory and label-match consume on heartbeat
+
+### Cycle J — 票级回归与收尾
+`cd backend && ./gradlew cleanTest test` → **141 tests, 0 failures**（23 个测试类）。含 01 / 02 / 03 / 08、竖切负面、`ChangeCuratedDraft*`、`HeartbeatTimeoutHollow`。
+
+`/code-review`（merge-base `origin/main` / `39fc65f`）：**Standards = no hard violations**（Flyway 只增 V20；分层与构造器注入未破；Redis 未参与；气味均为 judgement：`bindKey` 与 `unboundHostRuntimeKey` 重复、VOIDED 级联与改策展相似）。**Spec = spec-faithful**。审计处置可追溯：C-3 = Cycle A 清标；S-4 = identity-lost 400，命中后再接受因草案已作废而为 `DRAFT_VOIDED`（故事 42；`labelMatchedAfterIdentityLoss` 仍保留）；S-2 = Cycle I 契约文档；ST-1 不新加 origin 列（消费/释放按对象键，票内已钉死）。Story 50 以待并入重新出现为 HTTP 证据；absent 后 X 是观测消失不是失联，夹具按票允许不再开第二份草案。未实现 05–07 / 09。
+
+下一 frontier = **05**。票 09（审计 C-1）待人排期。
