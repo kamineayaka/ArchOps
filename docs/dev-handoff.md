@@ -67,7 +67,7 @@
 16. ~~下一刀 `/to-spec`~~：已发布 [`docs/specs/unbound-identity-rebind.md`](specs/unbound-identity-rebind.md)。  
 17. ~~下一刀 `/to-tickets`~~：已发布至 `.scratch/unbound-identity-rebind/issues/`（01–07）。  
 18. ~~`/implement` `/tdd` 未绑定票 01~~：已完成（推断身份失联 + 未绑定 upsert + 规范问法 `IDENTITY_LOST` 读模型；witnessed red → green → refactor）。  
-19. **下一对话：`/implement` `/tdd` 未绑定票 02**（frontier；从不挂冲突的候选发草案）。02 与 05 均 unblocked 时先做 02。不要加改策展 07。不要重拆竖切 01–13。不要做 03–07。  
+19. **下一对话：`/implement` `/tdd` 未绑定票 02**（frontier；从不挂冲突的候选发草案）。开工 prompt：[`docs/implement-unbound-identity-rebind-02-prompt.md`](implement-unbound-identity-rebind-02-prompt.md)。02 与 05 均 unblocked 时先做 02。不要加改策展 07。不要重拆竖切 01–13。不要做 03–07。  
 
 ### 工单阻塞简图
 

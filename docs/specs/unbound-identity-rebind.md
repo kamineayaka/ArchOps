@@ -285,4 +285,4 @@ Host Agent 心跳快照仍按 `archops.object_id` 匹配。缺标或标签对不
 - **Why not Y2 / SSH 补标**: 与改策展「接受即写入」双写张力未在本刀打开；补标是现场，不是策展对齐步骤。
 - **Glossary**: 未绑定观测候选、身份失联、草案、逐条确认、策展真相、观测真相、冲突、观测空洞、观测消失、规范问法、操作计划、待确认关闭、冲突升级。不要发明合同已 Avoid 的词。
 - **Acceptance motto (this knife)**: 匹配失败不升冲突；并入必须逐条；绑定不写可靠实际；补标命中才恢复升级链。
-- **Prompt for next chat**: 进度见 [`docs/dev-handoff.md`](../dev-handoff.md)。Frontier = `.scratch/unbound-identity-rebind/issues/02-unbound-draft-from-candidate.md`。`/implement` 走 [`docs/agents/tdd.md`](../agents/tdd.md)。
+- **Prompt for next chat**: 票 02 开工入口 [`docs/implement-unbound-identity-rebind-02-prompt.md`](../implement-unbound-identity-rebind-02-prompt.md)。进度见 [`docs/dev-handoff.md`](../dev-handoff.md)。Frontier = `.scratch/unbound-identity-rebind/issues/02-unbound-draft-from-candidate.md`。`/implement` 走 [`docs/agents/tdd.md`](../agents/tdd.md)。

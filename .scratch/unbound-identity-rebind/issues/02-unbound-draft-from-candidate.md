@@ -22,3 +22,5 @@
 ## Comments
 
 01 TDD-done 后再开。不要做 03–07。不要复用 `POST .../branch-selection` 来创建本票草案。
+
+开工 prompt：[`docs/implement-unbound-identity-rebind-02-prompt.md`](../../../docs/implement-unbound-identity-rebind-02-prompt.md)。`/implement` 走 [`docs/agents/tdd.md`](../../../docs/agents/tdd.md)：capability 票须 witnessed red；第一圈必须是已认证 POST 创建草案的诚实红灯，不要用未认证 401 或改策展选支仍绿冒充。不要为装红灯删除改策展 `conflict_id` 生产或插入 dummy 冲突。
