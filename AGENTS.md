@@ -105,7 +105,8 @@ Single-context: frozen `CONTEXT.md` + `docs/adr/` (ADR-0039 / ADR-0043). Skills 
 
 - 领域 grilling / 合同冻结 / 技术选型 / 空脚手架 / 竖切 Spec / 竖切 Tickets / 竖切实现：**已完成**
 - 改策展 Spec：`docs/specs/change-curated-draft.md`（已发布）；工单 `.scratch/change-curated-draft/issues/`（01–06 已拆）。**01–06 TDD-done。本刀闭合。**
-- 下一刀 Spec：[`docs/specs/unbound-identity-rebind.md`](docs/specs/unbound-identity-rebind.md)；工单 `.scratch/unbound-identity-rebind/issues/`（01–07 已拆）。**01–03 TDD-done。frontier = 04**（标签命中收尾）。`/implement` 走 TDD overlay，一次一张。不要加改策展 07。不要做 05–07。
+- 下一刀 Spec：[`docs/specs/unbound-identity-rebind.md`](docs/specs/unbound-identity-rebind.md)；工单 `.scratch/unbound-identity-rebind/issues/`（01–07 已拆，审计后补 08 / 09）。**01–03 + 08 TDD-done。frontier = 04**（标签命中收尾）。`/implement` 走 TDD overlay，一次一张。不要加改策展 07。不要做 05–07。
+- 01–03 合同审计：[`.scratch/unbound-identity-rebind/audit-01-03-opus.md`](.scratch/unbound-identity-rebind/audit-01-03-opus.md)。票 08 已处置 C-4 / C-2 / S-3；C-1 留票 09；C-3 / S-4 / S-2 是票 04 的义务（见票 04 Comments）。
 - `/implement` 必须走 TDD overlay：[`docs/agents/tdd.md`](docs/agents/tdd.md)
 - 不需要再开技术选型或推倒栈，除非用户明示新 ADR
 

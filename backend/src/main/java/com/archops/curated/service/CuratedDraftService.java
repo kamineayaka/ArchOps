@@ -458,12 +458,16 @@ public class CuratedDraftService {
      * 一个策展对象只能是一个现场实体的本体（ADR-0011）：另一个候选已绑到它时拒绝。
      */
     private void requireTargetNotAlreadyBound(String targetId) {
-        Long bound = unboundBindMemoryMapper.selectCount(new LambdaQueryWrapper<UnboundBindMemory>()
-                .eq(UnboundBindMemory::getCuratedObjectId, targetId));
-        if (bound != null && bound > 0) {
+        if (alreadyBound(targetId)) {
             throw new BusinessException("UNBOUND_BIND_TARGET_ALREADY_BOUND",
                     "该策展对象已由另一个现场实体绑定，不能再绑第二个");
         }
+    }
+
+    private boolean alreadyBound(String curatedObjectId) {
+        Long bound = unboundBindMemoryMapper.selectCount(new LambdaQueryWrapper<UnboundBindMemory>()
+                .eq(UnboundBindMemory::getCuratedObjectId, curatedObjectId));
+        return bound != null && bound > 0;
     }
 
     /**
@@ -767,14 +771,20 @@ public class CuratedDraftService {
     }
 
     /**
-     * Rule fixture for MISSING_LABEL: pick one identity-lost object on the candidate host.
-     * Deterministic when several marks exist (curatedObjectId asc); ticket 03 owns bind conflicts.
+     * Rule fixture: pick one identity-lost object on the candidate host that no other field
+     * entity is already bound to. Deterministic when several marks qualify (curatedObjectId asc).
      */
     private IdentityLostMark findIdentityLostOnHost(String hostId) {
-        return identityLostMarkMapper.selectOne(new LambdaQueryWrapper<IdentityLostMark>()
-                .eq(IdentityLostMark::getSourceHostId, hostId)
-                .orderByAsc(IdentityLostMark::getCuratedObjectId)
-                .last("LIMIT 1"));
+        List<IdentityLostMark> marks = identityLostMarkMapper.selectList(
+                new LambdaQueryWrapper<IdentityLostMark>()
+                        .eq(IdentityLostMark::getSourceHostId, hostId)
+                        .orderByAsc(IdentityLostMark::getCuratedObjectId));
+        for (IdentityLostMark mark : marks) {
+            if (!alreadyBound(mark.getCuratedObjectId())) {
+                return mark;
+            }
+        }
+        return null;
     }
 
     private CuratedDraftItem newItem(

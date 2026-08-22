@@ -18,6 +18,7 @@ import java.util.List;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -134,6 +135,38 @@ class UnboundBindGateHttpAcceptanceTest {
         MvcResult listed = listUnbound();
         assertThat(unboundByRuntimeId(listed, "u08b-rt-1"), nullValue());
         assertThat(unboundByRuntimeId(listed, "u08b-rt-2"), notNullValue());
+    }
+
+    @Test
+    void eachFieldEntityGetsItsOwnIdentityLostTargetOnTheSameHost() throws Exception {
+        String hostA = createHost("u08c-h");
+        String containerX = createContainer("u08c-x", "u08c-oid-x");
+        String containerY = createContainer("u08c-y", "u08c-oid-y");
+        confirmRunsOn(containerX, hostA);
+        confirmRunsOn(containerY, hostA);
+        heartbeatTwoMissingLabels(hostA, "u08c-ag", "u08c-rt-1", "u08c-a", "u08c-rt-2", "u08c-b");
+
+        OpenUnboundDraft first = openDraftFromRuntime("u08c-rt-1");
+        JsonNode firstBind = itemByKind(first.items(), "BIND_UNBOUND_TO_EXISTING");
+        String firstTarget = firstBind.path("subjectId").asText();
+        assertThat(List.of(containerX, containerY).contains(firstTarget), is(true));
+        postUnboundItem(first.draftId(), firstBind.path("id").asText(), "accept")
+                .andExpect(status().isOk());
+
+        OpenUnboundDraft second = openDraftFromRuntime("u08c-rt-2");
+        JsonNode secondBind = itemByKind(second.items(), "BIND_UNBOUND_TO_EXISTING");
+        String secondTarget = secondBind.path("subjectId").asText();
+        assertThat(secondTarget, is(not(firstTarget)));
+        assertThat(List.of(containerX, containerY).contains(secondTarget), is(true));
+
+        postUnboundItem(second.draftId(), secondBind.path("id").asText(), "accept")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[?(@.kind=='BIND_UNBOUND_TO_EXISTING')].status",
+                        hasItem("ACCEPTED")));
+
+        MvcResult listed = listUnbound();
+        assertThat(unboundByRuntimeId(listed, "u08c-rt-1"), nullValue());
+        assertThat(unboundByRuntimeId(listed, "u08c-rt-2"), nullValue());
     }
 
     private ResultActions postUnboundItem(String draftId, String itemId, String action) throws Exception {

@@ -34,3 +34,33 @@ java.lang.AssertionError: Status expected:<200> but was:<400>
 Green command: 同上，exit 0。`writeAcceptedBind` 判据从 `observedRunsOnPresent` 换成 `labelMatchedAfterIdentityLoss`（PRESENT 且 `observedAt` 不早于 `markedAt` 才算认回）。绑定仍不写观测 `运行于`、不承诺升级链、不改容器 ID / 不可变标签。
 Regression：`UnboundDraftItemReviewHttpAcceptanceTest` 全类绿，含 Cycle G `bindingToLabelMatchedPresentTargetIsRejected`（失联后又命中仍 `UNBOUND_BIND_TARGET_HEALTHY`）。
 Refactor: 删掉只有一个调用点的 `observedRunsOnPresent`，判据落在带失联语义注释的 `labelMatchedAfterIdentityLoss`。
+
+### Cycle B — 同一失联对象不得被第二个现场实体绑定
+Red command:
+`cd backend && ./gradlew test --tests com.archops.observed.UnboundBindGateHttpAcceptanceTest.secondFieldEntityCannotBeBoundToAnAlreadyBoundTarget`
+```
+UnboundBindGateHttpAcceptanceTest > secondFieldEntityCannotBeBoundToAnAlreadyBoundTarget() FAILED
+    java.lang.AssertionError at UnboundBindGateHttpAcceptanceTest.java:115
+java.lang.AssertionError: Status expected:<400> but was:<200>
+```
+（两个现场实体先各开一份草案，再依次接受绑定；第二次也成功，X 上出现两条绑定记忆。）
+Green command: 同上，exit 0。接受绑定新增 `requireTargetNotAlreadyBound` → `UNBOUND_BIND_TARGET_ALREADY_BOUND`；`V19__unbound_bind_memory_object_unique.sql` 按策展对象加唯一索引，`rememberBind` 把唯一冲突翻成同一业务错误（多副本并发的兜底）。失败条仍 PENDING，策展身份不变，第二个现场实体仍在待并入。
+Regression：`UnboundDraftItemReviewHttpAcceptanceTest` 与 `UnboundDraftCreateHttpAcceptanceTest` 全绿。
+Refactor: 无结构改动（`alreadyBound` 抽取放在 Cycle C）。
+
+### Cycle C — 同宿主多个失联对象时各现场实体绑各自目标
+Red command:
+`cd backend && ./gradlew test --tests com.archops.observed.UnboundBindGateHttpAcceptanceTest.eachFieldEntityGetsItsOwnIdentityLostTargetOnTheSameHost`
+```
+UnboundBindGateHttpAcceptanceTest > eachFieldEntityGetsItsOwnIdentityLostTargetOnTheSameHost() FAILED
+java.lang.AssertionError:
+Expected: is not "ctr-404b0c95-cbb1-41b5-920c-b4f39d30b5cd"
+     but: was "ctr-404b0c95-cbb1-41b5-920c-b4f39d30b5cd"
+```
+（第一份草案绑定已被接受之后，第二份草案的夹具仍提供同一个目标。）
+Green command: 同上，exit 0。`findIdentityLostOnHost` 改为在该宿主的失联标里取**尚未被绑**的第一个（`curatedObjectId` 升序，确定性不变）；没有可用目标时 `MISSING_LABEL` 仍是 `UNBOUND_DRAFT_FIXTURE_UNAVAILABLE`、`UNKNOWN_OBJECT_ID` 仍回落到两条（新建 + `运行于`）。
+Regression：01/02/03 三个未绑定验收类全绿。
+Refactor: `requireTargetNotAlreadyBound` 与夹具共用 `alreadyBound`。
+
+### 票尾
+`cd backend && ./gradlew cleanTest test` → exit 0（**22 个测试类 / 132 tests / 0 failures**；含竖切负面与 `ChangeCuratedDraft*`）。

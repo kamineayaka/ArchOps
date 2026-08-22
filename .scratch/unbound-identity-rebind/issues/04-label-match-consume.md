@@ -23,3 +23,11 @@
 ## Comments
 
 03 TDD-done 后再开。不要做 05–07。不要把命中写成观测空洞恢复。
+
+### 来自 01–03 合同审计的三条约束（`audit-01-03-opus.md`）
+
+1. **第一圈就钉住问法翻转**（审计 C-3）：标签命中之前，`GET /api/observed/asks/actual-where` 会在冲突已按合并键开出「策展 A / 实际 B」的同时仍答 `IDENTITY_LOST`——两条读路径互相矛盾。命中收尾必须让 `availability=PRESENT`、`identityLost=false`、`GET /api/observed/identity-lost/{id}` 400，并且 `by-merge-key` 恢复升级链。
+2. **改掉那条把「命中仍失联」当正确的旧断言**（审计 S-4）：`UnboundDraftItemReviewHttpAcceptanceTest.bindingToLabelMatchedPresentTargetIsRejected` 末尾断言命中后 `identity-lost` GET 仍 200。它是全仓唯一一条「命中之后」的失联断言；清标后应改为 400（该用例真正要证的是绑定被拒，错误码仍 `UNBOUND_BIND_TARGET_HEALTHY`）。
+3. **绑定记忆分不清绑定与新建**（审计 ST-1）：`unbound_bind_memory` 没有来源列，而故事 50（`absentObjectIds` 解除记忆）只针对待补标的**绑定**。若需区分，用**新增** Flyway 加 `origin`，不要改 V18 / V19。
+
+另：票 08 已把绑定门禁判据改成「失联之后是否又标签命中」（`labelMatchedAfterIdentityLoss`）。清标之后该判据自然退化为「有没有失联标」，不必回改。

@@ -20,7 +20,7 @@
 
 | 项 | 状态 |
 |---|---|
-| Gradle + Spring Boot + MyBatis-Plus + Flyway | 有；至 V18（绑定记忆 + 未绑定逐条确认；改理想仍至 V15） |
+| Gradle + Spring Boot + MyBatis-Plus + Flyway | 有；至 V19（绑定记忆按策展对象唯一；未绑定逐条确认至 V18；改理想仍至 V15） |
 | React + Ant Design 薄页 | **已完成**（票 12：冲突列表/详情→协作→选支→审计划→确认关闭） |
 | Python agent 心跳+快照 stub + systemd 说明 | 有（契约见 `docs/contracts/agent-heartbeat-snapshot.md`） |
 | Compose + `archops:latest` 多阶段镜像 | 有 |
@@ -42,7 +42,8 @@
 | 改策展草案 Spec | **已发布** → [`docs/specs/change-curated-draft.md`](specs/change-curated-draft.md) |
 | 改策展草案工单 | **TDD-done 06 / 本刀闭合** → [`.scratch/change-curated-draft/issues/`](../.scratch/change-curated-draft/issues/)（**01–06 TDD-done**。从竖切 MVP 往上长，不重拆竖切 01–13） |
 | 未绑定 / 身份失联 Spec | **已发布** → [`docs/specs/unbound-identity-rebind.md`](specs/unbound-identity-rebind.md) |
-| 未绑定 / 身份失联工单 | **01–03 TDD-done；frontier = 04** → [`.scratch/unbound-identity-rebind/issues/`](../.scratch/unbound-identity-rebind/issues/)（不要写进 `change-curated-draft`） |
+| 未绑定 / 身份失联工单 | **01–03 + 08 TDD-done；frontier = 04** → [`.scratch/unbound-identity-rebind/issues/`](../.scratch/unbound-identity-rebind/issues/)（不要写进 `change-curated-draft`） |
+| 未绑定 01–03 合同审计 | **已出报告** → [`.scratch/unbound-identity-rebind/audit-01-03-opus.md`](../.scratch/unbound-identity-rebind/audit-01-03-opus.md)（三轴 + 探针表；票 08 已处置 C-4 / C-2 / S-3，C-1 留票 09，C-3 / S-4 / S-2 留票 04） |
 | Matt 工作流 skills / tracker | **已入库**（`.cursor/skills/` + `.agents/skills/` + `docs/agents/`；TDD overlay [`docs/agents/tdd.md`](agents/tdd.md)；Cloud 不依赖本机 `~/.agents`） |
 | 国内镜像默认 | **已合并**（PR #53：Gradle 腾讯云 / Maven 阿里云 / npm npmmirror / Docker DaoCloud） |
 | kamiserver 人工验收 | **通过**（2026-08：Compose postgres+redis healthy 且宿主机端口已映射 → `./gradlew bootRun` → `GET /api/health`；竖切演示闭环已在该 VM 走通） |
@@ -69,7 +70,10 @@
 18. ~~`/implement` `/tdd` 未绑定票 01~~：已完成（推断身份失联 + 未绑定 upsert + 规范问法 `IDENTITY_LOST` 读模型；witnessed red → green → refactor）。  
 19. ~~`/implement` `/tdd` 未绑定票 02~~：已完成（从不挂冲突的候选发 OPEN 草案；规则夹具 PENDING 条目；witnessed red → green → refactor；`UNBOUND_CANDIDATE` origin）。  
 20. ~~`/implement` `/tdd` 未绑定票 03~~：已完成（逐条确认：新建写入对象；绑定只记对应关系；witnessed red → green → refactor；`UNBOUND_CANDIDATE_CONSUMED` / bind memory）。  
-21. **下一对话：`/implement` `/tdd` 未绑定票 04**（frontier；标签命中收尾：清失联、消费候选、恢复升级链）。票路径：[`.scratch/unbound-identity-rebind/issues/04-label-match-consume.md`](../.scratch/unbound-identity-rebind/issues/04-label-match-consume.md)。不要加改策展 07。不要重拆竖切 01–13。不要做 05–07。  
+21. ~~未绑定 01–03 合同审计~~：已完成（三轴只读审计；报告 [`.scratch/unbound-identity-rebind/audit-01-03-opus.md`](../.scratch/unbound-identity-rebind/audit-01-03-opus.md)；未改生产）。  
+22. ~~`/implement` `/tdd` 未绑定票 08~~：已完成（绑定写入门禁：判据改「失联之后是否又标签命中」；同一策展对象只能是一个现场实体的本体；夹具给出未被绑的目标；witnessed red → green → refactor；`UNBOUND_BIND_TARGET_ALREADY_BOUND` / V19）。  
+23. **下一对话：`/implement` `/tdd` 未绑定票 04**（frontier；标签命中收尾：清失联、消费候选、恢复升级链）。票路径：[`.scratch/unbound-identity-rebind/issues/04-label-match-consume.md`](../.scratch/unbound-identity-rebind/issues/04-label-match-consume.md)，票内 Comments 有审计给 04 的三条约束。不要加改策展 07。不要重拆竖切 01–13。不要做 05–07。  
+24. 之后（与 04 分开一张）：未绑定票 09（失联叠加心跳超时时问法仍须说出观测空洞；审计 C-1）。  
 
 ### 工单阻塞简图
 
@@ -95,12 +99,14 @@
                                                    → 06 HTTP tracer（TDD-done；本刀定义完成）
 ```
 
-未绑定 / 身份失联重绑（01–07 已拆；**01–03 TDD-done；frontier = 04**）：
+未绑定 / 身份失联重绑（01–07 已拆，审计后补 08 / 09；**01–03 + 08 TDD-done；frontier = 04**）：
 
 ```
 01 推断失联 + 未绑定 upsert + 规范问法（TDD-done）
-   ├→ 02 从不挂冲突的候选发草案（TDD-done） → 03 逐条新建/绑定（TDD-done） → 04 标签命中收尾 ─┐
- └→ 05 失联闸门修实际/改理想 ──────────────────────────────────────────────┴→ 06 HTTP tracer → 07 薄 UI
+   ├→ 02 从不挂冲突的候选发草案（TDD-done） → 03 逐条新建/绑定（TDD-done）
+   │                                              └→ 08 绑定写入门禁修复（TDD-done） → 04 标签命中收尾 ─┐
+   ├→ 09 失联叠加心跳超时的问法（审计 C-1）                                                              │
+ └→ 05 失联闸门修实际/改理想 ─────────────────────────────────────────────────────────────────┴→ 06 HTTP tracer → 07 薄 UI
 ```
 
 （一次只做一张。）
