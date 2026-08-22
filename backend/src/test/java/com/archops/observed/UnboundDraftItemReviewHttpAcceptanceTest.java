@@ -243,6 +243,54 @@ class UnboundDraftItemReviewHttpAcceptanceTest {
                 .andExpect(jsonPath("$.code", is("CONFLICT_NOT_FOUND")));
     }
 
+    @Test
+    void unlabeledReheartbeatAfterBindStaysConsumedAndIdentityLost() throws Exception {
+        String hostId = createHost("u03e-h");
+        String containerX = createContainer("u03e-x", "u03e-oid");
+        confirmRunsOn(containerX, hostId);
+        heartbeatMissingLabel(hostId, "u03e-ag", "u03e-rt-miss", "u03e-similar");
+        mockMvc.perform(get("/api/observed/identity-lost/{id}", containerX)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+        OpenUnboundDraft draft = openDraftFromRuntime("u03e-rt-miss");
+        JsonNode bindItem = itemByKind(draft.items(), "BIND_UNBOUND_TO_EXISTING");
+        postUnboundItem(draft.draftId(), bindItem.path("id").asText(), "accept")
+                .andExpect(status().isOk());
+
+        heartbeatMissingLabel(hostId, "u03e-ag", "u03e-rt-miss", "u03e-renamed");
+
+        MvcResult listed = mockMvc.perform(get("/api/observed/unbound-candidates")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn();
+        assertThat(unboundByRuntimeId(listed, "u03e-rt-miss"), nullValue());
+
+        mockMvc.perform(get("/api/observed/identity-lost/{id}", containerX)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/observed/asks/actual-where")
+                        .param("containerId", containerX)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.identityLost", is(true)))
+                .andExpect(jsonPath("$.data.observedValue.availability", is("IDENTITY_LOST")));
+        mockMvc.perform(get("/api/conflicts/by-merge-key")
+                        .param("subjectId", containerX)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("CONFLICT_NOT_FOUND")));
+        mockMvc.perform(get("/api/curated-drafts/{draftId}", draft.draftId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("OPEN")));
+    }
+
     private ResultActions postUnboundItem(String draftId, String itemId, String action) throws Exception {
         return mockMvc.perform(post("/api/curated-drafts/{draftId}/items/{itemId}/{action}",
                         draftId, itemId, action)
