@@ -599,6 +599,41 @@ class UnboundDraftItemReviewHttpAcceptanceTest {
                 .andExpect(jsonPath("$.code", is("CONFLICT_NOT_FOUND")));
     }
 
+    @Test
+    void acceptingRunsOnAfterCreateWritesFirstCuratedRunsOn() throws Exception {
+        String hostId = createHost("u03n-h");
+        heartbeatUnknown(hostId, "u03n-ag", "u03n-rt-unknown", "u03n-unknown", "u03n-never");
+        OpenUnboundDraft draft = openDraftFromRuntime("u03n-rt-unknown");
+        JsonNode createItem = itemByKind(draft.items(), "CREATE_CONTAINER_FROM_UNBOUND");
+        JsonNode runsOnItem = itemByKind(draft.items(), "CURATED_RUNS_ON_INSERT");
+        MvcResult acceptedCreate = postUnboundItem(draft.draftId(), createItem.path("id").asText(), "accept")
+                .andExpect(status().isOk())
+                .andReturn();
+        String subjectId = itemByKind(
+                sortedItems(objectMapper.readTree(acceptedCreate.getResponse().getContentAsString())
+                        .path("data").path("items")),
+                "CREATE_CONTAINER_FROM_UNBOUND").path("subjectId").asText();
+
+        postUnboundItem(draft.draftId(), runsOnItem.path("id").asText(), "accept")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[?(@.kind=='CURATED_RUNS_ON_INSERT')].status",
+                        hasItem("ACCEPTED")));
+
+        mockMvc.perform(get("/api/curated/facts/runs-on/{containerId}", subjectId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.relationLabel", is("运行于")))
+                .andExpect(jsonPath("$.data.target.id", is(hostId)));
+        mockMvc.perform(post("/api/curated/facts/runs-on")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"containerId\":\"" + subjectId + "\",\"hostId\":\"" + hostId + "\"}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("CURATED_RUNS_ON_EXISTS")));
+    }
+
     private ResultActions postUnboundItem(String draftId, String itemId, String action) throws Exception {
         return mockMvc.perform(post("/api/curated-drafts/{draftId}/items/{itemId}/{action}",
                         draftId, itemId, action)

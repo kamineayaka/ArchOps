@@ -4,7 +4,7 @@
 
 **Blocked by:** 02 — 从不挂冲突的未绑定候选发起草案
 
-**Status:** ready-for-agent
+**Status:** done
 
 **TDD:** `/implement` 走 [`docs/agents/tdd.md`](../../../docs/agents/tdd.md)：**red → green → refactor**。Spec：[`docs/specs/unbound-identity-rebind.md`](../../../docs/specs/unbound-identity-rebind.md)。
 
@@ -21,7 +21,7 @@
 - [x] `UNKNOWN_OBJECT_ID` 绑到已有允许，且不得把错标签写成 X 的新主键
 - [x] 未认证不可审条；无冲突处理人要求
 - [x] 建底插入第一条 `运行于` 仍成功；覆盖已有仍 `CURATED_RUNS_ON_EXISTS`
-- [ ] HTTP 可读条目已接受 / 已拒绝审计；无整单全接受、无操作计划、无策展对齐步骤
+- [x] HTTP 可读条目已接受 / 已拒绝审计；无整单全接受、无操作计划、无策展对齐步骤
 
 **Out of this ticket:** 标签命中后清失联并写观测（见 04）；选支闸门（见 05）；tracer 总套件（见 06）；UI。
 
@@ -118,5 +118,27 @@ Red command:
 reuse/regression: `CuratedTruthHttpAcceptanceTest.bootstrapPostRejectsOverwriteToSameHost` / `createHostsContainerConfirmRunsOnAndAskShouldWhere`. First-run green. Ticket 03 did not disable bootstrap insert or overwrite reject.
 Green command: same; exit 0.
 Refactor: 无结构改动
-Commit: (this slice)
+Commit: `2fa7600` test(unbound): bootstrap 运行于 insert and overwrite still hold
+
+### Cycle L — HTTP 可读条目已接受/已拒绝审计；无整单全接受；无操作计划
+Red command:
+`cd backend && ./gradlew test --tests com.archops.observed.UnboundDraftItemReviewHttpAcceptanceTest.itemReviewEventsAreReadableAndWholeDraftAcceptDoesNotExist`
+Failure (witnessed): JSON path `$.data[*].eventType` expected collection containing `DRAFT_ITEM_ACCEPTED` but was only `DRAFT_CREATED`.
+Green command: same; exit 0. Unbound accept/reject append `curated_draft_event` (not conflict events). Whole-draft POST `/api/curated-drafts/{id}/accept` has no handler. No dummy conflict/plan from this review (`CONFLICT_NOT_FOUND` on a non-existent conflict id).
+Refactor: shared unbound item audit detail helper.
+Commit: `6f2cdbf` feat(unbound): audit item accept and reject on draft events
+
+### Cycle M / code-review — first 运行于 after CREATE; Standards + Spec
+Red command:
+`cd backend && ./gradlew test --tests com.archops.observed.UnboundDraftItemReviewHttpAcceptanceTest.acceptingRunsOnAfterCreateWritesFirstCuratedRunsOn`
+reuse/regression: Cycle B `writeAcceptedFirstRunsOn` (confirmRunsOn after CREATE). First-run green. Spec review noted tracer-adjacent “accept CREATE then 运行于” was unproven on HTTP.
+Green command: same; `./gradlew test` exit 0 (includes 01, 02, ChangeCuratedDraft*).
+Refactor: 无结构改动
+/code-review (merge-base `origin/main` `ddcb1d7`):
+- Standards: no hard stack/layering breach. Judgement smells (Divergent Change / Feature Envy on `CuratedDraftService` observed reads; duplicated review records) deferred — do not expand into 04–07.
+- Spec: stories 19–20, 25–28, 31–36, 44, 51–53, 59 item audit, tracer 5–7 item review, Neg 3/5–7/11 met. No 04 consume/void, no 05 gates, no UI. PRESENT healthy-gate is ticket G (labeled rematch); leftover PRESENT after 失联 is 01 fact until 04 clears the mark — not expanded here.
+
+Frontier → 04. Do not implement 04–07.
+
+Handoff docs commit: (this slice)
 
