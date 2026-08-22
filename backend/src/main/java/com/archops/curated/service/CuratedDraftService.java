@@ -303,6 +303,10 @@ public class CuratedDraftService {
     @Transactional
     public CuratedDraftResponse acceptUnboundItem(String draftId, String itemId, AuthUserPrincipal actor) {
         UnboundItemReview review = beginUnboundItemReview(draftId, itemId);
+        if (review.item().getKind() == CuratedDraftItemKind.CREATE_CONTAINER_FROM_UNBOUND
+                || review.item().getKind() == CuratedDraftItemKind.BIND_UNBOUND_TO_EXISTING) {
+            requireUnboundCandidateNotConsumed(review.draft());
+        }
         applyUnboundAccept(review.draft(), review.item(), actor.getUserId());
         markItem(review.item(), CuratedDraftItemStatus.ACCEPTED);
         return respond(review.draft());
@@ -354,6 +358,16 @@ public class CuratedDraftService {
         }
         CuratedDraftItem item = requireItemOnDraft(draft.getId(), itemId);
         return new UnboundItemReview(draft, item);
+    }
+
+    private void requireUnboundCandidateNotConsumed(CuratedDraft draft) {
+        Long existing = unboundBindMemoryMapper.selectCount(new LambdaQueryWrapper<UnboundBindMemory>()
+                .eq(UnboundBindMemory::getSourceHostId, draft.getSourceHostId())
+                .eq(UnboundBindMemory::getRuntimeId, draft.getRuntimeId()));
+        if (existing != null && existing > 0) {
+            throw new BusinessException("UNBOUND_CANDIDATE_CONSUMED",
+                    "该现场实体已因绑定或新建被消费，不能再次并入");
+        }
     }
 
     private void applyUnboundAccept(CuratedDraft draft, CuratedDraftItem item, String actorUserId) {

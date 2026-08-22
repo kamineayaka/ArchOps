@@ -291,6 +291,38 @@ class UnboundDraftItemReviewHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data.status", is("OPEN")));
     }
 
+    @Test
+    void acceptingCreateAfterBindFailsAsCandidateConsumed() throws Exception {
+        String hostId = createHost("u03f-h");
+        String containerX = createContainer("u03f-x", "u03f-oid");
+        confirmRunsOn(containerX, hostId);
+        heartbeatMissingLabel(hostId, "u03f-ag", "u03f-rt-miss", "u03f-similar");
+        OpenUnboundDraft draft = openDraftFromRuntime("u03f-rt-miss");
+        JsonNode bindItem = itemByKind(draft.items(), "BIND_UNBOUND_TO_EXISTING");
+        JsonNode createItem = itemByKind(draft.items(), "CREATE_CONTAINER_FROM_UNBOUND");
+        postUnboundItem(draft.draftId(), bindItem.path("id").asText(), "accept")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[?(@.kind=='BIND_UNBOUND_TO_EXISTING')].status",
+                        hasItem("ACCEPTED")));
+
+        postUnboundItem(draft.draftId(), createItem.path("id").asText(), "accept")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.code", is("UNBOUND_CANDIDATE_CONSUMED")))
+                .andExpect(jsonPath("$.data").value(nullValue()));
+
+        MvcResult got = mockMvc.perform(get("/api/curated-drafts/{draftId}", draft.draftId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn();
+        JsonNode createAfter = itemByKind(
+                sortedItems(objectMapper.readTree(got.getResponse().getContentAsString()).path("data").path("items")),
+                "CREATE_CONTAINER_FROM_UNBOUND");
+        assertThat(createAfter.path("status").asText(), is("PENDING"));
+        assertThat(createAfter.path("status").asText(), not(is("ACCEPTED")));
+    }
+
     private ResultActions postUnboundItem(String draftId, String itemId, String action) throws Exception {
         return mockMvc.perform(post("/api/curated-drafts/{draftId}/items/{itemId}/{action}",
                         draftId, itemId, action)
