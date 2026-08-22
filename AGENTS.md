@@ -112,6 +112,6 @@ Single-context: frozen `CONTEXT.md` + `docs/adr/` (ADR-0039 / ADR-0043). Skills 
 
 ## 7. 云端提示词建议（用户可贴）
 
-改策展 01–06 已闭合。未绑定票 **01–03 TDD-done**；**frontier = 04**。一次一张 `/implement` `/tdd`，不要加改策展 07。下一张：[`.scratch/unbound-identity-rebind/issues/04-label-match-consume.md`](.scratch/unbound-identity-rebind/issues/04-label-match-consume.md)。不要用下面这句短指令替代票内循环纪律。
+改策展 01–06 已闭合。未绑定票 **01–03 + 08 TDD-done**；**frontier = 04**。一次一张 `/implement` `/tdd`，不要加改策展 07。下一张：[`.scratch/unbound-identity-rebind/issues/04-label-match-consume.md`](.scratch/unbound-identity-rebind/issues/04-label-match-consume.md)，**开工 prompt 用** [`docs/implement-unbound-identity-rebind-04-prompt.md`](docs/implement-unbound-identity-rebind-04-prompt.md)（含审计给 04 的 C-3 / S-4 / S-2 义务与钉死的消费/作废规则）。不要用下面这句短指令替代票内循环纪律。
 
 > 读 AGENTS.md、CONTEXT.md、ADR-0043 与 `docs/specs/unbound-identity-rebind.md`。只做 `.scratch/unbound-identity-rebind/issues/04-label-match-consume.md`。不要默认做 05–07。不要复活 Vue/JPA/Neo4j/Maven/LangChain。
