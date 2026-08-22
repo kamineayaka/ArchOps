@@ -11,7 +11,7 @@
 确认单位是条目（合同逐条确认）。建底 `POST` 新建主机/容器仍可用；覆盖已有 `运行于` 仍拒绝。从候选并入禁止旁路 POST。
 
 - [x] 只接受新建、拒绝 `运行于` → 策展出现该容器（不可变标签 = 现场标签），无该 `运行于`；未接受条目仍是草案
-- [ ] 先接受 `运行于`、尚未新建 → 失败，策展不变
+- [x] 先接受 `运行于`、尚未新建 → 失败，策展不变
 - [ ] 新建所用 `archops.object_id` 已被占用 → 接受失败
 - [ ] 接受绑到已有失联对象 X → X 的 `容器ID` / 不可变标签不变；「实际在哪」仍不得把弱线索当可靠 `运行于`；该 `runtimeId` 不再出现在待并入列表
 - [ ] 再心跳同一 `runtimeId` 仍缺标/错标 → 仍不待并入、仍身份失联、仍不承诺升级链
@@ -37,5 +37,13 @@ Red command:
 Failure (witnessed): Status expected:<200> but was:<500>; `No static resource api/curated-drafts/{draftId}/items/{itemId}/accept` (NoResourceFoundException → INTERNAL_ERROR). Honest missing-handler red for authenticated CREATE accept.
 Green command: same; exit 0 after `POST /api/curated-drafts/{draftId}/items/{itemId}/accept|reject` + CREATE writes curated container + reject does not insert 运行于.
 Refactor: import cleanup; controller/service javadoc on the unbound review path.
+Commit: `460d63b` feat(unbound): accept CREATE without writing curated 运行于
+
+### Cycle B — 先接受「运行于」、尚未新建 → 失败，策展不变
+Red command:
+`cd backend && ./gradlew test --tests com.archops.observed.UnboundDraftItemReviewHttpAcceptanceTest.acceptingRunsOnBeforeCreateFailsAndLeavesCuratedUnchanged`
+Failure (witnessed): JSON path `$.code` expected `UNBOUND_RUNS_ON_BEFORE_CREATE` but was `UNBOUND_ITEM_KIND_UNSUPPORTED`.
+Green command: same; exit 0. Guard refuses RUNS_ON insert until CREATE is ACCEPTED with a subject; items stay PENDING; object id still free for bootstrap POST.
+Refactor: extract `postUnboundItem` helper; first 运行于 insert reuses bootstrap `confirmRunsOn` after CREATE.
 Commit: (this slice)
 

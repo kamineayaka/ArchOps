@@ -16,6 +16,7 @@ import com.archops.curated.domain.CuratedDraftStatus;
 import com.archops.curated.domain.CuratedFact;
 import com.archops.curated.domain.CuratedObject;
 import com.archops.curated.domain.CuratedRelationType;
+import com.archops.curated.dto.ConfirmRunsOnRequest;
 import com.archops.curated.dto.CreateContainerRequest;
 import com.archops.curated.dto.CuratedDraftResponse;
 import com.archops.curated.dto.CuratedObjectResponse;
@@ -355,8 +356,40 @@ public class CuratedDraftService {
             writeAcceptedCreateContainer(item, actorUserId);
             return;
         }
+        if (item.getKind() == CuratedDraftItemKind.CURATED_RUNS_ON_INSERT) {
+            writeAcceptedFirstRunsOn(item, actorUserId);
+            return;
+        }
         throw new BusinessException("UNBOUND_ITEM_KIND_UNSUPPORTED",
                 "未绑定草案本票不审该条目 kind: " + item.getKind());
+    }
+
+    private void writeAcceptedFirstRunsOn(CuratedDraftItem item, String actorUserId) {
+        CuratedDraftItem create = requireCreateAcceptedBeforeRunsOn(item);
+        item.setSubjectId(create.getSubjectId());
+        curatedTruthService.confirmRunsOn(
+                new ConfirmRunsOnRequest(create.getSubjectId(), item.getToHostId()), actorUserId);
+    }
+
+    private CuratedDraftItem requireCreateAcceptedBeforeRunsOn(CuratedDraftItem runsOnItem) {
+        CuratedDraftItem create = findSibling(runsOnItem.getDraftId(), CuratedDraftItemKind.CREATE_CONTAINER_FROM_UNBOUND);
+        if (create == null
+                || create.getStatus() != CuratedDraftItemStatus.ACCEPTED
+                || create.getSubjectId() == null
+                || create.getSubjectId().isBlank()) {
+            throw new BusinessException("UNBOUND_RUNS_ON_BEFORE_CREATE",
+                    "不能在新建策展容器之前接受策展「运行于」");
+        }
+        return create;
+    }
+
+    private CuratedDraftItem findSibling(String draftId, CuratedDraftItemKind kind) {
+        return curatedDraftItemMapper.selectList(new LambdaQueryWrapper<CuratedDraftItem>()
+                        .eq(CuratedDraftItem::getDraftId, draftId)
+                        .eq(CuratedDraftItem::getKind, kind))
+                .stream()
+                .findFirst()
+                .orElse(null);
     }
 
     private void writeAcceptedCreateContainer(CuratedDraftItem item, String actorUserId) {

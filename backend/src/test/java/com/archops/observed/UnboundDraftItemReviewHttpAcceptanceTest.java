@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.ResultActions;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -50,12 +51,7 @@ class UnboundDraftItemReviewHttpAcceptanceTest {
         String createItemId = createItem.path("id").asText();
         String runsOnItemId = runsOnItem.path("id").asText();
 
-        MvcResult accepted = mockMvc.perform(post("/api/curated-drafts/{draftId}/items/{itemId}/accept",
-                        draft.draftId(), createItemId)
-                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{}")
-                        .accept(MediaType.APPLICATION_JSON))
+        MvcResult accepted = postUnboundItem(draft.draftId(), createItemId, "accept")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success", is(true)))
                 .andExpect(jsonPath("$.data.items[?(@.id=='" + createItemId + "')].status",
@@ -70,12 +66,7 @@ class UnboundDraftItemReviewHttpAcceptanceTest {
         assertThat(createdSubjectId.isBlank(), is(false));
         assertThat(acceptedCreate.path("subjectId").isNull(), is(false));
 
-        mockMvc.perform(post("/api/curated-drafts/{draftId}/items/{itemId}/reject",
-                        draft.draftId(), runsOnItemId)
-                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{}")
-                        .accept(MediaType.APPLICATION_JSON))
+        postUnboundItem(draft.draftId(), runsOnItemId, "reject")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success", is(true)))
                 .andExpect(jsonPath("$.data.items[?(@.id=='" + runsOnItemId + "')].status",
@@ -116,6 +107,50 @@ class UnboundDraftItemReviewHttpAcceptanceTest {
         assertThat(createAfter.path("subjectId").asText(), is(createdSubjectId));
         assertThat(createdSubjectId, not(is("u03a-rt-unknown")));
         assertThat(createdSubjectId, not(is("u03a-never")));
+    }
+
+    @Test
+    void acceptingRunsOnBeforeCreateFailsAndLeavesCuratedUnchanged() throws Exception {
+        String hostId = createHost("u03b-h");
+        heartbeatUnknown(hostId, "u03b-ag", "u03b-rt-unknown", "u03b-unknown", "u03b-never");
+        OpenUnboundDraft draft = openDraftFromRuntime("u03b-rt-unknown");
+        JsonNode createItem = itemByKind(draft.items(), "CREATE_CONTAINER_FROM_UNBOUND");
+        JsonNode runsOnItem = itemByKind(draft.items(), "CURATED_RUNS_ON_INSERT");
+        String createItemId = createItem.path("id").asText();
+        String runsOnItemId = runsOnItem.path("id").asText();
+
+        postUnboundItem(draft.draftId(), runsOnItemId, "accept")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.code", is("UNBOUND_RUNS_ON_BEFORE_CREATE")))
+                .andExpect(jsonPath("$.data").value(nullValue()));
+
+        mockMvc.perform(get("/api/curated-drafts/{draftId}", draft.draftId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("OPEN")))
+                .andExpect(jsonPath("$.data.items[?(@.id=='" + createItemId + "')].status",
+                        hasItem("PENDING")))
+                .andExpect(jsonPath("$.data.items[?(@.id=='" + runsOnItemId + "')].status",
+                        hasItem("PENDING")));
+
+        mockMvc.perform(post("/api/curated/containers")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"u03b-probe\",\"objectId\":\"u03b-never\"}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)));
+    }
+
+    private ResultActions postUnboundItem(String draftId, String itemId, String action) throws Exception {
+        return mockMvc.perform(post("/api/curated-drafts/{draftId}/items/{itemId}/{action}",
+                        draftId, itemId, action)
+                .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}")
+                .accept(MediaType.APPLICATION_JSON));
     }
 
     private void heartbeatUnknown(
