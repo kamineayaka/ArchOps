@@ -105,12 +105,12 @@ Single-context: frozen `CONTEXT.md` + `docs/adr/` (ADR-0039 / ADR-0043). Skills 
 
 - 领域 grilling / 合同冻结 / 技术选型 / 空脚手架 / 竖切 Spec / 竖切 Tickets / 竖切实现：**已完成**
 - 改策展 Spec：`docs/specs/change-curated-draft.md`（已发布）；工单 `.scratch/change-curated-draft/issues/`（01–06 已拆）。**01–06 TDD-done。本刀闭合。**
-- 下一刀 Spec：[`docs/specs/unbound-identity-rebind.md`](docs/specs/unbound-identity-rebind.md)；工单 `.scratch/unbound-identity-rebind/issues/`（01–07 已拆）。**01 TDD-done。frontier = 02**（从不挂冲突的候选发草案）。02 与 05 均 unblocked 时先做 02。`/implement` 走 TDD overlay，一次一张。不要加改策展 07。
+- 下一刀 Spec：[`docs/specs/unbound-identity-rebind.md`](docs/specs/unbound-identity-rebind.md)；工单 `.scratch/unbound-identity-rebind/issues/`（01–07 已拆）。**01 TDD-done。frontier = 02**（从不挂冲突的候选发草案）。开工 prompt：[`docs/implement-unbound-identity-rebind-02-prompt.md`](docs/implement-unbound-identity-rebind-02-prompt.md)。02 与 05 均 unblocked 时先做 02。`/implement` 走 TDD overlay，一次一张。不要加改策展 07。
 - `/implement` 必须走 TDD overlay：[`docs/agents/tdd.md`](docs/agents/tdd.md)
 - 不需要再开技术选型或推倒栈，除非用户明示新 ADR
 
 ## 7. 云端提示词建议（用户可贴）
 
-改策展 01–06 已闭合。未绑定票 **01 TDD-done**；**frontier = 02**。一次一张 `/implement` `/tdd`，不要加改策展 07。下一张：[`.scratch/unbound-identity-rebind/issues/02-unbound-draft-from-candidate.md`](.scratch/unbound-identity-rebind/issues/02-unbound-draft-from-candidate.md)。
+改策展 01–06 已闭合。未绑定票 **01 TDD-done**；**frontier = 02**。一次一张 `/implement` `/tdd`，不要加改策展 07。新对话请粘贴 [`docs/implement-unbound-identity-rebind-02-prompt.md`](docs/implement-unbound-identity-rebind-02-prompt.md) 的复制区，不要用下面这句短指令替代那份循环纪律。
 
-> 读 AGENTS.md、CONTEXT.md、ADR-0043 与 `docs/specs/unbound-identity-rebind.md`。只做 `.scratch/unbound-identity-rebind/issues/02-unbound-draft-from-candidate.md`。不要默认做 03–07。不要复活 Vue/JPA/Neo4j/Maven/LangChain。
+> 读 AGENTS.md、CONTEXT.md、ADR-0043 与 `docs/specs/unbound-identity-rebind.md`。只做 `.scratch/unbound-identity-rebind/issues/02-unbound-draft-from-candidate.md`。开工入口见 `docs/implement-unbound-identity-rebind-02-prompt.md`。不要默认做 03–07。不要复活 Vue/JPA/Neo4j/Maven/LangChain。
