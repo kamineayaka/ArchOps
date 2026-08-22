@@ -522,6 +522,30 @@ class UnboundDraftItemReviewHttpAcceptanceTest {
                         hasItem("ACCEPTED")));
     }
 
+    @Test
+    void bootstrapFirstRunsOnStillInsertsAndOverwriteStillRejected() throws Exception {
+        String hostId = createHost("u03k-h");
+        String containerId = createContainer("u03k-x", "u03k-oid");
+        mockMvc.perform(post("/api/curated/facts/runs-on")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"containerId\":\"" + containerId + "\",\"hostId\":\"" + hostId + "\"}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.relationLabel", is("运行于")))
+                .andExpect(jsonPath("$.data.target.id", is(hostId)));
+        mockMvc.perform(post("/api/curated/facts/runs-on")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"containerId\":\"" + containerId + "\",\"hostId\":\"" + hostId + "\"}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.code", is("CURATED_RUNS_ON_EXISTS")))
+                .andExpect(jsonPath("$.data").value(nullValue()));
+    }
+
     private ResultActions postUnboundItem(String draftId, String itemId, String action) throws Exception {
         return mockMvc.perform(post("/api/curated-drafts/{draftId}/items/{itemId}/{action}",
                         draftId, itemId, action)
