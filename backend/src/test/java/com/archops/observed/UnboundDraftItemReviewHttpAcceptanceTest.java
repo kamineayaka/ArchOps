@@ -144,6 +144,45 @@ class UnboundDraftItemReviewHttpAcceptanceTest {
                 .andExpect(jsonPath("$.success", is(true)));
     }
 
+    @Test
+    void acceptingCreateFailsWhenImmutableObjectIdAlreadyExists() throws Exception {
+        String hostId = createHost("u03c-h");
+        heartbeatUnknown(hostId, "u03c-ag", "u03c-rt-unknown", "u03c-unknown", "u03c-never");
+        createContainer("u03c-existing", "u03c-never");
+        OpenUnboundDraft draft = openDraftFromRuntime("u03c-rt-unknown");
+        JsonNode createItem = itemByKind(draft.items(), "CREATE_CONTAINER_FROM_UNBOUND");
+        String createItemId = createItem.path("id").asText();
+        assertThat(createItem.path("payload").path("immutableObjectId").asText(), is("u03c-never"));
+
+        postUnboundItem(draft.draftId(), createItemId, "accept")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.code", is("CURATED_OBJECT_ID_EXISTS")))
+                .andExpect(jsonPath("$.data").value(nullValue()));
+
+        MvcResult got = mockMvc.perform(get("/api/curated-drafts/{draftId}", draft.draftId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("OPEN")))
+                .andReturn();
+        JsonNode createAfter = itemByKind(
+                sortedItems(objectMapper.readTree(got.getResponse().getContentAsString()).path("data").path("items")),
+                "CREATE_CONTAINER_FROM_UNBOUND");
+        assertThat(createAfter.path("id").asText(), is(createItemId));
+        assertThat(createAfter.path("status").asText(), is("PENDING"));
+        assertThat(createAfter.path("subjectId").isNull() || createAfter.path("subjectId").isMissingNode(), is(true));
+
+        mockMvc.perform(post("/api/curated/containers")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"u03c-probe\",\"objectId\":\"u03c-never\"}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.code", is("CURATED_OBJECT_ID_EXISTS")));
+    }
+
     private ResultActions postUnboundItem(String draftId, String itemId, String action) throws Exception {
         return mockMvc.perform(post("/api/curated-drafts/{draftId}/items/{itemId}/{action}",
                         draftId, itemId, action)
@@ -229,6 +268,17 @@ class UnboundDraftItemReviewHttpAcceptanceTest {
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"" + name + "\"}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn();
+        return objectMapper.readTree(result.getResponse().getContentAsString()).path("data").path("id").asText();
+    }
+
+    private String createContainer(String name, String objectId) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/curated/containers")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"" + name + "\",\"objectId\":\"" + objectId + "\"}")
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andReturn();
