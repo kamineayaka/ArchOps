@@ -92,6 +92,50 @@ class UnboundBindGateHttpAcceptanceTest {
                 .andExpect(jsonPath("$.code", is("CONFLICT_NOT_FOUND")));
     }
 
+    @Test
+    void secondFieldEntityCannotBeBoundToAnAlreadyBoundTarget() throws Exception {
+        String hostA = createHost("u08b-h");
+        String containerX = createContainer("u08b-x", "u08b-oid");
+        confirmRunsOn(containerX, hostA);
+        heartbeatTwoMissingLabels(hostA, "u08b-ag", "u08b-rt-1", "u08b-a", "u08b-rt-2", "u08b-b");
+
+        OpenUnboundDraft first = openDraftFromRuntime("u08b-rt-1");
+        OpenUnboundDraft second = openDraftFromRuntime("u08b-rt-2");
+        JsonNode firstBind = itemByKind(first.items(), "BIND_UNBOUND_TO_EXISTING");
+        JsonNode secondBind = itemByKind(second.items(), "BIND_UNBOUND_TO_EXISTING");
+        assertThat(firstBind.path("subjectId").asText(), is(containerX));
+        assertThat(secondBind.path("subjectId").asText(), is(containerX));
+
+        postUnboundItem(first.draftId(), firstBind.path("id").asText(), "accept")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[?(@.kind=='BIND_UNBOUND_TO_EXISTING')].status",
+                        hasItem("ACCEPTED")));
+
+        postUnboundItem(second.draftId(), secondBind.path("id").asText(), "accept")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.code", is("UNBOUND_BIND_TARGET_ALREADY_BOUND")))
+                .andExpect(jsonPath("$.data").value(nullValue()));
+
+        mockMvc.perform(get("/api/curated-drafts/{draftId}", second.draftId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[?(@.kind=='BIND_UNBOUND_TO_EXISTING')].status",
+                        hasItem("PENDING")));
+
+        mockMvc.perform(get("/api/curated/facts/runs-on/{containerId}", containerX)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.subject.objectId", is("u08b-oid")))
+                .andExpect(jsonPath("$.data.target.id", is(hostA)));
+
+        MvcResult listed = listUnbound();
+        assertThat(unboundByRuntimeId(listed, "u08b-rt-1"), nullValue());
+        assertThat(unboundByRuntimeId(listed, "u08b-rt-2"), notNullValue());
+    }
+
     private ResultActions postUnboundItem(String draftId, String itemId, String action) throws Exception {
         return mockMvc.perform(post("/api/curated-drafts/{draftId}/items/{itemId}/{action}",
                         draftId, itemId, action)
@@ -144,6 +188,33 @@ class UnboundBindGateHttpAcceptanceTest {
                                   }
                                 }
                                 """.formatted(agentId, hostId, runtimeId, name))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+    }
+
+    private void heartbeatTwoMissingLabels(
+            String hostId,
+            String agentId,
+            String firstRuntimeId,
+            String firstName,
+            String secondRuntimeId,
+            String secondName
+    ) throws Exception {
+        mockMvc.perform(post("/api/agent/heartbeat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "agentId": "%s",
+                                  "hostId": "%s",
+                                  "snapshot": {
+                                    "containers": [
+                                      { "runtimeId": "%s", "name": "%s", "labels": {} },
+                                      { "runtimeId": "%s", "name": "%s", "labels": {} }
+                                    ],
+                                    "absentObjectIds": []
+                                  }
+                                }
+                                """.formatted(agentId, hostId, firstRuntimeId, firstName, secondRuntimeId, secondName))
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk());
     }

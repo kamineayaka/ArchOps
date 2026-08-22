@@ -450,7 +450,20 @@ public class CuratedDraftService {
             throw new BusinessException("UNBOUND_BIND_TARGET_HEALTHY",
                     "只能绑到仍身份失联、且失联之后未再标签命中的对象");
         }
+        requireTargetNotAlreadyBound(targetId);
         rememberBind(draft, targetId);
+    }
+
+    /**
+     * 一个策展对象只能是一个现场实体的本体（ADR-0011）：另一个候选已绑到它时拒绝。
+     */
+    private void requireTargetNotAlreadyBound(String targetId) {
+        Long bound = unboundBindMemoryMapper.selectCount(new LambdaQueryWrapper<UnboundBindMemory>()
+                .eq(UnboundBindMemory::getCuratedObjectId, targetId));
+        if (bound != null && bound > 0) {
+            throw new BusinessException("UNBOUND_BIND_TARGET_ALREADY_BOUND",
+                    "该策展对象已由另一个现场实体绑定，不能再绑第二个");
+        }
     }
 
     /**
@@ -474,7 +487,12 @@ public class CuratedDraftService {
         memory.setRuntimeId(draft.getRuntimeId());
         memory.setCuratedObjectId(curatedObjectId);
         memory.setCreatedAt(Instant.now());
-        unboundBindMemoryMapper.insert(memory);
+        try {
+            unboundBindMemoryMapper.insert(memory);
+        } catch (DataIntegrityViolationException ex) {
+            throw new BusinessException("UNBOUND_BIND_TARGET_ALREADY_BOUND",
+                    "该策展对象已由另一个现场实体绑定，不能再绑第二个");
+        }
     }
 
     private static String stringPayload(Map<String, Object> payload, String key) {
