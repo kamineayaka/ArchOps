@@ -23,5 +23,3 @@
 ## Comments
 
 Blocked by 01。01 与本票之间若 02 也已 unblocked，先做 02。不要把失联写成观测空洞。不要做 06–07。
-
-本票验收里「心跳通道仍新鲜时，不得改走纯空洞的恢复观测通道分叉集」只定了新鲜那一面；**确实超时**那一面由「失联与空洞并存时的优先级」裁定给（prompt：[`docs/adr-identity-lost-vs-hollow-priority-prompt.md`](../../../docs/adr-identity-lost-vs-hollow-priority-prompt.md)）。本票从裁定读的是「并存时诊断给哪一组分叉」，不要在实现里自行发明该优先级；票 09 是同一裁定的问法侧。
