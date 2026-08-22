@@ -21,5 +21,3 @@
 ## Comments
 
 审计推荐把这条与票 04 分开做，不要混进同一张票。若你更愿意把「失联与空洞并存时问法的优先级」写成合同，另立 ADR 议题；备选语义：(甲) 通道超时优先报空洞、失联降为旗标（审计推荐、本票采用）；(乙) 失联优先、空洞只在诊断分叉里体现。
-
-本票的「甲」是实现票单方面选的，合同尚未写死。开工前先看该优先级是否已裁定（开工 prompt：[`docs/adr-identity-lost-vs-hollow-priority-prompt.md`](../../../docs/adr-identity-lost-vs-hollow-priority-prompt.md)）：裁定落在 ADR 或裁定记录里，本票读的是「并存时问法答哪个 `availability`、`identityLost` 是否降为旗标」。裁定与本票验收不一致时以裁定为准，并先改票。
