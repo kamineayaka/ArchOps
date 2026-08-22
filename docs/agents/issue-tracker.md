@@ -17,7 +17,7 @@ Already published:
 |---|---|---|
 | vertical-slice-mvp | `docs/specs/vertical-slice-mvp.md` | `.scratch/vertical-slice-mvp/issues/` (01–13 **done** — do not re-open) |
 | change-curated-draft | `docs/specs/change-curated-draft.md` | `.scratch/change-curated-draft/issues/`（**01–06 TDD-done**；本刀闭合） |
-| unbound-identity-rebind | `docs/specs/unbound-identity-rebind.md` | `.scratch/unbound-identity-rebind/issues/`（01–07 已拆；**01–03 TDD-done；frontier = 04**） |
+| unbound-identity-rebind | `docs/specs/unbound-identity-rebind.md` | `.scratch/unbound-identity-rebind/issues/`（01–07 已拆；**01–03 TDD-done；编号 frontier = 04，实现已暂停**） |
 
 ## When a skill says "publish to the issue tracker"
 
