@@ -12,6 +12,7 @@ import com.archops.curated.domain.CuratedRelationType;
 import com.archops.curated.dto.CuratedObjectResponse;
 import com.archops.curated.mapper.CuratedFactMapper;
 import com.archops.curated.mapper.CuratedObjectMapper;
+import com.archops.curated.service.CuratedDraftService;
 import com.archops.observed.domain.HostAgent;
 import com.archops.observed.domain.IdentityLostMark;
 import com.archops.observed.domain.ObservedAvailability;
@@ -61,6 +62,7 @@ public class ObservedTruthService {
     private final CuratedFactMapper curatedFactMapper;
     private final ConflictDetectionService conflictDetectionService;
     private final ObservationFreshnessService observationFreshnessService;
+    private final CuratedDraftService curatedDraftService;
     private final ObjectMapper objectMapper;
 
     public ObservedTruthService(
@@ -73,6 +75,7 @@ public class ObservedTruthService {
             CuratedFactMapper curatedFactMapper,
             ConflictDetectionService conflictDetectionService,
             @Lazy ObservationFreshnessService observationFreshnessService,
+            @Lazy CuratedDraftService curatedDraftService,
             ObjectMapper objectMapper
     ) {
         this.hostAgentMapper = hostAgentMapper;
@@ -84,6 +87,7 @@ public class ObservedTruthService {
         this.curatedFactMapper = curatedFactMapper;
         this.conflictDetectionService = conflictDetectionService;
         this.observationFreshnessService = observationFreshnessService;
+        this.curatedDraftService = curatedDraftService;
         this.objectMapper = objectMapper;
     }
 
@@ -244,10 +248,14 @@ public class ObservedTruthService {
         Map<String, ObservedFact> observedRunsOnAtStart = observedRunsOnBySubject();
         Set<String> matchedCuratedIds = new HashSet<>();
         Set<String> absentCuratedIds = new HashSet<>();
+        Set<String> reportedRuntimeIds = new HashSet<>();
 
         List<AgentHeartbeatRequest.SnapshotContainer> containers =
                 snapshot.containers() == null ? List.of() : snapshot.containers();
         for (AgentHeartbeatRequest.SnapshotContainer container : containers) {
+            if (container.runtimeId() != null && !container.runtimeId().isBlank()) {
+                reportedRuntimeIds.add(container.runtimeId());
+            }
             Map<String, String> labels = container.labels() == null ? Map.of() : container.labels();
             String objectId = labels.get(CuratedObjectLabels.OBJECT_ID_KEY);
             if (objectId == null || objectId.isBlank()) {
@@ -261,6 +269,8 @@ public class ObservedTruthService {
                 continue;
             }
             matchedCuratedIds.add(curated.getId());
+            clearIdentityLostMark(curated.getId());
+            consumeAfterLabelMatch(curated.getId(), host.getId(), container.runtimeId());
             upsertObservedPresent(curated, host, agentId, now);
             matched.add(new AgentHeartbeatResponse.MatchedObserved(
                     curated.getId(),
@@ -269,6 +279,8 @@ public class ObservedTruthService {
                     CuratedRelationType.RUNS_ON.name()
             ));
         }
+
+        releaseStaleBindMemory(host.getId(), reportedRuntimeIds);
 
         List<String> absentIds = snapshot.absentObjectIds() == null ? List.of() : snapshot.absentObjectIds();
         for (String raw : absentIds) {
@@ -280,6 +292,8 @@ public class ObservedTruthService {
                 continue;
             }
             absentCuratedIds.add(curated.getId());
+            clearIdentityLostMark(curated.getId());
+            releaseBindMemoryForObject(curated.getId());
             upsertObservedAbsent(curated, host, agentId, now);
             absent.add(new AgentHeartbeatResponse.AbsentObserved(
                     curated.getId(),
@@ -300,7 +314,7 @@ public class ObservedTruthService {
                     continue;
                 }
             }
-            if (absentCuratedIds.contains(curated.getId())) {
+            if (matchedCuratedIds.contains(curated.getId()) || absentCuratedIds.contains(curated.getId())) {
                 continue;
             }
             CuratedFact curatedRunsOn = findCuratedRunsOn(curated.getId());
@@ -524,6 +538,79 @@ public class ObservedTruthService {
             return null;
         }
         return unboundMapper.selectOne(new LambdaQueryWrapper<UnboundObservationCandidate>()
+                .eq(UnboundObservationCandidate::getSourceHostId, hostId)
+                .eq(UnboundObservationCandidate::getRuntimeId, runtimeId));
+    }
+
+    /**
+     * 标签命中即认回：{@code identity_lost_mark} 是当前是否失联的状态表，不是历史。
+     */
+    private void clearIdentityLostMark(String curatedObjectId) {
+        identityLostMarkMapper.deleteById(curatedObjectId);
+    }
+
+    /**
+     * 命中即消费：删除该策展对象上的绑定记忆，以及这些记忆键与本次命中
+     * ({@code reportingHostId}, {@code runtimeId}) 对应的未绑定候选行。
+     */
+    private void consumeAfterLabelMatch(String curatedObjectId, String reportingHostId, String runtimeId) {
+        List<UnboundBindMemory> memories = unboundBindMemoryMapper.selectList(
+                new LambdaQueryWrapper<UnboundBindMemory>()
+                        .eq(UnboundBindMemory::getCuratedObjectId, curatedObjectId));
+        Set<String> candidateIds = new HashSet<>();
+        Set<String> hostRuntimeKeys = new HashSet<>();
+        for (UnboundBindMemory memory : memories) {
+            hostRuntimeKeys.add(bindKey(memory.getSourceHostId(), memory.getRuntimeId()));
+            UnboundObservationCandidate row = findUnboundByHostAndRuntime(
+                    memory.getSourceHostId(), memory.getRuntimeId());
+            if (row != null) {
+                candidateIds.add(row.getId());
+            }
+        }
+        if (runtimeId != null && !runtimeId.isBlank()) {
+            hostRuntimeKeys.add(bindKey(reportingHostId, runtimeId));
+            UnboundObservationCandidate hitRow = findUnboundByHostAndRuntime(reportingHostId, runtimeId);
+            if (hitRow != null) {
+                candidateIds.add(hitRow.getId());
+            }
+        }
+        curatedDraftService.voidOpenUnboundAfterLabelMatch(curatedObjectId, candidateIds, hostRuntimeKeys);
+        for (UnboundBindMemory memory : memories) {
+            deleteUnboundCandidate(memory.getSourceHostId(), memory.getRuntimeId());
+        }
+        unboundBindMemoryMapper.delete(new LambdaQueryWrapper<UnboundBindMemory>()
+                .eq(UnboundBindMemory::getCuratedObjectId, curatedObjectId));
+        deleteUnboundCandidate(reportingHostId, runtimeId);
+    }
+
+    /**
+     * 带快照的心跳是该宿主的完整现场清单。未再报告的 runtime 上的绑定记忆已过期：
+     * 释放记忆并删除该候选行，但不清该策展对象的失联标（没有人认回，也没有人断言它不存在）。
+     */
+    private void releaseStaleBindMemory(String reportingHostId, Set<String> reportedRuntimeIds) {
+        List<UnboundBindMemory> memories = unboundBindMemoryMapper.selectList(
+                new LambdaQueryWrapper<UnboundBindMemory>()
+                        .eq(UnboundBindMemory::getSourceHostId, reportingHostId));
+        for (UnboundBindMemory memory : memories) {
+            if (reportedRuntimeIds.contains(memory.getRuntimeId())) {
+                continue;
+            }
+            deleteUnboundCandidate(memory.getSourceHostId(), memory.getRuntimeId());
+            unboundBindMemoryMapper.deleteById(memory.getId());
+        }
+    }
+
+    /** 观测消失释放该对象上的绑定记忆，不删仍在现场的未绑定候选行。 */
+    private void releaseBindMemoryForObject(String curatedObjectId) {
+        unboundBindMemoryMapper.delete(new LambdaQueryWrapper<UnboundBindMemory>()
+                .eq(UnboundBindMemory::getCuratedObjectId, curatedObjectId));
+    }
+
+    private void deleteUnboundCandidate(String hostId, String runtimeId) {
+        if (runtimeId == null || runtimeId.isBlank()) {
+            return;
+        }
+        unboundMapper.delete(new LambdaQueryWrapper<UnboundObservationCandidate>()
                 .eq(UnboundObservationCandidate::getSourceHostId, hostId)
                 .eq(UnboundObservationCandidate::getRuntimeId, runtimeId));
     }

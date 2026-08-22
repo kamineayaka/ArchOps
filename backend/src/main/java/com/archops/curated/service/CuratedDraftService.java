@@ -52,10 +52,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -304,6 +306,77 @@ public class CuratedDraftService {
     }
 
     /**
+     * 标签命中收尾：作废仍指向被消费候选 / 被消费现场实体键 / 绑到 X / 已接受新建主语为 X
+     * 的 OPEN 未绑定草案。不改条目状态，不写策展，不作废改理想草案。
+     */
+    @Transactional
+    public void voidOpenUnboundAfterLabelMatch(
+            String curatedObjectId,
+            Collection<String> consumedCandidateIds,
+            Collection<String> consumedHostRuntimeKeys
+    ) {
+        Set<String> candidateIds = consumedCandidateIds == null ? Set.of() : Set.copyOf(consumedCandidateIds);
+        Set<String> hostRuntimeKeys = consumedHostRuntimeKeys == null ? Set.of() : Set.copyOf(consumedHostRuntimeKeys);
+        List<CuratedDraft> openUnbound = curatedDraftMapper.selectList(new LambdaQueryWrapper<CuratedDraft>()
+                .eq(CuratedDraft::getOrigin, CuratedDraftOrigin.UNBOUND_CANDIDATE)
+                .eq(CuratedDraft::getStatus, CuratedDraftStatus.OPEN));
+        for (CuratedDraft draft : openUnbound) {
+            if (shouldVoidUnboundDraft(draft, curatedObjectId, candidateIds, hostRuntimeKeys)) {
+                voidUnboundDraft(draft.getId());
+            }
+        }
+    }
+
+    private boolean shouldVoidUnboundDraft(
+            CuratedDraft draft,
+            String curatedObjectId,
+            Set<String> candidateIds,
+            Set<String> hostRuntimeKeys
+    ) {
+        if (draft.getCandidateId() != null && candidateIds.contains(draft.getCandidateId())) {
+            return true;
+        }
+        if (draft.getRuntimeId() != null
+                && hostRuntimeKeys.contains(unboundHostRuntimeKey(draft.getSourceHostId(), draft.getRuntimeId()))) {
+            return true;
+        }
+        List<CuratedDraftItem> items = curatedDraftItemMapper.selectList(new LambdaQueryWrapper<CuratedDraftItem>()
+                .eq(CuratedDraftItem::getDraftId, draft.getId()));
+        for (CuratedDraftItem item : items) {
+            if (!curatedObjectId.equals(item.getSubjectId())) {
+                continue;
+            }
+            if (item.getKind() == CuratedDraftItemKind.BIND_UNBOUND_TO_EXISTING) {
+                return true;
+            }
+            if (item.getKind() == CuratedDraftItemKind.CREATE_CONTAINER_FROM_UNBOUND
+                    && item.getStatus() == CuratedDraftItemStatus.ACCEPTED) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void voidUnboundDraft(String draftId) {
+        int updated = curatedDraftMapper.update(null, new LambdaUpdateWrapper<CuratedDraft>()
+                .eq(CuratedDraft::getId, draftId)
+                .eq(CuratedDraft::getOrigin, CuratedDraftOrigin.UNBOUND_CANDIDATE)
+                .eq(CuratedDraft::getStatus, CuratedDraftStatus.OPEN)
+                .set(CuratedDraft::getStatus, CuratedDraftStatus.VOIDED));
+        if (updated != 1) {
+            return;
+        }
+        appendDraftEvent(draftId, CuratedDraftEventType.DRAFT_VOIDED, null, Map.of(
+                "draftId", draftId,
+                "hint", "草案已作废"
+        ));
+    }
+
+    static String unboundHostRuntimeKey(String sourceHostId, String runtimeId) {
+        return sourceHostId + "\0" + runtimeId;
+    }
+
+    /**
      * 未绑定草案逐条确认：接受即写该条（新建容器），拒绝不写。
      */
     @Transactional
@@ -361,9 +434,13 @@ public class CuratedDraftService {
 
     private UnboundItemReview beginUnboundItemReview(String draftId, String itemId) {
         CuratedDraft draft = curatedDraftMapper.selectById(draftId);
-        if (draft == null
-                || draft.getOrigin() != CuratedDraftOrigin.UNBOUND_CANDIDATE
-                || draft.getStatus() != CuratedDraftStatus.OPEN) {
+        if (draft == null || draft.getOrigin() != CuratedDraftOrigin.UNBOUND_CANDIDATE) {
+            throw new BusinessException("DRAFT_NOT_FOUND", "No open 未绑定草案: " + draftId);
+        }
+        if (draft.getStatus() == CuratedDraftStatus.VOIDED) {
+            throw new BusinessException("DRAFT_VOIDED", "草案已作废");
+        }
+        if (draft.getStatus() != CuratedDraftStatus.OPEN) {
             throw new BusinessException("DRAFT_NOT_FOUND", "No open 未绑定草案: " + draftId);
         }
         CuratedDraftItem item = requireItemOnDraft(draft.getId(), itemId);

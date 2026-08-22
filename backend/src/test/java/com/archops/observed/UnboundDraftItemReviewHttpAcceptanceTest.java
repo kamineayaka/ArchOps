@@ -362,13 +362,14 @@ class UnboundDraftItemReviewHttpAcceptanceTest {
         postUnboundItem(draft.draftId(), bindItemId, "accept")
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success", is(false)))
-                .andExpect(jsonPath("$.code", is("UNBOUND_BIND_TARGET_HEALTHY")))
+                .andExpect(jsonPath("$.code", is("DRAFT_VOIDED")))
                 .andExpect(jsonPath("$.data").value(nullValue()));
 
         MvcResult got = mockMvc.perform(get("/api/curated-drafts/{draftId}", draft.draftId())
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("VOIDED")))
                 .andReturn();
         JsonNode bindAfter = itemByKind(
                 sortedItems(objectMapper.readTree(got.getResponse().getContentAsString()).path("data").path("items")),
@@ -386,7 +387,10 @@ class UnboundDraftItemReviewHttpAcceptanceTest {
         mockMvc.perform(get("/api/observed/identity-lost/{id}", containerX)
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)
                         .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.code", is("IDENTITY_LOST_NOT_FOUND")))
+                .andExpect(jsonPath("$.data").value(nullValue()));
     }
 
     @Test
