@@ -31,9 +31,11 @@ import com.archops.curated.mapper.CuratedObjectMapper;
 import com.archops.curated.domain.CuratedDraftOrigin;
 import com.archops.curated.CuratedObjectLabels;
 import com.archops.observed.domain.IdentityLostMark;
+import com.archops.observed.domain.UnboundBindMemory;
 import com.archops.observed.domain.UnboundObservationCandidate;
 import com.archops.observed.domain.UnboundReason;
 import com.archops.observed.mapper.IdentityLostMarkMapper;
+import com.archops.observed.mapper.UnboundBindMemoryMapper;
 import com.archops.observed.mapper.UnboundObservationCandidateMapper;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.archops.user.security.AuthUserPrincipal;
@@ -71,6 +73,7 @@ public class CuratedDraftService {
     private final CuratedTruthService curatedTruthService;
     private final UnboundObservationCandidateMapper unboundObservationCandidateMapper;
     private final IdentityLostMarkMapper identityLostMarkMapper;
+    private final UnboundBindMemoryMapper unboundBindMemoryMapper;
     private final CuratedDraftEventMapper curatedDraftEventMapper;
     private final ObjectMapper objectMapper;
 
@@ -85,6 +88,7 @@ public class CuratedDraftService {
             CuratedTruthService curatedTruthService,
             UnboundObservationCandidateMapper unboundObservationCandidateMapper,
             IdentityLostMarkMapper identityLostMarkMapper,
+            UnboundBindMemoryMapper unboundBindMemoryMapper,
             CuratedDraftEventMapper curatedDraftEventMapper,
             ObjectMapper objectMapper
     ) {
@@ -98,6 +102,7 @@ public class CuratedDraftService {
         this.curatedTruthService = curatedTruthService;
         this.unboundObservationCandidateMapper = unboundObservationCandidateMapper;
         this.identityLostMarkMapper = identityLostMarkMapper;
+        this.unboundBindMemoryMapper = unboundBindMemoryMapper;
         this.curatedDraftEventMapper = curatedDraftEventMapper;
         this.objectMapper = objectMapper;
     }
@@ -298,7 +303,7 @@ public class CuratedDraftService {
     @Transactional
     public CuratedDraftResponse acceptUnboundItem(String draftId, String itemId, AuthUserPrincipal actor) {
         UnboundItemReview review = beginUnboundItemReview(draftId, itemId);
-        applyUnboundAccept(review.item(), actor.getUserId());
+        applyUnboundAccept(review.draft(), review.item(), actor.getUserId());
         markItem(review.item(), CuratedDraftItemStatus.ACCEPTED);
         return respond(review.draft());
     }
@@ -351,13 +356,17 @@ public class CuratedDraftService {
         return new UnboundItemReview(draft, item);
     }
 
-    private void applyUnboundAccept(CuratedDraftItem item, String actorUserId) {
+    private void applyUnboundAccept(CuratedDraft draft, CuratedDraftItem item, String actorUserId) {
         if (item.getKind() == CuratedDraftItemKind.CREATE_CONTAINER_FROM_UNBOUND) {
-            writeAcceptedCreateContainer(item, actorUserId);
+            writeAcceptedCreateContainer(draft, item, actorUserId);
             return;
         }
         if (item.getKind() == CuratedDraftItemKind.CURATED_RUNS_ON_INSERT) {
             writeAcceptedFirstRunsOn(item, actorUserId);
+            return;
+        }
+        if (item.getKind() == CuratedDraftItemKind.BIND_UNBOUND_TO_EXISTING) {
+            writeAcceptedBind(draft, item);
             return;
         }
         throw new BusinessException("UNBOUND_ITEM_KIND_UNSUPPORTED",
@@ -392,7 +401,7 @@ public class CuratedDraftService {
                 .orElse(null);
     }
 
-    private void writeAcceptedCreateContainer(CuratedDraftItem item, String actorUserId) {
+    private void writeAcceptedCreateContainer(CuratedDraft draft, CuratedDraftItem item, String actorUserId) {
         Map<String, Object> payload = readPayloadMap(item.getPayloadJson());
         String name = stringPayload(payload, "proposedName");
         String objectId = stringPayload(payload, "immutableObjectId");
@@ -403,6 +412,31 @@ public class CuratedDraftService {
         CuratedObjectResponse created = curatedTruthService.createContainer(
                 new CreateContainerRequest(name, objectId), actorUserId);
         item.setSubjectId(created.id());
+        rememberBind(draft, created.id());
+    }
+
+    private void writeAcceptedBind(CuratedDraft draft, CuratedDraftItem item) {
+        String targetId = item.getSubjectId();
+        if (targetId == null || targetId.isBlank()) {
+            throw new BusinessException("UNBOUND_ITEM_KIND_UNSUPPORTED",
+                    "绑到已有缺少目标策展对象");
+        }
+        IdentityLostMark lost = identityLostMarkMapper.selectById(targetId);
+        if (lost == null) {
+            throw new BusinessException("UNBOUND_BIND_TARGET_HEALTHY",
+                    "只能绑到仍身份失联的对象");
+        }
+        rememberBind(draft, targetId);
+    }
+
+    private void rememberBind(CuratedDraft draft, String curatedObjectId) {
+        UnboundBindMemory memory = new UnboundBindMemory();
+        memory.setId("ubm-" + UUID.randomUUID());
+        memory.setSourceHostId(draft.getSourceHostId());
+        memory.setRuntimeId(draft.getRuntimeId());
+        memory.setCuratedObjectId(curatedObjectId);
+        memory.setCreatedAt(Instant.now());
+        unboundBindMemoryMapper.insert(memory);
     }
 
     private static String stringPayload(Map<String, Object> payload, String key) {

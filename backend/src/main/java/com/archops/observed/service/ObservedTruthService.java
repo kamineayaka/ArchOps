@@ -16,6 +16,7 @@ import com.archops.observed.domain.HostAgent;
 import com.archops.observed.domain.IdentityLostMark;
 import com.archops.observed.domain.ObservedAvailability;
 import com.archops.observed.domain.ObservedFact;
+import com.archops.observed.domain.UnboundBindMemory;
 import com.archops.observed.domain.UnboundObservationCandidate;
 import com.archops.observed.domain.UnboundReason;
 import com.archops.observed.dto.ActualWhereResponse;
@@ -25,6 +26,7 @@ import com.archops.observed.dto.UnboundCandidateResponse;
 import com.archops.observed.mapper.HostAgentMapper;
 import com.archops.observed.mapper.IdentityLostMarkMapper;
 import com.archops.observed.mapper.ObservedFactMapper;
+import com.archops.observed.mapper.UnboundBindMemoryMapper;
 import com.archops.observed.mapper.UnboundObservationCandidateMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
@@ -53,6 +55,7 @@ public class ObservedTruthService {
     private final HostAgentMapper hostAgentMapper;
     private final ObservedFactMapper observedFactMapper;
     private final UnboundObservationCandidateMapper unboundMapper;
+    private final UnboundBindMemoryMapper unboundBindMemoryMapper;
     private final IdentityLostMarkMapper identityLostMarkMapper;
     private final CuratedObjectMapper curatedObjectMapper;
     private final CuratedFactMapper curatedFactMapper;
@@ -64,6 +67,7 @@ public class ObservedTruthService {
             HostAgentMapper hostAgentMapper,
             ObservedFactMapper observedFactMapper,
             UnboundObservationCandidateMapper unboundMapper,
+            UnboundBindMemoryMapper unboundBindMemoryMapper,
             IdentityLostMarkMapper identityLostMarkMapper,
             CuratedObjectMapper curatedObjectMapper,
             CuratedFactMapper curatedFactMapper,
@@ -74,6 +78,7 @@ public class ObservedTruthService {
         this.hostAgentMapper = hostAgentMapper;
         this.observedFactMapper = observedFactMapper;
         this.unboundMapper = unboundMapper;
+        this.unboundBindMemoryMapper = unboundBindMemoryMapper;
         this.identityLostMarkMapper = identityLostMarkMapper;
         this.curatedObjectMapper = curatedObjectMapper;
         this.curatedFactMapper = curatedFactMapper;
@@ -182,9 +187,14 @@ public class ObservedTruthService {
 
     @Transactional(readOnly = true)
     public List<UnboundCandidateResponse> listUnbound() {
+        Set<String> consumedKeys = new HashSet<>();
+        for (UnboundBindMemory memory : unboundBindMemoryMapper.selectList(null)) {
+            consumedKeys.add(bindKey(memory.getSourceHostId(), memory.getRuntimeId()));
+        }
         return unboundMapper.selectList(new LambdaQueryWrapper<UnboundObservationCandidate>()
                         .orderByDesc(UnboundObservationCandidate::getObservedAt))
                 .stream()
+                .filter(row -> !consumedKeys.contains(bindKey(row.getSourceHostId(), row.getRuntimeId())))
                 .map(row -> new UnboundCandidateResponse(
                         row.getId(),
                         row.getSourceAgentId(),
@@ -197,6 +207,10 @@ public class ObservedTruthService {
                         row.getObservedAt()
                 ))
                 .toList();
+    }
+
+    private static String bindKey(String sourceHostId, String runtimeId) {
+        return sourceHostId + "\0" + runtimeId;
     }
 
     @Transactional(readOnly = true)

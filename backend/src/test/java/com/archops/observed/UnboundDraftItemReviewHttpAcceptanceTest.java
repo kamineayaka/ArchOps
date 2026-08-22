@@ -183,6 +183,66 @@ class UnboundDraftItemReviewHttpAcceptanceTest {
                 .andExpect(jsonPath("$.code", is("CURATED_OBJECT_ID_EXISTS")));
     }
 
+    @Test
+    void acceptingBindToIdentityLostLeavesPrimaryKeyAndDoesNotWriteObservedRunsOn() throws Exception {
+        String hostId = createHost("u03d-h");
+        String containerX = createContainer("u03d-x", "u03d-oid");
+        confirmRunsOn(containerX, hostId);
+        heartbeatMissingLabel(hostId, "u03d-ag", "u03d-rt-miss", "u03d-similar");
+
+        mockMvc.perform(get("/api/observed/identity-lost/{id}", containerX)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+
+        OpenUnboundDraft draft = openDraftFromRuntime("u03d-rt-miss");
+        JsonNode bindItem = itemByKind(draft.items(), "BIND_UNBOUND_TO_EXISTING");
+        assertThat(bindItem.path("subjectId").asText(), is(containerX));
+
+        postUnboundItem(draft.draftId(), bindItem.path("id").asText(), "accept")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)))
+                .andExpect(jsonPath("$.data.items[?(@.kind=='BIND_UNBOUND_TO_EXISTING')].status",
+                        hasItem("ACCEPTED")));
+
+        mockMvc.perform(get("/api/curated/facts/runs-on/{containerId}", containerX)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.subject.id", is(containerX)))
+                .andExpect(jsonPath("$.data.subject.objectId", is("u03d-oid")))
+                .andExpect(jsonPath("$.data.target.id", is(hostId)));
+
+        mockMvc.perform(get("/api/observed/asks/actual-where")
+                        .param("containerId", containerX)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.question", is("实际在哪")))
+                .andExpect(jsonPath("$.data.identityLost", is(true)))
+                .andExpect(jsonPath("$.data.observedValue.availability", is("IDENTITY_LOST")))
+                .andExpect(jsonPath("$.data.observedValue.hostId").value(nullValue()));
+
+        mockMvc.perform(get("/api/observed/identity-lost/{id}", containerX)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+
+        MvcResult listed = mockMvc.perform(get("/api/observed/unbound-candidates")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn();
+        assertThat(unboundByRuntimeId(listed, "u03d-rt-miss"), nullValue());
+
+        mockMvc.perform(get("/api/conflicts/by-merge-key")
+                        .param("subjectId", containerX)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("CONFLICT_NOT_FOUND")));
+    }
+
     private ResultActions postUnboundItem(String draftId, String itemId, String action) throws Exception {
         return mockMvc.perform(post("/api/curated-drafts/{draftId}/items/{itemId}/{action}",
                         draftId, itemId, action)
@@ -214,6 +274,27 @@ class UnboundDraftItemReviewHttpAcceptanceTest {
                                   }
                                 }
                                 """.formatted(agentId, hostId, runtimeId, name, objectId))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+    }
+
+    private void heartbeatMissingLabel(String hostId, String agentId, String runtimeId, String name) throws Exception {
+        mockMvc.perform(post("/api/agent/heartbeat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "agentId": "%s",
+                                  "hostId": "%s",
+                                  "snapshot": {
+                                    "containers": [{
+                                      "runtimeId": "%s",
+                                      "name": "%s",
+                                      "labels": {}
+                                    }],
+                                    "absentObjectIds": []
+                                  }
+                                }
+                                """.formatted(agentId, hostId, runtimeId, name))
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk());
     }
@@ -283,6 +364,15 @@ class UnboundDraftItemReviewHttpAcceptanceTest {
                 .andExpect(status().isOk())
                 .andReturn();
         return objectMapper.readTree(result.getResponse().getContentAsString()).path("data").path("id").asText();
+    }
+
+    private void confirmRunsOn(String containerId, String hostId) throws Exception {
+        mockMvc.perform(post("/api/curated/facts/runs-on")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"containerId\":\"" + containerId + "\",\"hostId\":\"" + hostId + "\"}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
     }
 
     private record OpenUnboundDraft(String draftId, List<JsonNode> items) {

@@ -12,8 +12,8 @@
 
 - [x] 只接受新建、拒绝 `运行于` → 策展出现该容器（不可变标签 = 现场标签），无该 `运行于`；未接受条目仍是草案
 - [x] 先接受 `运行于`、尚未新建 → 失败，策展不变
-- [ ] 新建所用 `archops.object_id` 已被占用 → 接受失败
-- [ ] 接受绑到已有失联对象 X → X 的 `容器ID` / 不可变标签不变；「实际在哪」仍不得把弱线索当可靠 `运行于`；该 `runtimeId` 不再出现在待并入列表
+- [x] 新建所用 `archops.object_id` 已被占用 → 接受失败
+- [x] 接受绑到已有失联对象 X → X 的 `容器ID` / 不可变标签不变；「实际在哪」仍不得把弱线索当可靠 `运行于`；该 `runtimeId` 不再出现在待并入列表
 - [ ] 再心跳同一 `runtimeId` 仍缺标/错标 → 仍不待并入、仍身份失联、仍不承诺升级链
 - [ ] 绑定与新建都接受 → 第二次失败，不得把一个现场实体变成两个策展对象
 - [ ] 绑到仍标签命中、升级链有效的对象 → 失败
@@ -45,5 +45,22 @@ Red command:
 Failure (witnessed): JSON path `$.code` expected `UNBOUND_RUNS_ON_BEFORE_CREATE` but was `UNBOUND_ITEM_KIND_UNSUPPORTED`.
 Green command: same; exit 0. Guard refuses RUNS_ON insert until CREATE is ACCEPTED with a subject; items stay PENDING; object id still free for bootstrap POST.
 Refactor: extract `postUnboundItem` helper; first 运行于 insert reuses bootstrap `confirmRunsOn` after CREATE.
+Commit: `82f565d` feat(unbound): refuse 运行于 insert before CREATE
+
+### Cycle C — 新建所用 archops.object_id 已被占用 → 接受失败
+Red command:
+`cd backend && ./gradlew test --tests com.archops.observed.UnboundDraftItemReviewHttpAcceptanceTest.acceptingCreateFailsWhenImmutableObjectIdAlreadyExists`
+First run: fixture error — occupying `u03c-never` *before* the unknown snapshot label-matches ingest, so no unbound candidate. After occupying *after* the candidate exists (same object id, different runtime), first-run green.
+reuse/regression: Cycle A CREATE accept delegates to `CuratedTruthService.createContainer` (`CURATED_OBJECT_ID_EXISTS`); also `CuratedTruthHttpAcceptanceTest.duplicateImmutableObjectIdIsRejected`.
+Green command: same; exit 0. CREATE stays PENDING, subjectId JSON null, bootstrap POST same objectId still `CURATED_OBJECT_ID_EXISTS`.
+Refactor: 无结构改动（夹具顺序对齐 ingest 匹配）。
+Commit: `30ca78f` test(unbound): occupied object id rejects CREATE accept
+
+### Cycle D — 接受绑到已有失联对象 X
+Red command:
+`cd backend && ./gradlew test --tests com.archops.observed.UnboundDraftItemReviewHttpAcceptanceTest.acceptingBindToIdentityLostLeavesPrimaryKeyAndDoesNotWriteObservedRunsOn`
+Failure (witnessed): Status expected:<200> but was:<400>; `UNBOUND_ITEM_KIND_UNSUPPORTED` for `BIND_UNBOUND_TO_EXISTING`.
+Green command: same; exit 0 after V18 `unbound_bind_memory`, BIND accept remembers (sourceHostId, runtimeId)→X, default GET 待并入 filters that pair, X id/objectId and 策展「运行于」unchanged, 「实际在哪」 still IDENTITY_LOST, by-merge-key still CONFLICT_NOT_FOUND.
+Refactor: bind memory written on CREATE as well so later consume is one matching-state table.
 Commit: (this slice)
 
