@@ -16,8 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 /**
- * Open 改理想 草案 reads (ticket 03), per-item accept/reject (ticket 04),
- * GET by id including VOIDED (ticket 05).
+ * 改理想草案 reads / item review, plus 未绑定草案 by-id reads and per-item accept/reject.
  */
 @RestController
 @RequestMapping("/api")
@@ -51,6 +50,24 @@ public class CuratedDraftController {
             @PathVariable String draftId
     ) {
         return ApiResponse.ok(curatedDraftService.getById(conflictId, draftId));
+    }
+
+    @PostMapping("/curated-drafts/{draftId}/items/{itemId}/accept")
+    public ApiResponse<CuratedDraftResponse> acceptUnboundItem(
+            @PathVariable String draftId,
+            @PathVariable String itemId,
+            @AuthenticationPrincipal AuthUserPrincipal principal
+    ) {
+        return ApiResponse.ok(curatedDraftService.acceptUnboundItem(draftId, itemId, principal));
+    }
+
+    @PostMapping("/curated-drafts/{draftId}/items/{itemId}/reject")
+    public ApiResponse<CuratedDraftResponse> rejectUnboundItem(
+            @PathVariable String draftId,
+            @PathVariable String itemId,
+            @AuthenticationPrincipal AuthUserPrincipal principal
+    ) {
+        return ApiResponse.ok(curatedDraftService.rejectUnboundItem(draftId, itemId, principal));
     }
 
     @PostMapping("/conflicts/{conflictId}/curated-drafts/open/items/{itemId}/accept")
