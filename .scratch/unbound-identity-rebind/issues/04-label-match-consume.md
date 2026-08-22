@@ -62,4 +62,17 @@ java.lang.AssertionError: Status expected:<200> but was:<400>
 Green command: 同上，exit 0。命中时删除 `curated_object_id = X` 的绑定记忆，并删除这些记忆键与本次命中 `(hostId, runtimeId)` 的未绑定候选行。补标 → 重新失联 → 重绑在 HTTP 上走通。
 Regression: `UnboundBindGateHttpAcceptanceTest` 全类绿（V19 目标唯一未被削弱）。Cycle A 同套件仍绿。
 Refactor: `consumeAfterLabelMatch` / `deleteUnboundCandidate` 抽出；V20 只增不改历史脚本。
+Commit: `d9f1d90` feat(unbound): consume bind memory and 未绑定候选 on label match
+
+### Cycle C — 命中作废未绑定草案；再审条 DRAFT_VOIDED；事件可读
+Red command:
+`cd backend && ./gradlew test --tests com.archops.observed.UnboundLabelMatchConsumeHttpAcceptanceTest.labelMatchVoidsOpenUnboundDraftAndRejectsFurtherReview`
+```
+UnboundLabelMatchConsumeHttpAcceptanceTest > labelMatchVoidsOpenUnboundDraftAndRejectsFurtherReview() FAILED
+    java.lang.AssertionError at UnboundLabelMatchConsumeHttpAcceptanceTest.java:152
+JSON path "$.data.status" Expected: is "VOIDED" but: was "OPEN"
+```
+Green command: 同上，exit 0。命中时按候选 id / (host, runtime) / BIND 目标 / 已接受 CREATE 主语作废 OPEN 未绑定草案；`CuratedDraftEventType.DRAFT_VOIDED` 写入 `curated_draft_event`（不写 conflict_case_event）；`beginUnboundItemReview` 对 VOIDED 抛 `DRAFT_VOIDED`。条目仍 PENDING，策展「运行于」不变。
+Regression: `UnboundDraftItemReviewHttpAcceptanceTest` 全类绿。`bindingToLabelMatchedPresentTargetIsRejected` 在命中后草案已被作废，再接受变为 `DRAFT_VOIDED`（不再到达 `UNBOUND_BIND_TARGET_HEALTHY`）；S-4 的 identity-lost 400 仍在。`labelMatchedAfterIdentityLoss` 门禁保留。
+Refactor: 作废范围集中在 `voidOpenUnboundAfterLabelMatch`；ingest 先作废再删候选行。
 Commit: （提交后回填）

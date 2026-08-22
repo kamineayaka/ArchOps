@@ -248,10 +248,14 @@ public class ObservedTruthService {
         Map<String, ObservedFact> observedRunsOnAtStart = observedRunsOnBySubject();
         Set<String> matchedCuratedIds = new HashSet<>();
         Set<String> absentCuratedIds = new HashSet<>();
+        Set<String> reportedRuntimeIds = new HashSet<>();
 
         List<AgentHeartbeatRequest.SnapshotContainer> containers =
                 snapshot.containers() == null ? List.of() : snapshot.containers();
         for (AgentHeartbeatRequest.SnapshotContainer container : containers) {
+            if (container.runtimeId() != null && !container.runtimeId().isBlank()) {
+                reportedRuntimeIds.add(container.runtimeId());
+            }
             Map<String, String> labels = container.labels() == null ? Map.of() : container.labels();
             String objectId = labels.get(CuratedObjectLabels.OBJECT_ID_KEY);
             if (objectId == null || objectId.isBlank()) {
@@ -276,6 +280,8 @@ public class ObservedTruthService {
             ));
         }
 
+        releaseStaleBindMemory(host.getId(), reportedRuntimeIds);
+
         List<String> absentIds = snapshot.absentObjectIds() == null ? List.of() : snapshot.absentObjectIds();
         for (String raw : absentIds) {
             if (raw == null || raw.isBlank()) {
@@ -286,6 +292,8 @@ public class ObservedTruthService {
                 continue;
             }
             absentCuratedIds.add(curated.getId());
+            clearIdentityLostMark(curated.getId());
+            releaseBindMemoryForObject(curated.getId());
             upsertObservedAbsent(curated, host, agentId, now);
             absent.add(new AgentHeartbeatResponse.AbsentObserved(
                     curated.getId(),
@@ -573,6 +581,29 @@ public class ObservedTruthService {
         unboundBindMemoryMapper.delete(new LambdaQueryWrapper<UnboundBindMemory>()
                 .eq(UnboundBindMemory::getCuratedObjectId, curatedObjectId));
         deleteUnboundCandidate(reportingHostId, runtimeId);
+    }
+
+    /**
+     * 带快照的心跳是该宿主的完整现场清单。未再报告的 runtime 上的绑定记忆已过期：
+     * 释放记忆并删除该候选行，但不清该策展对象的失联标（没有人认回，也没有人断言它不存在）。
+     */
+    private void releaseStaleBindMemory(String reportingHostId, Set<String> reportedRuntimeIds) {
+        List<UnboundBindMemory> memories = unboundBindMemoryMapper.selectList(
+                new LambdaQueryWrapper<UnboundBindMemory>()
+                        .eq(UnboundBindMemory::getSourceHostId, reportingHostId));
+        for (UnboundBindMemory memory : memories) {
+            if (reportedRuntimeIds.contains(memory.getRuntimeId())) {
+                continue;
+            }
+            deleteUnboundCandidate(memory.getSourceHostId(), memory.getRuntimeId());
+            unboundBindMemoryMapper.deleteById(memory.getId());
+        }
+    }
+
+    /** 观测消失释放该对象上的绑定记忆，不删仍在现场的未绑定候选行。 */
+    private void releaseBindMemoryForObject(String curatedObjectId) {
+        unboundBindMemoryMapper.delete(new LambdaQueryWrapper<UnboundBindMemory>()
+                .eq(UnboundBindMemory::getCuratedObjectId, curatedObjectId));
     }
 
     private void deleteUnboundCandidate(String hostId, String runtimeId) {

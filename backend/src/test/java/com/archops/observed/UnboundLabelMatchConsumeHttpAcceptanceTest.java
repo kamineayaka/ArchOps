@@ -177,6 +177,277 @@ class UnboundLabelMatchConsumeHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data.subject.objectId", is("u04c-oid")));
     }
 
+    @Test
+    void unlabeledReheartbeatDoesNotVoidOpenUnboundDraft() throws Exception {
+        String hostA = createHost("u04d-h");
+        String containerX = createContainer("u04d-x", "u04d-oid");
+        confirmRunsOn(containerX, hostA);
+        heartbeatMissingLabel(hostA, "u04d-ag", "u04d-rt-miss", "u04d-similar");
+        OpenUnboundDraft draft = openDraftFromRuntime("u04d-rt-miss");
+        JsonNode bindItem = itemByKind(draft.items(), "BIND_UNBOUND_TO_EXISTING");
+        assertThat(bindItem.path("status").asText(), is("PENDING"));
+
+        heartbeatMissingLabel(hostA, "u04d-ag", "u04d-rt-miss", "u04d-renamed");
+
+        mockMvc.perform(get("/api/curated-drafts/{draftId}", draft.draftId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("OPEN")));
+        MvcResult got = mockMvc.perform(get("/api/curated-drafts/{draftId}", draft.draftId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn();
+        JsonNode bindAfter = itemByKind(
+                sortedItems(objectMapper.readTree(got.getResponse().getContentAsString()).path("data").path("items")),
+                "BIND_UNBOUND_TO_EXISTING");
+        assertThat(bindAfter.path("status").asText(), is("PENDING"));
+
+        MvcResult listed = mockMvc.perform(get("/api/observed/unbound-candidates")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn();
+        JsonNode stillPending = unboundByRuntimeId(listed, "u04d-rt-miss");
+        assertThat(stillPending, notNullValue());
+        assertThat(stillPending.path("name").asText(), is("u04d-renamed"));
+
+        mockMvc.perform(get("/api/observed/identity-lost/{id}", containerX)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void labelMatchOnADifferentHostRestoresTheUpgradeChain() throws Exception {
+        String hostA = createHost("u04e-ha");
+        String hostB = createHost("u04e-hb");
+        String hostC = createHost("u04e-hc");
+        String containerX = createContainer("u04e-x", "u04e-oid");
+        confirmRunsOn(containerX, hostA);
+        heartbeatMissingLabel(hostA, "u04e-ag", "u04e-rt-miss", "u04e-similar");
+
+        mockMvc.perform(get("/api/conflicts/by-merge-key")
+                        .param("subjectId", containerX)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("CONFLICT_NOT_FOUND")));
+
+        heartbeatLabeled(hostB, "u04e-agb", "u04e-rt-hit", "u04e-x", "u04e-oid");
+
+        mockMvc.perform(get("/api/conflicts/by-merge-key")
+                        .param("subjectId", containerX)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("OPEN")))
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(hostA)))
+                .andExpect(jsonPath("$.data.observedValue.hostId", is(hostB)));
+
+        mockMvc.perform(get("/api/observed/identity-lost/{id}", containerX)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("IDENTITY_LOST_NOT_FOUND")));
+        mockMvc.perform(get("/api/observed/asks/actual-where")
+                        .param("containerId", containerX)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.identityLost", is(false)))
+                .andExpect(jsonPath("$.data.observedValue.availability", is("PRESENT")))
+                .andExpect(jsonPath("$.data.observedValue.hostId", is(hostB)));
+
+        heartbeatLabeled(hostC, "u04e-agc", "u04e-rt-hit-c", "u04e-x", "u04e-oid");
+
+        mockMvc.perform(get("/api/conflicts/by-merge-key")
+                        .param("subjectId", containerX)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("OPEN")))
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(hostA)))
+                .andExpect(jsonPath("$.data.observedValue.hostId", is(hostC)))
+                .andExpect(jsonPath("$.data.observedLineage[0].hostId", is(hostB)))
+                .andExpect(jsonPath("$.data.observedLineage[1].hostId", is(hostC)));
+    }
+
+    @Test
+    void acceptedCreateAndRunsOnThenEqualHitDoesNotInventAConflict() throws Exception {
+        String hostA = createHost("u04f-h");
+        heartbeatUnknown(hostA, "u04f-ag", "u04f-rt", "u04f-unknown", "u04f-never");
+        OpenUnboundDraft draft = openDraftFromRuntime("u04f-rt");
+        JsonNode createItem = itemByKind(draft.items(), "CREATE_CONTAINER_FROM_UNBOUND");
+        JsonNode runsOnItem = itemByKind(draft.items(), "CURATED_RUNS_ON_INSERT");
+        MvcResult acceptedCreate = postUnboundItem(draft.draftId(), createItem.path("id").asText(), "accept")
+                .andExpect(status().isOk())
+                .andReturn();
+        String subjectId = itemByKind(
+                sortedItems(objectMapper.readTree(acceptedCreate.getResponse().getContentAsString())
+                        .path("data").path("items")),
+                "CREATE_CONTAINER_FROM_UNBOUND").path("subjectId").asText();
+        postUnboundItem(draft.draftId(), runsOnItem.path("id").asText(), "accept")
+                .andExpect(status().isOk());
+
+        heartbeatLabeled(hostA, "u04f-ag", "u04f-rt", "u04f-unknown", "u04f-never");
+
+        mockMvc.perform(get("/api/conflicts/by-merge-key")
+                        .param("subjectId", subjectId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.code", is("CONFLICT_NOT_FOUND")))
+                .andExpect(jsonPath("$.data").value(nullValue()));
+
+        mockMvc.perform(get("/api/observed/asks/actual-where")
+                        .param("containerId", subjectId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.observedValue.availability", is("PRESENT")))
+                .andExpect(jsonPath("$.data.observedValue.hostId", is(hostA)))
+                .andExpect(jsonPath("$.data.identityLost", is(false)));
+        mockMvc.perform(get("/api/curated/asks/should-where")
+                        .param("containerId", subjectId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(hostA)));
+
+        MvcResult listed = mockMvc.perform(get("/api/observed/unbound-candidates")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn();
+        assertThat(unboundByRuntimeId(listed, "u04f-rt"), nullValue());
+    }
+
+    @Test
+    void runtimeIdChangeIsANewCandidateAndReleasesStaleBindMemory() throws Exception {
+        String hostA = createHost("u04g-h");
+        String containerX = createContainer("u04g-x", "u04g-oid");
+        confirmRunsOn(containerX, hostA);
+        heartbeatMissingLabel(hostA, "u04g-ag", "u04g-rt-1", "u04g-x");
+        OpenUnboundDraft first = openDraftFromRuntime("u04g-rt-1");
+        JsonNode firstBind = itemByKind(first.items(), "BIND_UNBOUND_TO_EXISTING");
+        assertThat(firstBind.path("subjectId").asText(), is(containerX));
+        postUnboundItem(first.draftId(), firstBind.path("id").asText(), "accept")
+                .andExpect(status().isOk());
+
+        heartbeatMissingLabel(hostA, "u04g-ag", "u04g-rt-2", "u04g-x");
+
+        MvcResult listed = mockMvc.perform(get("/api/observed/unbound-candidates")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn();
+        assertThat(unboundByRuntimeId(listed, "u04g-rt-2"), notNullValue());
+        assertThat(unboundByRuntimeId(listed, "u04g-rt-1"), nullValue());
+
+        mockMvc.perform(get("/api/conflicts/by-merge-key")
+                        .param("subjectId", containerX)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("CONFLICT_NOT_FOUND")));
+        mockMvc.perform(get("/api/observed/identity-lost/{id}", containerX)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+
+        OpenUnboundDraft second = openDraftFromRuntime("u04g-rt-2");
+        JsonNode secondBind = itemByKind(second.items(), "BIND_UNBOUND_TO_EXISTING");
+        assertThat(secondBind.path("subjectId").asText(), is(containerX));
+        postUnboundItem(second.draftId(), secondBind.path("id").asText(), "accept")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)));
+    }
+
+    @Test
+    void absentObjectIdsAfterBindIsObservedAbsenceAndReturnsTheFieldEntityToPending() throws Exception {
+        String hostA = createHost("u04h-h");
+        String containerX = createContainer("u04h-x", "u04h-oid");
+        confirmRunsOn(containerX, hostA);
+        heartbeatMissingLabel(hostA, "u04h-ag", "u04h-rt-miss", "u04h-similar");
+        OpenUnboundDraft first = openDraftFromRuntime("u04h-rt-miss");
+        JsonNode firstBind = itemByKind(first.items(), "BIND_UNBOUND_TO_EXISTING");
+        postUnboundItem(first.draftId(), firstBind.path("id").asText(), "accept")
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/agent/heartbeat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "agentId": "u04h-ag",
+                                  "hostId": "%s",
+                                  "snapshot": {
+                                    "containers": [{
+                                      "runtimeId": "u04h-rt-miss",
+                                      "name": "u04h-similar",
+                                      "labels": {}
+                                    }],
+                                    "absentObjectIds": ["u04h-oid"]
+                                  }
+                                }
+                                """.formatted(hostA))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/observed/asks/actual-where")
+                        .param("containerId", containerX)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.identityLost", is(false)))
+                .andExpect(jsonPath("$.data.observedValue.availability", is("ABSENT")))
+                .andExpect(jsonPath("$.data.observedValue.hostId").value(nullValue()))
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(hostA)));
+
+        mockMvc.perform(get("/api/observed/identity-lost/{id}", containerX)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.code", is("IDENTITY_LOST_NOT_FOUND")))
+                .andExpect(jsonPath("$.data").value(nullValue()));
+
+        MvcResult listed = mockMvc.perform(get("/api/observed/unbound-candidates")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn();
+        assertThat(unboundByRuntimeId(listed, "u04h-rt-miss"), notNullValue());
+    }
+
+    private void heartbeatUnknown(
+            String hostId,
+            String agentId,
+            String runtimeId,
+            String name,
+            String objectId
+    ) throws Exception {
+        mockMvc.perform(post("/api/agent/heartbeat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "agentId": "%s",
+                                  "hostId": "%s",
+                                  "snapshot": {
+                                    "containers": [{
+                                      "runtimeId": "%s",
+                                      "name": "%s",
+                                      "labels": { "archops.object_id": "%s" }
+                                    }]
+                                  }
+                                }
+                                """.formatted(agentId, hostId, runtimeId, name, objectId))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+    }
+
     private void heartbeatMissingLabel(String hostId, String agentId, String runtimeId, String name) throws Exception {
         mockMvc.perform(post("/api/agent/heartbeat")
                         .contentType(MediaType.APPLICATION_JSON)
