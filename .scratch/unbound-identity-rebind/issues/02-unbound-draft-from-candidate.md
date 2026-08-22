@@ -38,3 +38,8 @@ Commit: (pending)
 Red: Status expected 200 was 500 (NoResourceFoundException for /api/curated-drafts/{id}).
 Green: GET /api/curated-drafts/{draftId} → getByDraftId; same OPEN/origin/items as create.
 Refactor: none beyond endpoint wiring.
+
+### Cycle C — opening draft does not write curated or consume candidate
+Red: first run PathNotFoundException on $.data.hostId (test expected flat hostId; GET runs-on returns data.target.id). After aligning assertion to curatedValue.hostId / target.id, green without new production — reuse of Cycle A create (no curated write, candidate remains).
+Green: should-where unchanged; bootstrap objectId still free; unbound list still has runtime.
+Refactor: none.

@@ -193,6 +193,80 @@ class UnboundDraftCreateHttpAcceptanceTest {
                 is(List.of("PENDING")));
     }
 
+
+    @Test
+    void openingDraftDoesNotWriteCuratedOrConsumeCandidate() throws Exception {
+        String hostId = createHost("u02c-h");
+        String containerX = createContainer("u02c-x", "u02c-oid");
+        confirmRunsOn(containerX, hostId);
+
+        mockMvc.perform(post("/api/agent/heartbeat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "agentId": "u02c-ag",
+                                  "hostId": "%s",
+                                  "snapshot": {
+                                    "containers": [
+                                      {
+                                        "runtimeId": "u02c-rt-unknown",
+                                        "name": "u02c-unknown",
+                                        "labels": { "archops.object_id": "u02c-never" }
+                                      }
+                                    ],
+                                    "absentObjectIds": []
+                                  }
+                                }
+                                """.formatted(hostId))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+
+        MvcResult listed = mockMvc.perform(get("/api/observed/unbound-candidates")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn();
+        JsonNode candidate = unboundByRuntimeId(listed, "u02c-rt-unknown");
+        assertThat(candidate, notNullValue());
+
+        mockMvc.perform(post("/api/observed/unbound-candidates/{id}/drafts", candidate.path("id").asText())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("OPEN")));
+
+        mockMvc.perform(get("/api/curated/asks/should-where")
+                        .param("containerId", containerX)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.question", is("应该在哪")))
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(hostId)));
+
+        mockMvc.perform(get("/api/curated/facts/runs-on/{containerId}", containerX)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.target.id", is(hostId)));
+
+        mockMvc.perform(post("/api/curated/containers")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"u02c-probe\",\"objectId\":\"u02c-never\"}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success", is(true)));
+
+        MvcResult listedAfter = mockMvc.perform(get("/api/observed/unbound-candidates")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn();
+        assertThat(unboundByRuntimeId(listedAfter, "u02c-rt-unknown"), notNullValue());
+    }
+
     private List<JsonNode> sortedItems(JsonNode itemsNode) {
         List<JsonNode> items = new ArrayList<>();
         itemsNode.forEach(items::add);
@@ -219,5 +293,25 @@ class UnboundDraftCreateHttpAcceptanceTest {
                 .andExpect(status().isOk())
                 .andReturn();
         return objectMapper.readTree(result.getResponse().getContentAsString()).path("data").path("id").asText();
+    }
+
+    private String createContainer(String name, String objectId) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/curated/containers")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"" + name + "\",\"objectId\":\"" + objectId + "\"}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn();
+        return objectMapper.readTree(result.getResponse().getContentAsString()).path("data").path("id").asText();
+    }
+
+    private void confirmRunsOn(String containerId, String hostId) throws Exception {
+        mockMvc.perform(post("/api/curated/facts/runs-on")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"containerId\":\"" + containerId + "\",\"hostId\":\"" + hostId + "\"}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
     }
 }
