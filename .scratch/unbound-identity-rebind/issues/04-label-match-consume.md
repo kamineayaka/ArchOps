@@ -75,4 +75,53 @@ JSON path "$.data.status" Expected: is "VOIDED" but: was "OPEN"
 Green command: 同上，exit 0。命中时按候选 id / (host, runtime) / BIND 目标 / 已接受 CREATE 主语作废 OPEN 未绑定草案；`CuratedDraftEventType.DRAFT_VOIDED` 写入 `curated_draft_event`（不写 conflict_case_event）；`beginUnboundItemReview` 对 VOIDED 抛 `DRAFT_VOIDED`。条目仍 PENDING，策展「运行于」不变。
 Regression: `UnboundDraftItemReviewHttpAcceptanceTest` 全类绿。`bindingToLabelMatchedPresentTargetIsRejected` 在命中后草案已被作废，再接受变为 `DRAFT_VOIDED`（不再到达 `UNBOUND_BIND_TARGET_HEALTHY`）；S-4 的 identity-lost 400 仍在。`labelMatchedAfterIdentityLoss` 门禁保留。
 Refactor: 作废范围集中在 `voidOpenUnboundAfterLabelMatch`；ingest 先作废再删候选行。
+Commit: `ca4f4c8` feat(unbound): void OPEN 未绑定草案 on label match
+
+### Cycle D — 仅刷新同一 runtimeId 不作废未绑定草案
+Red command:
+`cd backend && ./gradlew test --tests com.archops.observed.UnboundLabelMatchConsumeHttpAcceptanceTest.unlabeledReheartbeatDoesNotVoidOpenUnboundDraft`
+reuse/regression：首跑绿。点名 `UnboundDraftItemReviewHttpAcceptanceTest.unlabeledReheartbeatAfterBindStaysConsumedAndIdentityLost`（03 Cycle E：刷新观察时间不作废）与 01 的 upsert。不另写生产。
+Green command: 同上，exit 0。
+Refactor: 无结构改动
+Commit: （与 E–H 同批回填）
+
+### Cycle E — 命中后观测宿主 ≠ 策展「运行于」→ 升级链恢复
+Red command:
+`cd backend && ./gradlew test --tests com.archops.observed.UnboundLabelMatchConsumeHttpAcceptanceTest.labelMatchOnADifferentHostRestoresTheUpgradeChain`
+reuse/regression：首跑绿。点名 `ConflictWarnUpgradeHttpAcceptanceTest` 的 B→C 升级 + Cycle A 清标。命中之前未打标同名仍 `CONFLICT_NOT_FOUND`；B 命中开出 OPEN；C 再命中升级且 `observedLineage` 含 B→C。不另写比对引擎。
+Green command: 同上，exit 0。
+Refactor: 无结构改动
+Commit: （与 D/F–H 同批回填）
+
+### Cycle F — 新建两条都接受后相等 → 不人造冲突
+Red command:
+`cd backend && ./gradlew test --tests com.archops.observed.UnboundLabelMatchConsumeHttpAcceptanceTest.acceptedCreateAndRunsOnThenEqualHitDoesNotInventAConflict`
+reuse/regression：首跑绿。点名 `reconcileMergeKey` 相等且无活跃直接 return，以及 `UnboundDraftItemReviewHttpAcceptanceTest.acceptingRunsOnAfterCreateWritesFirstCuratedRunsOn`。
+Green command: 同上，exit 0。
+Refactor: 无结构改动
+Commit: （与 D/E/G–H 同批回填）
+
+### Cycle G — runtimeId 变化 → 新候选；过期记忆释放；不按名接回
+Red command:
+`cd backend && ./gradlew test --tests com.archops.observed.UnboundLabelMatchConsumeHttpAcceptanceTest.runtimeIdChangeIsANewCandidateAndReleasesStaleBindMemory`
+```
+UnboundLabelMatchConsumeHttpAcceptanceTest > runtimeIdChangeIsANewCandidateAndReleasesStaleBindMemory() FAILED
+    java.lang.AssertionError at UnboundLabelMatchConsumeHttpAcceptanceTest.java:496
+java.lang.AssertionError: Status expected:<200> but was:<400>
+```
+（删重建后 u04g-rt-2 出现在待并入，但 (A, u04g-rt-1)→X 的记忆仍在，夹具跳过 X，发起草案 400。）
+Green command: 同上，exit 0。带快照的心跳把未再报告的 runtime 上的绑定记忆与候选行过期释放；不清 X 的失联标；同名不点亮升级链。`unlabeledReheartbeatAfterBindStaysConsumedAndIdentityLost` 仍绿（同一 runtime 仍报告则不释放）。
+Refactor: `releaseStaleBindMemory` 抽出，只在 `processSnapshot` 末尾对报告清单求补。
+Commit: （提交后回填）
+
+### Cycle H — 待补标绑定之后 absentObjectIds 含 X → 观测消失并回到待并入
+Red command:
+`cd backend && ./gradlew test --tests com.archops.observed.UnboundLabelMatchConsumeHttpAcceptanceTest.absentObjectIdsAfterBindIsObservedAbsenceAndReturnsTheFieldEntityToPending`
+```
+UnboundLabelMatchConsumeHttpAcceptanceTest > absentObjectIdsAfterBindIsObservedAbsenceAndReturnsTheFieldEntityToPending() FAILED
+    java.lang.AssertionError at UnboundLabelMatchConsumeHttpAcceptanceTest.java:404
+JSON path "$.data.identityLost" Expected: is <false> but: was <true>
+```
+Green command: 同上，exit 0。absent 分支清失联标、释放该对象绑定记忆、不删仍缺标的候选行；问法 `ABSENT` / hostId JSON null / `identityLost=false`。01 `absentObjectIdsRemainUsableAbsentNotIdentityLost` 与 `absentObjectIdsWinOverIdentityLostObjectIdsOnSameSnapshot` 仍绿。
+Refactor: `releaseBindMemoryForObject` 抽出，与命中消费共用删除记忆、但不删候选。
 Commit: （提交后回填）
