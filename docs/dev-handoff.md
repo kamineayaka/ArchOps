@@ -44,6 +44,7 @@
 | 未绑定 / 身份失联 Spec | **已发布** → [`docs/specs/unbound-identity-rebind.md`](specs/unbound-identity-rebind.md) |
 | 未绑定 / 身份失联工单 | **01–04 + 08 TDD-done；frontier = 05** → [`.scratch/unbound-identity-rebind/issues/`](../.scratch/unbound-identity-rebind/issues/)（不要写进 `change-curated-draft`） |
 | 未绑定 01–03 合同审计 | **已出报告** → [`.scratch/unbound-identity-rebind/audit-01-03-opus.md`](../.scratch/unbound-identity-rebind/audit-01-03-opus.md)（三轴 + 探针表；票 08 已处置 C-4 / C-2 / S-3，票 04 已处置 C-3 / S-4 / S-2，C-1 留票 09 待人排期） |
+| 失联 × 空洞 并存优先级 | **未裁定**（合同空白；票 09 问法侧与票 05 诊断侧都读它）→ 小任务 prompt [`docs/adr-identity-lost-vs-hollow-priority-prompt.md`](adr-identity-lost-vs-hollow-priority-prompt.md) |
 | Matt 工作流 skills / tracker | **已入库**（`.cursor/skills/` + `.agents/skills/` + `docs/agents/`；TDD overlay [`docs/agents/tdd.md`](agents/tdd.md)；Cloud 不依赖本机 `~/.agents`） |
 | 国内镜像默认 | **已合并**（PR #53：Gradle 腾讯云 / Maven 阿里云 / npm npmmirror / Docker DaoCloud） |
 | kamiserver 人工验收 | **通过**（2026-08：Compose postgres+redis healthy 且宿主机端口已映射 → `./gradlew bootRun` → `GET /api/health`；竖切演示闭环已在该 VM 走通） |
@@ -73,7 +74,8 @@
 21. ~~未绑定 01–03 合同审计~~：已完成（三轴只读审计；报告 [`.scratch/unbound-identity-rebind/audit-01-03-opus.md`](../.scratch/unbound-identity-rebind/audit-01-03-opus.md)；未改生产）。  
 22. ~~`/implement` `/tdd` 未绑定票 08~~：已完成（绑定写入门禁：判据改「失联之后是否又标签命中」；同一策展对象只能是一个现场实体的本体；夹具给出未被绑的目标；witnessed red → green → refactor；`UNBOUND_BIND_TARGET_ALREADY_BOUND` / V19）。  
 23. ~~`/implement` `/tdd` 未绑定票 04~~：已完成（标签命中收尾：清失联、消费候选与绑定记忆、作废相关未绑定草案、恢复升级链；witnessed red → green → refactor；审计 C-3 / S-4 / S-2；V20）。  
-24. **下一对话：`/implement` `/tdd` 未绑定票 05**（frontier；失联闸门修实际 / 改理想路径）。票路径：[`.scratch/unbound-identity-rebind/issues/05-identity-lost-gates-conflict-pipeline.md`](../.scratch/unbound-identity-rebind/issues/05-identity-lost-gates-conflict-pipeline.md)。不要加改策展 07。不要重拆竖切 01–13。不要做 06–07。票 09（失联叠加心跳超时时问法仍须说出观测空洞；审计 C-1）待人排期，不要与 05 混做。  
+24. **小任务（建议排在 05 与 09 之前）：裁定「身份失联与观测空洞并存时」的优先级**，落成一条新 ADR 或明确的裁定记录。理由：`CONTEXT.md` 分别定义两态但未定并存优先级；票 09 已单方面采用「通道超时优先」，票 05 又要在同一空白上决定诊断分叉集——空白由实现票各自填即 `AGENTS.md` §3 禁止的「实现时顺手改合同」。开工 prompt：[`docs/adr-identity-lost-vs-hollow-priority-prompt.md`](adr-identity-lost-vs-hollow-priority-prompt.md)（只读判断 + 至多一段 ADR；不写生产代码，不跑测试）。
+25. **随后：`/implement` `/tdd` 未绑定票 05**（编号 frontier；失联闸门修实际 / 改理想路径）。票路径：[`.scratch/unbound-identity-rebind/issues/05-identity-lost-gates-conflict-pipeline.md`](../.scratch/unbound-identity-rebind/issues/05-identity-lost-gates-conflict-pipeline.md)。不要加改策展 07。不要重拆竖切 01–13。不要做 06–07。票 09（失联叠加心跳超时时问法仍须说出观测空洞；审计 C-1）待人排期，不要与 05 混做；两票都从上一条裁定读输入。  
 
 ### 工单阻塞简图
 
