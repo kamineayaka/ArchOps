@@ -16,7 +16,9 @@ import com.archops.curated.domain.CuratedDraftStatus;
 import com.archops.curated.domain.CuratedFact;
 import com.archops.curated.domain.CuratedObject;
 import com.archops.curated.domain.CuratedRelationType;
+import com.archops.curated.dto.CreateContainerRequest;
 import com.archops.curated.dto.CuratedDraftResponse;
+import com.archops.curated.dto.CuratedObjectResponse;
 import com.archops.curated.mapper.CuratedDraftItemMapper;
 import com.archops.curated.mapper.CuratedDraftMapper;
 import com.archops.curated.mapper.CuratedDraftEventMapper;
@@ -290,6 +292,24 @@ public class CuratedDraftService {
     }
 
     /**
+     * 未绑定草案逐条确认：接受即写该条（新建容器），拒绝不写。
+     */
+    @Transactional
+    public CuratedDraftResponse acceptUnboundItem(String draftId, String itemId, AuthUserPrincipal actor) {
+        UnboundItemReview review = beginUnboundItemReview(draftId, itemId);
+        applyUnboundAccept(review.item(), actor.getUserId());
+        markItem(review.item(), CuratedDraftItemStatus.ACCEPTED);
+        return respond(review.draft());
+    }
+
+    @Transactional
+    public CuratedDraftResponse rejectUnboundItem(String draftId, String itemId, AuthUserPrincipal actor) {
+        UnboundItemReview review = beginUnboundItemReview(draftId, itemId);
+        markItem(review.item(), CuratedDraftItemStatus.REJECTED);
+        return respond(review.draft());
+    }
+
+    /**
      * Accept writes that item's 策展 运行于 immediately, then runs the same merge-key compare
      * as snapshot ingest (equal → 待确认关闭, never auto CLOSED).
      */
@@ -317,6 +337,44 @@ public class CuratedDraftService {
                 actor.getUserId(),
                 itemAuditDetail(review, "草案条目已拒绝", false));
         return respond(review.draft());
+    }
+
+    private UnboundItemReview beginUnboundItemReview(String draftId, String itemId) {
+        CuratedDraft draft = curatedDraftMapper.selectById(draftId);
+        if (draft == null
+                || draft.getOrigin() != CuratedDraftOrigin.UNBOUND_CANDIDATE
+                || draft.getStatus() != CuratedDraftStatus.OPEN) {
+            throw new BusinessException("DRAFT_NOT_FOUND", "No open 未绑定草案: " + draftId);
+        }
+        CuratedDraftItem item = requireItemOnDraft(draft.getId(), itemId);
+        return new UnboundItemReview(draft, item);
+    }
+
+    private void applyUnboundAccept(CuratedDraftItem item, String actorUserId) {
+        if (item.getKind() == CuratedDraftItemKind.CREATE_CONTAINER_FROM_UNBOUND) {
+            writeAcceptedCreateContainer(item, actorUserId);
+            return;
+        }
+        throw new BusinessException("UNBOUND_ITEM_KIND_UNSUPPORTED",
+                "未绑定草案本票不审该条目 kind: " + item.getKind());
+    }
+
+    private void writeAcceptedCreateContainer(CuratedDraftItem item, String actorUserId) {
+        Map<String, Object> payload = readPayloadMap(item.getPayloadJson());
+        String name = stringPayload(payload, "proposedName");
+        String objectId = stringPayload(payload, "immutableObjectId");
+        if (name == null || name.isBlank() || objectId == null || objectId.isBlank()) {
+            throw new BusinessException("UNBOUND_CREATE_IMMUTABLE_ID_MISSING",
+                    "MISSING_LABEL 新建没有可写的现场不可变 object id");
+        }
+        CuratedObjectResponse created = curatedTruthService.createContainer(
+                new CreateContainerRequest(name, objectId), actorUserId);
+        item.setSubjectId(created.id());
+    }
+
+    private static String stringPayload(Map<String, Object> payload, String key) {
+        Object value = payload.get(key);
+        return value == null ? null : String.valueOf(value);
     }
 
     private OpenItemReview beginItemReview(String conflictId, String itemId, AuthUserPrincipal actor) {
@@ -670,5 +728,8 @@ public class CuratedDraftService {
     }
 
     private record OpenItemReview(CuratedDraft draft, CuratedDraftItem item) {
+    }
+
+    private record UnboundItemReview(CuratedDraft draft, CuratedDraftItem item) {
     }
 }
