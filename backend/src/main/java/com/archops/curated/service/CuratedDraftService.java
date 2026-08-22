@@ -21,6 +21,14 @@ import com.archops.curated.mapper.CuratedDraftItemMapper;
 import com.archops.curated.mapper.CuratedDraftMapper;
 import com.archops.curated.mapper.CuratedFactMapper;
 import com.archops.curated.mapper.CuratedObjectMapper;
+import com.archops.curated.domain.CuratedDraftOrigin;
+import com.archops.curated.CuratedObjectLabels;
+import com.archops.observed.domain.IdentityLostMark;
+import com.archops.observed.domain.UnboundObservationCandidate;
+import com.archops.observed.domain.UnboundReason;
+import com.archops.observed.mapper.IdentityLostMarkMapper;
+import com.archops.observed.mapper.UnboundObservationCandidateMapper;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.archops.user.security.AuthUserPrincipal;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
@@ -54,6 +62,8 @@ public class CuratedDraftService {
     private final ConflictEventService conflictEventService;
     private final ConflictDetectionService conflictDetectionService;
     private final CuratedTruthService curatedTruthService;
+    private final UnboundObservationCandidateMapper unboundObservationCandidateMapper;
+    private final IdentityLostMarkMapper identityLostMarkMapper;
     private final ObjectMapper objectMapper;
 
     public CuratedDraftService(
@@ -65,6 +75,8 @@ public class CuratedDraftService {
             ConflictEventService conflictEventService,
             ConflictDetectionService conflictDetectionService,
             CuratedTruthService curatedTruthService,
+            UnboundObservationCandidateMapper unboundObservationCandidateMapper,
+            IdentityLostMarkMapper identityLostMarkMapper,
             ObjectMapper objectMapper
     ) {
         this.curatedDraftMapper = curatedDraftMapper;
@@ -75,6 +87,8 @@ public class CuratedDraftService {
         this.conflictEventService = conflictEventService;
         this.conflictDetectionService = conflictDetectionService;
         this.curatedTruthService = curatedTruthService;
+        this.unboundObservationCandidateMapper = unboundObservationCandidateMapper;
+        this.identityLostMarkMapper = identityLostMarkMapper;
         this.objectMapper = objectMapper;
     }
 
@@ -122,6 +136,7 @@ public class CuratedDraftService {
         draft.setConflictId(conflict.getId());
         draft.setDiagnosisId(diagnosis.id());
         draft.setSelectedForkId(fork.id());
+        draft.setOrigin(CuratedDraftOrigin.CHANGE_CURATED);
         draft.setStatus(CuratedDraftStatus.OPEN);
         draft.setCreatedBy(actor.getUserId());
         draft.setCreatedAt(now);
@@ -143,6 +158,46 @@ public class CuratedDraftService {
                 "itemCount", items.size(),
                 "hint", "草案已创建"
         ));
+        return toResponse(draft, items);
+    }
+
+
+    @Transactional
+    public CuratedDraftResponse createFromUnboundCandidate(String candidateId, AuthUserPrincipal actor) {
+        UnboundObservationCandidate candidate = unboundObservationCandidateMapper.selectById(candidateId);
+        if (candidate == null) {
+            throw new BusinessException("UNBOUND_CANDIDATE_NOT_FOUND",
+                    "No unbound observation candidate: " + candidateId);
+        }
+        if (findOpenUnbound(candidateId) != null) {
+            throw new BusinessException("UNBOUND_DRAFT_ALREADY_OPEN",
+                    "Candidate already has an open 未绑定草案");
+        }
+
+        Instant now = Instant.now();
+        CuratedDraft draft = new CuratedDraft();
+        draft.setId("draft-" + UUID.randomUUID());
+        draft.setConflictId(null);
+        draft.setDiagnosisId(null);
+        draft.setSelectedForkId(null);
+        draft.setOrigin(CuratedDraftOrigin.UNBOUND_CANDIDATE);
+        draft.setCandidateId(candidate.getId());
+        draft.setSourceHostId(candidate.getSourceHostId());
+        draft.setRuntimeId(candidate.getRuntimeId());
+        draft.setStatus(CuratedDraftStatus.OPEN);
+        draft.setCreatedBy(actor.getUserId());
+        draft.setCreatedAt(now);
+        try {
+            curatedDraftMapper.insert(draft);
+        } catch (DataIntegrityViolationException ex) {
+            throw new BusinessException("UNBOUND_DRAFT_ALREADY_OPEN",
+                    "Candidate already has an open 未绑定草案");
+        }
+
+        List<CuratedDraftItem> items = buildUnboundItems(draft.getId(), candidate, now);
+        for (CuratedDraftItem item : items) {
+            curatedDraftItemMapper.insert(item);
+        }
         return toResponse(draft, items);
     }
 
@@ -352,13 +407,22 @@ public class CuratedDraftService {
     }
 
     private CuratedDraftResponse toResponse(CuratedDraft draft, List<CuratedDraftItem> items) {
-        ConflictCase conflict = conflictCaseMapper.selectById(draft.getConflictId());
+        ConflictCase conflict = draft.getConflictId() == null
+                ? null
+                : conflictCaseMapper.selectById(draft.getConflictId());
         String mergeKeySubjectId = conflict == null ? null : conflict.getSubjectId();
+        CuratedDraftOrigin origin = draft.getOrigin() == null
+                ? CuratedDraftOrigin.CHANGE_CURATED
+                : draft.getOrigin();
         return new CuratedDraftResponse(
                 draft.getId(),
                 draft.getConflictId(),
                 draft.getDiagnosisId(),
                 draft.getSelectedForkId(),
+                origin,
+                draft.getCandidateId(),
+                draft.getSourceHostId(),
+                draft.getRuntimeId(),
                 draft.getStatus(),
                 items.stream().map(item -> toItem(item, mergeKeySubjectId)).toList(),
                 draft.getCreatedBy(),
@@ -367,9 +431,15 @@ public class CuratedDraftService {
     }
 
     private CuratedDraftResponse.Item toItem(CuratedDraftItem item, String mergeKeySubjectId) {
-        CuratedObject subject = curatedObjectMapper.selectById(item.getSubjectId());
-        CuratedObject fromHost = curatedObjectMapper.selectById(item.getFromHostId());
-        CuratedObject toHost = curatedObjectMapper.selectById(item.getToHostId());
+        CuratedObject subject = item.getSubjectId() == null
+                ? null
+                : curatedObjectMapper.selectById(item.getSubjectId());
+        CuratedObject fromHost = item.getFromHostId() == null
+                ? null
+                : curatedObjectMapper.selectById(item.getFromHostId());
+        CuratedObject toHost = item.getToHostId() == null
+                ? null
+                : curatedObjectMapper.selectById(item.getToHostId());
         return new CuratedDraftResponse.Item(
                 item.getId(),
                 item.getSeq() == null ? 0 : item.getSeq(),
@@ -381,8 +451,117 @@ public class CuratedDraftService {
                 fromHost == null ? null : fromHost.getName(),
                 item.getToHostId(),
                 toHost == null ? null : toHost.getName(),
-                mergeKeySubjectId != null && mergeKeySubjectId.equals(item.getSubjectId())
+                mergeKeySubjectId != null && mergeKeySubjectId.equals(item.getSubjectId()),
+                readPayloadMap(item.getPayloadJson())
         );
+    }
+
+    private CuratedDraft findOpenUnbound(String candidateId) {
+        return curatedDraftMapper.selectOne(new LambdaQueryWrapper<CuratedDraft>()
+                .eq(CuratedDraft::getCandidateId, candidateId)
+                .eq(CuratedDraft::getOrigin, CuratedDraftOrigin.UNBOUND_CANDIDATE)
+                .eq(CuratedDraft::getStatus, CuratedDraftStatus.OPEN)
+                .orderByDesc(CuratedDraft::getCreatedAt)
+                .last("LIMIT 1"));
+    }
+
+    private List<CuratedDraftItem> buildUnboundItems(
+            String draftId,
+            UnboundObservationCandidate candidate,
+            Instant now
+    ) {
+        List<CuratedDraftItem> items = new ArrayList<>();
+        int seq = 1;
+        if (candidate.getReason() == UnboundReason.UNKNOWN_OBJECT_ID) {
+            Map<String, String> labels = readStringMap(candidate.getLabelsJson());
+            String immutableObjectId = labels.get(CuratedObjectLabels.OBJECT_ID_KEY);
+            Map<String, Object> createPayload = new LinkedHashMap<>();
+            createPayload.put("immutableObjectId", immutableObjectId);
+            createPayload.put("labels", Map.of(CuratedObjectLabels.OBJECT_ID_KEY, immutableObjectId));
+            createPayload.put("proposedName", candidate.getName());
+            items.add(newItem(draftId, seq++, CuratedDraftItemKind.CREATE_CONTAINER_FROM_UNBOUND,
+                    null, null, null, writeJson(createPayload), now));
+            items.add(newItem(draftId, seq++, CuratedDraftItemKind.CURATED_RUNS_ON_INSERT,
+                    null, null, candidate.getSourceHostId(), "{}", now));
+        } else if (candidate.getReason() == UnboundReason.MISSING_LABEL) {
+            IdentityLostMark lost = findIdentityLostOnHost(candidate.getSourceHostId());
+            if (lost == null) {
+                throw new BusinessException("UNBOUND_CANDIDATE_NOT_FOUND",
+                        "MISSING_LABEL candidate has no identity-lost target on host");
+            }
+            items.add(newItem(draftId, seq++, CuratedDraftItemKind.BIND_UNBOUND_TO_EXISTING,
+                    lost.getCuratedObjectId(), null, null, "{}", now));
+            Map<String, Object> createPayload = new LinkedHashMap<>();
+            createPayload.put("immutableObjectId", null);
+            createPayload.put("proposedName", candidate.getName());
+            items.add(newItem(draftId, seq++, CuratedDraftItemKind.CREATE_CONTAINER_FROM_UNBOUND,
+                    null, null, null, writeJson(createPayload), now));
+        } else {
+            throw new BusinessException("UNBOUND_CANDIDATE_NOT_FOUND",
+                    "Unsupported unbound reason for draft fixture");
+        }
+        return items;
+    }
+
+    private IdentityLostMark findIdentityLostOnHost(String hostId) {
+        return identityLostMarkMapper.selectOne(new LambdaQueryWrapper<IdentityLostMark>()
+                .eq(IdentityLostMark::getSourceHostId, hostId)
+                .orderByAsc(IdentityLostMark::getCuratedObjectId)
+                .last("LIMIT 1"));
+    }
+
+    private CuratedDraftItem newItem(
+            String draftId,
+            int seq,
+            CuratedDraftItemKind kind,
+            String subjectId,
+            String fromHostId,
+            String toHostId,
+            String payloadJson,
+            Instant now
+    ) {
+        CuratedDraftItem item = new CuratedDraftItem();
+        item.setId("ditem-" + UUID.randomUUID());
+        item.setDraftId(draftId);
+        item.setSeq(seq);
+        item.setKind(kind);
+        item.setStatus(CuratedDraftItemStatus.PENDING);
+        item.setSubjectId(subjectId);
+        item.setFromHostId(fromHostId);
+        item.setToHostId(toHostId);
+        item.setPayloadJson(payloadJson == null ? "{}" : payloadJson);
+        item.setCreatedAt(now);
+        return item;
+    }
+
+    private Map<String, Object> readPayloadMap(String payloadJson) {
+        if (payloadJson == null || payloadJson.isBlank()) {
+            return Map.of();
+        }
+        try {
+            return objectMapper.readValue(payloadJson, new TypeReference<Map<String, Object>>() {});
+        } catch (JsonProcessingException ex) {
+            return Map.of();
+        }
+    }
+
+    private Map<String, String> readStringMap(String json) {
+        if (json == null || json.isBlank()) {
+            return Map.of();
+        }
+        try {
+            return objectMapper.readValue(json, new TypeReference<Map<String, String>>() {});
+        } catch (JsonProcessingException ex) {
+            return Map.of();
+        }
+    }
+
+    private String writeJson(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (JsonProcessingException ex) {
+            return "{}";
+        }
     }
 
     private String writePayload(String fromHostId, String toHostId) {
