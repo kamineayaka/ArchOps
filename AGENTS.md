@@ -107,12 +107,13 @@ Single-context: frozen `CONTEXT.md` + `docs/adr/` (ADR-0039 / ADR-0043 / ADR-004
 - 改策展 Spec：`docs/specs/change-curated-draft.md`（已发布）；工单 `.scratch/change-curated-draft/issues/`（01–06 已拆）。**01–06 TDD-done。本刀闭合。**
 - 下一刀 Spec：[`docs/specs/unbound-identity-rebind.md`](docs/specs/unbound-identity-rebind.md)；工单 `.scratch/unbound-identity-rebind/issues/`（01–07 已拆，审计后补 08 / 09）。**01–04 + 08 TDD-done。frontier = 05**（失联闸门）。`/implement` 走 TDD overlay，一次一张。不要加改策展 07。不要做 06–07。票 09（审计 C-1）待人排期。
 - 01–03 合同审计：[`.scratch/unbound-identity-rebind/audit-01-03-opus.md`](.scratch/unbound-identity-rebind/audit-01-03-opus.md)。票 08 已处置 C-4 / C-2 / S-3；票 04 已处置 C-3 / S-4 / S-2；C-1 留票 09。
+- 代码 vs ADR-0044 只读审计：[`.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md`](.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md)。A2 = 票 05；A3 = 票 09；A1 另开；B1–B5 禁止写入 05。票 05 prompt：[`docs/implement-unbound-identity-rebind-05-prompt.md`](docs/implement-unbound-identity-rebind-05-prompt.md)。
 - `/implement` 必须走 TDD overlay：[`docs/agents/tdd.md`](docs/agents/tdd.md)
 - ADR-0044 已冻结控制面枢纽 / 执行引擎 / AI 编排层拆分。拆分实现另开工单，**不要写入未绑定票 05**。控制面不得再加进程内 LLM 出站。
 - 不需要再开技术选型或推倒栈，除非用户明示新 ADR
 
 ## 7. 云端提示词建议（用户可贴）
 
-改策展 01–06 已闭合。未绑定票 **01–04 + 08 TDD-done**；**frontier = 05**。一次一张 `/implement` `/tdd`，不要加改策展 07。下一张：[`.scratch/unbound-identity-rebind/issues/05-identity-lost-gates-conflict-pipeline.md`](.scratch/unbound-identity-rebind/issues/05-identity-lost-gates-conflict-pipeline.md)。票 09（失联叠加心跳超时的问法；审计 C-1）待人排期，不要与 05 混做。不要用下面这句短指令替代票内循环纪律。
+改策展 01–06 已闭合。未绑定票 **01–04 + 08 TDD-done**；**frontier = 05**。一次一张 `/implement` `/tdd`，不要加改策展 07。下一张：[`.scratch/unbound-identity-rebind/issues/05-identity-lost-gates-conflict-pipeline.md`](.scratch/unbound-identity-rebind/issues/05-identity-lost-gates-conflict-pipeline.md)。开场 prompt：[docs/implement-unbound-identity-rebind-05-prompt.md](docs/implement-unbound-identity-rebind-05-prompt.md)。票 09（失联叠加心跳超时的问法；审计 C-1）待人排期，不要与 05 混做。不要用下面这句短指令替代票内循环纪律。
 
 > 读 AGENTS.md、CONTEXT.md、ADR-0043 与 `docs/specs/unbound-identity-rebind.md`。只做 `.scratch/unbound-identity-rebind/issues/05-identity-lost-gates-conflict-pipeline.md`。不要默认做 06–07 或票 09。不要复活 Vue/JPA/Neo4j/Maven/LangChain。
