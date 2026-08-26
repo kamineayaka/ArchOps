@@ -237,6 +237,7 @@ public class ConflictDetectionService {
             ));
         }
         voidActivePlans(active.getId(), IDENTITY_LOST_REASON);
+        curatedDraftService.voidOpenForConflict(active.getId(), IDENTITY_LOST_REASON);
         conflictDiagnosisService.scheduleAsyncDiagnosis(active.getId());
     }
 

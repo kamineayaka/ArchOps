@@ -266,6 +266,45 @@ class IdentityLostPipelineGateHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data").value(nullValue()));
     }
 
+    @Test
+    void identityLostVoidsOpenChangeCuratedDraftAndAcceptIsDraftVoided() throws Exception {
+        Fixture fx = openMismatch("u05h");
+        String sibling = createContainer("u05h-y", "u05h-oid-y");
+        confirmRunsOn(sibling, fx.hostA());
+        claimAsGeneral(fx.conflictId());
+        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, fx.conflictId(), GENERAL_ID);
+
+        MvcResult created = mockMvc.perform(post("/api/conflicts/{id}/branch-selection", fx.conflictId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"forkId\":\"CHANGE_CURATED_TO_OBSERVED\"}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("OPEN")))
+                .andExpect(jsonPath("$.data.origin", is("CHANGE_CURATED")))
+                .andReturn();
+        JsonNode draft = objectMapper.readTree(created.getResponse().getContentAsString()).path("data");
+        String draftId = draft.path("id").asText();
+        String itemId = draft.path("items").get(0).path("id").asText();
+
+        identityLostOnObservedHost(fx);
+
+        mockMvc.perform(get("/api/curated-drafts/{draftId}", draftId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("VOIDED")));
+
+        mockMvc.perform(post("/api/conflicts/{id}/curated-drafts/open/items/{itemId}/accept",
+                        fx.conflictId(), itemId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.code", is("DRAFT_VOIDED")))
+                .andExpect(jsonPath("$.data").value(nullValue()));
+    }
+
     private Fixture openMismatch(String prefix) throws Exception {
         String hostA = createHost(prefix + "-ha");
         String hostB = createHost(prefix + "-hb");
