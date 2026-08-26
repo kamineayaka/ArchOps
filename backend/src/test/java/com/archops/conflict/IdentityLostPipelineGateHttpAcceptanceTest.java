@@ -305,6 +305,23 @@ class IdentityLostPipelineGateHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data").value(nullValue()));
     }
 
+    @Test
+    void unlabeledSameNameStillDoesNotOpenConflict() throws Exception {
+        String hostA = createHost("u05i-ha");
+        String containerId = createContainer("u05i-x", "u05i-oid");
+        confirmRunsOn(containerId, hostA);
+        heartbeatUnlabeled(hostA, "u05i-ag", "u05i-rt-miss", "u05i-similar");
+
+        mockMvc.perform(get("/api/conflicts/by-merge-key")
+                        .param("subjectId", containerId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.code", is("CONFLICT_NOT_FOUND")))
+                .andExpect(jsonPath("$.data").value(nullValue()));
+    }
+
     private Fixture openMismatch(String prefix) throws Exception {
         String hostA = createHost(prefix + "-ha");
         String hostB = createHost(prefix + "-hb");

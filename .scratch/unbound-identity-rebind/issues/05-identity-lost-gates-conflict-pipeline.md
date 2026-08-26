@@ -87,4 +87,13 @@ Red output:
 JSON path "$.data.status" Expected: is "VOIDED" but: was "DRAFT_REVIEW". onIdentityLost 不作废计划。
 Green: onIdentityLost 调 voidActivePlansForConflict(reason=identity_lost)；approve 对 VOIDED 返回 PLAN_VOIDED（不再误报 PLAN_NOT_IN_REVIEW）。
 Refactor: 抽出 voidActivePlans，空洞路径复用事件追加。
+Commit: eb85115
+
+### Cycle H — 失联前开放改理想草案作废；再审条 DRAFT_VOIDED
+Red command:
+`cd backend && ./gradlew test --tests com.archops.conflict.IdentityLostPipelineGateHttpAcceptanceTest.identityLostVoidsOpenChangeCuratedDraftAndAcceptIsDraftVoided`
+Red output:
+JSON path "$.data.status" Expected: is "VOIDED" but: was "OPEN". onIdentityLost 不作废 CHANGE_CURATED 草案。
+Green: voidOpenForConflict(reason=identity_lost)；仅 origin=CHANGE_CURATED。
+Refactor: 注释钉死不作废未绑定草案。
 Commit: 本圈绿灯提交。
