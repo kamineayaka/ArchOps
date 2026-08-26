@@ -23,3 +23,5 @@
 ## Comments
 
 Blocked by 01。01 与本票之间若 02 也已 unblocked，先做 02。不要把失联写成观测空洞。不要做 06–07。
+
+01–04 + 08 已 TDD-done，本票已 unblocked。开场 prompt：[`docs/implement-unbound-identity-rebind-05-prompt.md`](../../../docs/implement-unbound-identity-rebind-05-prompt.md)。代码 vs ADR-0044 审计 **A2** 即本票范围；**A3** 是票 09；**A1**（升级不作废活跃计划）与 0044 进程债禁止写入本票。见 [`.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md`](../audit-code-vs-adr-0044.md)。
