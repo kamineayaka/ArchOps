@@ -30,7 +30,7 @@ alwaysApply: false
 
 - Flyway 只增不改历史
 - Redis：队列/锁/会话/缓存；不作真相 SSOT
-- SSH：MINA SSHD；计划互斥用分布式锁
-- AI：WebClient + ADR-0041；无 LangChain 主干
+- SSH：MINA SSHD 在执行引擎（ADR-0044）；过渡期控制面 in-process 适配器不得扩大生产直连；计划互斥用分布式锁
+- AI：出站在 AI 编排层（ADR-0044）；控制面规则诊断兜底；无 LangChain 主干
 - 图库 Later；v1 邻域用 SQL/CTE
 - `/implement` 的 HTTP 验收循环见 `docs/agents/tdd.md`（本文件只管分层）
