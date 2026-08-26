@@ -51,4 +51,13 @@ Red output:
 Expected empty "$.data.forks[?(@.id=='FIX_ACTUAL_TO_CURATED')]" but found the pre-loss mismatch fork. 失联后仍返回旧 READY 诊断。
 Green: onIdentityLost 重诊；DiagnosisRuleEngine.diagnoseIdentityLost 只读说明（EXPLAIN）；文案含身份失联/未绑定观测候选/补标；不含 RESTORE_HEARTBEAT_CHANNEL。SUSPENDED 仍走空洞规则。
 Refactor: rulesFor；测试静态 assert。
+Commit: 7d0b68b
+
+### Cycle D — 已接受处理人选 FIX_ACTUAL → IDENTITY_LOST_BLOCKS_BRANCH
+Red command:
+`cd backend && ./gradlew test --tests com.archops.conflict.IdentityLostPipelineGateHttpAcceptanceTest.acceptedHandlerFixActualOnIdentityLostIsBlocked`
+Red output:
+JSON path "$.code" Expected: is "IDENTITY_LOST_BLOCKS_BRANCH" but: was "DIAGNOSIS_NOT_READY". 失联后重诊尚未 READY，选支先撞诊断门禁，未按失联闸门拒绝修实际。
+Green: BranchSelectionService 在处理人检查之后、诊断 READY 之前，对 FIX_ACTUAL_TO_CURATED + identity_lost_mark 抛 IDENTITY_LOST_BLOCKS_BRANCH。
+Refactor: 测试抽出 openMismatch / claimAsGeneral / identityLostOnObservedHost。
 Commit: 本圈绿灯提交。

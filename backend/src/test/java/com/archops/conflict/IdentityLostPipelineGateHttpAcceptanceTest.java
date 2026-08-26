@@ -178,6 +178,57 @@ class IdentityLostPipelineGateHttpAcceptanceTest {
         assertFalse(copy.contains("以现场为准"));
     }
 
+    @Test
+    void acceptedHandlerFixActualOnIdentityLostIsBlocked() throws Exception {
+        Fixture fx = openMismatch("u05d");
+        claimAsGeneral(fx.conflictId());
+        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, fx.conflictId(), GENERAL_ID);
+        identityLostOnObservedHost(fx);
+
+        mockMvc.perform(post("/api/conflicts/{id}/branch-selection", fx.conflictId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"forkId\":\"FIX_ACTUAL_TO_CURATED\"}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.code", is("IDENTITY_LOST_BLOCKS_BRANCH")))
+                .andExpect(jsonPath("$.data").value(nullValue()));
+    }
+
+    private Fixture openMismatch(String prefix) throws Exception {
+        String hostA = createHost(prefix + "-ha");
+        String hostB = createHost(prefix + "-hb");
+        String containerId = createContainer(prefix + "-x", prefix + "-oid");
+        confirmRunsOn(containerId, hostA);
+        heartbeatLabeled(hostB, prefix + "-ag-b", prefix + "-rt-b", prefix + "-x", prefix + "-oid");
+        MvcResult open = mockMvc.perform(get("/api/conflicts/by-merge-key")
+                        .param("subjectId", containerId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("OPEN")))
+                .andReturn();
+        String conflictId = objectMapper.readTree(open.getResponse().getContentAsString())
+                .path("data").path("id").asText();
+        return new Fixture(conflictId, hostA, hostB, containerId, prefix);
+    }
+
+    private void claimAsGeneral(String conflictId) throws Exception {
+        mockMvc.perform(post("/api/conflicts/{id}/claim", conflictId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.collaboration.handlerAcceptance", is("ACCEPTED")));
+    }
+
+    private void identityLostOnObservedHost(Fixture fx) throws Exception {
+        heartbeatUnlabeled(fx.hostB(), fx.prefix() + "-ag-lost", fx.prefix() + "-rt-miss", fx.prefix() + "-miss");
+    }
+
+    private record Fixture(String conflictId, String hostA, String hostB, String containerId, String prefix) {
+    }
+
     private void heartbeatLabeled(
             String hostId, String agentId, String runtimeId, String name, String objectId) throws Exception {
         mockMvc.perform(post("/api/agent/heartbeat")
