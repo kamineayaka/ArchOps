@@ -626,6 +626,7 @@ public class ObservedTruthService {
             mark.setSourceHostId(host.getId());
             mark.setUpgradeChainPromised(false);
             identityLostMarkMapper.insert(mark);
+            conflictDetectionService.onIdentityLost(curated.getId());
             return;
         }
         existing.setReason("LABEL_CLUE_LOST");

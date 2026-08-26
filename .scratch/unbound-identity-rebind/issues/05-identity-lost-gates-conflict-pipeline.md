@@ -33,4 +33,13 @@ Red output:
 AssertionError: No value at JSON path "$.data.identityLost" (PathNotFoundException). GET identity-lost 已 200（LABEL_CLUE_LOST）；冲突 GET 仍无旗标，observedValue 仍会把残留 observed_fact 展示为 PRESENT。
 Green: ConflictCaseResponse 增加 identityLost 读模型；toResponse 查 identity_lost_mark；失联且非空洞时 observedValue=IDENTITY_LOST、hostId JSON null。不改 ConflictStatus，不走 onObservationBecameHollow。
 Refactor: 抽出 observedTrackValue。
+Commit: 22e9833
+
+### Cycle B — PENDING_CLOSE 主体随后失联：退回 OPEN，不是 SUSPENDED
+Red command:
+`cd backend && ./gradlew test --tests com.archops.conflict.IdentityLostPipelineGateHttpAcceptanceTest.pendingCloseSubjectThenIdentityLostReturnsToOpenNotSuspended`
+Red output:
+JSON path "$.data.status" Expected: is "OPEN" but: was "PENDING_CLOSE". 失联标已写入，但 upsertIdentityLost 不触碰冲突状态。
+Green: 新标落地时 ConflictDetectionService.onIdentityLost：PENDING_CLOSE → OPEN、清 pendingCloseAt、事件 UPGRADED reason=identity_lost。不 SUSPENDED、不走 onObservationBecameHollow。
+Refactor: 抽出 IDENTITY_LOST_REASON。
 Commit: 本圈绿灯提交。

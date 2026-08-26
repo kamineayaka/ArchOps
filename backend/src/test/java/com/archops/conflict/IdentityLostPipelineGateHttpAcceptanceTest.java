@@ -86,6 +86,47 @@ class IdentityLostPipelineGateHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data.observedValue.hostId").value(nullValue()));
     }
 
+    @Test
+    void pendingCloseSubjectThenIdentityLostReturnsToOpenNotSuspended() throws Exception {
+        String hostA = createHost("u05b-ha");
+        String hostB = createHost("u05b-hb");
+        String containerId = createContainer("u05b-x", "u05b-oid");
+        confirmRunsOn(containerId, hostA);
+        heartbeatLabeled(hostB, "u05b-ag-b", "u05b-rt-b", "u05b-x", "u05b-oid");
+
+        MvcResult open = mockMvc.perform(get("/api/conflicts/by-merge-key")
+                        .param("subjectId", containerId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("OPEN")))
+                .andReturn();
+        String conflictId = objectMapper.readTree(open.getResponse().getContentAsString())
+                .path("data").path("id").asText();
+
+        heartbeatLabeled(hostA, "u05b-ag-a", "u05b-rt-a", "u05b-x", "u05b-oid");
+        mockMvc.perform(get("/api/conflicts/{id}", conflictId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("PENDING_CLOSE")));
+
+        heartbeatUnlabeled(hostA, "u05b-ag-lost", "u05b-rt-miss", "u05b-miss");
+
+        mockMvc.perform(get("/api/conflicts/{id}", conflictId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("OPEN")))
+                .andExpect(jsonPath("$.data.status", not("SUSPENDED")))
+                .andExpect(jsonPath("$.data.status", not("PENDING_CLOSE")))
+                .andExpect(jsonPath("$.data.identityLost", is(true)))
+                .andExpect(jsonPath("$.data.observationHollow", is(false)))
+                .andExpect(jsonPath("$.data.pendingCloseAt").value(nullValue()))
+                .andExpect(jsonPath("$.data.observedValue.availability", not("PRESENT")))
+                .andExpect(jsonPath("$.data.observedValue.hostId").value(nullValue()));
+    }
+
     private void heartbeatLabeled(
             String hostId, String agentId, String runtimeId, String name, String objectId) throws Exception {
         mockMvc.perform(post("/api/agent/heartbeat")

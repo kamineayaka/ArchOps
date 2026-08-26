@@ -44,6 +44,8 @@ import java.util.UUID;
 @Service
 public class ConflictDetectionService {
 
+    private static final String IDENTITY_LOST_REASON = "identity_lost";
+
     private static final List<ConflictStatus> ACTIVE = List.of(
             ConflictStatus.OPEN,
             ConflictStatus.PENDING_CLOSE,
@@ -215,6 +217,33 @@ public class ConflictDetectionService {
         curatedDraftService.voidOpenForConflict(active.getId(), "observation_hollow_heartbeat_timeout");
         conflictDiagnosisService.scheduleAsyncDiagnosis(active.getId());
         return new HollowSuspendResult(active.getId(), voided);
+    }
+
+    /**
+     * 身份失联落地：已有冲突保留。PENDING_CLOSE 无法再看见相等，退回 OPEN。
+     * 不是空洞挂起，不新增 ConflictStatus。
+     */
+    @Transactional
+    public void onIdentityLost(String subjectId) {
+        ConflictCase active = findActive(subjectId, CuratedRelationType.RUNS_ON);
+        if (active == null) {
+            return;
+        }
+        if (active.getStatus() != ConflictStatus.PENDING_CLOSE) {
+            return;
+        }
+        Instant now = Instant.now();
+        conflictCaseMapper.update(null, new LambdaUpdateWrapper<ConflictCase>()
+                .eq(ConflictCase::getId, active.getId())
+                .eq(ConflictCase::getStatus, ConflictStatus.PENDING_CLOSE)
+                .set(ConflictCase::getStatus, ConflictStatus.OPEN)
+                .set(ConflictCase::getPendingCloseAt, null)
+                .set(ConflictCase::getUpdatedAt, now));
+        conflictEventService.append(active.getId(), ConflictEventType.UPGRADED, null, Map.of(
+                "reason", IDENTITY_LOST_REASON,
+                "subjectId", subjectId,
+                "relationType", CuratedRelationType.RUNS_ON.name()
+        ));
     }
 
     /**
