@@ -196,6 +196,24 @@ class IdentityLostPipelineGateHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data").value(nullValue()));
     }
 
+    @Test
+    void acceptedHandlerChangeCuratedOnIdentityLostIsBlocked() throws Exception {
+        Fixture fx = openMismatch("u05e");
+        claimAsGeneral(fx.conflictId());
+        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, fx.conflictId(), GENERAL_ID);
+        identityLostOnObservedHost(fx);
+
+        mockMvc.perform(post("/api/conflicts/{id}/branch-selection", fx.conflictId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"forkId\":\"CHANGE_CURATED_TO_OBSERVED\"}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.code", is("IDENTITY_LOST_BLOCKS_BRANCH")))
+                .andExpect(jsonPath("$.data").value(nullValue()));
+    }
+
     private Fixture openMismatch(String prefix) throws Exception {
         String hostA = createHost(prefix + "-ha");
         String hostB = createHost(prefix + "-hb");

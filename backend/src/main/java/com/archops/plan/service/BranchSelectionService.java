@@ -47,7 +47,7 @@ public class BranchSelectionService {
     public BranchSelectionResult select(String conflictId, String forkId, String expectedDiagnosisId, AuthUserPrincipal actor) {
         ConflictCase conflict = requireOpenConflict(conflictId);
         requireAcceptedHandler(conflict, actor);
-        rejectFixActualWhenIdentityLost(conflict, forkId);
+        rejectUniqueSiteForkWhenIdentityLost(conflict, forkId);
 
         ConflictDiagnosisResponse diagnosis = conflictDiagnosisService.latestForConflict(conflictId);
         if (diagnosis == null || diagnosis.status() != DiagnosisStatus.READY) {
@@ -84,8 +84,9 @@ public class BranchSelectionService {
                 "Unsupported diagnosis fork for branch selection: " + fork.id());
     }
 
-    private void rejectFixActualWhenIdentityLost(ConflictCase conflict, String forkId) {
-        if (!DiagnosisRuleEngine.FIX_ACTUAL_TO_CURATED.equals(forkId)) {
+    private void rejectUniqueSiteForkWhenIdentityLost(ConflictCase conflict, String forkId) {
+        if (!DiagnosisRuleEngine.FIX_ACTUAL_TO_CURATED.equals(forkId)
+                && !DiagnosisRuleEngine.CHANGE_CURATED_TO_OBSERVED.equals(forkId)) {
             return;
         }
         if (identityLostMarkMapper.selectById(conflict.getSubjectId()) == null) {

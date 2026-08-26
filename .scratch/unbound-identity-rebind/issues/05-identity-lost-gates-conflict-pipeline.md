@@ -60,4 +60,13 @@ Red output:
 JSON path "$.code" Expected: is "IDENTITY_LOST_BLOCKS_BRANCH" but: was "DIAGNOSIS_NOT_READY". 失联后重诊尚未 READY，选支先撞诊断门禁，未按失联闸门拒绝修实际。
 Green: BranchSelectionService 在处理人检查之后、诊断 READY 之前，对 FIX_ACTUAL_TO_CURATED + identity_lost_mark 抛 IDENTITY_LOST_BLOCKS_BRANCH。
 Refactor: 测试抽出 openMismatch / claimAsGeneral / identityLostOnObservedHost。
+Commit: 93221d7
+
+### Cycle E — 已接受处理人选 CHANGE_CURATED → IDENTITY_LOST_BLOCKS_BRANCH
+Red command:
+`cd backend && ./gradlew test --tests com.archops.conflict.IdentityLostPipelineGateHttpAcceptanceTest.acceptedHandlerChangeCuratedOnIdentityLostIsBlocked`
+Red output:
+JSON path "$.code" Expected: is "IDENTITY_LOST_BLOCKS_BRANCH" but: was "FORK_NOT_FOUND". D 圈只拦 FIX_ACTUAL_TO_CURATED。
+Green: 同一闸门加上 CHANGE_CURATED_TO_OBSERVED。
+Refactor: rejectUniqueSiteForkWhenIdentityLost。
 Commit: 本圈绿灯提交。
