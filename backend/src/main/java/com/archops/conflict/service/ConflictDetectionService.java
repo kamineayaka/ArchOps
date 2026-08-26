@@ -229,21 +229,21 @@ public class ConflictDetectionService {
         if (active == null) {
             return;
         }
-        if (active.getStatus() != ConflictStatus.PENDING_CLOSE) {
-            return;
+        if (active.getStatus() == ConflictStatus.PENDING_CLOSE) {
+            Instant now = Instant.now();
+            conflictCaseMapper.update(null, new LambdaUpdateWrapper<ConflictCase>()
+                    .eq(ConflictCase::getId, active.getId())
+                    .eq(ConflictCase::getStatus, ConflictStatus.PENDING_CLOSE)
+                    .set(ConflictCase::getStatus, ConflictStatus.OPEN)
+                    .set(ConflictCase::getPendingCloseAt, null)
+                    .set(ConflictCase::getUpdatedAt, now));
+            conflictEventService.append(active.getId(), ConflictEventType.UPGRADED, null, Map.of(
+                    "reason", IDENTITY_LOST_REASON,
+                    "subjectId", subjectId,
+                    "relationType", CuratedRelationType.RUNS_ON.name()
+            ));
         }
-        Instant now = Instant.now();
-        conflictCaseMapper.update(null, new LambdaUpdateWrapper<ConflictCase>()
-                .eq(ConflictCase::getId, active.getId())
-                .eq(ConflictCase::getStatus, ConflictStatus.PENDING_CLOSE)
-                .set(ConflictCase::getStatus, ConflictStatus.OPEN)
-                .set(ConflictCase::getPendingCloseAt, null)
-                .set(ConflictCase::getUpdatedAt, now));
-        conflictEventService.append(active.getId(), ConflictEventType.UPGRADED, null, Map.of(
-                "reason", IDENTITY_LOST_REASON,
-                "subjectId", subjectId,
-                "relationType", CuratedRelationType.RUNS_ON.name()
-        ));
+        conflictDiagnosisService.scheduleAsyncDiagnosis(active.getId());
     }
 
     /**

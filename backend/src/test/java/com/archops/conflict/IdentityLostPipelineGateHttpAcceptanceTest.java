@@ -10,9 +10,12 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -125,6 +128,54 @@ class IdentityLostPipelineGateHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data.pendingCloseAt").value(nullValue()))
                 .andExpect(jsonPath("$.data.observedValue.availability", not("PRESENT")))
                 .andExpect(jsonPath("$.data.observedValue.hostId").value(nullValue()));
+    }
+
+    @Test
+    void identityLostDiagnosisOmitsUniqueSiteForksAndHollowRestoreSet() throws Exception {
+        String hostA = createHost("u05c-ha");
+        String hostB = createHost("u05c-hb");
+        String containerId = createContainer("u05c-x", "u05c-oid");
+        confirmRunsOn(containerId, hostA);
+        heartbeatLabeled(hostB, "u05c-ag-b", "u05c-rt-b", "u05c-x", "u05c-oid");
+
+        MvcResult open = mockMvc.perform(get("/api/conflicts/by-merge-key")
+                        .param("subjectId", containerId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("OPEN")))
+                .andReturn();
+        String conflictId = objectMapper.readTree(open.getResponse().getContentAsString())
+                .path("data").path("id").asText();
+
+        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, conflictId, GENERAL_ID);
+        mockMvc.perform(get("/api/conflicts/{id}/diagnosis", conflictId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("READY")))
+                .andExpect(jsonPath("$.data.forks[*].id", hasItem("FIX_ACTUAL_TO_CURATED")));
+
+        heartbeatUnlabeled(hostB, "u05c-ag-lost", "u05c-rt-miss", "u05c-miss");
+        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, conflictId, GENERAL_ID);
+
+        MvcResult diagnosis = mockMvc.perform(get("/api/conflicts/{id}/diagnosis", conflictId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("READY")))
+                .andExpect(jsonPath("$.data.forks[?(@.id=='FIX_ACTUAL_TO_CURATED')]").isEmpty())
+                .andExpect(jsonPath("$.data.forks[?(@.id=='CHANGE_CURATED_TO_OBSERVED')]").isEmpty())
+                .andExpect(jsonPath("$.data.forks[?(@.id=='RESTORE_HEARTBEAT_CHANNEL')]").isEmpty())
+                .andExpect(jsonPath("$.data.forks[?(@.kind=='FIX_ACTUAL')]").isEmpty())
+                .andExpect(jsonPath("$.data.forks[?(@.kind=='CHANGE_CURATED')]").isEmpty())
+                .andReturn();
+        JsonNode data = objectMapper.readTree(diagnosis.getResponse().getContentAsString()).path("data");
+        String copy = data.path("summary").asText() + " " + data.path("forks").toString();
+        assertTrue(copy.contains("身份失联"));
+        assertTrue(copy.contains("未绑定观测候选"));
+        assertTrue(copy.contains("补标"));
+        assertFalse(copy.contains("以现场为准"));
     }
 
     private void heartbeatLabeled(

@@ -42,4 +42,13 @@ Red output:
 JSON path "$.data.status" Expected: is "OPEN" but: was "PENDING_CLOSE". 失联标已写入，但 upsertIdentityLost 不触碰冲突状态。
 Green: 新标落地时 ConflictDetectionService.onIdentityLost：PENDING_CLOSE → OPEN、清 pendingCloseAt、事件 UPGRADED reason=identity_lost。不 SUSPENDED、不走 onObservationBecameHollow。
 Refactor: 抽出 IDENTITY_LOST_REASON。
+Commit: 3821abc
+
+### Cycle C — 失联后诊断不含修实际/改理想，也不含空洞恢复通道集
+Red command:
+`cd backend && ./gradlew test --tests com.archops.conflict.IdentityLostPipelineGateHttpAcceptanceTest.identityLostDiagnosisOmitsUniqueSiteForksAndHollowRestoreSet`
+Red output:
+Expected empty "$.data.forks[?(@.id=='FIX_ACTUAL_TO_CURATED')]" but found the pre-loss mismatch fork. 失联后仍返回旧 READY 诊断。
+Green: onIdentityLost 重诊；DiagnosisRuleEngine.diagnoseIdentityLost 只读说明（EXPLAIN）；文案含身份失联/未绑定观测候选/补标；不含 RESTORE_HEARTBEAT_CHANNEL。SUSPENDED 仍走空洞规则。
+Refactor: rulesFor；测试静态 assert。
 Commit: 本圈绿灯提交。

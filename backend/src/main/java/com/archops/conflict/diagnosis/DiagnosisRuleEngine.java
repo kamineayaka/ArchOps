@@ -12,6 +12,7 @@ public final class DiagnosisRuleEngine {
     public static final String FIX_ACTUAL_TO_CURATED = "FIX_ACTUAL_TO_CURATED";
     public static final String CHANGE_CURATED_TO_OBSERVED = "CHANGE_CURATED_TO_OBSERVED";
     public static final String RESTORE_HEARTBEAT_CHANNEL = "RESTORE_HEARTBEAT_CHANNEL";
+    public static final String EXPLAIN_IDENTITY_LOST = "EXPLAIN_IDENTITY_LOST";
 
     private DiagnosisRuleEngine() {
     }
@@ -31,6 +32,24 @@ public final class DiagnosisRuleEngine {
         return new RuleResult(
                 "策展要求运行于 " + label(curatedHostId, curatedHostName)
                         + "，但观测已因心跳超时进入空洞（无可用实际）。",
+                List.of(fork)
+        );
+    }
+
+    /**
+     * 身份失联: read-only explanation. Not 修实际 / 改理想 unique-site forks,
+     * and not the 观测空洞 restore-channel set while the heartbeat is still fresh.
+     */
+    public static RuleResult diagnoseIdentityLost() {
+        ConflictDiagnosisResponse.ForkSuggestion fork = new ConflictDiagnosisResponse.ForkSuggestion(
+                EXPLAIN_IDENTITY_LOST,
+                "身份失联",
+                "EXPLAIN",
+                "线索失效，无法认回对象",
+                "当前为身份失联。处理走未绑定观测候选与现场补标，不得以旧实际为唯一落点。"
+        );
+        return new RuleResult(
+                "主体已身份失联，不得再按旧实际修实际或改理想；处理走未绑定观测候选与现场补标。",
                 List.of(fork)
         );
     }
