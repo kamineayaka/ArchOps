@@ -1,13 +1,13 @@
 # 新对话接手指南
 
-领域合同（ADR-0039）与技术栈（ADR-0043）已冻结。  
+领域合同（ADR-0039）与技术栈（ADR-0043）已冻结；运行时拓扑 **ADR-0044**（控制面枢纽 / 执行引擎 / AI 编排层）。  
 **Cloud / 任意 Agent 必读根目录 [`AGENTS.md`](../AGENTS.md)**（及 [`CLAUDE.md`](../CLAUDE.md)）。  
 **脚手架已按 ADR-0043 重建**：`backend/`、`frontend/`、`agent/`、`deploy/`、根 `Dockerfile` 为可启动最小骨架；竖切按工单推进。
 
 ## 必读
 
 1. `CONTEXT.md`
-2. `docs/adr/0039` … `0043`（尤其 **0043**）
+2. `docs/adr/0039` … `0044`（栈 **0043**，进程切分 **0044**）
 3. `docs/mvp-vertical-slice.md`（竖切范围对照）
 4. `docs/specs/vertical-slice-mvp.md`（竖切 Spec；01–13 已闭合）
 5. `docs/specs/change-curated-draft.md`（改策展/草案逐条确认 Spec；**已闭合**）
@@ -30,7 +30,7 @@
 | Agent 心跳+快照 → 观测 / 「实际在哪」 | **已完成**（票 03） |
 | 冲突警告与合并键升级 | **已完成**（票 04） |
 | 已知悉 + 认领/自任 → 已接受处理人 | **已完成**（票 05） |
-| 异步诊断（规则）+ 可选 LLM + 敏感读拒绝 | **已完成**（票 06） |
+| 异步诊断（规则）+ 可选 LLM + 敏感读拒绝 | **已完成**（票 06）。ADR-0044：控制面去掉进程内 LLM 出站，规则兜底保留；编排层出站另拆 |
 | 修实际选支 + 操作计划人审 | **已完成**（票 07） |
 | 观测对齐 → 待确认关闭 → 处理人确认 | **已完成**（票 09） |
 | 心跳超时 → 空洞挂起并作废计划 | **已完成**（票 10） |
@@ -74,6 +74,7 @@
 22. ~~`/implement` `/tdd` 未绑定票 08~~：已完成（绑定写入门禁：判据改「失联之后是否又标签命中」；同一策展对象只能是一个现场实体的本体；夹具给出未被绑的目标；witnessed red → green → refactor；`UNBOUND_BIND_TARGET_ALREADY_BOUND` / V19）。  
 23. ~~`/implement` `/tdd` 未绑定票 04~~：已完成（标签命中收尾：清失联、消费候选与绑定记忆、作废相关未绑定草案、恢复升级链；witnessed red → green → refactor；审计 C-3 / S-4 / S-2；V20）。  
 24. **下一对话：`/implement` `/tdd` 未绑定票 05**（frontier；失联闸门修实际 / 改理想路径）。票路径：[`.scratch/unbound-identity-rebind/issues/05-identity-lost-gates-conflict-pipeline.md`](../.scratch/unbound-identity-rebind/issues/05-identity-lost-gates-conflict-pipeline.md)。不要加改策展 07。不要重拆竖切 01–13。不要做 06–07。票 09（失联叠加心跳超时时问法仍须说出观测空洞；审计 C-1）待人排期，不要与 05 混做。  
+25. **ADR-0044 已立**（控制面枢纽 / 执行引擎 / AI 编排层）。控制面进程内 LLM 出站已删除。MINA 迁执行引擎、编排层进程、步骤断言与 B-live 代发 **另开工单**，不要写入未绑定 05。  
 
 ### 工单阻塞简图
 
@@ -117,4 +118,4 @@
 
 ## 栈摘要
 
-见 ADR-0043：Gradle / MyBatis-Plus / React+Ant / PG+Redis 多副本 / Python systemd Agent / `archops:latest`。MINA SSHD 已接入（票 08，默认 `archops.ssh.mode=fake`）；WebClient 已启用（票 06）。
+见 ADR-0043 + **ADR-0044**：Gradle / MyBatis-Plus / React+Ant / PG+Redis 多副本 / Python systemd Host Agent / 控制面 `archops:latest` + 执行引擎 + AI 编排层。MINA SSHD 目前仍在控制面（票 08，默认 `archops.ssh.mode=fake`），须迁执行引擎。控制面进程内 WebClient 出站已按 ADR-0044 删除。

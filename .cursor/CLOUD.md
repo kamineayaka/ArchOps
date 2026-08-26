@@ -38,7 +38,7 @@ Matt workflow skills are **vendored in the repo** (Cloud Agents do not inherit l
 
 ## Secrets
 
-Put API keys (e.g. AI egress) in [Cursor Dashboard → Cloud Agents → Secrets](https://cursor.com/dashboard/cloud-agents), not in git.  
+Put API keys (e.g. AI 编排层 egress, ADR-0044) in [Cursor Dashboard → Cloud Agents → Secrets](https://cursor.com/dashboard/cloud-agents), not in git. Do not put model keys on the control plane.  
 Do not commit `.env` files.
 
 ## After changing this config

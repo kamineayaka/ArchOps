@@ -6,7 +6,7 @@ alwaysApply: true
 # ArchOps 项目地图
 
 运维关系真相控制平面。  
-**Agent 入口**：根目录 `AGENTS.md`（及 `CLAUDE.md`）。领域：`CONTEXT.md` / ADR-0039。技术栈：ADR-0043。
+**Agent 入口**：根目录 `AGENTS.md`（及 `CLAUDE.md`）。领域：`CONTEXT.md` / ADR-0039。技术栈：ADR-0043。进程切分：ADR-0044。
 
 ## 技术栈（ADR-0043）
 
@@ -15,7 +15,7 @@ alwaysApply: true
 | `backend/` | Java 21、Spring Boot 3、Gradle、MyBatis-Plus、Flyway、PostgreSQL、Redis |
 | `frontend/` | React + TypeScript + Ant Design（嵌入 `archops:latest`） |
 | `agent/` | Python 3.12+；systemd 交付 |
-| `deploy/` | `archops:latest` + postgres + redis（多副本） |
+| `deploy/` | `archops:latest` + 执行引擎 + AI 编排层 + postgres + redis（ADR-0044；编排层/执行引擎进程待拆） |
 | `docs/` | 合同、ADR、Spec、prompts、`docs/agents/`（Matt tracker + TDD overlay） |
 | `.cursor/skills/` | Cloud Agent 技能（Matt 工程链 + ArchOps `add-*`） |
 | `.scratch/vertical-slice-mvp/issues/` | 竖切工单（01–13 已闭合） |

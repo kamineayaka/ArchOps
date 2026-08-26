@@ -6,7 +6,7 @@ Claude / Cloud 编码助手请把本仓库的 **`AGENTS.md` 当作最高执行�
 
 1. [AGENTS.md](./AGENTS.md) — 防漂移、栈、模块、工单方式  
 2. [CONTEXT.md](./CONTEXT.md) — 领域术语（双轨、冲突、计划冻结等）  
-3. [docs/adr/0043-tech-stack.md](./docs/adr/0043-tech-stack.md) — Gradle / MyBatis-Plus / React+Ant / PG+Redis  
+3. [docs/adr/0043-tech-stack.md](./docs/adr/0043-tech-stack.md) — Gradle / MyBatis-Plus / React+Ant / PG+Redis；进程切分 [ADR-0044](./docs/adr/0044-control-plane-hub-executor-and-ai-orchestrator.md)  
 4. [docs/specs/vertical-slice-mvp.md](./docs/specs/vertical-slice-mvp.md) — 竖切 Spec（01–13 已闭合）  
 5. [docs/specs/change-curated-draft.md](./docs/specs/change-curated-draft.md) — 改策展/草案逐条确认 Spec（**已闭合**）  
 6. [docs/specs/unbound-identity-rebind.md](./docs/specs/unbound-identity-rebind.md) — 下一刀 Spec（未绑定观测候选 / 身份失联重绑；01–07 已拆）  
@@ -36,7 +36,7 @@ Single-context frozen `CONTEXT.md` + `docs/adr/`. See `docs/agents/domain.md`.
 ## Non-negotiables (short)
 
 - Domain contract frozen (ADR-0039). Do not change semantics in code; new ADR first.
-- Stack frozen (ADR-0043): **no Maven, no JPA-as-base, no Vue frontend, no Neo4j-required-in-v1, no LangChain backbone, Redis is not truth SSOT**.
+- Stack frozen (ADR-0043 + **ADR-0044**): **no Maven, no JPA-as-base, no Vue frontend, no Neo4j-required-in-v1, no LangChain backbone, Redis is not truth SSOT**; 控制面不持模型密钥，不把执行引擎/编排层塞进未绑定票。
 - Implement **one ticket at a time** from the scratch issues folder; `/implement` drives `/tdd` (**red → green → refactor**) at the HTTP API acceptance seam (`docs/agents/tdd.md`).
 - Do not revive deleted legacy packages (`ai`, `asset`, `graph` Neo4j SSOT, architecture proposals, etc.).
 

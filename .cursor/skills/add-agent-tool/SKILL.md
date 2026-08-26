@@ -40,7 +40,7 @@ ADR-0043：Python 3.12+ host agent（systemd 交付）+ 控制面 ingest。**不
 - 观测心跳/探测直写；不自动覆盖策展
 - 禁止旁路 SSH；禁止 LangChain 诊断编排主干
 - 凭证不进日志/响应
-- AI 出站走 WebClient + ADR-0041 白名单（不是 Agent tool）
+- AI 出站在 AI 编排层（ADR-0044 / ADR-0041），不是 Host Agent tool；控制面不持模型密钥
 
 ## 验证
 

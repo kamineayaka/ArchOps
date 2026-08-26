@@ -5,7 +5,7 @@ import com.archops.conflict.dto.ConflictDiagnosisResponse;
 import java.util.List;
 
 /**
- * Rule-engine forks (Must). LLM may only enrich summary text later.
+ * Control-plane 规则分叉兜底 (ADR-0041 / ADR-0044). LLM diagnosis lives on the AI 编排层.
  */
 public final class DiagnosisRuleEngine {
 
