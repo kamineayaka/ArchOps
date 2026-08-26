@@ -22,6 +22,6 @@ alwaysApply: true
 
 ## 工作方式
 
-- 一次一张 frontier 票（竖切与改策展工单包均已闭合；下一刀 Spec `docs/specs/unbound-identity-rebind.md`，**编号 frontier = 05**；01–04 + 08 TDD-done；票 09 待人排期）
+- 一次一张 frontier 票（竖切与改策展工单包均已闭合；下一刀 Spec `docs/specs/unbound-identity-rebind.md`，**编号 frontier = 05**；01–04 + 08 TDD-done；票 09 待人排期）。代码 vs ADR-0044 审计 `.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md`：A2 = 05，A1/0044 拆分不要写入 05
 - `/implement` 走 **red → green → refactor**（`docs/agents/tdd.md`）
 - 不复活旧域包；不扩票外范围（自我迭代、可达矩阵、完整 xterm 等）
