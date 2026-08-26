@@ -1,7 +1,5 @@
 package com.archops.conflict.diagnosis;
 
-import com.archops.common.ai.AiEgressConfig;
-import com.archops.common.ai.AiEgressProperties;
 import com.archops.conflict.domain.ConflictCase;
 import com.archops.conflict.domain.ConflictDiagnosis;
 import com.archops.conflict.domain.DiagnosisSource;
@@ -37,8 +35,6 @@ public class ConflictDiagnosisService {
     private final ConflictCaseMapper conflictCaseMapper;
     private final CuratedObjectMapper curatedObjectMapper;
     private final DiagnosisJobQueue diagnosisJobQueue;
-    private final DiagnosisLlmClient diagnosisLlmClient;
-    private final AiEgressProperties aiEgressProperties;
     private final DiagnosisAsyncRunner diagnosisAsyncRunner;
     private final ObjectMapper objectMapper;
 
@@ -47,8 +43,6 @@ public class ConflictDiagnosisService {
             ConflictCaseMapper conflictCaseMapper,
             CuratedObjectMapper curatedObjectMapper,
             DiagnosisJobQueue diagnosisJobQueue,
-            DiagnosisLlmClient diagnosisLlmClient,
-            AiEgressProperties aiEgressProperties,
             ObjectMapper objectMapper,
             @Lazy DiagnosisAsyncRunner diagnosisAsyncRunner
     ) {
@@ -56,8 +50,6 @@ public class ConflictDiagnosisService {
         this.conflictCaseMapper = conflictCaseMapper;
         this.curatedObjectMapper = curatedObjectMapper;
         this.diagnosisJobQueue = diagnosisJobQueue;
-        this.diagnosisLlmClient = diagnosisLlmClient;
-        this.aiEgressProperties = aiEgressProperties;
         this.objectMapper = objectMapper;
         this.diagnosisAsyncRunner = diagnosisAsyncRunner;
     }
@@ -142,20 +134,10 @@ public class ConflictDiagnosisService {
             );
         }
 
-        List<String> forkLabels = rules.forks().stream().map(ConflictDiagnosisResponse.ForkSuggestion::label).toList();
-        var llm = diagnosisLlmClient.enrichSummary(rules.summary(), forkLabels);
-        DiagnosisSource source;
-        String summary;
-        if (llm.isPresent()) {
-            source = DiagnosisSource.RULES_WITH_LLM;
-            summary = llm.get();
-        } else if (AiEgressConfig.isConfigured(aiEgressProperties)) {
-            source = DiagnosisSource.RULES_LLM_FALLBACK;
-            summary = rules.summary();
-        } else {
-            source = DiagnosisSource.RULES;
-            summary = rules.summary();
-        }
+        // ADR-0044: control plane holds no model keys. LLM enrichment lives on the AI 编排层.
+        // Until that process exists, 规则分叉兜底 (ADR-0041) remains the only in-process source.
+        DiagnosisSource source = DiagnosisSource.RULES;
+        String summary = rules.summary();
 
         Instant now = Instant.now();
         diagnosisMapper.update(null, new LambdaUpdateWrapper<ConflictDiagnosis>()

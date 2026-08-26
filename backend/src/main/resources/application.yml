@@ -42,11 +42,3 @@ archops:
   credentials:
     # Base64-encoded AES-128/192/256 key. Required in production; blank uses a local-dev default.
     encryption-key-base64: ${ARCHOPS_CREDENTIALS_ENCRYPTION_KEY_BASE64:}
-  ai:
-    enabled: ${ARCHOPS_AI_ENABLED:false}
-    base-url: ${ARCHOPS_AI_BASE_URL:}
-    api-key: ${ARCHOPS_AI_API_KEY:}
-    model: ${ARCHOPS_AI_MODEL:deepseek-chat}
-    allowlist-hosts:
-      - api.openai.com
-      - api.deepseek.com
