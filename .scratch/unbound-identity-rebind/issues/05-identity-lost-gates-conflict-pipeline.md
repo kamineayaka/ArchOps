@@ -78,4 +78,13 @@ Red output:
 （先把失联闸门放到处理人检查之前）Expected: is "PLAN_REQUIRES_ACCEPTED_HANDLER" but: was "IDENTITY_LOST_BLOCKS_BRANCH"。
 Green: 恢复「已接受处理人」先于失联闸门。
 Refactor: 注释钉死优先级。
+Commit: b72f952
+
+### Cycle G — 失联前活跃计划作废；再 approve → PLAN_VOIDED
+Red command:
+`cd backend && ./gradlew test --tests com.archops.conflict.IdentityLostPipelineGateHttpAcceptanceTest.identityLostVoidsActivePlanAndApproveIsPlanVoided`
+Red output:
+JSON path "$.data.status" Expected: is "VOIDED" but: was "DRAFT_REVIEW". onIdentityLost 不作废计划。
+Green: onIdentityLost 调 voidActivePlansForConflict(reason=identity_lost)；approve 对 VOIDED 返回 PLAN_VOIDED（不再误报 PLAN_NOT_IN_REVIEW）。
+Refactor: 抽出 voidActivePlans，空洞路径复用事件追加。
 Commit: 本圈绿灯提交。

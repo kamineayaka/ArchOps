@@ -206,14 +206,7 @@ public class ConflictDetectionService {
                 "subjectId", subjectId,
                 "relationType", relationType.name()
         ));
-        List<String> voided = operationPlanService.voidActivePlansForConflict(
-                active.getId(), "observation_hollow_heartbeat_timeout");
-        for (String planId : voided) {
-            conflictEventService.append(active.getId(), ConflictEventType.PLAN_VOIDED, null, Map.of(
-                    "planId", planId,
-                    "reason", "observation_hollow_heartbeat_timeout"
-            ));
-        }
+        List<String> voided = voidActivePlans(active.getId(), "observation_hollow_heartbeat_timeout");
         curatedDraftService.voidOpenForConflict(active.getId(), "observation_hollow_heartbeat_timeout");
         conflictDiagnosisService.scheduleAsyncDiagnosis(active.getId());
         return new HollowSuspendResult(active.getId(), voided);
@@ -243,7 +236,19 @@ public class ConflictDetectionService {
                     "relationType", CuratedRelationType.RUNS_ON.name()
             ));
         }
+        voidActivePlans(active.getId(), IDENTITY_LOST_REASON);
         conflictDiagnosisService.scheduleAsyncDiagnosis(active.getId());
+    }
+
+    private List<String> voidActivePlans(String conflictId, String reason) {
+        List<String> voided = operationPlanService.voidActivePlansForConflict(conflictId, reason);
+        for (String planId : voided) {
+            conflictEventService.append(conflictId, ConflictEventType.PLAN_VOIDED, null, Map.of(
+                    "planId", planId,
+                    "reason", reason
+            ));
+        }
+        return voided;
     }
 
     /**

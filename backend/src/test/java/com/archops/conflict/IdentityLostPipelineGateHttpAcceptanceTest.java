@@ -232,6 +232,40 @@ class IdentityLostPipelineGateHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data").value(nullValue()));
     }
 
+    @Test
+    void identityLostVoidsActivePlanAndApproveIsPlanVoided() throws Exception {
+        Fixture fx = openMismatch("u05g");
+        claimAsGeneral(fx.conflictId());
+        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, fx.conflictId(), GENERAL_ID);
+
+        MvcResult created = mockMvc.perform(post("/api/conflicts/{id}/branch-selection", fx.conflictId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"forkId\":\"FIX_ACTUAL_TO_CURATED\"}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("DRAFT_REVIEW")))
+                .andReturn();
+        String planId = objectMapper.readTree(created.getResponse().getContentAsString())
+                .path("data").path("id").asText();
+
+        identityLostOnObservedHost(fx);
+
+        mockMvc.perform(get("/api/operation-plans/{id}", planId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("VOIDED")));
+
+        mockMvc.perform(post("/api/operation-plans/{id}/approve", planId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.code", is("PLAN_VOIDED")))
+                .andExpect(jsonPath("$.data").value(nullValue()));
+    }
+
     private Fixture openMismatch(String prefix) throws Exception {
         String hostA = createHost(prefix + "-ha");
         String hostB = createHost(prefix + "-hb");
