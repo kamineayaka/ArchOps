@@ -17,6 +17,7 @@ import com.archops.curated.mapper.CuratedObjectMapper;
 import com.archops.curated.service.CuratedDraftService;
 import com.archops.observed.domain.ObservedAvailability;
 import com.archops.observed.domain.ObservedFact;
+import com.archops.observed.mapper.IdentityLostMarkMapper;
 import com.archops.observed.mapper.ObservedFactMapper;
 import com.archops.plan.service.OperationPlanService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -53,6 +54,7 @@ public class ConflictDetectionService {
     private final CuratedFactMapper curatedFactMapper;
     private final CuratedObjectMapper curatedObjectMapper;
     private final ObservedFactMapper observedFactMapper;
+    private final IdentityLostMarkMapper identityLostMarkMapper;
     private final ConflictDiagnosisService conflictDiagnosisService;
     private final ConflictEventService conflictEventService;
     private final OperationPlanService operationPlanService;
@@ -64,6 +66,7 @@ public class ConflictDetectionService {
             CuratedFactMapper curatedFactMapper,
             CuratedObjectMapper curatedObjectMapper,
             ObservedFactMapper observedFactMapper,
+            IdentityLostMarkMapper identityLostMarkMapper,
             ConflictDiagnosisService conflictDiagnosisService,
             ConflictEventService conflictEventService,
             @Lazy OperationPlanService operationPlanService,
@@ -74,6 +77,7 @@ public class ConflictDetectionService {
         this.curatedFactMapper = curatedFactMapper;
         this.curatedObjectMapper = curatedObjectMapper;
         this.observedFactMapper = observedFactMapper;
+        this.identityLostMarkMapper = identityLostMarkMapper;
         this.conflictDiagnosisService = conflictDiagnosisService;
         this.conflictEventService = conflictEventService;
         this.operationPlanService = operationPlanService;
@@ -462,18 +466,8 @@ public class ConflictDetectionService {
                 curatedHost != null ? curatedHost.getName() : null
         );
         boolean hollow = row.getStatus() == ConflictStatus.SUSPENDED;
-        ConflictCaseResponse.TrackValue observedValue;
-        if (hollow) {
-            // Do not present stale snapshot as trustworthy 实际 during 空洞挂起.
-            observedValue = ConflictCaseResponse.TrackValue.hollow();
-        } else if (row.getObservedAvailability() == ObservedAvailability.ABSENT) {
-            observedValue = ConflictCaseResponse.TrackValue.absent();
-        } else {
-            observedValue = ConflictCaseResponse.TrackValue.present(
-                    observedHost != null ? observedHost.getId() : row.getObservedTargetId(),
-                    observedHost != null ? observedHost.getName() : null
-            );
-        }
+        boolean identityLost = identityLostMarkMapper.selectById(row.getSubjectId()) != null;
+        ConflictCaseResponse.TrackValue observedValue = observedTrackValue(row, hollow, identityLost, observedHost);
 
         List<ConflictCaseResponse.LineageStep> lineage = readLineage(row.getObservedLineageJson()).stream()
                 .map(step -> {
@@ -517,6 +511,7 @@ public class ConflictDetectionService {
                 row.getSuspendedAt(),
                 row.getStatus() == ConflictStatus.PENDING_CLOSE,
                 hollow,
+                identityLost,
                 conflictDiagnosisService.statusLabelForConflict(row.getId()),
                 new ConflictCaseResponse.Collaboration(
                         Boolean.TRUE.equals(row.getAcknowledged()),
@@ -527,6 +522,29 @@ public class ConflictDetectionService {
                                 ? HandlerAcceptance.NONE
                                 : row.getHandlerAcceptance()
                 )
+        );
+    }
+
+    private ConflictCaseResponse.TrackValue observedTrackValue(
+            ConflictCase row,
+            boolean hollow,
+            boolean identityLost,
+            CuratedObject observedHost
+    ) {
+        if (hollow) {
+            // Do not present stale snapshot as trustworthy 实际 during 空洞挂起.
+            return ConflictCaseResponse.TrackValue.hollow();
+        }
+        if (identityLost) {
+            // 身份失联 is not 观测空洞: keep OPEN, do not show residual observed_fact as 实际.
+            return ConflictCaseResponse.TrackValue.identityLost();
+        }
+        if (row.getObservedAvailability() == ObservedAvailability.ABSENT) {
+            return ConflictCaseResponse.TrackValue.absent();
+        }
+        return ConflictCaseResponse.TrackValue.present(
+                observedHost != null ? observedHost.getId() : row.getObservedTargetId(),
+                observedHost != null ? observedHost.getName() : null
         );
     }
 

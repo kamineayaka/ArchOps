@@ -25,3 +25,12 @@
 Blocked by 01。01 与本票之间若 02 也已 unblocked，先做 02。不要把失联写成观测空洞。不要做 06–07。
 
 01–04 + 08 已 TDD-done，本票已 unblocked。开场 prompt：[`docs/implement-unbound-identity-rebind-05-prompt.md`](../../../docs/implement-unbound-identity-rebind-05-prompt.md)。代码 vs ADR-0044 审计 **A2** 即本票范围；**A3** 是票 09；**A1**（升级不作废活跃计划）与 0044 进程债禁止写入本票。见 [`.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md`](../audit-code-vs-adr-0044.md)。
+
+### Cycle A — OPEN 冲突主体随后失联：GET 可读 identityLost，不把旧宿主当 PRESENT 实际
+Red command:
+`cd backend && ./gradlew test --tests com.archops.conflict.IdentityLostPipelineGateHttpAcceptanceTest.openConflictSubjectThenIdentityLostKeepsOpenWithoutPresentingStaleHost`
+Red output:
+AssertionError: No value at JSON path "$.data.identityLost" (PathNotFoundException). GET identity-lost 已 200（LABEL_CLUE_LOST）；冲突 GET 仍无旗标，observedValue 仍会把残留 observed_fact 展示为 PRESENT。
+Green: ConflictCaseResponse 增加 identityLost 读模型；toResponse 查 identity_lost_mark；失联且非空洞时 observedValue=IDENTITY_LOST、hostId JSON null。不改 ConflictStatus，不走 onObservationBecameHollow。
+Refactor: 抽出 observedTrackValue。
+Commit: 本圈绿灯提交。

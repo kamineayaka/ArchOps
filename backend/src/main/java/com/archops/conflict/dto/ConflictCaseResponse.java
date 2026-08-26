@@ -31,6 +31,11 @@ public record ConflictCaseResponse(
          */
         boolean observationHollow,
         /**
+         * True when the merge-key subject currently has an 身份失联 mark.
+         * Read-model only — not a ConflictStatus, not observed_fact.availability.
+         */
+        boolean identityLost,
+        /**
          * NOT_STARTED | PENDING | READY | FAILED — diagnosis is async and never blocks warning.
          */
         String diagnosisStatus,
@@ -68,6 +73,11 @@ public record ConflictCaseResponse(
 
         public static TrackValue hollow() {
             return new TrackValue("HOLLOW", null, null);
+        }
+
+        /** Conflict GET projection of 身份失联: not PRESENT, not HOLLOW, hostId JSON null. */
+        public static TrackValue identityLost() {
+            return new TrackValue("IDENTITY_LOST", null, null);
         }
     }
 
