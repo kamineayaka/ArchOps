@@ -96,4 +96,13 @@ Red output:
 JSON path "$.data.status" Expected: is "VOIDED" but: was "OPEN". onIdentityLost 不作废 CHANGE_CURATED 草案。
 Green: voidOpenForConflict(reason=identity_lost)；仅 origin=CHANGE_CURATED。
 Refactor: 注释钉死不作废未绑定草案。
-Commit: 本圈绿灯提交。
+Commit: e9a204b
+
+### Cycle I — 未打标同名仍不新开冲突（回归）
+Red command:
+`cd backend && ./gradlew test --tests com.archops.conflict.IdentityLostPipelineGateHttpAcceptanceTest.unlabeledSameNameStillDoesNotOpenConflict`
+Red output:
+reuse/regression：first-run green。竖切 13 / 票 01 已保证 by-merge-key 400 CONFLICT_NOT_FOUND。本圈不改生产。
+Green: 无。
+Refactor: 无。
+Commit: 本圈提交测试守卫。

@@ -11,6 +11,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
@@ -320,6 +321,38 @@ class IdentityLostPipelineGateHttpAcceptanceTest {
                 .andExpect(jsonPath("$.success", is(false)))
                 .andExpect(jsonPath("$.code", is("CONFLICT_NOT_FOUND")))
                 .andExpect(jsonPath("$.data").value(nullValue()));
+    }
+
+    @Test
+    void labelMatchAfterIdentityLostRestoresUniqueSiteDiagnosisForks() throws Exception {
+        Fixture fx = openMismatch("u05j");
+        identityLostOnObservedHost(fx);
+        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, fx.conflictId(), GENERAL_ID);
+        mockMvc.perform(get("/api/conflicts/{id}/diagnosis", fx.conflictId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.forks[?(@.id=='FIX_ACTUAL_TO_CURATED')]").isEmpty());
+
+        heartbeatLabeled(fx.hostB(), fx.prefix() + "-ag-hit", fx.prefix() + "-rt-hit",
+                fx.prefix() + "-x", fx.prefix() + "-oid");
+
+        mockMvc.perform(get("/api/conflicts/{id}", fx.conflictId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.identityLost", is(false)))
+                .andExpect(jsonPath("$.data.status", is("OPEN")))
+                .andExpect(jsonPath("$.data.observedValue.availability", is("PRESENT")))
+                .andExpect(jsonPath("$.data.observedValue.hostId", is(fx.hostB())));
+
+        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, fx.conflictId(), GENERAL_ID);
+        mockMvc.perform(get("/api/conflicts/{id}/diagnosis", fx.conflictId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("READY")))
+                .andExpect(jsonPath("$.data.forks[*].id", hasItems("FIX_ACTUAL_TO_CURATED", "CHANGE_CURATED_TO_OBSERVED")));
     }
 
     private Fixture openMismatch(String prefix) throws Exception {

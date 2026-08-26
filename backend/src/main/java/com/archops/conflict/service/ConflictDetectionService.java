@@ -241,6 +241,19 @@ public class ConflictDetectionService {
         conflictDiagnosisService.scheduleAsyncDiagnosis(active.getId());
     }
 
+    /**
+     * 标签命中清标后闸门解除：重诊，使修实际 / 改理想可再次出现。
+     * 不改冲突状态，不作废计划或草案（那是失联落地，不是清标）。
+     */
+    @Transactional
+    public void onIdentityLostCleared(String subjectId) {
+        ConflictCase active = findActive(subjectId, CuratedRelationType.RUNS_ON);
+        if (active == null) {
+            return;
+        }
+        conflictDiagnosisService.scheduleAsyncDiagnosis(active.getId());
+    }
+
     private List<String> voidActivePlans(String conflictId, String reason) {
         List<String> voided = operationPlanService.voidActivePlansForConflict(conflictId, reason);
         for (String planId : voided) {
