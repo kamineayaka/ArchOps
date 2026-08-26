@@ -11,7 +11,7 @@
 3. `docs/mvp-vertical-slice.md`（竖切范围对照）
 4. `docs/specs/vertical-slice-mvp.md`（竖切 Spec；01–13 已闭合）
 5. `docs/specs/change-curated-draft.md`（改策展/草案逐条确认 Spec；**已闭合**）
-6. `docs/specs/unbound-identity-rebind.md`（未绑定 / 身份失联重绑 Spec；工单 01–07 已拆，**frontier = 05**；01–04 + 08 TDD-done）
+6. `docs/specs/unbound-identity-rebind.md`（未绑定 / 身份失联重绑 Spec；工单 01–07 已拆，**frontier = 06**；01–05 + 08 TDD-done）
 7. `docs/agents/tdd.md`（`/implement` 的 TDD overlay：red → green → refactor）
 8. `docs/scaffold-bootstrap-prompt.md`（脚手架专用；已完成后可作审计对照）
 9. `.cursor/rules/project-map.mdc`
@@ -42,7 +42,7 @@
 | 改策展草案 Spec | **已发布** → [`docs/specs/change-curated-draft.md`](specs/change-curated-draft.md) |
 | 改策展草案工单 | **TDD-done 06 / 本刀闭合** → [`.scratch/change-curated-draft/issues/`](../.scratch/change-curated-draft/issues/)（**01–06 TDD-done**。从竖切 MVP 往上长，不重拆竖切 01–13） |
 | 未绑定 / 身份失联 Spec | **已发布** → [`docs/specs/unbound-identity-rebind.md`](specs/unbound-identity-rebind.md) |
-| 未绑定 / 身份失联工单 | **01–04 + 08 TDD-done；frontier = 05** → [`.scratch/unbound-identity-rebind/issues/`](../.scratch/unbound-identity-rebind/issues/)（不要写进 `change-curated-draft`） |
+| 未绑定 / 身份失联工单 | **01–05 + 08 TDD-done；frontier = 06**（HTTP tracer） → [`.scratch/unbound-identity-rebind/issues/`](../.scratch/unbound-identity-rebind/issues/)（不要写进 `change-curated-draft`；票 09 待人排期） |
 | 未绑定 01–03 合同审计 | **已出报告** → [`.scratch/unbound-identity-rebind/audit-01-03-opus.md`](../.scratch/unbound-identity-rebind/audit-01-03-opus.md)（三轴 + 探针表；票 08 已处置 C-4 / C-2 / S-3，票 04 已处置 C-3 / S-4 / S-2，C-1 留票 09 待人排期） |
 | 代码 vs ADR-0044 只读审计 | **已出报告** → [`.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md`](../.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md)（A2 = 票 05；A3 = 票 09；A1 升级不作废计划另开；B1–B5 为 0044 过渡债，禁止写入 05） |
 | Matt 工作流 skills / tracker | **已入库**（`.cursor/skills/` + `.agents/skills/` + `docs/agents/`；TDD overlay [`docs/agents/tdd.md`](agents/tdd.md)；Cloud 不依赖本机 `~/.agents`） |
@@ -74,8 +74,9 @@
 21. ~~未绑定 01–03 合同审计~~：已完成（三轴只读审计；报告 [`.scratch/unbound-identity-rebind/audit-01-03-opus.md`](../.scratch/unbound-identity-rebind/audit-01-03-opus.md)；未改生产）。  
 22. ~~`/implement` `/tdd` 未绑定票 08~~：已完成（绑定写入门禁：判据改「失联之后是否又标签命中」；同一策展对象只能是一个现场实体的本体；夹具给出未被绑的目标；witnessed red → green → refactor；`UNBOUND_BIND_TARGET_ALREADY_BOUND` / V19）。  
 23. ~~`/implement` `/tdd` 未绑定票 04~~：已完成（标签命中收尾：清失联、消费候选与绑定记忆、作废相关未绑定草案、恢复升级链；witnessed red → green → refactor；审计 C-3 / S-4 / S-2；V20）。  
-24. **下一对话：`/implement` `/tdd` 未绑定票 05**（frontier；失联闸门修实际 / 改理想路径）。票路径：[`.scratch/unbound-identity-rebind/issues/05-identity-lost-gates-conflict-pipeline.md`](../.scratch/unbound-identity-rebind/issues/05-identity-lost-gates-conflict-pipeline.md)。开场 prompt：[`docs/implement-unbound-identity-rebind-05-prompt.md`](implement-unbound-identity-rebind-05-prompt.md)。不要加改策展 07。不要重拆竖切 01–13。不要做 06–07。票 09（失联叠加心跳超时时问法仍须说出观测空洞；审计 C-1 / 0044 审计 A3）待人排期，不要与 05 混做。  
-25. **ADR-0044 已立**（控制面枢纽 / 执行引擎 / AI 编排层）。控制面进程内 LLM 出站已删除。MINA 迁执行引擎、编排层进程、步骤断言与 B-live 代发 **另开工单**，不要写入未绑定 05。代码对照审计：[`.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md`](../.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md)（A1 升级不作废计划另开，不要塞进 05）。  
+24. ~~`/implement` `/tdd` 未绑定票 05~~：已完成（失联闸门：冲突 GET `identityLost`；PENDING_CLOSE→OPEN；诊断不含修实际/改理想/空洞恢复通道集；选支 `IDENTITY_LOST_BLOCKS_BRANCH`；活跃计划与 OPEN CHANGE_CURATED 草案作废；未打标同名仍不新开冲突；清标后闸门解除。witnessed red → green → refactor）。  
+25. **下一对话：`/implement` `/tdd` 未绑定票 06**（frontier；HTTP 主接缝有序 tracer）。票路径：[`.scratch/unbound-identity-rebind/issues/06-http-tracer-acceptance.md`](../.scratch/unbound-identity-rebind/issues/06-http-tracer-acceptance.md)。不要加改策展 07。不要重拆竖切 01–13。不要自动做 07。票 09（失联叠加心跳超时时问法仍须说出观测空洞；审计 C-1 / 0044 审计 A3）待人排期，不要与 06 混做。  
+26. **ADR-0044 已立**（控制面枢纽 / 执行引擎 / AI 编排层）。控制面进程内 LLM 出站已删除。MINA 迁执行引擎、编排层进程、步骤断言与 B-live 代发 **另开工单**，不要写入未绑定 06。代码对照审计：[`.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md`](../.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md)（A1 升级不作废计划另开，不要塞进 06）。  
 
 ### 工单阻塞简图
 
@@ -101,14 +102,14 @@
                                                    → 06 HTTP tracer（TDD-done；本刀定义完成）
 ```
 
-未绑定 / 身份失联重绑（01–07 已拆，审计后补 08 / 09；**01–04 + 08 TDD-done；frontier = 05**）：
+未绑定 / 身份失联重绑（01–07 已拆，审计后补 08 / 09；**01–05 + 08 TDD-done；frontier = 06**）：
 
 ```
 01 推断失联 + 未绑定 upsert + 规范问法（TDD-done）
    ├→ 02 从不挂冲突的候选发草案（TDD-done） → 03 逐条新建/绑定（TDD-done）
    │                                              └→ 08 绑定写入门禁修复（TDD-done） → 04 标签命中收尾（TDD-done） ─┐
-   ├→ 09 失联叠加心跳超时的问法（审计 C-1）                                                              │
- └→ 05 失联闸门修实际/改理想 ─────────────────────────────────────────────────────────────────┴→ 06 HTTP tracer → 07 薄 UI
+   ├→ 09 失联叠加心跳超时的问法（审计 C-1；待人排期）                                                              │
+ └→ 05 失联闸门修实际/改理想（TDD-done） ───────────────────────────────────────────────────────────────┴→ 06 HTTP tracer → 07 薄 UI
 ```
 
 （一次只做一张。）

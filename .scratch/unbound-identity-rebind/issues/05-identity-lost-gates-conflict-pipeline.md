@@ -4,19 +4,19 @@
 
 **Blocked by:** 01 — 控制面推断身份失联；未绑定按现场实体 upsert；规范问法
 
-**Status:** ready-for-agent
+**Status:** done
 
 **TDD:** `/implement` 走 [`docs/agents/tdd.md`](../../../docs/agents/tdd.md)：**red → green → refactor**。Spec：[`docs/specs/unbound-identity-rebind.md`](../../../docs/specs/unbound-identity-rebind.md)。
 
 本票复用竖切协作/计划/改策展草案，只加闸门。01 完成后即可与 02–04 并行准备，但两张都 unblocked 时按编号最小先做 02。冲突 GET 须能读到失联旗标。
 
-- [ ] 失联主体上 `FIX_ACTUAL` / `CHANGE_CURATED` 选支失败；非处理人规则不变
-- [ ] GET 诊断不含以旧实际为唯一落点的修实际 / 改理想分叉；文案用身份失联 / 未绑定观测候选，不用「以现场为准」
-- [ ] 不得单因失联改走纯空洞恢复观测通道分叉集（除非心跳确实超时）
-- [ ] 该合并键活跃操作计划作废（既有计划作废语义）；不得继续执行
-- [ ] 该对象 `运行于` 上开放的改理想草案作废；再审条失败
-- [ ] 冲突状态枚举不增加：`OPEN` 保持 `OPEN`；`PENDING_CLOSE` + 失联 → `OPEN`；不是 `SUSPENDED`
-- [ ] 冲突 GET 可读身份失联；未绑定本身仍不新开冲突
+- [x] 失联主体上 `FIX_ACTUAL` / `CHANGE_CURATED` 选支失败；非处理人规则不变
+- [x] GET 诊断不含以旧实际为唯一落点的修实际 / 改理想分叉；文案用身份失联 / 未绑定观测候选，不用「以现场为准」
+- [x] 不得单因失联改走纯空洞恢复观测通道分叉集（除非心跳确实超时）
+- [x] 该合并键活跃操作计划作废（既有计划作废语义）；不得继续执行
+- [x] 该对象 `运行于` 上开放的改理想草案作废；再审条失败
+- [x] 冲突状态枚举不增加：`OPEN` 保持 `OPEN`；`PENDING_CLOSE` + 失联 → `OPEN`；不是 `SUSPENDED`
+- [x] 冲突 GET 可读身份失联；未绑定本身仍不新开冲突
 
 **Out of this ticket:** 未绑定草案发起/接受（02–03）；标签命中收尾（04）；tracer（06）；UI；重做关单/协作产品化。
 
@@ -105,4 +105,20 @@ Red output:
 reuse/regression：first-run green。竖切 13 / 票 01 已保证 by-merge-key 400 CONFLICT_NOT_FOUND。本圈不改生产。
 Green: 无。
 Refactor: 无。
-Commit: 本圈提交测试守卫。
+Commit: cf4da48
+
+### Cycle J — 标签命中清标后诊断再次含修实际/改理想
+Red command:
+`cd backend && ./gradlew test --tests com.archops.conflict.IdentityLostPipelineGateHttpAcceptanceTest.labelMatchAfterIdentityLostRestoresUniqueSiteDiagnosisForks`
+Red output:
+Expected forks containing FIX_ACTUAL_TO_CURATED and CHANGE_CURATED_TO_OBSERVED but was EXPLAIN_IDENTITY_LOST. 04 已清标且冲突 GET identityLost=false，但同快照 reconcile 不重诊。
+Green: clearIdentityLostMark 若删到行则 onIdentityLostCleared → scheduleAsyncDiagnosis。不重做 04 消费。
+Refactor: 无行为变化。
+Commit: d62dd5f
+
+Keep-green: `UnboundBindGateHttpAcceptanceTest` 不再把失联后残留 observed_fact 的旧宿主读成 PRESENT。改断言 identityLost=true、availability 非 PRESENT、hostId JSON null；绑定未写观测仍由 status=OPEN + 问法 IDENTITY_LOST 证明。
+Commit: a3708c7
+
+Ticket-end suite: `cd backend && ./gradlew cleanTest test` — BUILD SUCCESSFUL; 151 tests, 0 failures (IdentityLostPipelineGateHttpAcceptanceTest 10/10). Keep-green 01–04/08, hollow, diagnosis, plan review, change-curated, vertical-slice, SSH fake 仍绿。
+
+Code-review (Standards + Spec vs origin/main): Standards — no hard violations; judgement-call smells only (duplicated mark probe / unique-site fork id pair). Spec — no findings vs stories 14–16 / 45–49 / Negative 8. A1 / 09 / 0044 未写入。
