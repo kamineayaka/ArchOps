@@ -69,4 +69,13 @@ Red output:
 JSON path "$.code" Expected: is "IDENTITY_LOST_BLOCKS_BRANCH" but: was "FORK_NOT_FOUND". D 圈只拦 FIX_ACTUAL_TO_CURATED。
 Green: 同一闸门加上 CHANGE_CURATED_TO_OBSERVED。
 Refactor: rejectUniqueSiteForkWhenIdentityLost。
+Commit: 57c1b6a
+
+### Cycle F — 非处理人选支仍 PLAN_REQUIRES_ACCEPTED_HANDLER
+Red command:
+`cd backend && ./gradlew test --tests com.archops.conflict.IdentityLostPipelineGateHttpAcceptanceTest.nonHandlerBranchSelectionOnIdentityLostStillRequiresAcceptedHandler`
+Red output:
+（先把失联闸门放到处理人检查之前）Expected: is "PLAN_REQUIRES_ACCEPTED_HANDLER" but: was "IDENTITY_LOST_BLOCKS_BRANCH"。
+Green: 恢复「已接受处理人」先于失联闸门。
+Refactor: 注释钉死优先级。
 Commit: 本圈绿灯提交。

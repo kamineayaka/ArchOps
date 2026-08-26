@@ -47,6 +47,7 @@ public class BranchSelectionService {
     public BranchSelectionResult select(String conflictId, String forkId, String expectedDiagnosisId, AuthUserPrincipal actor) {
         ConflictCase conflict = requireOpenConflict(conflictId);
         requireAcceptedHandler(conflict, actor);
+        // 身份失联闸门 must not cover PLAN_REQUIRES_ACCEPTED_HANDLER.
         rejectUniqueSiteForkWhenIdentityLost(conflict, forkId);
 
         ConflictDiagnosisResponse diagnosis = conflictDiagnosisService.latestForConflict(conflictId);

@@ -29,6 +29,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class IdentityLostPipelineGateHttpAcceptanceTest {
 
     private static final String GENERAL_ID = "user-general-demo";
+    private static final String SENIOR_ID = "user-senior-demo";
 
     @Autowired
     private MockMvc mockMvc;
@@ -211,6 +212,23 @@ class IdentityLostPipelineGateHttpAcceptanceTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success", is(false)))
                 .andExpect(jsonPath("$.code", is("IDENTITY_LOST_BLOCKS_BRANCH")))
+                .andExpect(jsonPath("$.data").value(nullValue()));
+    }
+
+    @Test
+    void nonHandlerBranchSelectionOnIdentityLostStillRequiresAcceptedHandler() throws Exception {
+        Fixture fx = openMismatch("u05f");
+        identityLostOnObservedHost(fx);
+
+        mockMvc.perform(post("/api/conflicts/{id}/branch-selection", fx.conflictId())
+                        .header(TempAuthHeaders.USER_ID, SENIOR_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"forkId\":\"FIX_ACTUAL_TO_CURATED\"}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.code", is("PLAN_REQUIRES_ACCEPTED_HANDLER")))
+                .andExpect(jsonPath("$.code", not("IDENTITY_LOST_BLOCKS_BRANCH")))
                 .andExpect(jsonPath("$.data").value(nullValue()));
     }
 
