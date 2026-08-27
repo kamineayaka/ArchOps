@@ -1,6 +1,6 @@
 import { Layout, Select, Space, Typography } from 'antd';
 import { Link, Navigate, Route, Routes } from 'react-router-dom';
-import { DEMO_USERS, useDemoUser } from './auth/DemoUserContext';
+import { DEMO_USERS, UNAUTHENTICATED_VALUE, useDemoUser } from './auth/DemoUserContext';
 import ConflictDetailPage from './pages/ConflictDetailPage';
 import ConflictListPage from './pages/ConflictListPage';
 import UnboundCandidatesPage from './pages/UnboundCandidatesPage';
@@ -40,15 +40,21 @@ export default function App() {
         <Space>
           <Text style={{ color: '#c5d6c8' }}>演示身份</Text>
           <Select
-            value={userId}
-            onChange={setUserId}
+            value={userId ?? UNAUTHENTICATED_VALUE}
+            onChange={(value) => setUserId(value === UNAUTHENTICATED_VALUE ? null : value)}
             style={{ width: 220 }}
-            options={DEMO_USERS.map((u) => ({ value: u.id, label: u.label }))}
+            options={[
+              ...DEMO_USERS.map((u) => ({ value: u.id, label: u.label })),
+              { value: UNAUTHENTICATED_VALUE, label: '未认证' },
+            ]}
           />
           {!loading && user && (
             <Text style={{ color: '#9bb59f' }}>
               {user.displayName} · {user.roleLabel}
             </Text>
+          )}
+          {!loading && !userId && (
+            <Text style={{ color: '#9bb59f' }}>未带头 · AUTH_REQUIRED</Text>
           )}
         </Space>
       </Header>

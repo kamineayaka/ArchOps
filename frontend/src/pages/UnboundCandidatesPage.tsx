@@ -309,6 +309,7 @@ export default function UnboundCandidatesPage() {
       <Card size="small" title="未绑定草案（不挂冲突）">
         <Paragraph type="secondary">
           从待并入候选发起。逐条确认走 GET/POST /api/curated-drafts/...，不走冲突处理人路由。任一条目接受即写入；拒绝不写。
+          失败信封会显示 AUTH_REQUIRED、UNBOUND_DRAFT_ALREADY_OPEN、UNBOUND_CANDIDATE_CONSUMED、UNBOUND_BIND_TARGET_ALREADY_BOUND、UNBOUND_BIND_TARGET_HEALTHY、UNBOUND_CREATE_IMMUTABLE_ID_MISSING、DRAFT_VOIDED。
         </Paragraph>
         {draftError ? <Alert type="error" showIcon message={draftError} style={{ marginBottom: 12 }} /> : null}
         {!draft && !draftError ? (

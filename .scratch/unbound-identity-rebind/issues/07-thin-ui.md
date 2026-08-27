@@ -38,4 +38,13 @@ Output:
 green (vite 2.76s). Vite 冒烟：查询 `ctr-979ca696-a83d-4986-a23f-701c207d79c7` 失联标=身份失联（LABEL_CLUE_LOST），应该在哪=demo-host-07，实际在哪=身份失联 / availability=IDENTITY_LOST 不得为 PRESENT；查询 `does-not-exist` 见 IDENTITY_LOST_NOT_FOUND 与 CURATED_CONTAINER_NOT_FOUND 信封。无「以现场为准」。
 Production: `observed.ts` getIdentityLost/getActualWhere、`UnboundCandidatesPage` 问法卡、`types.ts` IdentityLost/ActualWhere/ConflictCase.identityLost、`format.ts` / 无后端
 Refactor: `formatActualWhereValue`；冲突 GET 仅作 identityLost=true 旁路
+Commit: 96cd4f9
+
+### Cycle C — 对候选发起草案并按条接受/拒绝
+Command:
+cd frontend && npm run build
+Output:
+green (vite 2.66s). Vite 冒烟：`demo-rt-unknown` 发起草案 → `/unbound/drafts/draft-21150b15-…`，origin=UNBOUND_CANDIDATE，conflictId=null，3 条；CREATE 接受为 ACCEPTED，CURATED_RUNS_ON_INSERT 拒绝为 REJECTED。本页无 xterm / 选支 / 批准计划 / start-execution。
+Production: `observed.ts` createUnboundDraft、`drafts.ts` 未绑定 GET/accept/reject、`UnboundCandidatesPage` 草案卡、`types.ts` CuratedDraft.conflictId null、`App.tsx` `/unbound/drafts/:draftId`；ConflictDetailPage 仅 subjectId 空值守卫 / 无后端
+Refactor: `formatUnboundDraftItemKind` / `payloadString` / `describeUnboundItem`
 Commit: pending this cycle

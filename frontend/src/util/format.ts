@@ -70,7 +70,7 @@ export function payloadString(
 
 export function isAcceptedHandler(
   collaboration: { handlerUserId: string | null; handlerAcceptance: string } | null | undefined,
-  userId: string,
+  userId: string | null,
 ): boolean {
   return (
     !!collaboration &&
