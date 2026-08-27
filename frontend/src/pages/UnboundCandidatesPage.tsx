@@ -5,6 +5,7 @@ import {
   Card,
   Descriptions,
   Input,
+  List,
   Space,
   Table,
   Tag,
@@ -12,13 +13,27 @@ import {
   message,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
+import { useNavigate, useParams } from 'react-router-dom';
 import { listActiveConflicts } from '../api/conflicts';
 import { getShouldWhere, type ShouldWhere } from '../api/curated';
-import { getActualWhere, getIdentityLost, listUnboundCandidates } from '../api/observed';
-import type { ActualWhere, ConflictCase, IdentityLostMark, UnboundCandidate } from '../api/types';
+import { acceptUnboundDraftItem, getUnboundDraft, rejectUnboundDraftItem } from '../api/drafts';
+import { createUnboundDraft, getActualWhere, getIdentityLost, listUnboundCandidates } from '../api/observed';
+import type {
+  ActualWhere,
+  ConflictCase,
+  CuratedDraft,
+  CuratedDraftItem,
+  IdentityLostMark,
+  UnboundCandidate,
+} from '../api/types';
 import { ApiError } from '../api/types';
 import { useDemoUser } from '../auth/DemoUserContext';
-import { formatActualWhereValue, formatUnboundLabels } from '../util/format';
+import {
+  formatActualWhereValue,
+  formatUnboundDraftItemKind,
+  formatUnboundLabels,
+  payloadString,
+} from '../util/format';
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -31,12 +46,33 @@ function envelopeMessage(err: unknown): string {
   return err instanceof ApiError ? `${err.code}: ${err.message}` : String(err);
 }
 
+function describeUnboundItem(item: CuratedDraftItem): string {
+  if (item.kind === 'CREATE_CONTAINER_FROM_UNBOUND') {
+    const objectId = payloadString(item.payload, 'immutableObjectId');
+    const name = payloadString(item.payload, 'proposedName');
+    return `proposedName=${name ?? '—'} · immutableObjectId=${objectId ?? '（无）'}`;
+  }
+  if (item.kind === 'BIND_UNBOUND_TO_EXISTING') {
+    return `subjectId=${item.subjectId ?? '—'}`;
+  }
+  if (item.kind === 'CURATED_RUNS_ON_INSERT') {
+    return `toHostId=${item.toHostId ?? '—'}`;
+  }
+  return item.kind;
+}
+
 export default function UnboundCandidatesPage() {
   const { userId } = useDemoUser();
+  const { draftId: draftIdParam } = useParams<{ draftId?: string }>();
+  const navigate = useNavigate();
   const [rows, setRows] = useState<UnboundCandidate[]>([]);
   const [lostConflicts, setLostConflicts] = useState<ConflictCase[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const [draft, setDraft] = useState<CuratedDraft | null>(null);
+  const [draftError, setDraftError] = useState<string | null>(null);
 
   const [askId, setAskId] = useState('');
   const [askBusy, setAskBusy] = useState(false);
@@ -67,9 +103,30 @@ export default function UnboundCandidatesPage() {
     }
   }, [userId]);
 
+  const loadDraft = useCallback(async (draftId: string) => {
+    try {
+      const dft = await getUnboundDraft(draftId);
+      setDraft(dft);
+      setDraftError(null);
+      return dft;
+    } catch (err) {
+      setDraft(null);
+      const msg = envelopeMessage(err);
+      setDraftError(msg);
+      message.error(msg);
+      return null;
+    }
+  }, []);
+
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (draftIdParam) {
+      void loadDraft(draftIdParam);
+    }
+  }, [draftIdParam, loadDraft, userId]);
 
   const lookupObject = useCallback(async (rawId: string) => {
     const containerId = rawId.trim();
@@ -126,6 +183,33 @@ export default function UnboundCandidatesPage() {
     }
   }, []);
 
+  const runDraftAction = async (label: string, action: () => Promise<CuratedDraft | null>) => {
+    setBusy(true);
+    try {
+      const next = await action();
+      if (next) {
+        message.success(label);
+        setDraft(next);
+        setDraftError(null);
+        await load();
+      }
+    } catch (err) {
+      const msg = envelopeMessage(err);
+      setDraftError(msg);
+      message.error(msg);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const startDraft = (candidateId: string) => {
+    void runDraftAction('已发起未绑定草案', async () => {
+      const created = await createUnboundDraft(candidateId);
+      navigate(`/unbound/drafts/${encodeURIComponent(created.id)}`);
+      return created;
+    });
+  };
+
   const columns: ColumnsType<UnboundCandidate> = [
     {
       title: '原因',
@@ -175,6 +259,21 @@ export default function UnboundCandidatesPage() {
       render: (promised: boolean) =>
         promised ? <Tag color="red">true</Tag> : <Tag>false · 不承诺升级链</Tag>,
     },
+    {
+      title: '',
+      key: 'actions',
+      width: 120,
+      render: (_, row) => (
+        <Button
+          type="link"
+          size="small"
+          loading={busy}
+          onClick={() => startDraft(row.id)}
+        >
+          发起草案
+        </Button>
+      ),
+    },
   ];
 
   const actualAvailability = actualWhere?.observedValue.availability;
@@ -206,6 +305,107 @@ export default function UnboundCandidatesPage() {
         pagination={false}
         locale={{ emptyText: '暂无待并入未绑定观测候选。空列表可演示：匹配失败才会出现在此。' }}
       />
+
+      <Card size="small" title="未绑定草案（不挂冲突）">
+        <Paragraph type="secondary">
+          从待并入候选发起。逐条确认走 GET/POST /api/curated-drafts/...，不走冲突处理人路由。任一条目接受即写入；拒绝不写。
+        </Paragraph>
+        {draftError ? <Alert type="error" showIcon message={draftError} style={{ marginBottom: 12 }} /> : null}
+        {!draft && !draftError ? (
+          <Text type="secondary">尚未打开草案。对上表一行点「发起草案」。</Text>
+        ) : null}
+        {draft ? (
+          <>
+            <Descriptions column={1} size="small">
+              <Descriptions.Item label="草案 ID">{draft.id}</Descriptions.Item>
+              <Descriptions.Item label="origin">{draft.origin ?? '—'}</Descriptions.Item>
+              <Descriptions.Item label="conflictId">{draft.conflictId ?? 'null'}</Descriptions.Item>
+              <Descriptions.Item label="candidateId">{draft.candidateId ?? '—'}</Descriptions.Item>
+              <Descriptions.Item label="状态">
+                <Tag color={draft.status === 'VOIDED' ? 'default' : undefined}>{draft.status}</Tag>
+              </Descriptions.Item>
+            </Descriptions>
+            <List
+              size="small"
+              header="条目（至少两条，独立确认）"
+              dataSource={[...draft.items].sort((a, b) => a.seq - b.seq)}
+              renderItem={(item) => (
+                <List.Item
+                  actions={
+                    draft.status === 'OPEN' && item.status === 'PENDING'
+                      ? [
+                          <Button
+                            key="accept"
+                            type="link"
+                            size="small"
+                            loading={busy}
+                            onClick={() =>
+                              void runDraftAction('条目已接受', () =>
+                                acceptUnboundDraftItem(draft.id, item.id),
+                              )
+                            }
+                          >
+                            接受
+                          </Button>,
+                          <Button
+                            key="reject"
+                            type="link"
+                            size="small"
+                            danger
+                            loading={busy}
+                            onClick={() =>
+                              void runDraftAction('条目已拒绝', () =>
+                                rejectUnboundDraftItem(draft.id, item.id),
+                              )
+                            }
+                          >
+                            拒绝
+                          </Button>,
+                        ]
+                      : undefined
+                  }
+                >
+                  <Space direction="vertical" size={0}>
+                    <Text>
+                      {item.seq}. {formatUnboundDraftItemKind(item.kind)}
+                    </Text>
+                    <Text type="secondary">{describeUnboundItem(item)}</Text>
+                    <Space size="small" wrap>
+                      <Tag
+                        color={
+                          item.status === 'ACCEPTED'
+                            ? 'green'
+                            : item.status === 'REJECTED'
+                              ? 'red'
+                              : undefined
+                        }
+                      >
+                        {item.status}
+                      </Tag>
+                      {item.kind === 'BIND_UNBOUND_TO_EXISTING' && item.subjectId ? (
+                        <Button
+                          type="link"
+                          size="small"
+                          onClick={() => {
+                            const subjectId = item.subjectId;
+                            if (!subjectId) {
+                              return;
+                            }
+                            setAskId(subjectId);
+                            void lookupObject(subjectId);
+                          }}
+                        >
+                          查询该对象问法
+                        </Button>
+                      ) : null}
+                    </Space>
+                  </Space>
+                </List.Item>
+              )}
+            />
+          </>
+        ) : null}
+      </Card>
 
       <Card size="small" title="身份失联 · 规范问法">
         <Paragraph type="secondary">

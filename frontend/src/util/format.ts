@@ -44,6 +44,30 @@ export function formatActualWhereValue(
   return formatTrack(observed);
 }
 
+export function formatUnboundDraftItemKind(kind: string): string {
+  if (kind === 'CREATE_CONTAINER_FROM_UNBOUND') {
+    return '新建策展 Docker 容器';
+  }
+  if (kind === 'BIND_UNBOUND_TO_EXISTING') {
+    return '绑到已有策展对象';
+  }
+  if (kind === 'CURATED_RUNS_ON_INSERT') {
+    return '策展运行于（插入）';
+  }
+  return kind;
+}
+
+export function payloadString(
+  payload: Record<string, unknown> | undefined,
+  key: string,
+): string | null {
+  if (!payload) {
+    return null;
+  }
+  const value = payload[key];
+  return typeof value === 'string' && value.length > 0 ? value : null;
+}
+
 export function isAcceptedHandler(
   collaboration: { handlerUserId: string | null; handlerAcceptance: string } | null | undefined,
   userId: string,

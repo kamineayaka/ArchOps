@@ -186,20 +186,25 @@ export type CuratedDraftItem = {
   seq: number;
   kind: string;
   status: string;
-  subjectId: string;
+  subjectId: string | null;
   subjectName: string | null;
-  fromHostId: string;
+  fromHostId: string | null;
   fromHostName: string | null;
-  toHostId: string;
+  toHostId: string | null;
   toHostName: string | null;
   mergeKey: boolean;
+  payload?: Record<string, unknown>;
 };
 
 export type CuratedDraft = {
   id: string;
-  conflictId: string;
-  diagnosisId: string;
-  selectedForkId: string;
+  conflictId: string | null;
+  diagnosisId: string | null;
+  selectedForkId: string | null;
+  origin?: string;
+  candidateId?: string | null;
+  sourceHostId?: string | null;
+  runtimeId?: string | null;
   status: string;
   items: CuratedDraftItem[];
   createdBy: string;

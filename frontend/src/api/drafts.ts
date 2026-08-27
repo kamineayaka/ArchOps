@@ -26,3 +26,21 @@ export function rejectDraftItem(conflictId: string, itemId: string): Promise<Cur
     { method: 'POST', body: {} },
   );
 }
+
+export function getUnboundDraft(draftId: string): Promise<CuratedDraft> {
+  return apiRequest<CuratedDraft>(`/api/curated-drafts/${encodeURIComponent(draftId)}`);
+}
+
+export function acceptUnboundDraftItem(draftId: string, itemId: string): Promise<CuratedDraft> {
+  return apiRequest<CuratedDraft>(
+    `/api/curated-drafts/${encodeURIComponent(draftId)}/items/${encodeURIComponent(itemId)}/accept`,
+    { method: 'POST', body: {} },
+  );
+}
+
+export function rejectUnboundDraftItem(draftId: string, itemId: string): Promise<CuratedDraft> {
+  return apiRequest<CuratedDraft>(
+    `/api/curated-drafts/${encodeURIComponent(draftId)}/items/${encodeURIComponent(itemId)}/reject`,
+    { method: 'POST', body: {} },
+  );
+}

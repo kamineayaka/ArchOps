@@ -57,6 +57,7 @@ export default function App() {
           <Route path="/" element={<ConflictListPage />} />
           <Route path="/conflicts/:id" element={<ConflictDetailPage />} />
           <Route path="/unbound" element={<UnboundCandidatesPage />} />
+          <Route path="/unbound/drafts/:draftId" element={<UnboundCandidatesPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Content>
