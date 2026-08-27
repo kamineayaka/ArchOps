@@ -41,3 +41,13 @@ Happy path（须按序、可在 CI 稳定跑通）对齐 Spec「HTTP tracer」�
 ## Comments
 
 01–05 + 08 已 TDD-done，本票已 unblocked。开场 prompt：[`docs/implement-unbound-identity-rebind-06-prompt.md`](../../../docs/implement-unbound-identity-rebind-06-prompt.md)。suite 首跑绿记 reuse/regression。不要做 07。不要做票 09。代码 vs ADR-0044 审计 **A2 已由 05 交付**；**A3** 是票 09；**A1** 与 0044 进程债禁止写入本票。见 [`.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md`](../audit-code-vs-adr-0044.md)。
+
+### Cycle A — 有序 happy path（Spec tracer 1–8 + 可选 9）
+Command:
+`cd backend && ./gradlew test --tests com.archops.observed.UnboundIdentityRebindTracerHttpAcceptanceTest.happyPath_curatedThenMissingLabel_unboundIdentityLost_draftAndBind_labelMatchRestoresUpgradeChain`
+Output:
+首跑红是夹具断言过严，不是组合缝：`UNKNOWN_OBJECT_ID` 在宿主已有失联时草案还会带 `BIND_UNBOUND_TO_EXISTING`（Spec 只要 ≥2 条含新建+运行于）；拒策展 `运行于` 后 `GET actual-where` 走既有 `CURATED_RUNS_ON_NOT_FOUND`，观测命中改从心跳 `matched` 读。修测试后 **green reuse/regression**。
+覆盖它的聚焦测试：`UnboundIdentityLostIngestHttpAcceptanceTest`（01 缺标/失联/问法/他机不打失联）、`UnboundDraftCreateHttpAcceptanceTest`（02 未绑定草案不挂 conflictId）、`UnboundDraftItemReviewHttpAcceptanceTest`（03 拒运行于+接受新建、绑定互斥）、`UnboundBindGateHttpAcceptanceTest`（08 绑定不写可靠实际）、`UnboundLabelMatchConsumeHttpAcceptanceTest`（04 补标收尾）、`IdentityLostPipelineGateHttpAcceptanceTest`（05 命中后诊断可再出 unique-site forks）、`VerticalSliceHttpE2eAcceptanceTest.negative_unlabeledSnapshotDoesNotPromiseUpgradeChain`。
+Production: 无
+Refactor: 抽出 `unlabeledAndLabeledSnapshot`；UNKNOWN 草案断言改为 `hasItems` 新建+运行于
+Commit: 本圈提交
