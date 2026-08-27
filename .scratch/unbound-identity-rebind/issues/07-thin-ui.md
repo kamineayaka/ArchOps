@@ -20,4 +20,4 @@
 
 ## Comments
 
-最后一张。06 绿灯后再做。本对话约定的 `/implement` 仍以 HTTP 为完成定义；本票是演示层。
+01–06 + 08 已 TDD-done（PR #97 = 票 06 已合入），本票已 unblocked。开场 prompt：[`docs/implement-unbound-identity-rebind-07-prompt.md`](../../../docs/implement-unbound-identity-rebind-07-prompt.md)。本票是演示层：手工/冒烟 + `npm run build`；不要把 Playwright 或新 HTTP 套件当完成定义。不要做票 09。代码 vs ADR-0044 审计 **A2 已由 05 交付**；**A3** 是票 09；**A1** 与 0044 进程债禁止写入本票。见 [`.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md`](../audit-code-vs-adr-0044.md)。

@@ -278,11 +278,11 @@ Host Agent 心跳快照仍按 `archops.object_id` 匹配。缺标或标签对不
 ## Further Notes
 
 - **Issue tracker**: 本地 markdown，见 `docs/agents/issue-tracker.md`。Canonical spec：`docs/specs/unbound-identity-rebind.md`。Tracker 指针：[`.scratch/unbound-identity-rebind/spec.md`](../../.scratch/unbound-identity-rebind/spec.md)。工单：[`.scratch/unbound-identity-rebind/issues/`](../../.scratch/unbound-identity-rebind/issues/)（01–07）。
-- **Next Matt step**: `/implement` `/tdd` **票 05**（frontier）。一次一张；不要重拆竖切 01–13 或改策展 01–06。不要加改策展 07。票 09 待人排期。
+- **Next Matt step**: `/implement` `/tdd` **票 07**（frontier；薄 UI）。一次一张；不要重拆竖切 01–13 或改策展 01–06。不要加改策展 07。票 09 待人排期。
 - **Why no new ADR**: grilling Q4/Q12 pinned 实现已有术语；「接受绑定后的现场实体对应关系」不是新合同词，也不是第四种冲突生命周期。
 - **Why drafts are not on 冲突**: 未绑定不是冲突；复用处理人门禁会把匹配失败推进冲突升级链。
 - **Why bind does not write observed `运行于`**: ADR-0011/0012 — 运行时 ID / 名称只是线索；未打标不承诺升级链。可靠实际仍等标签命中。
 - **Why not Y2 / SSH 补标**: 与改策展「接受即写入」双写张力未在本刀打开；补标是现场，不是策展对齐步骤。
 - **Glossary**: 未绑定观测候选、身份失联、草案、逐条确认、策展真相、观测真相、冲突、观测空洞、观测消失、规范问法、操作计划、待确认关闭、冲突升级。不要发明合同已 Avoid 的词。
 - **Acceptance motto (this knife)**: 匹配失败不升冲突；并入必须逐条；绑定不写可靠实际；补标命中才恢复升级链。
-- **Prompt for next chat**: 票 05 开场 [`docs/implement-unbound-identity-rebind-05-prompt.md`](../implement-unbound-identity-rebind-05-prompt.md)；票路径 [`.scratch/unbound-identity-rebind/issues/05-identity-lost-gates-conflict-pipeline.md`](../../.scratch/unbound-identity-rebind/issues/05-identity-lost-gates-conflict-pipeline.md)。进度见 [`docs/dev-handoff.md`](../dev-handoff.md)。Frontier = 未绑定 05。`/implement` 走 [`docs/agents/tdd.md`](../agents/tdd.md)。不要实现 06–07。票 09 待人排期。代码 vs ADR-0044 审计：[`.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md`](../../.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md)。
+- **Prompt for next chat**: 票 07 开场 [`docs/implement-unbound-identity-rebind-07-prompt.md`](../implement-unbound-identity-rebind-07-prompt.md)；票路径 [`.scratch/unbound-identity-rebind/issues/07-thin-ui.md`](../../.scratch/unbound-identity-rebind/issues/07-thin-ui.md)。进度见 [`docs/dev-handoff.md`](../dev-handoff.md)。Frontier = 未绑定 07。`/implement` 走 [`docs/agents/tdd.md`](../agents/tdd.md) 的 UI and helpers。不要实现票 09。票 09 待人排期。代码 vs ADR-0044 审计：[`.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md`](../../.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md)。
