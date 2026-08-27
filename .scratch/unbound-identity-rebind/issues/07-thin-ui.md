@@ -4,17 +4,17 @@
 
 **Blocked by:** 06 — HTTP 主接缝有序 tracer
 
-**Status:** ready-for-agent
+**Status:** done
 
 **TDD:** 本票在 06 HTTP 套件绿灯之后做。不把 Playwright / 组件单测当作完成定义；手工/冒烟即可。不要在 HTTP 未绿时先堆页面。
 
 对齐竖切票 12 / 改策展薄 UI：够演示故事，不做完整工作台。
 
-- [ ] 可列出待并入未绑定（含原因、宿主、runtime、标签线索）与身份失联对象
-- [ ] 可对一个候选发起草案并按条接受/拒绝；互斥失败与未认证失败有可见提示
-- [ ] 绑定接受后 UI 不得把该容器展示为已用弱线索对齐的可靠「实际在哪」
-- [ ] 不展示完整 xterm、不接选支修实际流水线重做、不把本页做成冲突处理人工作台替代
-- [ ] 前端请求只经既有 API 封装，不直打散落 URL
+- [x] 可列出待并入未绑定（含原因、宿主、runtime、标签线索）与身份失联对象
+- [x] 可对一个候选发起草案并按条接受/拒绝；互斥失败与未认证失败有可见提示
+- [x] 绑定接受后 UI 不得把该容器展示为已用弱线索对齐的可靠「实际在哪」
+- [x] 不展示完整 xterm、不接选支修实际流水线重做、不把本页做成冲突处理人工作台替代
+- [x] 前端请求只经既有 API 封装，不直打散落 URL
 
 **Out of this ticket:** 新产品 HTTP；JWT；网络可达；K8s/数据库对象；把 UI 自动化设成 CI 门槛。
 
@@ -65,4 +65,20 @@ Output:
 green (vite 2.65s). HTTP 绑定后 actual-where `availability=IDENTITY_LOST`、hostId=null、identityLost=true。Vite 冒烟：查询并「刷新问法」`ctr-979ca696-…`，实际在哪=身份失联，不是 PRESENT，旧宿主只出现在应该在哪。
 Production: BIND 接受后自动 lookup；「刷新问法」按钮；失联时 PRESENT 读模型异常 Alert / 无后端
 Refactor: 无
-Commit: pending this cycle
+Commit: 990f2dd
+
+### Cycle F — 文案与空态：不承诺升级链；无「以现场为准」
+Command:
+cd frontend && npm run build
+Output:
+green (vite 2.72s). `rg 以现场为准 frontend/` 无命中。列表空态与页头写明未绑定 ≠ 冲突 ≠ 身份失联 ≠ 观测空洞/消失；upgradeChainPromised=false。
+Production: `UnboundCandidatesPage` 文案 / 无后端
+Refactor: 无
+Commit: d9a870a
+
+### Code review（Standards + Spec）
+- Standards: 无硬违规。判断项：`UnboundCandidatesPage` 同页承载列表/草案/问法（票要求一页演示，未拆工作台）；kind 文案两处 switch。已把 `ObservedValue` 收成 `TrackValue` 别名、合并未认证 sentinel。
+- Spec: 未认证 `isAcceptedHandler` 曾把 `null === null` 当成已接受处理人 → `50aa497` 要求 `!!userId`。未知 id 的 `IDENTITY_LOST_NOT_FOUND` 不再标「未失联」，仅当策展对象仍可读时才如此。冲突旁路失败改为 warning，不再吞掉。失联「列表」仍是冲突 `identityLost=true` 旁路 + 已知 id 查询（禁止失联集合 GET）。标签命中恢复只提供刷新问法，不从本页 POST heartbeat。
+- 未做票 09 / A1 / 新产品 HTTP / Playwright。
+
+票结束：Status done。本刀演示层闭合。票 09 仍待人排期，不要自动做。不要发明未绑定 10。
