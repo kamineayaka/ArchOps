@@ -23,3 +23,17 @@
 01–07 + 08 已闭合（PR #99 = 票 07 已合入），本票已 unblocked。开场 prompt：[`docs/implement-unbound-identity-rebind-09-prompt.md`](../../../docs/implement-unbound-identity-rebind-09-prompt.md)。本票是问法读模型能力票：witnessed red → green → refactor。不要做 A1 / ADR-0044 进程拆分 / 发明未绑定 10。不要重做 01–08 / 07 UI。代码 vs ADR-0044 审计 **A3 / 01–03 审计 C-1** 即本票。见 [`.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md`](../audit-code-vs-adr-0044.md)。
 
 审计推荐把这条与票 04 分开做，不要混进同一张票。若你更愿意把「失联与空洞并存时问法的优先级」写成合同，另立 ADR 议题；备选语义：(甲) 通道超时优先报空洞、失联降为旗标（审计推荐、本票采用）；(乙) 失联优先、空洞只在诊断分叉里体现。
+
+### Cycle A — 失联叠加心跳超时扫描后「实际在哪」仍须说出观测空洞
+Red command:
+`cd backend && ./gradlew test --tests com.archops.observed.IdentityLostHeartbeatTimeoutAskHttpAcceptanceTest.identityLostPlusHeartbeatTimeoutScanActualWhereIsHollow`
+Red output:
+```
+JSON path "$.data.observedValue.availability"
+Expected: is "HOLLOW"
+     but: was "IDENTITY_LOST"
+```
+范围内未打标快照已打失联标；回拨该上报宿主 `host_agent` 并 `POST /api/observed/scan-heartbeat-timeouts` 之后，问法仍因 `lostMark != null` 短路为 `IDENTITY_LOST`，观测空洞被吞掉。
+Green: `observedAskValue` 在失联标存在时先看策展「运行于」宿主与失联标 `sourceHostId` 的 `host_agent` 新鲜度；超时则 `availability=HOLLOW`，`identityLost` 仍为 true。不删标、不改 `observed_fact.availability`、不问法路径调用 `onObservationBecameHollow`。
+Refactor: `ObservationFreshnessService` 抽出 `heartbeatCutoff`；同源宿主不重复查通道。
+Commit: pending

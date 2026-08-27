@@ -54,9 +54,8 @@ public class ObservationFreshnessService {
 
     @Transactional
     public HeartbeatTimeoutScanResponse scanHeartbeatTimeouts() {
-        Instant cutoff = Instant.now(clock).minus(observationProperties.getHeartbeatTimeout());
         List<HostAgent> staleAgents = hostAgentMapper.selectList(new LambdaQueryWrapper<HostAgent>()
-                .lt(HostAgent::getLastHeartbeatAt, cutoff));
+                .lt(HostAgent::getLastHeartbeatAt, heartbeatCutoff()));
 
         Set<String> affectedSubjects = new LinkedHashSet<>();
         int hollowed = 0;
@@ -105,7 +104,37 @@ public class ObservationFreshnessService {
         if (agent == null || agent.getLastHeartbeatAt() == null) {
             return true;
         }
-        Instant cutoff = Instant.now(clock).minus(observationProperties.getHeartbeatTimeout());
-        return agent.getLastHeartbeatAt().isBefore(cutoff);
+        return agent.getLastHeartbeatAt().isBefore(heartbeatCutoff());
+    }
+
+    /**
+     * True when this host has an Agent and the latest heartbeat is past the timeout.
+     * No agent row is not a timeout: that host never reported, so 身份失联 stays 身份失联.
+     */
+    @Transactional(readOnly = true)
+    public boolean isHostChannelTimedOut(String hostId) {
+        if (hostId == null || hostId.isBlank()) {
+            return false;
+        }
+        List<HostAgent> agents = hostAgentMapper.selectList(new LambdaQueryWrapper<HostAgent>()
+                .eq(HostAgent::getHostId, hostId));
+        if (agents.isEmpty()) {
+            return false;
+        }
+        Instant latest = null;
+        for (HostAgent agent : agents) {
+            Instant at = agent.getLastHeartbeatAt();
+            if (at != null && (latest == null || at.isAfter(latest))) {
+                latest = at;
+            }
+        }
+        if (latest == null) {
+            return true;
+        }
+        return latest.isBefore(heartbeatCutoff());
+    }
+
+    private Instant heartbeatCutoff() {
+        return Instant.now(clock).minus(observationProperties.getHeartbeatTimeout());
     }
 }
