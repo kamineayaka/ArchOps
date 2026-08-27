@@ -24,3 +24,24 @@
 ## Comments
 
 用户明示排期。开场 prompt：[`docs/implement-conflict-upgrade-void-plans-01-prompt.md`](../../../docs/implement-conflict-upgrade-void-plans-01-prompt.md)。一次只做本票。样板：`HeartbeatTimeoutHollowHttpAcceptanceTest`（空洞作废）与 `IdentityLostPipelineGateHttpAcceptanceTest`（失联作废）的计划夹具；生产改动应落在 `upgradeOpen` / `reopenFromPendingClose` 调用既有 `voidActivePlans(...)`，reason 字面量 `conflict_upgrade`（与草案 void 理由一致）。
+
+### Cycle A witnessed red (2026-08-27)
+
+```text
+cd backend && ./gradlew test --tests com.archops.conflict.ConflictUpgradeVoidsActivePlanHttpAcceptanceTest.upgradeOpenBtoCVoidsApprovedPlanAndRejectsStartExecution
+```
+
+```text
+ConflictUpgradeVoidsActivePlanHttpAcceptanceTest > upgradeOpenBtoCVoidsApprovedPlanAndRejectsStartExecution() FAILED
+    java.lang.AssertionError: JSON path "$.data.status"
+    Expected: is "VOIDED"
+         but: was "APPROVED"
+        at ConflictUpgradeVoidsActivePlanHttpAcceptanceTest.java:65
+BUILD FAILED
+```
+
+OPEN 观测 B→C 升级后计划仍 APPROVED（A1 缺口）。生产：`upgradeOpen` 在 `voidOpenForConflict` 之后调用 `voidActivePlans(..., "conflict_upgrade")`。
+
+### Cycle A green + refactor (2026-08-27)
+
+Same test command: BUILD SUCCESSFUL. Refactor: `CONFLICT_UPGRADE_REASON` 与失联理由同形；`reopenFromPendingClose` 草案作废改用该常量（行为不变，计划作废留给 cycle C）。
