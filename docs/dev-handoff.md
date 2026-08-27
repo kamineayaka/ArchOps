@@ -11,10 +11,11 @@
 3. `docs/mvp-vertical-slice.md`（竖切范围对照）
 4. `docs/specs/vertical-slice-mvp.md`（竖切 Spec；01–13 已闭合）
 5. `docs/specs/change-curated-draft.md`（改策展/草案逐条确认 Spec；**已闭合**）
-6. `docs/specs/unbound-identity-rebind.md`（未绑定 / 身份失联重绑 Spec；工单 01–07 已拆，**01–09 已闭合**；本刀问法读模型闭合）
-7. `docs/agents/tdd.md`（`/implement` 的 TDD overlay：red → green → refactor）
-8. `docs/scaffold-bootstrap-prompt.md`（脚手架专用；已完成后可作审计对照）
-9. `.cursor/rules/project-map.mdc`
+6. `docs/specs/unbound-identity-rebind.md`（未绑定 / 身份失联重绑 Spec；**01–09 已闭合**）
+7. `docs/specs/conflict-upgrade-void-plans.md`（冲突升级作废活跃计划；审计 A1；**frontier = 01**）
+8. `docs/agents/tdd.md`（`/implement` 的 TDD overlay：red → green → refactor）
+9. `docs/scaffold-bootstrap-prompt.md`（脚手架专用；已完成后可作审计对照）
+10. `.cursor/rules/project-map.mdc`
 
 ## 当前状态
 
@@ -44,7 +45,8 @@
 | 未绑定 / 身份失联 Spec | **已发布** → [`docs/specs/unbound-identity-rebind.md`](specs/unbound-identity-rebind.md) |
 | 未绑定 / 身份失联工单 | **01–09 已闭合**（07 = 薄 UI；09 = 失联叠加心跳超时的问法） → [`.scratch/unbound-identity-rebind/issues/`](../.scratch/unbound-identity-rebind/issues/)（不要写进 `change-curated-draft`；不要发明未绑定 10） |
 | 未绑定 01–03 合同审计 | **已出报告** → [`.scratch/unbound-identity-rebind/audit-01-03-opus.md`](../.scratch/unbound-identity-rebind/audit-01-03-opus.md)（三轴 + 探针表；票 08 已处置 C-4 / C-2 / S-3，票 04 已处置 C-3 / S-4 / S-2，票 09 已处置 C-1） |
-| 代码 vs ADR-0044 只读审计 | **已出报告** → [`.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md`](../.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md)（A2 = 票 05；A3 = 票 09 已闭合；A1 升级不作废计划另开；B1–B5 为 0044 过渡债，禁止写入未绑定刀） |
+| 代码 vs ADR-0044 只读审计 | **已出报告** → [`.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md`](../.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md)（A2 = 票 05；A3 = 票 09 已闭合；**A1 = 本刀** [`conflict-upgrade-void-plans`](specs/conflict-upgrade-void-plans.md)；B1–B5 为 0044 过渡债，另开） |
+| 冲突升级作废活跃计划 | **已拆票；frontier = 01** → [`docs/specs/conflict-upgrade-void-plans.md`](specs/conflict-upgrade-void-plans.md) / [`.scratch/conflict-upgrade-void-plans/issues/`](../.scratch/conflict-upgrade-void-plans/issues/)（用户 2026-08-27 明示排期；不要写入未绑定目录） |
 | Matt 工作流 skills / tracker | **已入库**（`.cursor/skills/` + `.agents/skills/` + `docs/agents/`；TDD overlay [`docs/agents/tdd.md`](agents/tdd.md)；Cloud 不依赖本机 `~/.agents`） |
 | 国内镜像默认 | **已合并**（PR #53：Gradle 腾讯云 / Maven 阿里云 / npm npmmirror / Docker DaoCloud） |
 | kamiserver 人工验收 | **通过**（2026-08：Compose postgres+redis healthy 且宿主机端口已映射 → `./gradlew bootRun` → `GET /api/health`；竖切演示闭环已在该 VM 走通） |
@@ -78,7 +80,8 @@
 25. ~~`/implement` `/tdd` 未绑定票 06~~：已完成（HTTP 主接缝有序 tracer；suite/tracer 循环；`UnboundIdentityRebindTracerHttpAcceptanceTest`）。  
 26. ~~`/implement` `/tdd` 未绑定票 07~~：已完成（薄 UI：待并入列表 / 身份失联问法 / 不挂冲突的逐条确认；`npm run build` + Vite 冒烟）。本刀演示层闭合。  
 27. ~~`/implement` `/tdd` 未绑定票 09~~：已完成（失联叠加心跳超时时问法仍须说出观测空洞；`availability=HOLLOW` + `identityLost=true`；审计 C-1 / 0044 审计 A3；witnessed red → green → refactor；`IdentityLostHeartbeatTimeoutAskHttpAcceptanceTest`）。本刀问法读模型闭合。不要发明未绑定 10。  
-28. **下一对话不要自动做 A1 或发明未绑定 10。** A1（`upgradeOpen` 在健康未失联对象上不作废计划）仍另开，须用户明示。ADR-0044 进程拆分（MINA 迁执行引擎、编排层、步骤断言、B-live）另开工单。代码对照审计：[`.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md`](../.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md)。  
+28. ~~人排期开 A1~~：用户 2026-08-27 明示。已发布 Spec + 票 01 → [`docs/specs/conflict-upgrade-void-plans.md`](specs/conflict-upgrade-void-plans.md) / [`.scratch/conflict-upgrade-void-plans/issues/01-upgrade-voids-active-plans.md`](../.scratch/conflict-upgrade-void-plans/issues/01-upgrade-voids-active-plans.md)。开场 prompt：[`docs/implement-conflict-upgrade-void-plans-01-prompt.md`](implement-conflict-upgrade-void-plans-01-prompt.md)。  
+29. **下一对话：`/implement` `/tdd` 冲突升级作废计划票 01**（frontier；审计 A1）。不要发明未绑定 10。不要自动做 ADR-0044 进程拆分（MINA 迁执行引擎、编排层、步骤断言、B-live）。  
 
 ### 工单阻塞简图
 
@@ -112,6 +115,12 @@
    │                                              └→ 08 绑定写入门禁修复（TDD-done） → 04 标签命中收尾（TDD-done） ─┐
    ├→ 09 失联叠加心跳超时的问法（审计 C-1；TDD-done）                                                              │
  └→ 05 失联闸门修实际/改理想（TDD-done） ───────────────────────────────────────────────────────────────┴→ 06 HTTP tracer（TDD-done） → 07 薄 UI（done）
+```
+
+冲突升级作废活跃计划（审计 A1；**frontier = 01**）：
+
+```
+01 upgradeOpen / reopenFromPendingClose 作废活跃操作计划（ready-for-agent）
 ```
 
 （一次只做一张。）
