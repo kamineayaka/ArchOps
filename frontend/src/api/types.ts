@@ -40,6 +40,36 @@ export type UnboundCandidate = {
   observedAt: string;
 };
 
+export type IdentityLostMark = {
+  curatedObjectId: string;
+  reason: string;
+  markedAt: string;
+  sourceAgentId: string;
+  sourceHostId: string;
+  upgradeChainPromised: boolean;
+};
+
+export type ObservedValue = {
+  /** PRESENT | ABSENT | HOLLOW | IDENTITY_LOST（IDENTITY_LOST 仅问法/冲突投影） */
+  availability: string;
+  hostId: string | null;
+  hostName: string | null;
+};
+
+export type ActualWhere = {
+  question: string;
+  track: string;
+  relationType?: string;
+  relationLabel?: string;
+  subject?: CuratedObject;
+  observedValue: ObservedValue;
+  curatedValue: {
+    hostId: string | null;
+    hostName: string | null;
+  };
+  identityLost: boolean;
+};
+
 export type CuratedObject = {
   id: string;
   name?: string;
@@ -79,6 +109,7 @@ export type ConflictCase = {
   suspendedAt: string | null;
   pendingCloseReminderVisible: boolean;
   observationHollow: boolean;
+  identityLost: boolean;
   diagnosisStatus: string;
   collaboration: Collaboration;
 };

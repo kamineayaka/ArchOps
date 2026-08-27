@@ -52,7 +52,7 @@ export default function App() {
           )}
         </Space>
       </Header>
-      <Content style={{ padding: 24, maxWidth: 960, margin: '0 auto', width: '100%' }}>
+      <Content style={{ padding: 24, maxWidth: 1080, margin: '0 auto', width: '100%' }}>
         <Routes>
           <Route path="/" element={<ConflictListPage />} />
           <Route path="/conflicts/:id" element={<ConflictDetailPage />} />

@@ -28,5 +28,14 @@ cd frontend && npm run build
 Output:
 green (`tsc --noEmit && vite build`；vite built in 2.83s). Vite :5173 冒烟：Header「未绑定 / 身份失联」进 `/unbound`，表列出 `UNKNOWN_OBJECT_ID`/`MISSING_LABEL` 两行（demo-rt-unknown / demo-rt-missing），`upgradeChainPromised=false · 不承诺升级链`，刷新后仍在；「开放冲突」仍回 `/` 竖切列表。
 Production: `frontend/src/api/observed.ts`、`frontend/src/pages/UnboundCandidatesPage.tsx`、`frontend/src/App.tsx`、`frontend/src/api/types.ts`、`frontend/src/util/format.ts` / 无后端
-Refactor: `formatUnboundLabels`
+Refactor: `formatActualWhereValue`；`identityLost` 只读冲突 GET 旁路
+Commit: e900b07
+
+### Cycle B — 身份失联 + 应该在哪 / 实际在哪（compose 既有 GET）
+Command:
+cd frontend && npm run build
+Output:
+green (vite 2.76s). Vite 冒烟：查询 `ctr-979ca696-a83d-4986-a23f-701c207d79c7` 失联标=身份失联（LABEL_CLUE_LOST），应该在哪=demo-host-07，实际在哪=身份失联 / availability=IDENTITY_LOST 不得为 PRESENT；查询 `does-not-exist` 见 IDENTITY_LOST_NOT_FOUND 与 CURATED_CONTAINER_NOT_FOUND 信封。无「以现场为准」。
+Production: `observed.ts` getIdentityLost/getActualWhere、`UnboundCandidatesPage` 问法卡、`types.ts` IdentityLost/ActualWhere/ConflictCase.identityLost、`format.ts` / 无后端
+Refactor: `formatActualWhereValue`；冲突 GET 仅作 identityLost=true 旁路
 Commit: pending this cycle
