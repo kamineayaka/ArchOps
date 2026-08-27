@@ -60,3 +60,11 @@ Command:
 reuse/regression：首跑绿。票 10 `HeartbeatTimeoutHollowHttpAcceptanceTest` 已覆盖无标超时 → `HOLLOW`；本圈确认 09 问法改动不把无标超时改写成 `IDENTITY_LOST`。不另写生产。
 Green command: 同上，exit 0。
 Refactor: 抽出 `scanHeartbeatTimeouts`。
+Commit: `63bcc71`
+
+### Cycle E — 观测消失仍是 ABSENT，不是 HOLLOW / IDENTITY_LOST
+Command:
+`cd backend && ./gradlew test --tests com.archops.observed.IdentityLostHeartbeatTimeoutAskHttpAcceptanceTest.absentObjectIdsRemainAbsentNotHollowOrIdentityLost`
+reuse/regression：首跑绿。票 01 `absentObjectIdsRemainUsableAbsentNotIdentityLost` 已钉观测消失；本圈确认 09 的通道超时优先不把 `ABSENT` 改写成 `HOLLOW` 或 `IDENTITY_LOST`。不另写生产。
+Green command: 同上，exit 0。
+Refactor: 抽出 `assertNoIdentityLost`。

@@ -103,11 +103,33 @@ class IdentityLostHeartbeatTimeoutAskHttpAcceptanceTest {
         scanHeartbeatTimeouts();
 
         assertActualWhere(containerId, hostA, "HOLLOW", false);
-        mockMvc.perform(get("/api/observed/identity-lost/{id}", containerId)
-                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+        assertNoIdentityLost(containerId);
+    }
+
+    @Test
+    void absentObjectIdsRemainAbsentNotHollowOrIdentityLost() throws Exception {
+        String hostA = createHost("u09e-h");
+        String containerId = createContainer("u09e-x", "u09e-oid");
+        confirmRunsOn(containerId, hostA);
+
+        mockMvc.perform(post("/api/agent/heartbeat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "agentId": "u09e-ag",
+                                  "hostId": "%s",
+                                  "snapshot": {
+                                    "containers": [],
+                                    "absentObjectIds": ["u09e-oid"]
+                                  }
+                                }
+                                """.formatted(hostA))
                         .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code", is("IDENTITY_LOST_NOT_FOUND")));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.absent[0].availability", is("ABSENT")));
+
+        assertActualWhere(containerId, hostA, "ABSENT", false);
+        assertNoIdentityLost(containerId);
     }
 
     private void heartbeatUnlabeled(String hostId, String agentId, String runtimeId, String name) throws Exception {
@@ -212,6 +234,14 @@ class IdentityLostHeartbeatTimeoutAskHttpAcceptanceTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success", is(true)))
                 .andExpect(jsonPath("$.data.reason", is("LABEL_CLUE_LOST")));
+    }
+
+    private void assertNoIdentityLost(String containerId) throws Exception {
+        mockMvc.perform(get("/api/observed/identity-lost/{id}", containerId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("IDENTITY_LOST_NOT_FOUND")));
     }
 
     private String createHost(String name) throws Exception {
