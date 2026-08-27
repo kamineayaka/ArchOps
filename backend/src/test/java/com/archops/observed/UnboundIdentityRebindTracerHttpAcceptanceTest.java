@@ -258,6 +258,47 @@ class UnboundIdentityRebindTracerHttpAcceptanceTest {
                         hasItems("FIX_ACTUAL_TO_CURATED", "CHANGE_CURATED_TO_OBSERVED")));
     }
 
+    @Test
+    @Order(2)
+    void otherHostSnapshotDoesNotMarkIdentityLostOnX() throws Exception {
+        String hostA = createHost("u06n1-ha");
+        String hostC = createHost("u06n1-hc");
+        String containerX = createContainer("u06n1-x", "u06n1-oid");
+        confirmRunsOn(containerX, hostA);
+
+        heartbeatUnlabeled(hostC, "u06n1-ag-c", "u06n1-rt-c", "u06n1-miss");
+
+        getIdentityLost(containerX)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.code", is("IDENTITY_LOST_NOT_FOUND")))
+                .andExpect(jsonPath("$.data").value(nullValue()));
+        JsonNode candidate = unboundByRuntimeId(listUnbound(), "u06n1-rt-c");
+        assertThat(candidate, notNullValue());
+        assertThat(candidate.path("reason").asText(), is("MISSING_LABEL"));
+        assertThat(candidate.path("sourceHostId").asText(), is(hostC));
+        assertThat(candidate.path("upgradeChainPromised").asBoolean(), is(false));
+    }
+
+    @Test
+    @Order(3)
+    void unlabeledSameNameDoesNotPromiseUpgradeChain() throws Exception {
+        String hostA = createHost("u06n2-h");
+        String containerX = createContainer("u06n2-x", "u06n2-oid");
+        confirmRunsOn(containerX, hostA);
+
+        heartbeatUnlabeled(hostA, "u06n2-ag", "u06n2-rt", "u06n2-x");
+
+        JsonNode candidate = unboundByRuntimeId(listUnbound(), "u06n2-rt");
+        assertThat(candidate, notNullValue());
+        assertThat(candidate.path("upgradeChainPromised").asBoolean(), is(false));
+        getByMergeKey(containerX)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.code", is("CONFLICT_NOT_FOUND")))
+                .andExpect(jsonPath("$.data").value(nullValue()));
+    }
+
     private World bootstrapHostsACCuratedXOnA(String prefix) throws Exception {
         String hostA = createHost(prefix + "-ha");
         String hostB = createHost(prefix + "-hb");

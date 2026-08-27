@@ -50,4 +50,31 @@ Output:
 覆盖它的聚焦测试：`UnboundIdentityLostIngestHttpAcceptanceTest`（01 缺标/失联/问法/他机不打失联）、`UnboundDraftCreateHttpAcceptanceTest`（02 未绑定草案不挂 conflictId）、`UnboundDraftItemReviewHttpAcceptanceTest`（03 拒运行于+接受新建、绑定互斥）、`UnboundBindGateHttpAcceptanceTest`（08 绑定不写可靠实际）、`UnboundLabelMatchConsumeHttpAcceptanceTest`（04 补标收尾）、`IdentityLostPipelineGateHttpAcceptanceTest`（05 命中后诊断可再出 unique-site forks）、`VerticalSliceHttpE2eAcceptanceTest.negative_unlabeledSnapshotDoesNotPromiseUpgradeChain`。
 Production: 无
 Refactor: 抽出 `unlabeledAndLabeledSnapshot`；UNKNOWN 草案断言改为 `hasItems` 新建+运行于
+Commit: 2222a54 / f0d8f88
+
+### Cycle B — 他机快照不给 X 打失联（Neg 1）
+Command:
+`cd backend && ./gradlew test --tests com.archops.observed.UnboundIdentityRebindTracerHttpAcceptanceTest.otherHostSnapshotDoesNotMarkIdentityLostOnX`
+Output:
+**green reuse/regression**。覆盖：`UnboundIdentityLostIngestHttpAcceptanceTest.otherHostSnapshotDoesNotMarkIdentityLost`（01）。
+Production: 无
+Refactor: 无（复用套件 heartbeat / identity-lost helpers）
+Commit: 本圈提交
+
+### Cycle C — 未打标同名不承诺升级链（Neg 2）
+Command:
+`cd backend && ./gradlew test --tests com.archops.observed.UnboundIdentityRebindTracerHttpAcceptanceTest.unlabeledSameNameDoesNotPromiseUpgradeChain`
+Output:
+**green reuse/regression**。覆盖：`VerticalSliceHttpE2eAcceptanceTest.negative_unlabeledSnapshotDoesNotPromiseUpgradeChain`、`UnboundIdentityLostIngestHttpAcceptanceTest.unlabeledSameNameDoesNotPromiseUpgradeChain`、`IdentityLostPipelineGateHttpAcceptanceTest.unlabeledSameNameStillDoesNotOpenConflict`。
+Production: 无
+Refactor: 无
+Commit: 本圈提交
+
+### Cycle B — 他机快照不给 X 打失联（Neg 1）
+Command:
+`cd backend && ./gradlew test --tests com.archops.observed.UnboundIdentityRebindTracerHttpAcceptanceTest.otherHostSnapshotDoesNotMarkIdentityLostOnX`
+Output:
+**green reuse/regression**。覆盖：`UnboundIdentityLostIngestHttpAcceptanceTest.otherHostSnapshotDoesNotMarkIdentityLost`（01）。
+Production: 无
+Refactor: 无（复用套件 heartbeat / identity-lost helpers）
 Commit: 本圈提交
