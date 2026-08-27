@@ -145,6 +145,9 @@ export default function ConflictDetailPage() {
           setDraftError(null);
           const whereEntries = await Promise.all(
             dft.items.map(async (item) => {
+              if (!item.subjectId) {
+                return [item.id, '—'] as const;
+              }
               try {
                 const sw = await getShouldWhere(item.subjectId);
                 const host = sw.curatedValue.hostName
@@ -428,7 +431,8 @@ export default function ConflictDetailPage() {
                         {item.status}
                       </Tag>
                       <Text type="secondary">
-                        应该在哪：{shouldWhereBySubject[item.subjectId] ?? '…'}
+                        应该在哪：
+                        {item.subjectId ? (shouldWhereBySubject[item.subjectId] ?? '…') : '—'}
                       </Text>
                     </Space>
                   </Space>

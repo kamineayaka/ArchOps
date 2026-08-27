@@ -18,20 +18,26 @@ export const DEMO_USERS = [
   { id: 'user-general-demo', label: '演示运维（一般）' },
 ] as const;
 
+/** Select value for no X-ArchOps-User-Id header (not a real user id). */
+export const UNAUTHENTICATED_VALUE = 'unauthenticated';
+
 const STORAGE_KEY = 'archops.demoUserId';
 
 type DemoUserContextValue = {
-  userId: string;
+  userId: string | null;
   user: CurrentUser | null;
   loading: boolean;
-  setUserId: (id: string) => void;
+  setUserId: (id: string | null) => void;
 };
 
 const DemoUserContext = createContext<DemoUserContextValue | null>(null);
 
-function readStoredUserId(): string {
+function readStoredUserId(): string | null {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored === UNAUTHENTICATED_VALUE) {
+      return null;
+    }
     if (stored && DEMO_USERS.some((u) => u.id === stored)) {
       return stored;
     }
@@ -42,20 +48,19 @@ function readStoredUserId(): string {
 }
 
 export function DemoUserProvider({ children }: { children: ReactNode }) {
-  const [userId, setUserIdState] = useState(() => {
+  const [userId, setUserIdState] = useState<string | null>(() => {
     const id = readStoredUserId();
-    // Sync before child effects so first /api calls include the identity header.
     setApiUserId(id);
     return id;
   });
   const [user, setUser] = useState<CurrentUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const setUserId = useCallback((id: string) => {
+  const setUserId = useCallback((id: string | null) => {
     setApiUserId(id);
     setUserIdState(id);
     try {
-      localStorage.setItem(STORAGE_KEY, id);
+      localStorage.setItem(STORAGE_KEY, id ?? UNAUTHENTICATED_VALUE);
     } catch {
       /* ignore */
     }
@@ -64,6 +69,13 @@ export function DemoUserProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setApiUserId(userId);
     let cancelled = false;
+    if (!userId) {
+      setUser(null);
+      setLoading(false);
+      return () => {
+        cancelled = true;
+      };
+    }
     setLoading(true);
     (async () => {
       try {

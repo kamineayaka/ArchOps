@@ -20,9 +20,49 @@ export type ConflictStatus = 'OPEN' | 'PENDING_CLOSE' | 'CLOSED' | 'SUSPENDED';
 export type HandlerAcceptance = 'NONE' | 'PENDING_ACCEPT' | 'ACCEPTED';
 
 export type TrackValue = {
+  /** PRESENT | ABSENT | HOLLOW | IDENTITY_LOST (ask / 冲突 GET 投影，非 observed_fact) */
   availability: string;
   hostId: string | null;
   hostName: string | null;
+};
+
+export type UnboundReason = 'MISSING_LABEL' | 'UNKNOWN_OBJECT_ID';
+
+export type UnboundCandidate = {
+  id: string;
+  sourceAgentId: string;
+  sourceHostId: string;
+  runtimeId: string;
+  name: string;
+  labels: Record<string, string>;
+  reason: UnboundReason;
+  upgradeChainPromised: boolean;
+  observedAt: string;
+};
+
+export type IdentityLostMark = {
+  curatedObjectId: string;
+  reason: string;
+  markedAt: string;
+  sourceAgentId: string;
+  sourceHostId: string;
+  upgradeChainPromised: boolean;
+};
+
+export type ObservedValue = TrackValue;
+
+export type ActualWhere = {
+  question: string;
+  track: string;
+  relationType?: string;
+  relationLabel?: string;
+  subject?: CuratedObject;
+  observedValue: ObservedValue;
+  curatedValue: {
+    hostId: string | null;
+    hostName: string | null;
+  };
+  identityLost: boolean;
 };
 
 export type CuratedObject = {
@@ -64,6 +104,7 @@ export type ConflictCase = {
   suspendedAt: string | null;
   pendingCloseReminderVisible: boolean;
   observationHollow: boolean;
+  identityLost: boolean;
   diagnosisStatus: string;
   collaboration: Collaboration;
 };
@@ -140,20 +181,25 @@ export type CuratedDraftItem = {
   seq: number;
   kind: string;
   status: string;
-  subjectId: string;
+  subjectId: string | null;
   subjectName: string | null;
-  fromHostId: string;
+  fromHostId: string | null;
   fromHostName: string | null;
-  toHostId: string;
+  toHostId: string | null;
   toHostName: string | null;
   mergeKey: boolean;
+  payload?: Record<string, unknown>;
 };
 
 export type CuratedDraft = {
   id: string;
-  conflictId: string;
-  diagnosisId: string;
-  selectedForkId: string;
+  conflictId: string | null;
+  diagnosisId: string | null;
+  selectedForkId: string | null;
+  origin?: string;
+  candidateId?: string | null;
+  sourceHostId?: string | null;
+  runtimeId?: string | null;
   status: string;
   items: CuratedDraftItem[];
   createdBy: string;
