@@ -36,4 +36,11 @@ Expected: is "HOLLOW"
 范围内未打标快照已打失联标；回拨该上报宿主 `host_agent` 并 `POST /api/observed/scan-heartbeat-timeouts` 之后，问法仍因 `lostMark != null` 短路为 `IDENTITY_LOST`，观测空洞被吞掉。
 Green: `observedAskValue` 在失联标存在时先看策展「运行于」宿主与失联标 `sourceHostId` 的 `host_agent` 新鲜度；超时则 `availability=HOLLOW`，`identityLost` 仍为 true。不删标、不改 `observed_fact.availability`、不问法路径调用 `onObservationBecameHollow`。
 Refactor: `ObservationFreshnessService` 抽出 `heartbeatCutoff`；同源宿主不重复查通道。
-Commit: pending
+Commit: `2121fe7`
+
+### Cycle B — 失联标存在且心跳仍新鲜时「实际在哪」仍是 IDENTITY_LOST
+Command:
+`cd backend && ./gradlew test --tests com.archops.observed.IdentityLostHeartbeatTimeoutAskHttpAcceptanceTest.identityLostWithFreshHeartbeatActualWhereStaysIdentityLost`
+reuse/regression：首跑绿。票 01 `neverObservedIdentityLostActualWhereIsNotHollow` / `identityLostActualWhereDoesNotReportStaleObservedHost` 已钉「不得单因失联报 HOLLOW」；本圈把同一语义放进 09 类，确认 Cycle A 的 `host_agent` 新鲜度判据在心跳未回拨时不把失联改写成空洞。不另写生产。
+Green command: 同上，exit 0。
+Refactor: 抽出 `heartbeatUnlabeled` / `backdateAgent` / `assertActualWhere` / `assertShouldWhere` / `assertIdentityLost`。

@@ -51,43 +51,66 @@ class IdentityLostHeartbeatTimeoutAskHttpAcceptanceTest {
         String containerId = createContainer("u09a-x", "u09a-oid");
         confirmRunsOn(containerId, hostA);
 
+        heartbeatUnlabeled(hostA, "u09a-ag", "u09a-rt-miss", "u09a-miss");
+        assertIdentityLost(containerId);
+
+        backdateAgent("u09a-ag");
+        mockMvc.perform(post("/api/observed/scan-heartbeat-timeouts")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+
+        assertActualWhere(containerId, hostA, "HOLLOW", true);
+        assertShouldWhere(containerId, hostA);
+        assertIdentityLost(containerId);
+    }
+
+    @Test
+    void identityLostWithFreshHeartbeatActualWhereStaysIdentityLost() throws Exception {
+        String hostA = createHost("u09b-h");
+        String containerId = createContainer("u09b-x", "u09b-oid");
+        confirmRunsOn(containerId, hostA);
+
+        heartbeatUnlabeled(hostA, "u09b-ag", "u09b-rt-miss", "u09b-miss");
+        assertActualWhere(containerId, hostA, "IDENTITY_LOST", true);
+        assertIdentityLost(containerId);
+    }
+
+    private void heartbeatUnlabeled(String hostId, String agentId, String runtimeId, String name) throws Exception {
         mockMvc.perform(post("/api/agent/heartbeat")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "agentId": "u09a-ag",
+                                  "agentId": "%s",
                                   "hostId": "%s",
                                   "snapshot": {
                                     "containers": [
                                       {
-                                        "runtimeId": "u09a-rt-miss",
-                                        "name": "u09a-miss",
+                                        "runtimeId": "%s",
+                                        "name": "%s",
                                         "labels": {}
                                       }
                                     ],
                                     "absentObjectIds": []
                                   }
                                 }
-                                """.formatted(hostA))
+                                """.formatted(agentId, hostId, runtimeId, name))
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk());
+    }
 
-        mockMvc.perform(get("/api/observed/identity-lost/{id}", containerId)
-                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success", is(true)))
-                .andExpect(jsonPath("$.data.reason", is("LABEL_CLUE_LOST")));
-
+    private void backdateAgent(String agentId) {
         hostAgentMapper.update(null, new LambdaUpdateWrapper<HostAgent>()
-                .eq(HostAgent::getAgentId, "u09a-ag")
+                .eq(HostAgent::getAgentId, agentId)
                 .set(HostAgent::getLastHeartbeatAt, Instant.now().minus(2, ChronoUnit.MINUTES)));
+    }
 
-        mockMvc.perform(post("/api/observed/scan-heartbeat-timeouts")
-                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk());
-
+    private void assertActualWhere(
+            String containerId,
+            String curatedHostId,
+            String availability,
+            boolean identityLost
+    ) throws Exception {
         mockMvc.perform(get("/api/observed/asks/actual-where")
                         .param("containerId", containerId)
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)
@@ -96,11 +119,13 @@ class IdentityLostHeartbeatTimeoutAskHttpAcceptanceTest {
                 .andExpect(jsonPath("$.success", is(true)))
                 .andExpect(jsonPath("$.data.question", is("实际在哪")))
                 .andExpect(jsonPath("$.data.track", is("OBSERVED")))
-                .andExpect(jsonPath("$.data.identityLost", is(true)))
-                .andExpect(jsonPath("$.data.observedValue.availability", is("HOLLOW")))
+                .andExpect(jsonPath("$.data.identityLost", is(identityLost)))
+                .andExpect(jsonPath("$.data.observedValue.availability", is(availability)))
                 .andExpect(jsonPath("$.data.observedValue.hostId", nullValue()))
-                .andExpect(jsonPath("$.data.curatedValue.hostId", is(hostA)));
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(curatedHostId)));
+    }
 
+    private void assertShouldWhere(String containerId, String curatedHostId) throws Exception {
         mockMvc.perform(get("/api/curated/asks/should-where")
                         .param("containerId", containerId)
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)
@@ -108,8 +133,10 @@ class IdentityLostHeartbeatTimeoutAskHttpAcceptanceTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.question", is("应该在哪")))
                 .andExpect(jsonPath("$.data.track", is("CURATED")))
-                .andExpect(jsonPath("$.data.curatedValue.hostId", is(hostA)));
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(curatedHostId)));
+    }
 
+    private void assertIdentityLost(String containerId) throws Exception {
         mockMvc.perform(get("/api/observed/identity-lost/{id}", containerId)
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)
                         .accept(MediaType.APPLICATION_JSON))
