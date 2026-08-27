@@ -162,7 +162,7 @@ public class ObservedTruthService {
                 CuratedRelationType.RUNS_ON,
                 CuratedRelationType.RUNS_ON.labelZh(),
                 CuratedObjectResponse.from(container),
-                observedAskValue(lostMark, observed),
+                observedAskValue(lostMark, observed, curatedHost.getId()),
                 new ActualWhereResponse.CuratedHostValue(curatedHost.getId(), curatedHost.getName()),
                 identityLost
         );
@@ -170,9 +170,17 @@ public class ObservedTruthService {
 
     /**
      * 规范问法「实际在哪」投影。IDENTITY_LOST 只出现在此读模型，不写入 observed_fact.availability。
+     * 通道超时优先决定 availability（HOLLOW）；失联仍是 identityLost 旗标。
      */
-    private ActualWhereResponse.ObservedValue observedAskValue(IdentityLostMark lostMark, ObservedFact observed) {
+    private ActualWhereResponse.ObservedValue observedAskValue(
+            IdentityLostMark lostMark,
+            ObservedFact observed,
+            String curatedHostId
+    ) {
         if (lostMark != null) {
+            if (identityLostChannelTimedOut(lostMark, curatedHostId)) {
+                return new ActualWhereResponse.ObservedValue("HOLLOW", null, null);
+            }
             return new ActualWhereResponse.ObservedValue("IDENTITY_LOST", null, null);
         }
         if (observed == null || observationFreshnessService.isObservedFactStale(observed)) {
@@ -187,6 +195,14 @@ public class ObservedTruthService {
                 observedHost != null ? observedHost.getId() : observed.getTargetId(),
                 observedHost != null ? observedHost.getName() : null
         );
+    }
+
+    private boolean identityLostChannelTimedOut(IdentityLostMark lostMark, String curatedHostId) {
+        String reportingHostId = lostMark.getSourceHostId();
+        if (reportingHostId == null || reportingHostId.isBlank()) {
+            reportingHostId = curatedHostId;
+        }
+        return observationFreshnessService.isHostChannelTimedOut(reportingHostId);
     }
 
     @Transactional(readOnly = true)
