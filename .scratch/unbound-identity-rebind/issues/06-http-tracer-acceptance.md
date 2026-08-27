@@ -159,3 +159,10 @@ Output:
 Production: 无
 Refactor: 无
 Commit: 本圈提交
+
+### Ticket-end
+- `cd backend && ./gradlew cleanTest test` → BUILD SUCCESSFUL（全量；随后 Neg 8 加深断言后再跑 `UnboundIdentityRebindTracerHttpAcceptanceTest` 全类绿）
+- `/code-review` Standards + Spec（固定点 `origin/main`）
+  - Standards：HTTP 接缝 / 不删生产与聚焦测试 / 一票 06 对齐；过程项为多方法同提交与 Comments 未贴完整 Gradle 日志（suite overlay 纪律，非产品违规）
+  - Spec：套件形态对齐 tracer 1–8+9 与 Negative 1–12；加深 Neg 8：`PLAN_REQUIRES_ACCEPTED_HANDLER`、诊断文案禁止「以现场为准」、`observationHollow=false` / `pendingCloseAt` null
+- Status: done；handoff frontier = 07（薄 UI）；票 09 仍待人排期
