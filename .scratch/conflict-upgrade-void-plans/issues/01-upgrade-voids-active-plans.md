@@ -44,4 +44,10 @@ OPEN 观测 B→C 升级后计划仍 APPROVED（A1 缺口）。生产：`upgrade
 
 ### Cycle A green + refactor (2026-08-27)
 
-Same test command: BUILD SUCCESSFUL. Refactor: `CONFLICT_UPGRADE_REASON` 与失联理由同形；`reopenFromPendingClose` 草案作废改用该常量（行为不变，计划作废留给 cycle C）。
+### Cycle B reuse (2026-08-27)
+
+```text
+cd backend && ./gradlew test --tests com.archops.conflict.ConflictUpgradeVoidsActivePlanHttpAcceptanceTest.upgradeOpenBtoCWritesPlanVoidedEventWithConflictUpgradeReason
+```
+
+First-run BUILD SUCCESSFUL (`reuse` of `voidActivePlans`：`voidReason=conflict_upgrade` + `PLAN_VOIDED` 事件 planId/reason)。显式断言保留。Refactor：抽出 `heartbeatObservedOnNewHost`。

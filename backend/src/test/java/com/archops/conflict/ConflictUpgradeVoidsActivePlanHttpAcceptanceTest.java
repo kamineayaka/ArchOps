@@ -11,6 +11,7 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -40,8 +41,7 @@ class ConflictUpgradeVoidsActivePlanHttpAcceptanceTest {
     @Test
     void upgradeOpenBtoCVoidsApprovedPlanAndRejectsStartExecution() throws Exception {
         Fixture fx = openClaimAndApprovePlan("cuv01a-a", "cuv01a-b", "cuv01a-oid");
-        String hostC = createHost("cuv01a-c");
-        heartbeatWithContainer(hostC, "agent-" + fx.objectId() + "-c", fx.objectId());
+        String hostC = heartbeatObservedOnNewHost(fx, "cuv01a-c");
 
         mockMvc.perform(get("/api/conflicts/{id}", fx.conflictId())
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)
@@ -69,6 +69,30 @@ class ConflictUpgradeVoidsActivePlanHttpAcceptanceTest {
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code", is("PLAN_VOIDED")));
+    }
+
+    @Test
+    void upgradeOpenBtoCWritesPlanVoidedEventWithConflictUpgradeReason() throws Exception {
+        Fixture fx = openClaimAndApprovePlan("cuv01b-a", "cuv01b-b", "cuv01b-oid");
+        heartbeatObservedOnNewHost(fx, "cuv01b-c");
+
+        mockMvc.perform(get("/api/operation-plans/{id}", fx.planId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("VOIDED")))
+                .andExpect(jsonPath("$.data.voidReason", is("conflict_upgrade")));
+
+        mockMvc.perform(get("/api/conflicts/{id}/events", fx.conflictId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[*].eventType", hasItem("UPGRADED")))
+                .andExpect(jsonPath("$.data[*].eventType", hasItem("PLAN_VOIDED")))
+                .andExpect(jsonPath("$.data[?(@.eventType=='PLAN_VOIDED')].detail.planId",
+                        hasItem(fx.planId())))
+                .andExpect(jsonPath("$.data[?(@.eventType=='PLAN_VOIDED')].detail.reason",
+                        hasItem("conflict_upgrade")));
     }
 
     private Fixture openClaimAndApprovePlan(String hostAName, String hostBName, String objectId) throws Exception {
@@ -111,6 +135,12 @@ class ConflictUpgradeVoidsActivePlanHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data.status", is("APPROVED")));
 
         return new Fixture(hostA, hostB, objectId, containerId, conflictId, planId);
+    }
+
+    private String heartbeatObservedOnNewHost(Fixture fx, String hostCName) throws Exception {
+        String hostC = createHost(hostCName);
+        heartbeatWithContainer(hostC, "agent-" + fx.objectId() + "-c", fx.objectId());
+        return hostC;
     }
 
     private void heartbeatWithContainer(String hostId, String agentId, String objectId) throws Exception {
