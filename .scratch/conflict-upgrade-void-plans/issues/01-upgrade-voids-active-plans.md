@@ -99,3 +99,9 @@ cd backend && ./gradlew cleanTest test
 ```
 
 BUILD SUCCESSFUL：175 tests, 0 failures。无新 Flyway；无新 ConflictStatus；未改 CONTEXT / ADR 正文。Cycle A 补 VOIDED `approve` → `PLAN_VOIDED`。
+
+### Code-review (Standards + Spec, vs origin/main)
+
+**Standards:** 0 hard product-standard breaches. Overlay note: B / D / STALE first-run green recorded as `reuse` because the implement prompt allowed reuse for event/`voidReason` once A was green, for the same-snapshot negative, and for the existing READY 选支门禁. Capability TDD redo (delete production to manufacture red) was forbidden. Cycle A later added VOIDED `approve` on the same method (ticket checkbox 1), not a new product path.
+
+**Spec:** no missing product behavior. IN_REVIEW/DRAFT_REVIEW is in `voidActivePlansForConflict` ACTIVE set; HTTP pin is APPROVED (the witnessed-red gap). STALE GET not re-done (spec pin 2). PENDING_CLOSE `PLAN_VOIDED` event uses the same helper as OPEN (asserted on OPEN). Audit A1 suggestion-line status only; no CONTEXT/ADR body rewrite; no 0044 split.
