@@ -81,6 +81,12 @@ Expected: is "IDENTITY_LOST"
 ```
 code-review Spec 轴：`identityLostChannelTimedOut` 对策展「运行于」与 `sourceHostId` 做 OR，策展宿主超时会把仍新鲜的上报通道答成空洞，违反 Story 12 / 审计 A3「sourced agent」。
 Green: 问法只看失联标来源宿主（无则回落策展「运行于」）的 `host_agent` 新鲜度。
-Refactor: pending
+Refactor: 无。上报通道优先于策展宿主，OR 短路删掉。
+Commit: `41305f9`
 
-票结束：`cd backend && ./gradlew cleanTest test` → BUILD SUCCESSFUL，169 tests, 0 failures。`IdentityLostHeartbeatTimeoutAskHttpAcceptanceTest` 5/5。问法读模型闭合。不要发明未绑定 10。A1 仍另开。不要自动做 A1 / ADR-0044 进程拆分。不改 `CONTEXT.md` / 已有 ADR 正文。
+票结束：`cd backend && ./gradlew cleanTest test` → BUILD SUCCESSFUL，170 tests, 0 failures。`IdentityLostHeartbeatTimeoutAskHttpAcceptanceTest` 6/6。问法读模型闭合。不要发明未绑定 10。A1 仍另开。不要自动做 A1 / ADR-0044 进程拆分。不改 `CONTEXT.md` / 已有 ADR 正文。
+
+### Code review（Standards + Spec）
+- Standards: 无硬违规。判断项：`"HOLLOW"` / `"IDENTITY_LOST"` 字面量沿用既有 ask DTO；B–E 首跑绿记 reuse/regression（不删 01/10 生产装红灯）；Cycle F 为 Spec 轴补的上报通道新鲜度。
+- Spec: Cycle A 诚实红灯（失联+扫描后曾答 `IDENTITY_LOST`）。Story 12 / 审计 A3：问法以失联标 `sourceHostId` 为上报通道（无则回落策展「运行于」），仅策展宿主超时不得吞掉仍新鲜的失联。未改 `observed_fact.availability`、未新增 `ConflictStatus`、GET 不清标、不问法路径调用 `onObservationBecameHollow`、未改诊断 forks / A1 / 07 UI / Flyway / CONTEXT / ADR。
+- 未做未绑定 10 / A1 / ADR-0044 进程拆分。
