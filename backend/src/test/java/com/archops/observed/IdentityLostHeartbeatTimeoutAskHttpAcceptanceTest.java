@@ -132,6 +132,34 @@ class IdentityLostHeartbeatTimeoutAskHttpAcceptanceTest {
         assertNoIdentityLost(containerId);
     }
 
+    @Test
+    void identityLostKeepsIdentityLostWhenOnlyCuratedHostTimedOutAndReportingHostIsFresh() throws Exception {
+        String hostA = createHost("u09f-ha");
+        String hostB = createHost("u09f-hb");
+        String containerId = createContainer("u09f-x", "u09f-oid");
+        confirmRunsOn(containerId, hostA);
+
+        mockMvc.perform(post("/api/agent/heartbeat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "agentId": "u09f-ag-a",
+                                  "hostId": "%s"
+                                }
+                                """.formatted(hostA))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+
+        heartbeatLabeled(hostB, "u09f-ag-b", "u09f-rt-hit", "u09f-x", "u09f-oid");
+        heartbeatUnlabeled(hostB, "u09f-ag-b", "u09f-rt-miss", "u09f-miss");
+        assertIdentityLost(containerId);
+
+        backdateAgent("u09f-ag-a");
+
+        assertActualWhere(containerId, hostA, "IDENTITY_LOST", true);
+        assertIdentityLost(containerId);
+    }
+
     private void heartbeatUnlabeled(String hostId, String agentId, String runtimeId, String name) throws Exception {
         mockMvc.perform(post("/api/agent/heartbeat")
                         .contentType(MediaType.APPLICATION_JSON)

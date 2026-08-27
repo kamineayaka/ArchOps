@@ -4,17 +4,17 @@
 
 **Blocked by:** 01 — 控制面推断身份失联；未绑定按现场实体 upsert；规范问法
 
-**Status:** ready-for-agent
+**Status:** done
 
 **TDD:** `/implement` 走 [`docs/agents/tdd.md`](../../../docs/agents/tdd.md)：**red → green → refactor**。Spec：[`docs/specs/unbound-identity-rebind.md`](../../../docs/specs/unbound-identity-rebind.md)（「`availability` … Must not be set to `HOLLOW` or `ABSENT` **solely** because of 失联」——反过来说，通道确实超时时 `HOLLOW` 就是该答的那个值）。
 
 来源：`.scratch/unbound-identity-rebind/audit-01-03-opus.md` 的 **C-1**（FIX-NOW / major）。审计探针命令与失败文本见该报告附录。注意票 10 的扫描会**删除**超时 Agent 写下的观测事实，所以读模型无法靠观测行判断「通道已死」还是「从未观测」；判据要看上报宿主的 `host_agent` 新鲜度。
 
-- [ ] 失联标存在 + 该对象策展 `运行于`（或失联标来源）宿主的 Agent 已超时 → 「实际在哪」`availability=HOLLOW`、`identityLost=true`、`observedValue.hostId` 为空、策展同屏（P2）
-- [ ] 失联标存在 + 心跳仍新鲜 → 仍是 `IDENTITY_LOST`（票 01 的 `neverObservedIdentityLostActualWhereIsNotHollow` / `identityLostActualWhereDoesNotReportStaleObservedHost` 不回归）
-- [ ] 无失联标 + 心跳超时 → 仍是 `HOLLOW`（票 10 `HeartbeatTimeoutHollowHttpAcceptanceTest` 不回归）
-- [ ] 观测消失仍是 `ABSENT`（票 01 `absentObjectIdsRemainUsableAbsentNotIdentityLost` 不回归）
-- [ ] `observed_fact.availability` 的 CHECK 不变；不新增 `ConflictStatus`；不改 `CONTEXT.md`
+- [x] 失联标存在 + 该对象策展 `运行于`（或失联标来源）宿主的 Agent 已超时 → 「实际在哪」`availability=HOLLOW`、`identityLost=true`、`observedValue.hostId` 为空、策展同屏（P2）
+- [x] 失联标存在 + 心跳仍新鲜 → 仍是 `IDENTITY_LOST`（票 01 的 `neverObservedIdentityLostActualWhereIsNotHollow` / `identityLostActualWhereDoesNotReportStaleObservedHost` 不回归）
+- [x] 无失联标 + 心跳超时 → 仍是 `HOLLOW`（票 10 `HeartbeatTimeoutHollowHttpAcceptanceTest` 不回归）
+- [x] 观测消失仍是 `ABSENT`（票 01 `absentObjectIdsRemainUsableAbsentNotIdentityLost` 不回归）
+- [x] `observed_fact.availability` 的 CHECK 不变；不新增 `ConflictStatus`；不改 `CONTEXT.md`
 
 **Out of this ticket:** 诊断分叉集在失联 / 空洞下的取舍（票 05 的「除非心跳确实超时」）；标签命中收尾（票 04）；冲突挂起与计划作废（票 10 已实现，只做不回归）；UI。
 
@@ -68,3 +68,19 @@ Command:
 reuse/regression：首跑绿。票 01 `absentObjectIdsRemainUsableAbsentNotIdentityLost` 已钉观测消失；本圈确认 09 的通道超时优先不把 `ABSENT` 改写成 `HOLLOW` 或 `IDENTITY_LOST`。不另写生产。
 Green command: 同上，exit 0。
 Refactor: 抽出 `assertNoIdentityLost`。
+Commit: `e24e585`
+
+### Cycle F — 上报通道仍新鲜时，仅策展宿主超时不得把失联答成空洞
+Red command:
+`cd backend && ./gradlew test --tests com.archops.observed.IdentityLostHeartbeatTimeoutAskHttpAcceptanceTest.identityLostKeepsIdentityLostWhenOnlyCuratedHostTimedOutAndReportingHostIsFresh`
+Red output:
+```
+JSON path "$.data.observedValue.availability"
+Expected: is "IDENTITY_LOST"
+     but: was "HOLLOW"
+```
+code-review Spec 轴：`identityLostChannelTimedOut` 对策展「运行于」与 `sourceHostId` 做 OR，策展宿主超时会把仍新鲜的上报通道答成空洞，违反 Story 12 / 审计 A3「sourced agent」。
+Green: 问法只看失联标来源宿主（无则回落策展「运行于」）的 `host_agent` 新鲜度。
+Refactor: pending
+
+票结束：`cd backend && ./gradlew cleanTest test` → BUILD SUCCESSFUL，169 tests, 0 failures。`IdentityLostHeartbeatTimeoutAskHttpAcceptanceTest` 5/5。问法读模型闭合。不要发明未绑定 10。A1 仍另开。不要自动做 A1 / ADR-0044 进程拆分。不改 `CONTEXT.md` / 已有 ADR 正文。

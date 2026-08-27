@@ -198,14 +198,11 @@ public class ObservedTruthService {
     }
 
     private boolean identityLostChannelTimedOut(IdentityLostMark lostMark, String curatedHostId) {
-        if (observationFreshnessService.isHostChannelTimedOut(curatedHostId)) {
-            return true;
+        String reportingHostId = lostMark.getSourceHostId();
+        if (reportingHostId == null || reportingHostId.isBlank()) {
+            reportingHostId = curatedHostId;
         }
-        String sourceHostId = lostMark.getSourceHostId();
-        if (sourceHostId == null || sourceHostId.isBlank() || sourceHostId.equals(curatedHostId)) {
-            return false;
-        }
-        return observationFreshnessService.isHostChannelTimedOut(sourceHostId);
+        return observationFreshnessService.isHostChannelTimedOut(reportingHostId);
     }
 
     @Transactional(readOnly = true)
