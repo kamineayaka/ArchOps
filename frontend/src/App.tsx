@@ -3,6 +3,7 @@ import { Link, Navigate, Route, Routes } from 'react-router-dom';
 import { DEMO_USERS, useDemoUser } from './auth/DemoUserContext';
 import ConflictDetailPage from './pages/ConflictDetailPage';
 import ConflictListPage from './pages/ConflictListPage';
+import UnboundCandidatesPage from './pages/UnboundCandidatesPage';
 
 const { Header, Content } = Layout;
 const { Title, Text } = Typography;
@@ -29,6 +30,12 @@ export default function App() {
             </Title>
           </Link>
           <Text style={{ color: '#9bb59f' }}>关系真相 · 竖切演示</Text>
+          <Link to="/" style={{ color: '#c5d6c8' }}>
+            开放冲突
+          </Link>
+          <Link to="/unbound" style={{ color: '#c5d6c8' }}>
+            未绑定 / 身份失联
+          </Link>
         </Space>
         <Space>
           <Text style={{ color: '#c5d6c8' }}>演示身份</Text>
@@ -49,6 +56,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<ConflictListPage />} />
           <Route path="/conflicts/:id" element={<ConflictDetailPage />} />
+          <Route path="/unbound" element={<UnboundCandidatesPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Content>

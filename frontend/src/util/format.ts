@@ -1,5 +1,14 @@
 import type { TrackValue } from '../api/types';
 
+export function formatUnboundLabels(labels: Record<string, string> | null | undefined): string {
+  if (!labels || Object.keys(labels).length === 0) {
+    return '（无标签）';
+  }
+  return Object.entries(labels)
+    .map(([key, value]) => `${key}=${value}`)
+    .join(', ');
+}
+
 export function formatTrack(track: TrackValue | null | undefined): string {
   if (!track) {
     return '—';

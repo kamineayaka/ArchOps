@@ -21,3 +21,12 @@
 ## Comments
 
 01–06 + 08 已 TDD-done（PR #97 = 票 06 已合入），本票已 unblocked。开场 prompt：[`docs/implement-unbound-identity-rebind-07-prompt.md`](../../../docs/implement-unbound-identity-rebind-07-prompt.md)。本票是演示层：手工/冒烟 + `npm run build`；不要把 Playwright 或新 HTTP 套件当完成定义。不要做票 09。代码 vs ADR-0044 审计 **A2 已由 05 交付**；**A3** 是票 09；**A1** 与 0044 进程债禁止写入本票。见 [`.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md`](../audit-code-vs-adr-0044.md)。
+
+### Cycle A — 列出待并入未绑定观测候选（reason / 宿主 / runtime / 标签线索）
+Command:
+cd frontend && npm run build
+Output:
+green (`tsc --noEmit && vite build`；vite built in 2.83s). Vite :5173 冒烟：Header「未绑定 / 身份失联」进 `/unbound`，表列出 `UNKNOWN_OBJECT_ID`/`MISSING_LABEL` 两行（demo-rt-unknown / demo-rt-missing），`upgradeChainPromised=false · 不承诺升级链`，刷新后仍在；「开放冲突」仍回 `/` 竖切列表。
+Production: `frontend/src/api/observed.ts`、`frontend/src/pages/UnboundCandidatesPage.tsx`、`frontend/src/App.tsx`、`frontend/src/api/types.ts`、`frontend/src/util/format.ts` / 无后端
+Refactor: `formatUnboundLabels`
+Commit: pending this cycle

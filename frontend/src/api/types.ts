@@ -20,9 +20,24 @@ export type ConflictStatus = 'OPEN' | 'PENDING_CLOSE' | 'CLOSED' | 'SUSPENDED';
 export type HandlerAcceptance = 'NONE' | 'PENDING_ACCEPT' | 'ACCEPTED';
 
 export type TrackValue = {
+  /** PRESENT | ABSENT | HOLLOW | IDENTITY_LOST (ask / 冲突 GET 投影，非 observed_fact) */
   availability: string;
   hostId: string | null;
   hostName: string | null;
+};
+
+export type UnboundReason = 'MISSING_LABEL' | 'UNKNOWN_OBJECT_ID';
+
+export type UnboundCandidate = {
+  id: string;
+  sourceAgentId: string;
+  sourceHostId: string;
+  runtimeId: string;
+  name: string;
+  labels: Record<string, string>;
+  reason: UnboundReason;
+  upgradeChainPromised: boolean;
+  observedAt: string;
 };
 
 export type CuratedObject = {
