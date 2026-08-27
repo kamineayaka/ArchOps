@@ -22,7 +22,7 @@ alwaysApply: true
 | `.scratch/change-curated-draft/issues/` | 改策展/草案工单（**01–06 TDD-done**；本刀闭合） |
 | `docs/specs/change-curated-draft.md` | 改策展/草案 Spec（已闭合） |
 | `docs/specs/unbound-identity-rebind.md` | 未绑定 / 身份失联重绑 Spec（已发布；01–07 已拆） |
-| `.scratch/unbound-identity-rebind/issues/` | 下一刀工单（**01–04 + 08 TDD-done；frontier = 05**；审计报告同目录 `audit-01-03-opus.md` 与 `audit-code-vs-adr-0044.md`；票 05 prompt `docs/implement-unbound-identity-rebind-05-prompt.md`） |
+| `.scratch/unbound-identity-rebind/issues/` | 下一刀工单（**01–06 + 08 TDD-done；frontier = 07**；审计报告同目录 `audit-01-03-opus.md` 与 `audit-code-vs-adr-0044.md`；票 07 prompt `docs/implement-unbound-identity-rebind-07-prompt.md`） |
 
 ## 模块边界
 
