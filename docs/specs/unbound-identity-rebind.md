@@ -278,11 +278,11 @@ Host Agent 心跳快照仍按 `archops.object_id` 匹配。缺标或标签对不
 ## Further Notes
 
 - **Issue tracker**: 本地 markdown，见 `docs/agents/issue-tracker.md`。Canonical spec：`docs/specs/unbound-identity-rebind.md`。Tracker 指针：[`.scratch/unbound-identity-rebind/spec.md`](../../.scratch/unbound-identity-rebind/spec.md)。工单：[`.scratch/unbound-identity-rebind/issues/`](../../.scratch/unbound-identity-rebind/issues/)（01–07）。
-- **Next Matt step**: 未绑定 **01–09 已闭合**（本刀问法读模型闭合）。不要发明未绑定 10。A1（升级不作废活跃计划）仍另开，不要自动做。不要重拆竖切 01–13 或改策展 01–06。不要加改策展 07。
+- **Next Matt step**: 未绑定 **01–09 已闭合**。现行 frontier：[`conflict-upgrade-void-plans.md`](conflict-upgrade-void-plans.md) 票 01（审计 A1；用户已排期）。不要发明未绑定 10。不要自动做 ADR-0044 进程拆分。不要重拆竖切 01–13 或改策展 01–06。不要加改策展 07。
 - **Why no new ADR**: grilling Q4/Q12 pinned 实现已有术语；「接受绑定后的现场实体对应关系」不是新合同词，也不是第四种冲突生命周期。
 - **Why drafts are not on 冲突**: 未绑定不是冲突；复用处理人门禁会把匹配失败推进冲突升级链。
 - **Why bind does not write observed `运行于`**: ADR-0011/0012 — 运行时 ID / 名称只是线索；未打标不承诺升级链。可靠实际仍等标签命中。
 - **Why not Y2 / SSH 补标**: 与改策展「接受即写入」双写张力未在本刀打开；补标是现场，不是策展对齐步骤。
 - **Glossary**: 未绑定观测候选、身份失联、草案、逐条确认、策展真相、观测真相、冲突、观测空洞、观测消失、规范问法、操作计划、待确认关闭、冲突升级。不要发明合同已 Avoid 的词。
 - **Acceptance motto (this knife)**: 匹配失败不升冲突；并入必须逐条；绑定不写可靠实际；补标命中才恢复升级链。
-- **Prompt for next chat**: 未绑定 09 已闭合。不要发明未绑定 10。不要自动做 A1 / ADR-0044 进程拆分。进度见 [`docs/dev-handoff.md`](../dev-handoff.md)。代码 vs ADR-0044 审计：[`.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md`](../../.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md)。
+- **Prompt for next chat**: 读 [`docs/implement-conflict-upgrade-void-plans-01-prompt.md`](../implement-conflict-upgrade-void-plans-01-prompt.md)。进度见 [`docs/dev-handoff.md`](../dev-handoff.md)。

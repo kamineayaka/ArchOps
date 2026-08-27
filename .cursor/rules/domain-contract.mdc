@@ -22,6 +22,6 @@ alwaysApply: true
 
 ## 工作方式
 
-- 一次一张 frontier 票（竖切与改策展工单包均已闭合；下一刀 Spec `docs/specs/unbound-identity-rebind.md`，**01–09 已闭合**）。代码 vs ADR-0044 审计 `.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md`：A3 = 09 已闭合，A1/0044 拆分不要自动做。不要发明未绑定 10。
+- 一次一张 frontier 票（竖切 / 改策展 / 未绑定均已闭合；现行 frontier Spec `docs/specs/conflict-upgrade-void-plans.md`，**票 01**）。代码 vs ADR-0044 审计 `.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md`：A1 = 本刀；A2/A3 已闭合；B1–B5 / 0044 拆分不要写入本刀。不要发明未绑定 10。
 - `/implement` 走 **red → green → refactor**（`docs/agents/tdd.md`）
 - 不复活旧域包；不扩票外范围（自我迭代、可达矩阵、完整 xterm 等）
