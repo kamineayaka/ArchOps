@@ -28,6 +28,7 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -46,6 +47,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class UnboundIdentityRebindTracerHttpAcceptanceTest {
 
     private static final String GENERAL_ID = "user-general-demo";
+    private static final String SENIOR_ID = "user-senior-demo";
 
     @Autowired
     private MockMvc mockMvc;
@@ -474,14 +476,18 @@ class UnboundIdentityRebindTracerHttpAcceptanceTest {
                 .andExpect(jsonPath("$.code", is("PLAN_VOIDED")))
                 .andExpect(jsonPath("$.data").value(nullValue()));
         waitUntilDiagnosisReady(fx.conflictId());
-        mockMvc.perform(get("/api/conflicts/{id}/diagnosis", fx.conflictId())
+        MvcResult diagnosis = mockMvc.perform(get("/api/conflicts/{id}/diagnosis", fx.conflictId())
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status", is("READY")))
                 .andExpect(jsonPath("$.data.forks[?(@.id=='FIX_ACTUAL_TO_CURATED')]").isEmpty())
                 .andExpect(jsonPath("$.data.forks[?(@.id=='CHANGE_CURATED_TO_OBSERVED')]").isEmpty())
-                .andExpect(jsonPath("$.data.forks[?(@.id=='RESTORE_HEARTBEAT_CHANNEL')]").isEmpty());
+                .andExpect(jsonPath("$.data.forks[?(@.id=='RESTORE_HEARTBEAT_CHANNEL')]").isEmpty())
+                .andReturn();
+        JsonNode diagnosisData = objectMapper.readTree(diagnosis.getResponse().getContentAsString()).path("data");
+        assertFalse((diagnosisData.path("summary").asText() + diagnosisData.path("forks").toString())
+                .contains("以现场为准"));
         postBranch(fx.conflictId(), GENERAL_ID, "FIX_ACTUAL_TO_CURATED")
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code", is("IDENTITY_LOST_BLOCKS_BRANCH")))
@@ -489,6 +495,14 @@ class UnboundIdentityRebindTracerHttpAcceptanceTest {
         postBranch(fx.conflictId(), GENERAL_ID, "CHANGE_CURATED_TO_OBSERVED")
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code", is("IDENTITY_LOST_BLOCKS_BRANCH")));
+
+        LostPipeline unclaimed = openMismatchUnclaimed("u06n8d");
+        identityLostOnObservedHost(unclaimed);
+        postBranch(unclaimed.conflictId(), SENIOR_ID, "FIX_ACTUAL_TO_CURATED")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("PLAN_REQUIRES_ACCEPTED_HANDLER")))
+                .andExpect(jsonPath("$.code", not("IDENTITY_LOST_BLOCKS_BRANCH")))
+                .andExpect(jsonPath("$.data").value(nullValue()));
 
         // 改理想开放草案作废
         LostPipeline draftFx = openMismatchClaimed("u06n8b");
@@ -530,6 +544,8 @@ class UnboundIdentityRebindTracerHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data.status", not("PENDING_CLOSE")))
                 .andExpect(jsonPath("$.data.status", not("SUSPENDED")))
                 .andExpect(jsonPath("$.data.identityLost", is(true)))
+                .andExpect(jsonPath("$.data.observationHollow", is(false)))
+                .andExpect(jsonPath("$.data.pendingCloseAt").value(nullValue()))
                 .andExpect(jsonPath("$.data.observedValue.availability", not("PRESENT")))
                 .andExpect(jsonPath("$.data.observedValue.hostId").value(nullValue()));
     }
@@ -678,6 +694,21 @@ class UnboundIdentityRebindTracerHttpAcceptanceTest {
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.collaboration.handlerAcceptance", is("ACCEPTED")));
+        return new LostPipeline(prefix, conflictId, hostA, hostB, containerId);
+    }
+
+    private LostPipeline openMismatchUnclaimed(String prefix) throws Exception {
+        String hostA = createHost(prefix + "-ha");
+        String hostB = createHost(prefix + "-hb");
+        String containerId = createContainer(prefix + "-x", prefix + "-oid");
+        confirmRunsOn(containerId, hostA);
+        heartbeatLabeled(hostB, prefix + "-ag-b", prefix + "-rt-b", prefix + "-x", prefix + "-oid");
+        MvcResult open = getByMergeKey(containerId)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("OPEN")))
+                .andReturn();
+        String conflictId = objectMapper.readTree(open.getResponse().getContentAsString())
+                .path("data").path("id").asText();
         return new LostPipeline(prefix, conflictId, hostA, hostB, containerId);
     }
 
