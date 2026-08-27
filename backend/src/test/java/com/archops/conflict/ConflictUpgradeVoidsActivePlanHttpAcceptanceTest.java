@@ -168,6 +168,31 @@ class ConflictUpgradeVoidsActivePlanHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data[*].eventType", not(hasItem("UPGRADED"))));
     }
 
+    @Test
+    void upgradeOpenRejectsBranchSelectionOnStaleDiagnosisId() throws Exception {
+        Fixture fx = openClaimAndApprovePlan("cuv01e-a", "cuv01e-b", "cuv01e-oid");
+        MvcResult planBefore = mockMvc.perform(get("/api/operation-plans/{id}", fx.planId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("APPROVED")))
+                .andReturn();
+        String staleDiagnosisId = objectMapper.readTree(planBefore.getResponse().getContentAsString())
+                .path("data").path("diagnosisId").asText();
+
+        heartbeatObservedOnNewHost(fx, "cuv01e-c");
+        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, fx.conflictId(), GENERAL_ID);
+
+        mockMvc.perform(post("/api/conflicts/{id}/branch-selection", fx.conflictId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"forkId\":\"FIX_ACTUAL_TO_CURATED\",\"diagnosisId\":\""
+                                + staleDiagnosisId + "\"}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("DIAGNOSIS_NOT_READY")));
+    }
+
     private Fixture openClaimAndApprovePlan(String hostAName, String hostBName, String objectId) throws Exception {
         String hostA = createHost(hostAName);
         String hostB = createHost(hostBName);
