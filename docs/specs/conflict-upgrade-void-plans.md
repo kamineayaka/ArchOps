@@ -1,9 +1,9 @@
 # Spec: 冲突升级作废活跃操作计划
 
-**Status**: spec published；工单 01 已拆；**frontier = 01**（用户 2026-08-27 明示排期）  
+**Status**: spec published；工单 01 **TDD-done**；**本刀闭合**  
 **Basis**: `CONTEXT.md`「AI 诊断」「冲突升级」；ADR-0027；ADR-0038；ADR-0039（合同已冻结，本刀**不改**合同、不立新 ADR）  
 **Source**: [`.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md`](../../.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md) **A1**  
-**Predecessor**: 竖切 / 改策展 / 未绑定刀均已闭合。空洞路径（竖切票 10）与身份失联落地（未绑定票 05）已会作废活跃计划；**健康对象观测 B→C 的 `upgradeOpen`（及待确认关闭后再漂的同键升级）仍不作废计划**——这是本刀唯一缺口。  
+**Predecessor**: 竖切 / 改策展 / 未绑定刀均已闭合。空洞路径（竖切票 10）与身份失联落地（未绑定票 05）已会作废活跃计划。本刀补上健康对象观测 B→C 的 `upgradeOpen`（及待确认关闭后再漂的同键升级）作废活跃计划。  
 **Testing seams (confirmed)**: **唯一验收主接缝 = 控制面公开 HTTP API**（含 Agent 心跳/快照 ingest）。`/implement` 按 [`docs/agents/tdd.md`](../agents/tdd.md) 走 **red → green → refactor**。前端不进本刀自动化主接缝。
 
 **Confirmed scope pins**
@@ -56,6 +56,6 @@
 ## Further Notes
 
 - **Issue tracker**: [`.scratch/conflict-upgrade-void-plans/issues/`](../../.scratch/conflict-upgrade-void-plans/issues/)  
-- **Next Matt step**: `/implement` `/tdd` **票 01**（frontier）。开场 prompt：[`docs/implement-conflict-upgrade-void-plans-01-prompt.md`](../implement-conflict-upgrade-void-plans-01-prompt.md)。  
+- **Next Matt step**: 票 01 **TDD-done**；本刀闭合。不要自动做 ADR-0044 进程拆分，不要发明未绑定 10。  
 - **Why no new ADR**: A1 is a code–contract gap against already-frozen CONTEXT + ADR-0027.  
-- **Prompt for next chat**: 读 AGENTS.md 与本 Spec；只做 `.scratch/conflict-upgrade-void-plans/issues/01-upgrade-voids-active-plans.md`。不要做 ADR-0044 拆分，不要发明未绑定 10。
+- **Prompt for next chat**: 人排期下一刀后再 `/implement`。不要做 ADR-0044 拆分，不要发明未绑定 10。

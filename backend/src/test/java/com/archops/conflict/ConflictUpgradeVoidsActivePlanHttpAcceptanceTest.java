@@ -66,6 +66,12 @@ class ConflictUpgradeVoidsActivePlanHttpAcceptanceTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status", is("VOIDED")));
 
+        mockMvc.perform(post("/api/operation-plans/{id}/approve", fx.planId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("PLAN_VOIDED")));
+
         mockMvc.perform(post("/api/operation-plans/{id}/start-execution", fx.planId())
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)
                         .accept(MediaType.APPLICATION_JSON))

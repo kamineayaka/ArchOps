@@ -11,8 +11,8 @@
 5. `docs/specs/vertical-slice-mvp.md` — 竖切 Spec（01–13 已闭合）
 6. `docs/specs/change-curated-draft.md` — 改策展/草案逐条确认 Spec（**01–06 TDD-done，本刀闭合**）
 7. `docs/specs/unbound-identity-rebind.md` — 未绑定 / 身份失联重绑 Spec（**01–09 已闭合**）
-8. `docs/specs/conflict-upgrade-void-plans.md` — 冲突升级作废活跃计划（审计 A1；**frontier = 01**）
-9. 当前工单：见 `docs/dev-handoff.md`；**frontier = conflict-upgrade-void-plans 01**。未绑定 01–09 / 竖切 / 改策展均已闭合。不要发明未绑定 10。不要自动做 ADR-0044 进程拆分。
+8. `docs/specs/conflict-upgrade-void-plans.md` — 冲突升级作废活跃计划（审计 A1；**01 TDD-done，本刀闭合**）
+9. 当前工单：见 `docs/dev-handoff.md`。未绑定 01–09 / 竖切 / 改策展 / A1 票 01 均已闭合。不要发明未绑定 10。不要自动做 ADR-0044 进程拆分。
 10. `docs/dev-handoff.md` — 进度与下一票
 11. `docs/agents/tdd.md` — ArchOps TDD overlay（`/implement` 必读）
 12. `.cursor/rules/project-map.mdc`、`backend-java.mdc`、`frontend-react.mdc`
@@ -107,15 +107,15 @@ Single-context: frozen `CONTEXT.md` + `docs/adr/` (ADR-0039 / ADR-0043 / ADR-004
 - 领域 grilling / 合同冻结 / 技术选型 / 空脚手架 / 竖切 Spec / 竖切 Tickets / 竖切实现：**已完成**
 - 改策展 Spec：`docs/specs/change-curated-draft.md`（已发布）；工单 `.scratch/change-curated-draft/issues/`（01–06 已拆）。**01–06 TDD-done。本刀闭合。**
 - 未绑定 Spec：[`docs/specs/unbound-identity-rebind.md`](docs/specs/unbound-identity-rebind.md)；工单 `.scratch/unbound-identity-rebind/issues/`（01–07 已拆，审计后补 08 / 09）。**01–09 已闭合**。不要发明未绑定 10。
-- **现行 frontier**：[`docs/specs/conflict-upgrade-void-plans.md`](docs/specs/conflict-upgrade-void-plans.md) / [`.scratch/conflict-upgrade-void-plans/issues/01-upgrade-voids-active-plans.md`](.scratch/conflict-upgrade-void-plans/issues/01-upgrade-voids-active-plans.md)（审计 A1；用户已排期）。开场 prompt：[`docs/implement-conflict-upgrade-void-plans-01-prompt.md`](docs/implement-conflict-upgrade-void-plans-01-prompt.md)。
+- 冲突升级作废活跃计划：[`docs/specs/conflict-upgrade-void-plans.md`](docs/specs/conflict-upgrade-void-plans.md) / [`.scratch/conflict-upgrade-void-plans/issues/01-upgrade-voids-active-plans.md`](.scratch/conflict-upgrade-void-plans/issues/01-upgrade-voids-active-plans.md)（审计 A1；**01 TDD-done，本刀闭合**）。
 - 01–03 合同审计：[`.scratch/unbound-identity-rebind/audit-01-03-opus.md`](.scratch/unbound-identity-rebind/audit-01-03-opus.md)。票 08 已处置 C-4 / C-2 / S-3；票 04 已处置 C-3 / S-4 / S-2；票 09 已处置 C-1。
-- 代码 vs ADR-0044 只读审计：[`.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md`](.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md)。A2 = 票 05；A3 = 票 09（已闭合）；**A1 = conflict-upgrade-void-plans 01**；B1–B5 另开，禁止写入本刀。
+- 代码 vs ADR-0044 只读审计：[`.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md`](.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md)。A2 = 票 05；A3 = 票 09（已闭合）；**A1 = conflict-upgrade-void-plans 01 TDD-done**；B1–B5 另开，不要自动做。
 - `/implement` 必须走 TDD overlay：[`docs/agents/tdd.md`](docs/agents/tdd.md)
 - ADR-0044 已冻结控制面枢纽 / 执行引擎 / AI 编排层拆分。拆分实现另开工单，**不要写入本刀**。控制面不得再加进程内 LLM 出站。
 - 不需要再开技术选型或推倒栈，除非用户明示新 ADR
 
 ## 7. 云端提示词建议（用户可贴）
 
-未绑定 **01–09 已闭合**。现行 frontier = **冲突升级作废活跃计划票 01**（审计 A1）。不要发明未绑定 10。不要加改策展 07。不要自动做 ADR-0044 进程拆分。不要用下面这句短指令替代票内循环纪律。
+未绑定 **01–09 已闭合**。冲突升级作废活跃计划 **01 TDD-done / 本刀闭合**（审计 A1）。不要发明未绑定 10。不要加改策展 07。不要自动做 ADR-0044 进程拆分。人排期下一刀后再 `/implement`。
 
-> 读 AGENTS.md、CONTEXT.md、ADR-0027 / 0043 与 `docs/specs/conflict-upgrade-void-plans.md`。只做 `.scratch/conflict-upgrade-void-plans/issues/01-upgrade-voids-active-plans.md`。开场 prompt：`docs/implement-conflict-upgrade-void-plans-01-prompt.md`。不要复活 Vue/JPA/Neo4j/Maven/LangChain。
+> 读 AGENTS.md、CONTEXT.md、ADR-0043 / 0044。A1 票 01 已闭合。不要发明未绑定 10。不要复活 Vue/JPA/Neo4j/Maven/LangChain。不要自动拆执行引擎 / AI 编排层。

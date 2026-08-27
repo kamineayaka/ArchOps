@@ -37,7 +37,7 @@
 - **位置**: `ConflictDetectionService.upgradeOpen()`；对比 `onObservationBecameHollow()` → `OperationPlanService.voidActivePlansForConflict()`
 - **违背**: CONTEXT「AI 诊断」：升级时选支作废、活跃计划受阻即停取消；ADR-0038；ADR-0027
 - **证据**: `upgradeOpen` 只作废开放草案并重诊，不调用 `voidActivePlansForConflict`。空洞路径会作废计划。`startExecution()` 只检查计划仍为 `APPROVED` 且冲突仍 `OPEN`，不检查诊断是否已 `STALE`。升级后旧计划仍可审/执行。验收只覆盖空洞作废计划、升级作废草案（`HeartbeatTimeoutHollowHttpAcceptanceTest`、`ChangeCuratedDraftVoidHttpAcceptanceTest`）
-- **建议**: **已排期** → [`docs/specs/conflict-upgrade-void-plans.md`](../../docs/specs/conflict-upgrade-void-plans.md) 票 01。不要写入未绑定目录；不要与 0044 拆分混做。
+- **建议**: **票 01 TDD-done（2026-08-27）** → [`docs/specs/conflict-upgrade-void-plans.md`](../../docs/specs/conflict-upgrade-void-plans.md)。证据段保留审计当时缺口。不要写入未绑定目录；不要与 0044 拆分混做。
 
 ### A2. 身份失联后仍把旧观测当可用实际（冲突 GET / 诊断 / 选支 / 执行）
 

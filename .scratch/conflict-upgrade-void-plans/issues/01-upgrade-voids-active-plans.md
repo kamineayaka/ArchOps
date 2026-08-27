@@ -4,7 +4,7 @@
 
 **Blocked by:** （无）
 
-**Status:** ready-for-agent
+**Status:** done
 
 **TDD:** `/implement` 走 [`docs/agents/tdd.md`](../../../docs/agents/tdd.md)：**red → green → refactor**，一圈一条 HTTP 测试。Spec：[`docs/specs/conflict-upgrade-void-plans.md`](../../../docs/specs/conflict-upgrade-void-plans.md)。合同：`CONTEXT.md`「AI 诊断」升级后作废活跃计划；ADR-0027。
 
@@ -12,12 +12,12 @@
 
 现码缺口：`ConflictDetectionService.upgradeOpen` / `reopenFromPendingClose` 只 `voidOpenForConflict` + `scheduleAsyncDiagnosis`，不调用 `voidActivePlans`。空洞路径与 `onIdentityLost` 会作废计划。`startExecution` 只查计划仍为 APPROVED 且冲突仍 OPEN，不查诊断是否 STALE。
 
-- [ ] OPEN 冲突 + 已接受处理人 + APPROVED（或 IN_REVIEW）操作计划指向观测宿主 B；新鲜心跳把可用观测 `运行于` 改到 C（策展仍 A、主体无失联标）→ 同一 conflict id 升级（`UPGRADED`、lineage 含 B→C）；该计划 `VOIDED` 且 `voidReason=conflict_upgrade`；`POST .../start-execution`（及对 VOIDED 的 approve）→ `PLAN_VOIDED`；冲突事件含 `PLAN_VOIDED`（planId + reason）
-- [ ] 升级后旧诊断为 STALE / 新诊断被调度；不得用旧诊断 id 选支（`DIAGNOSIS_NOT_READY` 或不接受 STALE）——不回归竖切选支门禁
-- [ ] PENDING_CLOSE 期间观测再漂离开相等 → 退回 OPEN 的同键升级路径同样作废活跃计划（`voidReason=conflict_upgrade`）
-- [ ] 同一观测快照重复 ingest / 比对（未真正改变 observed target）→ **不作废**既有活跃计划
-- [ ] 不回归：心跳超时空洞作废（`observation_hollow_heartbeat_timeout` / `HeartbeatTimeoutHollowHttpAcceptanceTest`）；身份失联作废（`identity_lost` / `IdentityLostPipelineGateHttpAcceptanceTest`）；升级作废 OPEN 改理想草案（`ChangeCuratedDraftVoidHttpAcceptanceTest`）
-- [ ] 不新增 `ConflictStatus`；不改 `CONTEXT.md` / 已有 ADR 正文；无新产品路由；Flyway 仅在确有新列时才 V21+（本票预期不需要）
+- [x] OPEN 冲突 + 已接受处理人 + APPROVED（或 IN_REVIEW）操作计划指向观测宿主 B；新鲜心跳把可用观测 `运行于` 改到 C（策展仍 A、主体无失联标）→ 同一 conflict id 升级（`UPGRADED`、lineage 含 B→C）；该计划 `VOIDED` 且 `voidReason=conflict_upgrade`；`POST .../start-execution`（及对 VOIDED 的 approve）→ `PLAN_VOIDED`；冲突事件含 `PLAN_VOIDED`（planId + reason）
+- [x] 升级后旧诊断为 STALE / 新诊断被调度；不得用旧诊断 id 选支（`DIAGNOSIS_NOT_READY` 或不接受 STALE）——不回归竖切选支门禁
+- [x] PENDING_CLOSE 期间观测再漂离开相等 → 退回 OPEN 的同键升级路径同样作废活跃计划（`voidReason=conflict_upgrade`）
+- [x] 同一观测快照重复 ingest / 比对（未真正改变 observed target）→ **不作废**既有活跃计划
+- [x] 不回归：心跳超时空洞作废（`observation_hollow_heartbeat_timeout` / `HeartbeatTimeoutHollowHttpAcceptanceTest`）；身份失联作废（`identity_lost` / `IdentityLostPipelineGateHttpAcceptanceTest`）；升级作废 OPEN 改理想草案（`ChangeCuratedDraftVoidHttpAcceptanceTest`）
+- [x] 不新增 `ConflictStatus`；不改 `CONTEXT.md` / 已有 ADR 正文；无新产品路由；Flyway 仅在确有新列时才 V21+（本票预期不需要）
 
 **Out of this ticket:** ADR-0044 进程拆分；未绑定 10；改策展 07；UI；问法读模型；扩大生产直连 SSH；把 WebClient/LLM 加回控制面。
 
@@ -77,3 +77,25 @@ cd backend && ./gradlew test --tests com.archops.conflict.ConflictUpgradeVoidsAc
 ```
 
 First-run BUILD SUCCESSFUL（`reuse` of `sameObservedSnapshot`：重复 ingest 不升级、不作废计划、无 `UPGRADED`/`PLAN_VOIDED`）。
+
+### Cycle STALE reuse (2026-08-27)
+
+```text
+cd backend && ./gradlew test --tests com.archops.conflict.ConflictUpgradeVoidsActivePlanHttpAcceptanceTest.upgradeOpenRejectsBranchSelectionOnStaleDiagnosisId
+```
+
+First-run BUILD SUCCESSFUL（`reuse` of `scheduleAsyncDiagnosis` + 选支门禁：旧诊断 id → `DIAGNOSIS_NOT_READY`）。不回归竖切选支须 READY。
+
+### Cycle E regression + ticket-end suite (2026-08-27)
+
+```text
+cd backend && ./gradlew test --tests com.archops.conflict.ConflictUpgradeVoidsActivePlanHttpAcceptanceTest --tests com.archops.conflict.HeartbeatTimeoutHollowHttpAcceptanceTest --tests com.archops.conflict.IdentityLostPipelineGateHttpAcceptanceTest --tests com.archops.curated.ChangeCuratedDraftVoidHttpAcceptanceTest
+```
+
+BUILD SUCCESSFUL（new class 5 + hollow 2 + identity-lost 10 + draft-void 7）。另跑 UnboundIdentityRebindTracer / VerticalSliceHttpE2e / ControlledSshExec / IdentityLostHeartbeatTimeoutAsk 仍绿。
+
+```text
+cd backend && ./gradlew cleanTest test
+```
+
+BUILD SUCCESSFUL：175 tests, 0 failures。无新 Flyway；无新 ConflictStatus；未改 CONTEXT / ADR 正文。Cycle A 补 VOIDED `approve` → `PLAN_VOIDED`。

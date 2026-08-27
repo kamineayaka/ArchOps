@@ -10,9 +10,9 @@ Claude / Cloud 编码助手请把本仓库的 **`AGENTS.md` 当作最高执行�
 4. [docs/specs/vertical-slice-mvp.md](./docs/specs/vertical-slice-mvp.md) — 竖切 Spec（01–13 已闭合）  
 5. [docs/specs/change-curated-draft.md](./docs/specs/change-curated-draft.md) — 改策展/草案逐条确认 Spec（**已闭合**）  
 6. [docs/specs/unbound-identity-rebind.md](./docs/specs/unbound-identity-rebind.md) — 未绑定 / 身份失联重绑 Spec（**01–09 已闭合**）  
-7. [docs/specs/conflict-upgrade-void-plans.md](./docs/specs/conflict-upgrade-void-plans.md) — 冲突升级作废活跃计划（审计 A1；**frontier = 01**）  
+7. [docs/specs/conflict-upgrade-void-plans.md](./docs/specs/conflict-upgrade-void-plans.md) — 冲突升级作废活跃计划（审计 A1；**01 TDD-done，本刀闭合**）  
 8. [docs/dev-handoff.md](./docs/dev-handoff.md) — 进度与下一票  
-9. Tickets: 竖切 [.scratch/vertical-slice-mvp/issues/](./.scratch/vertical-slice-mvp/issues/) 已 done；改策展 [.scratch/change-curated-draft/issues/](./.scratch/change-curated-draft/issues/)（**01–06 TDD-done**）；未绑定 [.scratch/unbound-identity-rebind/issues/](./.scratch/unbound-identity-rebind/issues/)（**01–09 已闭合**）；**frontier** [.scratch/conflict-upgrade-void-plans/issues/01-upgrade-voids-active-plans.md](./.scratch/conflict-upgrade-void-plans/issues/01-upgrade-voids-active-plans.md)（开场 prompt [docs/implement-conflict-upgrade-void-plans-01-prompt.md](./docs/implement-conflict-upgrade-void-plans-01-prompt.md)）  
+9. Tickets: 竖切 [.scratch/vertical-slice-mvp/issues/](./.scratch/vertical-slice-mvp/issues/) 已 done；改策展 [.scratch/change-curated-draft/issues/](./.scratch/change-curated-draft/issues/)（**01–06 TDD-done**）；未绑定 [.scratch/unbound-identity-rebind/issues/](./.scratch/unbound-identity-rebind/issues/)（**01–09 已闭合**）；A1 [.scratch/conflict-upgrade-void-plans/issues/01-upgrade-voids-active-plans.md](./.scratch/conflict-upgrade-void-plans/issues/01-upgrade-voids-active-plans.md)（**TDD-done**）  
 10. Cloud VM setup: [.cursor/CLOUD.md](./.cursor/CLOUD.md) · [.cursor/environment.json](./.cursor/environment.json)
 11. Matt tracker config: [`docs/agents/`](./docs/agents/)（含 [`docs/agents/tdd.md`](./docs/agents/tdd.md)）
 
