@@ -76,6 +76,24 @@ class IdentityLostHeartbeatTimeoutAskHttpAcceptanceTest {
         assertIdentityLost(containerId);
     }
 
+    @Test
+    void identityLostPlusStaleHeartbeatWithoutScanActualWhereIsHollow() throws Exception {
+        String hostA = createHost("u09c-ha");
+        String hostB = createHost("u09c-hb");
+        String containerId = createContainer("u09c-x", "u09c-oid");
+        confirmRunsOn(containerId, hostA);
+
+        heartbeatLabeled(hostB, "u09c-ag", "u09c-rt-hit", "u09c-x", "u09c-oid");
+        heartbeatUnlabeled(hostB, "u09c-ag", "u09c-rt-miss", "u09c-miss");
+        assertIdentityLost(containerId);
+
+        backdateAgent("u09c-ag");
+
+        assertActualWhere(containerId, hostA, "HOLLOW", true);
+        assertShouldWhere(containerId, hostA);
+        assertIdentityLost(containerId);
+    }
+
     private void heartbeatUnlabeled(String hostId, String agentId, String runtimeId, String name) throws Exception {
         mockMvc.perform(post("/api/agent/heartbeat")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -95,6 +113,34 @@ class IdentityLostHeartbeatTimeoutAskHttpAcceptanceTest {
                                   }
                                 }
                                 """.formatted(agentId, hostId, runtimeId, name))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+    }
+
+    private void heartbeatLabeled(
+            String hostId,
+            String agentId,
+            String runtimeId,
+            String name,
+            String objectId
+    ) throws Exception {
+        mockMvc.perform(post("/api/agent/heartbeat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "agentId": "%s",
+                                  "hostId": "%s",
+                                  "snapshot": {
+                                    "containers": [
+                                      {
+                                        "runtimeId": "%s",
+                                        "name": "%s",
+                                        "labels": { "archops.object_id": "%s" }
+                                      }
+                                    ]
+                                  }
+                                }
+                                """.formatted(agentId, hostId, runtimeId, name, objectId))
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk());
     }

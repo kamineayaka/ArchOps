@@ -44,3 +44,11 @@ Command:
 reuse/regression：首跑绿。票 01 `neverObservedIdentityLostActualWhereIsNotHollow` / `identityLostActualWhereDoesNotReportStaleObservedHost` 已钉「不得单因失联报 HOLLOW」；本圈把同一语义放进 09 类，确认 Cycle A 的 `host_agent` 新鲜度判据在心跳未回拨时不把失联改写成空洞。不另写生产。
 Green command: 同上，exit 0。
 Refactor: 抽出 `heartbeatUnlabeled` / `backdateAgent` / `assertActualWhere` / `assertShouldWhere` / `assertIdentityLost`。
+Commit: `7aedd41`
+
+### Cycle C — 失联叠加回拨宿主但不扫，问法仍须说出观测空洞
+Command:
+`cd backend && ./gradlew test --tests com.archops.observed.IdentityLostHeartbeatTimeoutAskHttpAcceptanceTest.identityLostPlusStaleHeartbeatWithoutScanActualWhereIsHollow`
+reuse/regression：首跑绿。Cycle A 已按 `host_agent` 新鲜度（策展「运行于」+ 失联标 `sourceHostId`）决定 `HOLLOW`，不依赖票 10 扫描删行。本圈夹具先标签命中留下 `observed_fact`，再范围内未打标打失联，只回拨不上扫描；问法仍 `HOLLOW` + `identityLost=true`，标仍在。不另写生产。
+Green command: 同上，exit 0。
+Refactor: 抽出 `heartbeatLabeled`。
