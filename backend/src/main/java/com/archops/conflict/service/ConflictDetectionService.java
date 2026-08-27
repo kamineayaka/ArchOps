@@ -39,12 +39,14 @@ import java.util.UUID;
 /**
      * Emits conflict warnings when curated ≠ currently available observed on a merge key.
      * When tracks become equal, transitions to PENDING_CLOSE (never auto-closes).
-     * OPEN 改理想草案 is voided on observed-target 升级 (ticket 05); SQL stays in CuratedDraftService.
+     * Observed-target 升级 voids OPEN 改理想草案 and active 操作计划;
+     * draft SQL stays in CuratedDraftService.
      */
 @Service
 public class ConflictDetectionService {
 
     private static final String IDENTITY_LOST_REASON = "identity_lost";
+    private static final String CONFLICT_UPGRADE_REASON = "conflict_upgrade";
 
     private static final List<ConflictStatus> ACTIVE = List.of(
             ConflictStatus.OPEN,
@@ -426,8 +428,7 @@ public class ConflictDetectionService {
                 "reason", "drift_after_pending_close",
                 "observedTargetId", observed.getTargetId() == null ? "" : observed.getTargetId()
         ));
-        curatedDraftService.voidOpenForConflict(pending.getId(), "conflict_upgrade");
-        conflictDiagnosisService.scheduleAsyncDiagnosis(pending.getId());
+        voidOpenDraftsAndPlansThenRediagnose(pending.getId());
     }
 
     private void createOpen(
@@ -479,8 +480,13 @@ public class ConflictDetectionService {
         conflictEventService.append(open.getId(), ConflictEventType.UPGRADED, null, Map.of(
                 "observedTargetId", observed.getTargetId() == null ? "" : observed.getTargetId()
         ));
-        curatedDraftService.voidOpenForConflict(open.getId(), "conflict_upgrade");
-        conflictDiagnosisService.scheduleAsyncDiagnosis(open.getId());
+        voidOpenDraftsAndPlansThenRediagnose(open.getId());
+    }
+
+    private void voidOpenDraftsAndPlansThenRediagnose(String conflictId) {
+        curatedDraftService.voidOpenForConflict(conflictId, CONFLICT_UPGRADE_REASON);
+        voidActivePlans(conflictId, CONFLICT_UPGRADE_REASON);
+        conflictDiagnosisService.scheduleAsyncDiagnosis(conflictId);
     }
 
     private ConflictCase findActive(String subjectId, CuratedRelationType relationType) {

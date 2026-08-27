@@ -23,8 +23,8 @@ alwaysApply: true
 | `docs/specs/change-curated-draft.md` | 改策展/草案 Spec（已闭合） |
 | `docs/specs/unbound-identity-rebind.md` | 未绑定 / 身份失联重绑 Spec（**01–09 已闭合**） |
 | `.scratch/unbound-identity-rebind/issues/` | 未绑定工单（**01–09 已闭合**；审计报告同目录） |
-| `docs/specs/conflict-upgrade-void-plans.md` | 冲突升级作废活跃计划 Spec（审计 A1） |
-| `.scratch/conflict-upgrade-void-plans/issues/` | **frontier = 01**（用户已排期） |
+| `docs/specs/conflict-upgrade-void-plans.md` | 冲突升级作废活跃计划 Spec（审计 A1；**01 TDD-done，本刀闭合**） |
+| `.scratch/conflict-upgrade-void-plans/issues/` | 工单 01 **done**（不要自动做 ADR-0044；不要发明未绑定 10） |
 
 ## 模块边界
 

@@ -4,7 +4,7 @@
 
 **Blocked by:** （无）
 
-**Status:** ready-for-agent
+**Status:** done
 
 **TDD:** `/implement` 走 [`docs/agents/tdd.md`](../../../docs/agents/tdd.md)：**red → green → refactor**，一圈一条 HTTP 测试。Spec：[`docs/specs/conflict-upgrade-void-plans.md`](../../../docs/specs/conflict-upgrade-void-plans.md)。合同：`CONTEXT.md`「AI 诊断」升级后作废活跃计划；ADR-0027。
 
@@ -12,15 +12,96 @@
 
 现码缺口：`ConflictDetectionService.upgradeOpen` / `reopenFromPendingClose` 只 `voidOpenForConflict` + `scheduleAsyncDiagnosis`，不调用 `voidActivePlans`。空洞路径与 `onIdentityLost` 会作废计划。`startExecution` 只查计划仍为 APPROVED 且冲突仍 OPEN，不查诊断是否 STALE。
 
-- [ ] OPEN 冲突 + 已接受处理人 + APPROVED（或 IN_REVIEW）操作计划指向观测宿主 B；新鲜心跳把可用观测 `运行于` 改到 C（策展仍 A、主体无失联标）→ 同一 conflict id 升级（`UPGRADED`、lineage 含 B→C）；该计划 `VOIDED` 且 `voidReason=conflict_upgrade`；`POST .../start-execution`（及对 VOIDED 的 approve）→ `PLAN_VOIDED`；冲突事件含 `PLAN_VOIDED`（planId + reason）
-- [ ] 升级后旧诊断为 STALE / 新诊断被调度；不得用旧诊断 id 选支（`DIAGNOSIS_NOT_READY` 或不接受 STALE）——不回归竖切选支门禁
-- [ ] PENDING_CLOSE 期间观测再漂离开相等 → 退回 OPEN 的同键升级路径同样作废活跃计划（`voidReason=conflict_upgrade`）
-- [ ] 同一观测快照重复 ingest / 比对（未真正改变 observed target）→ **不作废**既有活跃计划
-- [ ] 不回归：心跳超时空洞作废（`observation_hollow_heartbeat_timeout` / `HeartbeatTimeoutHollowHttpAcceptanceTest`）；身份失联作废（`identity_lost` / `IdentityLostPipelineGateHttpAcceptanceTest`）；升级作废 OPEN 改理想草案（`ChangeCuratedDraftVoidHttpAcceptanceTest`）
-- [ ] 不新增 `ConflictStatus`；不改 `CONTEXT.md` / 已有 ADR 正文；无新产品路由；Flyway 仅在确有新列时才 V21+（本票预期不需要）
+- [x] OPEN 冲突 + 已接受处理人 + APPROVED（或 IN_REVIEW）操作计划指向观测宿主 B；新鲜心跳把可用观测 `运行于` 改到 C（策展仍 A、主体无失联标）→ 同一 conflict id 升级（`UPGRADED`、lineage 含 B→C）；该计划 `VOIDED` 且 `voidReason=conflict_upgrade`；`POST .../start-execution`（及对 VOIDED 的 approve）→ `PLAN_VOIDED`；冲突事件含 `PLAN_VOIDED`（planId + reason）
+- [x] 升级后旧诊断为 STALE / 新诊断被调度；不得用旧诊断 id 选支（`DIAGNOSIS_NOT_READY` 或不接受 STALE）——不回归竖切选支门禁
+- [x] PENDING_CLOSE 期间观测再漂离开相等 → 退回 OPEN 的同键升级路径同样作废活跃计划（`voidReason=conflict_upgrade`）
+- [x] 同一观测快照重复 ingest / 比对（未真正改变 observed target）→ **不作废**既有活跃计划
+- [x] 不回归：心跳超时空洞作废（`observation_hollow_heartbeat_timeout` / `HeartbeatTimeoutHollowHttpAcceptanceTest`）；身份失联作废（`identity_lost` / `IdentityLostPipelineGateHttpAcceptanceTest`）；升级作废 OPEN 改理想草案（`ChangeCuratedDraftVoidHttpAcceptanceTest`）
+- [x] 不新增 `ConflictStatus`；不改 `CONTEXT.md` / 已有 ADR 正文；无新产品路由；Flyway 仅在确有新列时才 V21+（本票预期不需要）
 
 **Out of this ticket:** ADR-0044 进程拆分；未绑定 10；改策展 07；UI；问法读模型；扩大生产直连 SSH；把 WebClient/LLM 加回控制面。
 
 ## Comments
 
 用户明示排期。开场 prompt：[`docs/implement-conflict-upgrade-void-plans-01-prompt.md`](../../../docs/implement-conflict-upgrade-void-plans-01-prompt.md)。一次只做本票。样板：`HeartbeatTimeoutHollowHttpAcceptanceTest`（空洞作废）与 `IdentityLostPipelineGateHttpAcceptanceTest`（失联作废）的计划夹具；生产改动应落在 `upgradeOpen` / `reopenFromPendingClose` 调用既有 `voidActivePlans(...)`，reason 字面量 `conflict_upgrade`（与草案 void 理由一致）。
+
+### Cycle A witnessed red (2026-08-27)
+
+```text
+cd backend && ./gradlew test --tests com.archops.conflict.ConflictUpgradeVoidsActivePlanHttpAcceptanceTest.upgradeOpenBtoCVoidsApprovedPlanAndRejectsStartExecution
+```
+
+```text
+ConflictUpgradeVoidsActivePlanHttpAcceptanceTest > upgradeOpenBtoCVoidsApprovedPlanAndRejectsStartExecution() FAILED
+    java.lang.AssertionError: JSON path "$.data.status"
+    Expected: is "VOIDED"
+         but: was "APPROVED"
+        at ConflictUpgradeVoidsActivePlanHttpAcceptanceTest.java:65
+BUILD FAILED
+```
+
+OPEN 观测 B→C 升级后计划仍 APPROVED（A1 缺口）。生产：`upgradeOpen` 在 `voidOpenForConflict` 之后调用 `voidActivePlans(..., "conflict_upgrade")`。
+
+### Cycle A green + refactor (2026-08-27)
+
+### Cycle B reuse (2026-08-27)
+
+```text
+cd backend && ./gradlew test --tests com.archops.conflict.ConflictUpgradeVoidsActivePlanHttpAcceptanceTest.upgradeOpenBtoCWritesPlanVoidedEventWithConflictUpgradeReason
+```
+
+First-run BUILD SUCCESSFUL (`reuse` of `voidActivePlans`：`voidReason=conflict_upgrade` + `PLAN_VOIDED` 事件 planId/reason)。显式断言保留。Refactor：抽出 `heartbeatObservedOnNewHost`。
+
+### Cycle C witnessed red (2026-08-27)
+
+```text
+cd backend && ./gradlew test --tests com.archops.conflict.ConflictUpgradeVoidsActivePlanHttpAcceptanceTest.pendingCloseDriftVoidsApprovedPlanWithConflictUpgradeReason
+```
+
+```text
+JSON path "$.data.status"
+Expected: is "VOIDED"
+     but: was "APPROVED"
+```
+
+待确认关闭后再漂同键升级不作废计划。生产：`reopenFromPendingClose` 同样调用 `voidActivePlans(..., CONFLICT_UPGRADE_REASON)`。
+
+### Cycle C green + refactor (2026-08-27)
+
+Same test command: BUILD SUCCESSFUL. Refactor: `voidOpenDraftsAndPlansThenRediagnose` 供 `upgradeOpen` 与 `reopenFromPendingClose` 共用。
+
+### Cycle D reuse (2026-08-27)
+
+```text
+cd backend && ./gradlew test --tests com.archops.conflict.ConflictUpgradeVoidsActivePlanHttpAcceptanceTest.sameObservedSnapshotRepeatDoesNotVoidApprovedPlan
+```
+
+First-run BUILD SUCCESSFUL（`reuse` of `sameObservedSnapshot`：重复 ingest 不升级、不作废计划、无 `UPGRADED`/`PLAN_VOIDED`）。
+
+### Cycle STALE reuse (2026-08-27)
+
+```text
+cd backend && ./gradlew test --tests com.archops.conflict.ConflictUpgradeVoidsActivePlanHttpAcceptanceTest.upgradeOpenRejectsBranchSelectionOnStaleDiagnosisId
+```
+
+First-run BUILD SUCCESSFUL（`reuse` of `scheduleAsyncDiagnosis` + 选支门禁：旧诊断 id → `DIAGNOSIS_NOT_READY`）。不回归竖切选支须 READY。
+
+### Cycle E regression + ticket-end suite (2026-08-27)
+
+```text
+cd backend && ./gradlew test --tests com.archops.conflict.ConflictUpgradeVoidsActivePlanHttpAcceptanceTest --tests com.archops.conflict.HeartbeatTimeoutHollowHttpAcceptanceTest --tests com.archops.conflict.IdentityLostPipelineGateHttpAcceptanceTest --tests com.archops.curated.ChangeCuratedDraftVoidHttpAcceptanceTest
+```
+
+BUILD SUCCESSFUL（new class 5 + hollow 2 + identity-lost 10 + draft-void 7）。另跑 UnboundIdentityRebindTracer / VerticalSliceHttpE2e / ControlledSshExec / IdentityLostHeartbeatTimeoutAsk 仍绿。
+
+```text
+cd backend && ./gradlew cleanTest test
+```
+
+BUILD SUCCESSFUL：175 tests, 0 failures。无新 Flyway；无新 ConflictStatus；未改 CONTEXT / ADR 正文。Cycle A 补 VOIDED `approve` → `PLAN_VOIDED`。
+
+### Code-review (Standards + Spec, vs origin/main)
+
+**Standards:** 0 hard product-standard breaches. Overlay note: B / D / STALE first-run green recorded as `reuse` because the implement prompt allowed reuse for event/`voidReason` once A was green, for the same-snapshot negative, and for the existing READY 选支门禁. Capability TDD redo (delete production to manufacture red) was forbidden. Cycle A later added VOIDED `approve` on the same method (ticket checkbox 1), not a new product path.
+
+**Spec:** no missing product behavior. IN_REVIEW/DRAFT_REVIEW is in `voidActivePlansForConflict` ACTIVE set; HTTP pin is APPROVED (the witnessed-red gap). STALE GET not re-done (spec pin 2). PENDING_CLOSE `PLAN_VOIDED` event uses the same helper as OPEN (asserted on OPEN). Audit A1 suggestion-line status only; no CONTEXT/ADR body rewrite; no 0044 split.
