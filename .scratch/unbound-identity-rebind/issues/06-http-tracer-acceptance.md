@@ -40,4 +40,4 @@ Happy path（须按序、可在 CI 稳定跑通）对齐 Spec「HTTP tracer」�
 
 ## Comments
 
-01–05 均 TDD-done 后再开。suite 首跑绿记 reuse/regression。不要做 07。
+01–05 + 08 已 TDD-done，本票已 unblocked。开场 prompt：[`docs/implement-unbound-identity-rebind-06-prompt.md`](../../../docs/implement-unbound-identity-rebind-06-prompt.md)。suite 首跑绿记 reuse/regression。不要做 07。不要做票 09。代码 vs ADR-0044 审计 **A2 已由 05 交付**；**A3** 是票 09；**A1** 与 0044 进程债禁止写入本票。见 [`.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md`](../audit-code-vs-adr-0044.md)。

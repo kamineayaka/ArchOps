@@ -75,7 +75,7 @@
 22. ~~`/implement` `/tdd` 未绑定票 08~~：已完成（绑定写入门禁：判据改「失联之后是否又标签命中」；同一策展对象只能是一个现场实体的本体；夹具给出未被绑的目标；witnessed red → green → refactor；`UNBOUND_BIND_TARGET_ALREADY_BOUND` / V19）。  
 23. ~~`/implement` `/tdd` 未绑定票 04~~：已完成（标签命中收尾：清失联、消费候选与绑定记忆、作废相关未绑定草案、恢复升级链；witnessed red → green → refactor；审计 C-3 / S-4 / S-2；V20）。  
 24. ~~`/implement` `/tdd` 未绑定票 05~~：已完成（失联闸门：冲突 GET `identityLost`；PENDING_CLOSE→OPEN；诊断不含修实际/改理想/空洞恢复通道集；选支 `IDENTITY_LOST_BLOCKS_BRANCH`；活跃计划与 OPEN CHANGE_CURATED 草案作废；未打标同名仍不新开冲突；清标后闸门解除。witnessed red → green → refactor）。  
-25. **下一对话：`/implement` `/tdd` 未绑定票 06**（frontier；HTTP 主接缝有序 tracer）。票路径：[`.scratch/unbound-identity-rebind/issues/06-http-tracer-acceptance.md`](../.scratch/unbound-identity-rebind/issues/06-http-tracer-acceptance.md)。不要加改策展 07。不要重拆竖切 01–13。不要自动做 07。票 09（失联叠加心跳超时时问法仍须说出观测空洞；审计 C-1 / 0044 审计 A3）待人排期，不要与 06 混做。  
+25. **下一对话：`/implement` `/tdd` 未绑定票 06**（frontier；HTTP 主接缝有序 tracer）。票路径：[`.scratch/unbound-identity-rebind/issues/06-http-tracer-acceptance.md`](../.scratch/unbound-identity-rebind/issues/06-http-tracer-acceptance.md)。开场 prompt：[`docs/implement-unbound-identity-rebind-06-prompt.md`](implement-unbound-identity-rebind-06-prompt.md)。不要加改策展 07。不要重拆竖切 01–13。不要自动做 07。票 09（失联叠加心跳超时时问法仍须说出观测空洞；审计 C-1 / 0044 审计 A3）待人排期，不要与 06 混做。  
 26. **ADR-0044 已立**（控制面枢纽 / 执行引擎 / AI 编排层）。控制面进程内 LLM 出站已删除。MINA 迁执行引擎、编排层进程、步骤断言与 B-live 代发 **另开工单**，不要写入未绑定 06。代码对照审计：[`.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md`](../.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md)（A1 升级不作废计划另开，不要塞进 06）。  
 
 ### 工单阻塞简图
