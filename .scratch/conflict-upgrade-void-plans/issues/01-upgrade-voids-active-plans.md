@@ -65,3 +65,15 @@ Expected: is "VOIDED"
 ```
 
 待确认关闭后再漂同键升级不作废计划。生产：`reopenFromPendingClose` 同样调用 `voidActivePlans(..., CONFLICT_UPGRADE_REASON)`。
+
+### Cycle C green + refactor (2026-08-27)
+
+Same test command: BUILD SUCCESSFUL. Refactor: `voidOpenDraftsAndPlansThenRediagnose` 供 `upgradeOpen` 与 `reopenFromPendingClose` 共用。
+
+### Cycle D reuse (2026-08-27)
+
+```text
+cd backend && ./gradlew test --tests com.archops.conflict.ConflictUpgradeVoidsActivePlanHttpAcceptanceTest.sameObservedSnapshotRepeatDoesNotVoidApprovedPlan
+```
+
+First-run BUILD SUCCESSFUL（`reuse` of `sameObservedSnapshot`：重复 ingest 不升级、不作废计划、无 `UPGRADED`/`PLAN_VOIDED`）。

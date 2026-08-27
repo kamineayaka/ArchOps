@@ -14,6 +14,8 @@ import org.springframework.test.web.servlet.MvcResult;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -135,6 +137,35 @@ class ConflictUpgradeVoidsActivePlanHttpAcceptanceTest {
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code", is("PLAN_VOIDED")));
+    }
+
+    @Test
+    void sameObservedSnapshotRepeatDoesNotVoidApprovedPlan() throws Exception {
+        Fixture fx = openClaimAndApprovePlan("cuv01d-a", "cuv01d-b", "cuv01d-oid");
+        heartbeatWithContainer(fx.hostB(), "agent-" + fx.objectId(), fx.objectId());
+
+        mockMvc.perform(get("/api/conflicts/{id}", fx.conflictId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.id", is(fx.conflictId())))
+                .andExpect(jsonPath("$.data.status", is("OPEN")))
+                .andExpect(jsonPath("$.data.observedValue.hostId", is(fx.hostB())))
+                .andExpect(jsonPath("$.data.observedLineage", hasSize(1)));
+
+        mockMvc.perform(get("/api/operation-plans/{id}", fx.planId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("APPROVED")))
+                .andExpect(jsonPath("$.data.voidReason").value(nullValue()));
+
+        mockMvc.perform(get("/api/conflicts/{id}/events", fx.conflictId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[*].eventType", not(hasItem("PLAN_VOIDED"))))
+                .andExpect(jsonPath("$.data[*].eventType", not(hasItem("UPGRADED"))));
     }
 
     private Fixture openClaimAndApprovePlan(String hostAName, String hostBName, String objectId) throws Exception {
