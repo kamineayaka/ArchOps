@@ -299,6 +299,358 @@ class UnboundIdentityRebindTracerHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data").value(nullValue()));
     }
 
+    @Test
+    @Order(4)
+    void secondFieldEntityCannotBindToAlreadyBoundTarget() throws Exception {
+        String hostA = createHost("u06n3-h");
+        String containerX = createContainer("u06n3-x", "u06n3-oid");
+        confirmRunsOn(containerX, hostA);
+        heartbeatTwoUnlabeled(hostA, "u06n3-ag", "u06n3-rt-1", "u06n3-a", "u06n3-rt-2", "u06n3-b");
+
+        OpenUnboundDraft first = openDraftFromRuntime("u06n3-rt-1");
+        OpenUnboundDraft second = openDraftFromRuntime("u06n3-rt-2");
+        JsonNode firstBind = itemByKind(first.items(), "BIND_UNBOUND_TO_EXISTING");
+        JsonNode secondBind = itemByKind(second.items(), "BIND_UNBOUND_TO_EXISTING");
+        assertThat(firstBind.path("subjectId").asText(), is(containerX));
+        assertThat(secondBind.path("subjectId").asText(), is(containerX));
+
+        postUnboundItem(first.draftId(), firstBind.path("id").asText(), "accept")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[?(@.kind=='BIND_UNBOUND_TO_EXISTING')].status",
+                        hasItem("ACCEPTED")));
+        postUnboundItem(second.draftId(), secondBind.path("id").asText(), "accept")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.code", is("UNBOUND_BIND_TARGET_ALREADY_BOUND")))
+                .andExpect(jsonPath("$.data").value(nullValue()));
+        getDraft(second.draftId())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[?(@.kind=='BIND_UNBOUND_TO_EXISTING')].status",
+                        hasItem("PENDING")));
+        assertThat(unboundByRuntimeId(listUnbound(), "u06n3-rt-1"), nullValue());
+        assertThat(unboundByRuntimeId(listUnbound(), "u06n3-rt-2"), notNullValue());
+    }
+
+    @Test
+    @Order(5)
+    void secondOpenDraftForSameCandidateFails() throws Exception {
+        String hostA = createHost("u06n4-h");
+        heartbeatUnknown(hostA, "u06n4-ag", "u06n4-rt", "u06n4-unknown", "u06n4-never");
+        JsonNode candidate = unboundByRuntimeId(listUnbound(), "u06n4-rt");
+        assertThat(candidate, notNullValue());
+        String candidateId = candidate.path("id").asText();
+
+        MvcResult first = mockMvc.perform(post("/api/observed/unbound-candidates/{id}/drafts", candidateId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("OPEN")))
+                .andExpect(jsonPath("$.data.origin", is("UNBOUND_CANDIDATE")))
+                .andExpect(jsonPath("$.data.conflictId").value(nullValue()))
+                .andReturn();
+        String draftId = objectMapper.readTree(first.getResponse().getContentAsString())
+                .path("data").path("id").asText();
+
+        mockMvc.perform(post("/api/observed/unbound-candidates/{id}/drafts", candidateId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.code", is("UNBOUND_DRAFT_ALREADY_OPEN")))
+                .andExpect(jsonPath("$.data").value(nullValue()));
+        getDraft(draftId)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("OPEN")));
+    }
+
+    @Test
+    @Order(6)
+    void unauthenticatedCannotWriteUnboundDraft() throws Exception {
+        String hostA = createHost("u06n5-h");
+        heartbeatUnknown(hostA, "u06n5-ag", "u06n5-rt", "u06n5-unknown", "u06n5-never");
+        JsonNode candidate = unboundByRuntimeId(listUnbound(), "u06n5-rt");
+        assertThat(candidate, notNullValue());
+        String candidateId = candidate.path("id").asText();
+
+        mockMvc.perform(post("/api/observed/unbound-candidates/{id}/drafts", candidateId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.code", is("AUTH_REQUIRED")))
+                .andExpect(jsonPath("$.data").value(nullValue()));
+
+        OpenUnboundDraft draft = openDraftFromRuntime("u06n5-rt");
+        JsonNode createItem = itemByKind(draft.items(), "CREATE_CONTAINER_FROM_UNBOUND");
+        mockMvc.perform(post("/api/curated-drafts/{draftId}/items/{itemId}/accept",
+                        draft.draftId(), createItem.path("id").asText())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.code", is("AUTH_REQUIRED")))
+                .andExpect(jsonPath("$.data").value(nullValue()));
+    }
+
+    @Test
+    @Order(7)
+    void missingLabelCreateIsNotASuccessPath() throws Exception {
+        String hostA = createHost("u06n6-h");
+        String containerX = createContainer("u06n6-x", "u06n6-oid");
+        confirmRunsOn(containerX, hostA);
+        heartbeatUnlabeled(hostA, "u06n6-ag", "u06n6-rt", "u06n6-similar");
+        OpenUnboundDraft draft = openDraftFromRuntime("u06n6-rt");
+        JsonNode createItem = itemByKind(draft.items(), "CREATE_CONTAINER_FROM_UNBOUND");
+
+        postUnboundItem(draft.draftId(), createItem.path("id").asText(), "accept")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.code", is("UNBOUND_CREATE_IMMUTABLE_ID_MISSING")))
+                .andExpect(jsonPath("$.data").value(nullValue()));
+        getDraft(draft.draftId())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("OPEN")))
+                .andExpect(jsonPath("$.data.items[?(@.kind=='CREATE_CONTAINER_FROM_UNBOUND')].status",
+                        hasItem("PENDING")));
+    }
+
+    @Test
+    @Order(8)
+    void dualAcceptBindAndCreateFailsOnSecond() throws Exception {
+        String hostA = createHost("u06n7-h");
+        String containerX = createContainer("u06n7-x", "u06n7-oid");
+        confirmRunsOn(containerX, hostA);
+        heartbeatUnlabeled(hostA, "u06n7-ag", "u06n7-rt", "u06n7-similar");
+        OpenUnboundDraft draft = openDraftFromRuntime("u06n7-rt");
+        JsonNode bindItem = itemByKind(draft.items(), "BIND_UNBOUND_TO_EXISTING");
+        JsonNode createItem = itemByKind(draft.items(), "CREATE_CONTAINER_FROM_UNBOUND");
+
+        postUnboundItem(draft.draftId(), bindItem.path("id").asText(), "accept")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[?(@.kind=='BIND_UNBOUND_TO_EXISTING')].status",
+                        hasItem("ACCEPTED")));
+        postUnboundItem(draft.draftId(), createItem.path("id").asText(), "accept")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.code", is("UNBOUND_CANDIDATE_CONSUMED")))
+                .andExpect(jsonPath("$.data").value(nullValue()));
+        getDraft(draft.draftId())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[?(@.kind=='CREATE_CONTAINER_FROM_UNBOUND')].status",
+                        hasItem("PENDING")));
+        getActualWhere(containerX)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.observedValue.availability", is("IDENTITY_LOST")));
+    }
+
+    @Test
+    @Order(9)
+    void identityLostGatesBranchDiagnosisPlanDraftAndPendingClose() throws Exception {
+        // 先开 OPEN 冲突再失联：选支失败；诊断无旧实际落点；活跃计划作废
+        LostPipeline fx = openMismatchClaimed("u06n8a");
+        waitUntilDiagnosisReady(fx.conflictId());
+        MvcResult created = postBranch(fx.conflictId(), GENERAL_ID, "FIX_ACTUAL_TO_CURATED")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("DRAFT_REVIEW")))
+                .andReturn();
+        String planId = objectMapper.readTree(created.getResponse().getContentAsString())
+                .path("data").path("id").asText();
+        identityLostOnObservedHost(fx);
+        mockMvc.perform(get("/api/operation-plans/{id}", planId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("VOIDED")));
+        mockMvc.perform(post("/api/operation-plans/{id}/approve", planId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("PLAN_VOIDED")))
+                .andExpect(jsonPath("$.data").value(nullValue()));
+        waitUntilDiagnosisReady(fx.conflictId());
+        mockMvc.perform(get("/api/conflicts/{id}/diagnosis", fx.conflictId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("READY")))
+                .andExpect(jsonPath("$.data.forks[?(@.id=='FIX_ACTUAL_TO_CURATED')]").isEmpty())
+                .andExpect(jsonPath("$.data.forks[?(@.id=='CHANGE_CURATED_TO_OBSERVED')]").isEmpty())
+                .andExpect(jsonPath("$.data.forks[?(@.id=='RESTORE_HEARTBEAT_CHANNEL')]").isEmpty());
+        postBranch(fx.conflictId(), GENERAL_ID, "FIX_ACTUAL_TO_CURATED")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("IDENTITY_LOST_BLOCKS_BRANCH")))
+                .andExpect(jsonPath("$.data").value(nullValue()));
+        postBranch(fx.conflictId(), GENERAL_ID, "CHANGE_CURATED_TO_OBSERVED")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("IDENTITY_LOST_BLOCKS_BRANCH")));
+
+        // 改理想开放草案作废
+        LostPipeline draftFx = openMismatchClaimed("u06n8b");
+        String sibling = createContainer("u06n8b-y", "u06n8b-oid-y");
+        confirmRunsOn(sibling, draftFx.hostA());
+        waitUntilDiagnosisReady(draftFx.conflictId());
+        MvcResult draftCreated = postBranch(draftFx.conflictId(), GENERAL_ID, "CHANGE_CURATED_TO_OBSERVED")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.origin", is("CHANGE_CURATED")))
+                .andExpect(jsonPath("$.data.status", is("OPEN")))
+                .andReturn();
+        JsonNode draft = objectMapper.readTree(draftCreated.getResponse().getContentAsString()).path("data");
+        String draftId = draft.path("id").asText();
+        String itemId = draft.path("items").get(0).path("id").asText();
+        identityLostOnObservedHost(draftFx);
+        getDraft(draftId)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("VOIDED")));
+        mockMvc.perform(post("/api/conflicts/{id}/curated-drafts/open/items/{itemId}/accept",
+                        draftFx.conflictId(), itemId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("DRAFT_VOIDED")))
+                .andExpect(jsonPath("$.data").value(nullValue()));
+
+        // PENDING_CLOSE 先对齐再失联 → 退回 OPEN
+        LostPipeline pending = openMismatchClaimed("u06n8c");
+        heartbeatLabeled(pending.hostA(), pending.prefix() + "-ag-a", pending.prefix() + "-rt-a",
+                pending.prefix() + "-x", pending.prefix() + "-oid");
+        getConflict(pending.conflictId())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("PENDING_CLOSE")));
+        heartbeatUnlabeled(pending.hostA(), pending.prefix() + "-ag-lost", pending.prefix() + "-rt-miss",
+                pending.prefix() + "-miss");
+        getConflict(pending.conflictId())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("OPEN")))
+                .andExpect(jsonPath("$.data.status", not("PENDING_CLOSE")))
+                .andExpect(jsonPath("$.data.status", not("SUSPENDED")))
+                .andExpect(jsonPath("$.data.identityLost", is(true)))
+                .andExpect(jsonPath("$.data.observedValue.availability", not("PRESENT")))
+                .andExpect(jsonPath("$.data.observedValue.hostId").value(nullValue()));
+    }
+
+    @Test
+    @Order(10)
+    void absentObjectIdsIsObservedAbsenceAndReleasesBindMemory() throws Exception {
+        String hostA = createHost("u06n9-h");
+        String containerX = createContainer("u06n9-x", "u06n9-oid");
+        confirmRunsOn(containerX, hostA);
+        heartbeatUnlabeled(hostA, "u06n9-ag", "u06n9-rt", "u06n9-similar");
+        OpenUnboundDraft draft = openDraftFromRuntime("u06n9-rt");
+        JsonNode bindItem = itemByKind(draft.items(), "BIND_UNBOUND_TO_EXISTING");
+        postUnboundItem(draft.draftId(), bindItem.path("id").asText(), "accept")
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/agent/heartbeat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "agentId":"u06n9-ag",
+                                  "hostId":"%s",
+                                  "snapshot":{
+                                    "containers":[{
+                                      "runtimeId":"u06n9-rt",
+                                      "name":"u06n9-similar",
+                                      "labels":{}
+                                    }],
+                                    "absentObjectIds":["u06n9-oid"]
+                                  }
+                                }
+                                """.formatted(hostA))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+
+        getActualWhere(containerX)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.identityLost", is(false)))
+                .andExpect(jsonPath("$.data.observedValue.availability", is("ABSENT")))
+                .andExpect(jsonPath("$.data.observedValue.hostId").value(nullValue()));
+        getIdentityLost(containerX)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("IDENTITY_LOST_NOT_FOUND")));
+        assertThat(unboundByRuntimeId(listUnbound(), "u06n9-rt"), notNullValue());
+    }
+
+    @Test
+    @Order(11)
+    void sameRuntimeIdRefreshDoesNotVoidOpenUnboundDraft() throws Exception {
+        String hostA = createHost("u06n10-h");
+        String containerX = createContainer("u06n10-x", "u06n10-oid");
+        confirmRunsOn(containerX, hostA);
+        heartbeatUnlabeled(hostA, "u06n10-ag", "u06n10-rt", "u06n10-similar");
+        OpenUnboundDraft draft = openDraftFromRuntime("u06n10-rt");
+        heartbeatUnlabeled(hostA, "u06n10-ag", "u06n10-rt", "u06n10-renamed");
+        getDraft(draft.draftId())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("OPEN")));
+        JsonNode still = unboundByRuntimeId(listUnbound(), "u06n10-rt");
+        assertThat(still, notNullValue());
+        assertThat(still.path("name").asText(), is("u06n10-renamed"));
+        getIdentityLost(containerX)
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @Order(12)
+    void bootstrapPostStillRejectsOverwriteOfExistingRunsOn() throws Exception {
+        String hostA = createHost("u06n11-ha");
+        String hostB = createHost("u06n11-hb");
+        String containerZ = createContainer("u06n11-z", "u06n11-oid");
+        mockMvc.perform(post("/api/curated/facts/runs-on")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"containerId\":\"" + containerZ + "\",\"hostId\":\"" + hostA + "\"}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.relationLabel", is("运行于")));
+        mockMvc.perform(post("/api/curated/facts/runs-on")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"containerId\":\"" + containerZ + "\",\"hostId\":\"" + hostB + "\"}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.code", is("CURATED_RUNS_ON_EXISTS")))
+                .andExpect(jsonPath("$.data").value(nullValue()));
+        mockMvc.perform(post("/api/curated/facts/runs-on")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"containerId\":\"" + containerZ + "\",\"hostId\":\"" + hostA + "\"}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("CURATED_RUNS_ON_EXISTS")));
+        getShouldWhere(containerZ)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(hostA)));
+    }
+
+    @Test
+    @Order(13)
+    void labelMatchVoidsOpenUnboundDraft() throws Exception {
+        String hostA = createHost("u06n12-h");
+        String containerX = createContainer("u06n12-x", "u06n12-oid");
+        confirmRunsOn(containerX, hostA);
+        heartbeatUnlabeled(hostA, "u06n12-ag", "u06n12-rt", "u06n12-similar");
+        OpenUnboundDraft draft = openDraftFromRuntime("u06n12-rt");
+        JsonNode bindItem = itemByKind(draft.items(), "BIND_UNBOUND_TO_EXISTING");
+        heartbeatLabeled(hostA, "u06n12-ag", "u06n12-rt-hit", "u06n12-x", "u06n12-oid");
+        getDraft(draft.draftId())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("VOIDED")));
+        postUnboundItem(draft.draftId(), bindItem.path("id").asText(), "accept")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("DRAFT_VOIDED")))
+                .andExpect(jsonPath("$.data").value(nullValue()));
+        getIdentityLost(containerX)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("IDENTITY_LOST_NOT_FOUND")));
+    }
+
     private World bootstrapHostsACCuratedXOnA(String prefix) throws Exception {
         String hostA = createHost(prefix + "-ha");
         String hostB = createHost(prefix + "-hb");
@@ -307,6 +659,54 @@ class UnboundIdentityRebindTracerHttpAcceptanceTest {
         String containerX = createContainer(prefix + "-x", objectX);
         confirmRunsOn(containerX, hostA);
         return new World(prefix, hostA, hostB, hostC, containerX, objectX);
+    }
+
+    private LostPipeline openMismatchClaimed(String prefix) throws Exception {
+        String hostA = createHost(prefix + "-ha");
+        String hostB = createHost(prefix + "-hb");
+        String containerId = createContainer(prefix + "-x", prefix + "-oid");
+        confirmRunsOn(containerId, hostA);
+        heartbeatLabeled(hostB, prefix + "-ag-b", prefix + "-rt-b", prefix + "-x", prefix + "-oid");
+        MvcResult open = getByMergeKey(containerId)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("OPEN")))
+                .andReturn();
+        String conflictId = objectMapper.readTree(open.getResponse().getContentAsString())
+                .path("data").path("id").asText();
+        mockMvc.perform(post("/api/conflicts/{id}/claim", conflictId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.collaboration.handlerAcceptance", is("ACCEPTED")));
+        return new LostPipeline(prefix, conflictId, hostA, hostB, containerId);
+    }
+
+    private void identityLostOnObservedHost(LostPipeline fx) throws Exception {
+        heartbeatUnlabeled(fx.hostB(), fx.prefix() + "-ag-lost", fx.prefix() + "-rt-miss",
+                fx.prefix() + "-miss");
+    }
+
+    private ResultActions postBranch(String conflictId, String userId, String forkId) throws Exception {
+        return mockMvc.perform(post("/api/conflicts/{id}/branch-selection", conflictId)
+                .header(TempAuthHeaders.USER_ID, userId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"forkId\":\"" + forkId + "\"}")
+                .accept(MediaType.APPLICATION_JSON));
+    }
+
+    private ResultActions getConflict(String conflictId) throws Exception {
+        return mockMvc.perform(get("/api/conflicts/{id}", conflictId)
+                .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                .accept(MediaType.APPLICATION_JSON));
+    }
+
+    private record LostPipeline(
+            String prefix,
+            String conflictId,
+            String hostA,
+            String hostB,
+            String containerId
+    ) {
     }
 
     private ResultActions getShouldWhere(String containerId) throws Exception {
@@ -369,6 +769,34 @@ class UnboundIdentityRebindTracerHttpAcceptanceTest {
                 .andExpect(status().isOk());
     }
 
+    private void heartbeatTwoUnlabeled(
+            String hostId,
+            String agentId,
+            String firstRuntimeId,
+            String firstName,
+            String secondRuntimeId,
+            String secondName
+    ) throws Exception {
+        mockMvc.perform(post("/api/agent/heartbeat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "agentId":"%s",
+                                  "hostId":"%s",
+                                  "snapshot":{
+                                    "containers":[
+                                      {"runtimeId":"%s","name":"%s","labels":{}},
+                                      {"runtimeId":"%s","name":"%s","labels":{}}
+                                    ],
+                                    "absentObjectIds":[]
+                                  }
+                                }
+                                """.formatted(
+                                agentId, hostId, firstRuntimeId, firstName, secondRuntimeId, secondName))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+    }
+
     private void heartbeatLabeled(
             String hostId, String agentId, String runtimeId, String name, String objectId)
             throws Exception {
@@ -389,6 +817,12 @@ class UnboundIdentityRebindTracerHttpAcceptanceTest {
                                 """.formatted(agentId, hostId, runtimeId, name, objectId))
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk());
+    }
+
+    private void heartbeatUnknown(
+            String hostId, String agentId, String runtimeId, String name, String objectId)
+            throws Exception {
+        heartbeatLabeled(hostId, agentId, runtimeId, name, objectId);
     }
 
     private void heartbeatUnlabeledAndLabeled(
