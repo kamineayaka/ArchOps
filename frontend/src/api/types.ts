@@ -49,12 +49,7 @@ export type IdentityLostMark = {
   upgradeChainPromised: boolean;
 };
 
-export type ObservedValue = {
-  /** PRESENT | ABSENT | HOLLOW | IDENTITY_LOST（IDENTITY_LOST 仅问法/冲突投影） */
-  availability: string;
-  hostId: string | null;
-  hostName: string | null;
-};
+export type ObservedValue = TrackValue;
 
 export type ActualWhere = {
   question: string;

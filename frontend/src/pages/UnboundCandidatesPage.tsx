@@ -67,6 +67,7 @@ export default function UnboundCandidatesPage() {
   const navigate = useNavigate();
   const [rows, setRows] = useState<UnboundCandidate[]>([]);
   const [lostConflicts, setLostConflicts] = useState<ConflictCase[]>([]);
+  const [conflictBypassError, setConflictBypassError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -78,7 +79,7 @@ export default function UnboundCandidatesPage() {
   const [askBusy, setAskBusy] = useState(false);
   const [askError, setAskError] = useState<string | null>(null);
   const [lostMark, setLostMark] = useState<IdentityLostMark | null>(null);
-  const [lostAbsent, setLostAbsent] = useState(false);
+  const [identityLostNotFound, setIdentityLostNotFound] = useState(false);
   const [shouldWhere, setShouldWhere] = useState<ShouldWhere | null>(null);
   const [actualWhere, setActualWhere] = useState<ActualWhere | null>(null);
 
@@ -86,17 +87,22 @@ export default function UnboundCandidatesPage() {
     setLoading(true);
     setError(null);
     try {
-      const [candidates, conflicts] = await Promise.all([
-        listUnboundCandidates(),
-        listActiveConflicts().catch(() => [] as ConflictCase[]),
-      ]);
+      const candidates = await listUnboundCandidates();
       setRows(candidates);
-      setLostConflicts(conflicts.filter((row) => row.identityLost));
+      try {
+        const conflicts = await listActiveConflicts();
+        setLostConflicts(conflicts.filter((row) => row.identityLost));
+        setConflictBypassError(null);
+      } catch (err) {
+        setLostConflicts([]);
+        setConflictBypassError(envelopeMessage(err));
+      }
     } catch (err) {
       const msg = envelopeMessage(err);
       setError(msg);
       setRows([]);
       setLostConflicts([]);
+      setConflictBypassError(null);
       message.error(msg);
     } finally {
       setLoading(false);
@@ -137,7 +143,7 @@ export default function UnboundCandidatesPage() {
     setAskBusy(true);
     setAskError(null);
     setLostMark(null);
-    setLostAbsent(false);
+    setIdentityLostNotFound(false);
     setShouldWhere(null);
     setActualWhere(null);
     try {
@@ -163,11 +169,11 @@ export default function UnboundCandidatesPage() {
 
       try {
         setLostMark(await getIdentityLost(containerId));
-        setLostAbsent(false);
+        setIdentityLostNotFound(false);
       } catch (err) {
         setLostMark(null);
         if (err instanceof ApiError && err.code === 'IDENTITY_LOST_NOT_FOUND') {
-          setLostAbsent(true);
+          setIdentityLostNotFound(true);
         } else if (err instanceof ApiError) {
           setAskError((prev) => prev ?? envelopeMessage(err));
         } else {
@@ -426,6 +432,14 @@ export default function UnboundCandidatesPage() {
           身份失联不是观测空洞，也不是观测消失。对已知策展对象查询既有 GET；400 IDENTITY_LOST_NOT_FOUND
           表示未失联。没有失联集合路由。
         </Paragraph>
+        {conflictBypassError ? (
+          <Alert
+            type="warning"
+            showIcon
+            message={conflictBypassError}
+            style={{ marginBottom: 12 }}
+          />
+        ) : null}
         {lostConflicts.length > 0 ? (
           <Space wrap style={{ marginBottom: 12 }}>
             <Text type="secondary">冲突列表旁路（identityLost=true，本页不认领/选支）：</Text>
@@ -470,7 +484,7 @@ export default function UnboundCandidatesPage() {
         {askError ? (
           <Alert type="error" showIcon message={askError} style={{ marginTop: 12 }} />
         ) : null}
-        {(lostMark || lostAbsent || shouldWhere || actualWhere) && (
+        {(lostMark || identityLostNotFound || shouldWhere || actualWhere) && (
           <Descriptions column={1} size="small" style={{ marginTop: 16 }} bordered>
             <Descriptions.Item label="失联标">
               {lostMark ? (
@@ -482,8 +496,10 @@ export default function UnboundCandidatesPage() {
                     {String(lostMark.upgradeChainPromised)}
                   </Text>
                 </Space>
-              ) : lostAbsent ? (
+              ) : identityLostNotFound && (shouldWhere || actualWhere) ? (
                 <Tag>未失联（IDENTITY_LOST_NOT_FOUND）</Tag>
+              ) : identityLostNotFound ? (
+                <Tag>IDENTITY_LOST_NOT_FOUND</Tag>
               ) : (
                 '—'
               )}

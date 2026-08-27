@@ -74,6 +74,7 @@ export function isAcceptedHandler(
 ): boolean {
   return (
     !!collaboration &&
+    !!userId &&
     collaboration.handlerAcceptance === 'ACCEPTED' &&
     collaboration.handlerUserId === userId
   );

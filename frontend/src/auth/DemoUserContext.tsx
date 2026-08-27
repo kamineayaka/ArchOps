@@ -22,7 +22,6 @@ export const DEMO_USERS = [
 export const UNAUTHENTICATED_VALUE = 'unauthenticated';
 
 const STORAGE_KEY = 'archops.demoUserId';
-const STORAGE_UNAUTHENTICATED = 'unauthenticated';
 
 type DemoUserContextValue = {
   userId: string | null;
@@ -36,7 +35,7 @@ const DemoUserContext = createContext<DemoUserContextValue | null>(null);
 function readStoredUserId(): string | null {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored === STORAGE_UNAUTHENTICATED || stored === UNAUTHENTICATED_VALUE) {
+    if (stored === UNAUTHENTICATED_VALUE) {
       return null;
     }
     if (stored && DEMO_USERS.some((u) => u.id === stored)) {
@@ -61,7 +60,7 @@ export function DemoUserProvider({ children }: { children: ReactNode }) {
     setApiUserId(id);
     setUserIdState(id);
     try {
-      localStorage.setItem(STORAGE_KEY, id ?? STORAGE_UNAUTHENTICATED);
+      localStorage.setItem(STORAGE_KEY, id ?? UNAUTHENTICATED_VALUE);
     } catch {
       /* ignore */
     }
