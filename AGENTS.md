@@ -116,6 +116,6 @@ Single-context: frozen `CONTEXT.md` + `docs/adr/` (ADR-0039 / ADR-0043 / ADR-004
 
 ## 7. 云端提示词建议（用户可贴）
 
-未绑定 **01–09 已闭合**。冲突升级作废活跃计划 **01 TDD-done / 本刀闭合**（审计 A1）。不要发明未绑定 10。不要加改策展 07。不要自动做 ADR-0044 进程拆分。人排期下一刀后再 `/implement`。
+未绑定 **01–09 已闭合**。冲突升级作废活跃计划 **01 TDD-done / 本刀闭合**（审计 A1）。下一刀需人排期：**ADR-0044 工单包切面**（grilling，不是 `/implement`）。开场 prompt：[`docs/grill-adr-0044-slice-prompt.md`](grill-adr-0044-slice-prompt.md)。不要发明未绑定 10。不要加改策展 07。不要把 WebClient 加回控制面。
 
-> 读 AGENTS.md、CONTEXT.md、ADR-0043 / 0044。A1 票 01 已闭合。不要发明未绑定 10。不要复活 Vue/JPA/Neo4j/Maven/LangChain。不要自动拆执行引擎 / AI 编排层。
+> 读 AGENTS.md、CONTEXT.md、ADR-0044 与 `docs/grill-adr-0044-slice-prompt.md`。只做 `/grill-with-docs` 定 0044 切面。不要 `/implement`。不要复活 Vue/JPA/Neo4j/Maven/LangChain。不要把 LLM 加回控制面。

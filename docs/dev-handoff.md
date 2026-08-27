@@ -82,7 +82,7 @@
 27. ~~`/implement` `/tdd` 未绑定票 09~~：已完成（失联叠加心跳超时时问法仍须说出观测空洞；`availability=HOLLOW` + `identityLost=true`；审计 C-1 / 0044 审计 A3；witnessed red → green → refactor；`IdentityLostHeartbeatTimeoutAskHttpAcceptanceTest`）。本刀问法读模型闭合。不要发明未绑定 10。  
 28. ~~人排期开 A1~~：用户 2026-08-27 明示。已发布 Spec + 票 01 → [`docs/specs/conflict-upgrade-void-plans.md`](specs/conflict-upgrade-void-plans.md) / [`.scratch/conflict-upgrade-void-plans/issues/01-upgrade-voids-active-plans.md`](../.scratch/conflict-upgrade-void-plans/issues/01-upgrade-voids-active-plans.md)。  
 29. ~~`/implement` `/tdd` 冲突升级作废计划票 01~~：已完成（审计 A1；`upgradeOpen` / `reopenFromPendingClose` 复用 `voidActivePlans`，`voidReason=conflict_upgrade`；witnessed red → green → refactor；`ConflictUpgradeVoidsActivePlanHttpAcceptanceTest`）。**本刀闭合。**  
-30. **下一对话：不要自动做 ADR-0044 进程拆分**（MINA 迁执行引擎、编排层、步骤断言、B-live）。不要发明未绑定 10。人排期后再 `/implement`。  
+30. **下一对话：`/grill-with-docs` 定 ADR-0044 工单包切面**（执行引擎 / 单步代发 / 步骤断言 / B-live / 编排层）。开场 prompt：[`docs/grill-adr-0044-slice-prompt.md`](grill-adr-0044-slice-prompt.md)。不要自动 `/implement`。不要发明未绑定 10。不要把 WebClient 加回控制面。不要把 B6 工作台当第一刀。  
 
 ### 工单阻塞简图
 
