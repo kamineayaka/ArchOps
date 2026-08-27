@@ -47,4 +47,13 @@ Output:
 green (vite 2.66s). Vite 冒烟：`demo-rt-unknown` 发起草案 → `/unbound/drafts/draft-21150b15-…`，origin=UNBOUND_CANDIDATE，conflictId=null，3 条；CREATE 接受为 ACCEPTED，CURATED_RUNS_ON_INSERT 拒绝为 REJECTED。本页无 xterm / 选支 / 批准计划 / start-execution。
 Production: `observed.ts` createUnboundDraft、`drafts.ts` 未绑定 GET/accept/reject、`UnboundCandidatesPage` 草案卡、`types.ts` CuratedDraft.conflictId null、`App.tsx` `/unbound/drafts/:draftId`；ConflictDetailPage 仅 subjectId 空值守卫 / 无后端
 Refactor: `formatUnboundDraftItemKind` / `payloadString` / `describeUnboundItem`
+Commit: a3334b5
+
+### Cycle D — 互斥失败与未认证失败有可见信封 code
+Command:
+cd frontend && npm run build
+Output:
+green (vite 2.65s). Vite 冒烟：未认证发起草案 → `AUTH_REQUIRED`；MISSING_LABEL 接受新建 → `UNBOUND_CREATE_IMMUTABLE_ID_MISSING`；BIND 接受后再接受新建 → `UNBOUND_CANDIDATE_CONSUMED`；`demo-rt-mutex` 第二次发起 → `UNBOUND_DRAFT_ALREADY_OPEN`。Alert + message 均带 code。
+Production: `DemoUserContext` 增加未认证（`setApiUserId(null)`）、`App.tsx` 选择器 / 无后端
+Refactor: `isAcceptedHandler` 允许 null userId
 Commit: pending this cycle

@@ -192,6 +192,16 @@ export default function UnboundCandidatesPage() {
         setDraft(next);
         setDraftError(null);
         await load();
+        const acceptedBind = next.items.find(
+          (item) =>
+            item.kind === 'BIND_UNBOUND_TO_EXISTING' &&
+            item.status === 'ACCEPTED' &&
+            item.subjectId,
+        );
+        if (acceptedBind?.subjectId) {
+          setAskId(acceptedBind.subjectId);
+          await lookupObject(acceptedBind.subjectId);
+        }
       }
     } catch (err) {
       const msg = envelopeMessage(err);
@@ -442,6 +452,18 @@ export default function UnboundCandidatesPage() {
           loading={askBusy}
           allowClear
         />
+        <Button
+          style={{ marginTop: 8 }}
+          disabled={!askId.trim()}
+          loading={askBusy}
+          onClick={() => void lookupObject(askId)}
+        >
+          刷新问法
+        </Button>
+        <Paragraph type="secondary" style={{ marginTop: 8 }}>
+          绑定接受后仍须现场补标；刷新只读回失联是否清除。弱线索不是可靠实际，不得把旧宿主展示为
+          PRESENT。
+        </Paragraph>
         {askError ? (
           <Alert type="error" showIcon message={askError} style={{ marginTop: 12 }} />
         ) : null}
@@ -480,6 +502,13 @@ export default function UnboundCandidatesPage() {
                     availability={actualAvailability ?? '—'}
                     {actualIsLost ? ' · 不得展示为 PRESENT，旧宿主不是可用实际' : ''}
                   </Text>
+                  {actualIsLost && actualAvailability === 'PRESENT' ? (
+                    <Alert
+                      type="error"
+                      showIcon
+                      message="读模型异常：身份失联时 availability 不得为 PRESENT"
+                    />
+                  ) : null}
                 </Space>
               ) : (
                 '—'
