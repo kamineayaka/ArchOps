@@ -299,7 +299,8 @@ export default function UnboundCandidatesPage() {
             待并入未绑定观测候选
           </Title>
           <Paragraph type="secondary" style={{ marginBottom: 0 }}>
-            匹配失败列出的现场实体，不是冲突，也不是身份失联。默认只看待并入；弱线索不承诺升级链。
+            匹配失败列出的现场实体，不是冲突，也不是身份失联，更不是观测空洞或观测消失。默认只看待并入；
+            upgradeChainPromised=false，弱线索不承诺升级链。本页不是冲突处理人工作台。
           </Paragraph>
         </div>
         <Button onClick={() => void load()} loading={loading}>
@@ -313,7 +314,9 @@ export default function UnboundCandidatesPage() {
         columns={columns}
         dataSource={rows}
         pagination={false}
-        locale={{ emptyText: '暂无待并入未绑定观测候选。空列表可演示：匹配失败才会出现在此。' }}
+        locale={{
+          emptyText: '暂无待并入未绑定观测候选。空列表可演示：匹配失败才会出现在此，不是冲突列表。',
+        }}
       />
 
       <Card size="small" title="未绑定草案（不挂冲突）">

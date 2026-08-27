@@ -56,4 +56,13 @@ Output:
 green (vite 2.65s). Vite 冒烟：未认证发起草案 → `AUTH_REQUIRED`；MISSING_LABEL 接受新建 → `UNBOUND_CREATE_IMMUTABLE_ID_MISSING`；BIND 接受后再接受新建 → `UNBOUND_CANDIDATE_CONSUMED`；`demo-rt-mutex` 第二次发起 → `UNBOUND_DRAFT_ALREADY_OPEN`。Alert + message 均带 code。
 Production: `DemoUserContext` 增加未认证（`setApiUserId(null)`）、`App.tsx` 选择器 / 无后端
 Refactor: `isAcceptedHandler` 允许 null userId
+Commit: d042f5a
+
+### Cycle E — 绑定接受后刷新 actual-where，不得为 PRESENT
+Command:
+cd frontend && npm run build
+Output:
+green (vite 2.65s). HTTP 绑定后 actual-where `availability=IDENTITY_LOST`、hostId=null、identityLost=true。Vite 冒烟：查询并「刷新问法」`ctr-979ca696-…`，实际在哪=身份失联，不是 PRESENT，旧宿主只出现在应该在哪。
+Production: BIND 接受后自动 lookup；「刷新问法」按钮；失联时 PRESENT 读模型异常 Alert / 无后端
+Refactor: 无
 Commit: pending this cycle
