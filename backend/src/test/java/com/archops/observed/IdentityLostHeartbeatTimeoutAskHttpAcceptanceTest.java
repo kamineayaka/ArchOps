@@ -55,10 +55,7 @@ class IdentityLostHeartbeatTimeoutAskHttpAcceptanceTest {
         assertIdentityLost(containerId);
 
         backdateAgent("u09a-ag");
-        mockMvc.perform(post("/api/observed/scan-heartbeat-timeouts")
-                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk());
+        scanHeartbeatTimeouts();
 
         assertActualWhere(containerId, hostA, "HOLLOW", true);
         assertShouldWhere(containerId, hostA);
@@ -92,6 +89,25 @@ class IdentityLostHeartbeatTimeoutAskHttpAcceptanceTest {
         assertActualWhere(containerId, hostA, "HOLLOW", true);
         assertShouldWhere(containerId, hostA);
         assertIdentityLost(containerId);
+    }
+
+    @Test
+    void heartbeatTimeoutWithoutIdentityLostStillAnswersHollow() throws Exception {
+        String hostA = createHost("u09d-ha");
+        String hostB = createHost("u09d-hb");
+        String containerId = createContainer("u09d-x", "u09d-oid");
+        confirmRunsOn(containerId, hostA);
+
+        heartbeatLabeled(hostB, "u09d-ag", "u09d-rt", "u09d-x", "u09d-oid");
+        backdateAgent("u09d-ag");
+        scanHeartbeatTimeouts();
+
+        assertActualWhere(containerId, hostA, "HOLLOW", false);
+        mockMvc.perform(get("/api/observed/identity-lost/{id}", containerId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("IDENTITY_LOST_NOT_FOUND")));
     }
 
     private void heartbeatUnlabeled(String hostId, String agentId, String runtimeId, String name) throws Exception {
@@ -149,6 +165,13 @@ class IdentityLostHeartbeatTimeoutAskHttpAcceptanceTest {
         hostAgentMapper.update(null, new LambdaUpdateWrapper<HostAgent>()
                 .eq(HostAgent::getAgentId, agentId)
                 .set(HostAgent::getLastHeartbeatAt, Instant.now().minus(2, ChronoUnit.MINUTES)));
+    }
+
+    private void scanHeartbeatTimeouts() throws Exception {
+        mockMvc.perform(post("/api/observed/scan-heartbeat-timeouts")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
     }
 
     private void assertActualWhere(

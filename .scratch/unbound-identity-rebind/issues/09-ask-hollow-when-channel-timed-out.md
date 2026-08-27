@@ -52,3 +52,11 @@ Command:
 reuse/regression：首跑绿。Cycle A 已按 `host_agent` 新鲜度（策展「运行于」+ 失联标 `sourceHostId`）决定 `HOLLOW`，不依赖票 10 扫描删行。本圈夹具先标签命中留下 `observed_fact`，再范围内未打标打失联，只回拨不上扫描；问法仍 `HOLLOW` + `identityLost=true`，标仍在。不另写生产。
 Green command: 同上，exit 0。
 Refactor: 抽出 `heartbeatLabeled`。
+Commit: `34cd8e1`
+
+### Cycle D — 无失联标的心跳超时仍是 HOLLOW
+Command:
+`cd backend && ./gradlew test --tests com.archops.observed.IdentityLostHeartbeatTimeoutAskHttpAcceptanceTest.heartbeatTimeoutWithoutIdentityLostStillAnswersHollow`
+reuse/regression：首跑绿。票 10 `HeartbeatTimeoutHollowHttpAcceptanceTest` 已覆盖无标超时 → `HOLLOW`；本圈确认 09 问法改动不把无标超时改写成 `IDENTITY_LOST`。不另写生产。
+Green command: 同上，exit 0。
+Refactor: 抽出 `scanHeartbeatTimeouts`。
