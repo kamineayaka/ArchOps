@@ -95,6 +95,48 @@ class ConflictUpgradeVoidsActivePlanHttpAcceptanceTest {
                         hasItem("conflict_upgrade")));
     }
 
+    @Test
+    void pendingCloseDriftVoidsApprovedPlanWithConflictUpgradeReason() throws Exception {
+        Fixture fx = openClaimAndApprovePlan("cuv01c-a", "cuv01c-b", "cuv01c-oid");
+        heartbeatWithContainer(fx.hostA(), "agent-" + fx.objectId() + "-a", fx.objectId());
+
+        mockMvc.perform(get("/api/conflicts/{id}", fx.conflictId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("PENDING_CLOSE")));
+        mockMvc.perform(get("/api/operation-plans/{id}", fx.planId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("APPROVED")));
+
+        String hostC = heartbeatObservedOnNewHost(fx, "cuv01c-c");
+
+        mockMvc.perform(get("/api/conflicts/{id}", fx.conflictId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.id", is(fx.conflictId())))
+                .andExpect(jsonPath("$.data.status", is("OPEN")))
+                .andExpect(jsonPath("$.data.identityLost", is(false)))
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(fx.hostA())))
+                .andExpect(jsonPath("$.data.observedValue.hostId", is(hostC)));
+
+        mockMvc.perform(get("/api/operation-plans/{id}", fx.planId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("VOIDED")))
+                .andExpect(jsonPath("$.data.voidReason", is("conflict_upgrade")));
+
+        mockMvc.perform(post("/api/operation-plans/{id}/start-execution", fx.planId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("PLAN_VOIDED")));
+    }
+
     private Fixture openClaimAndApprovePlan(String hostAName, String hostBName, String objectId) throws Exception {
         String hostA = createHost(hostAName);
         String hostB = createHost(hostBName);

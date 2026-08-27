@@ -51,3 +51,17 @@ cd backend && ./gradlew test --tests com.archops.conflict.ConflictUpgradeVoidsAc
 ```
 
 First-run BUILD SUCCESSFUL (`reuse` of `voidActivePlans`：`voidReason=conflict_upgrade` + `PLAN_VOIDED` 事件 planId/reason)。显式断言保留。Refactor：抽出 `heartbeatObservedOnNewHost`。
+
+### Cycle C witnessed red (2026-08-27)
+
+```text
+cd backend && ./gradlew test --tests com.archops.conflict.ConflictUpgradeVoidsActivePlanHttpAcceptanceTest.pendingCloseDriftVoidsApprovedPlanWithConflictUpgradeReason
+```
+
+```text
+JSON path "$.data.status"
+Expected: is "VOIDED"
+     but: was "APPROVED"
+```
+
+待确认关闭后再漂同键升级不作废计划。生产：`reopenFromPendingClose` 同样调用 `voidActivePlans(..., CONFLICT_UPGRADE_REASON)`。

@@ -428,8 +428,7 @@ public class ConflictDetectionService {
                 "reason", "drift_after_pending_close",
                 "observedTargetId", observed.getTargetId() == null ? "" : observed.getTargetId()
         ));
-        curatedDraftService.voidOpenForConflict(pending.getId(), CONFLICT_UPGRADE_REASON);
-        conflictDiagnosisService.scheduleAsyncDiagnosis(pending.getId());
+        voidOpenDraftsAndPlansThenRediagnose(pending.getId());
     }
 
     private void createOpen(
@@ -481,9 +480,13 @@ public class ConflictDetectionService {
         conflictEventService.append(open.getId(), ConflictEventType.UPGRADED, null, Map.of(
                 "observedTargetId", observed.getTargetId() == null ? "" : observed.getTargetId()
         ));
-        curatedDraftService.voidOpenForConflict(open.getId(), CONFLICT_UPGRADE_REASON);
-        voidActivePlans(open.getId(), CONFLICT_UPGRADE_REASON);
-        conflictDiagnosisService.scheduleAsyncDiagnosis(open.getId());
+        voidOpenDraftsAndPlansThenRediagnose(open.getId());
+    }
+
+    private void voidOpenDraftsAndPlansThenRediagnose(String conflictId) {
+        curatedDraftService.voidOpenForConflict(conflictId, CONFLICT_UPGRADE_REASON);
+        voidActivePlans(conflictId, CONFLICT_UPGRADE_REASON);
+        conflictDiagnosisService.scheduleAsyncDiagnosis(conflictId);
     }
 
     private ConflictCase findActive(String subjectId, CuratedRelationType relationType) {
