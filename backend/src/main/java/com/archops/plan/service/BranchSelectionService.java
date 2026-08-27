@@ -11,6 +11,7 @@ import com.archops.conflict.domain.HandlerAcceptance;
 import com.archops.conflict.dto.ConflictDiagnosisResponse;
 import com.archops.conflict.mapper.ConflictCaseMapper;
 import com.archops.curated.service.CuratedDraftService;
+import com.archops.observed.mapper.IdentityLostMarkMapper;
 import com.archops.user.security.AuthUserPrincipal;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,23 +27,28 @@ public class BranchSelectionService {
     private final ConflictDiagnosisService conflictDiagnosisService;
     private final OperationPlanService operationPlanService;
     private final CuratedDraftService curatedDraftService;
+    private final IdentityLostMarkMapper identityLostMarkMapper;
 
     public BranchSelectionService(
             ConflictCaseMapper conflictCaseMapper,
             ConflictDiagnosisService conflictDiagnosisService,
             OperationPlanService operationPlanService,
-            CuratedDraftService curatedDraftService
+            CuratedDraftService curatedDraftService,
+            IdentityLostMarkMapper identityLostMarkMapper
     ) {
         this.conflictCaseMapper = conflictCaseMapper;
         this.conflictDiagnosisService = conflictDiagnosisService;
         this.operationPlanService = operationPlanService;
         this.curatedDraftService = curatedDraftService;
+        this.identityLostMarkMapper = identityLostMarkMapper;
     }
 
     @Transactional
     public BranchSelectionResult select(String conflictId, String forkId, String expectedDiagnosisId, AuthUserPrincipal actor) {
         ConflictCase conflict = requireOpenConflict(conflictId);
         requireAcceptedHandler(conflict, actor);
+        // 身份失联闸门 must not cover PLAN_REQUIRES_ACCEPTED_HANDLER.
+        rejectUniqueSiteForkWhenIdentityLost(conflict, forkId);
 
         ConflictDiagnosisResponse diagnosis = conflictDiagnosisService.latestForConflict(conflictId);
         if (diagnosis == null || diagnosis.status() != DiagnosisStatus.READY) {
@@ -77,6 +83,18 @@ public class BranchSelectionService {
         }
         throw new BusinessException("FORK_NOT_SUPPORTED",
                 "Unsupported diagnosis fork for branch selection: " + fork.id());
+    }
+
+    private void rejectUniqueSiteForkWhenIdentityLost(ConflictCase conflict, String forkId) {
+        if (!DiagnosisRuleEngine.FIX_ACTUAL_TO_CURATED.equals(forkId)
+                && !DiagnosisRuleEngine.CHANGE_CURATED_TO_OBSERVED.equals(forkId)) {
+            return;
+        }
+        if (identityLostMarkMapper.selectById(conflict.getSubjectId()) == null) {
+            return;
+        }
+        throw new BusinessException("IDENTITY_LOST_BLOCKS_BRANCH",
+                "身份失联 blocks 修实际 / 改理想; handle via 未绑定观测候选 and field 补标");
     }
 
     private static boolean isChangeCurated(ConflictDiagnosisResponse.ForkSuggestion fork) {

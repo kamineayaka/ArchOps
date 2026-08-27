@@ -282,13 +282,19 @@ public class CuratedDraftService {
     }
 
     /**
-     * Ticket 05: 冲突升级/空洞作废该冲突上仍 OPEN 的改理想草案.
-     * PENDING items stay PENDING and are never written to 策展.
+     * 冲突升级/空洞/身份失联作废该冲突上仍 OPEN 的 origin=CHANGE_CURATED 改理想草案.
+     * 未绑定草案不走此路径（无 conflict_id，且 origin 过滤）。
      */
     @Transactional
     public void voidOpenForConflict(String conflictId, String reason) {
         CuratedDraft open = findOpen(conflictId);
         if (open == null) {
+            return;
+        }
+        CuratedDraftOrigin origin = open.getOrigin() == null
+                ? CuratedDraftOrigin.CHANGE_CURATED
+                : open.getOrigin();
+        if (origin != CuratedDraftOrigin.CHANGE_CURATED) {
             return;
         }
         int updated = curatedDraftMapper.update(null, new LambdaUpdateWrapper<CuratedDraft>()

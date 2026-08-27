@@ -153,6 +153,10 @@ public class OperationPlanService {
     @Transactional
     public OperationPlanResponse approve(String planId, AuthUserPrincipal actor) {
         OperationPlan plan = requirePlan(planId);
+        if (plan.getStatus() == OperationPlanStatus.VOIDED) {
+            throw new BusinessException("PLAN_VOIDED",
+                    "Voided plans cannot be retried; generate a new plan through review");
+        }
         ConflictCase conflict = requireOpenConflict(plan.getConflictId());
         requireAcceptedHandler(conflict, actor);
         if (plan.getStatus() != OperationPlanStatus.DRAFT_REVIEW) {

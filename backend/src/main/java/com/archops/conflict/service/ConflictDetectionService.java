@@ -17,6 +17,7 @@ import com.archops.curated.mapper.CuratedObjectMapper;
 import com.archops.curated.service.CuratedDraftService;
 import com.archops.observed.domain.ObservedAvailability;
 import com.archops.observed.domain.ObservedFact;
+import com.archops.observed.mapper.IdentityLostMarkMapper;
 import com.archops.observed.mapper.ObservedFactMapper;
 import com.archops.plan.service.OperationPlanService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -43,6 +44,8 @@ import java.util.UUID;
 @Service
 public class ConflictDetectionService {
 
+    private static final String IDENTITY_LOST_REASON = "identity_lost";
+
     private static final List<ConflictStatus> ACTIVE = List.of(
             ConflictStatus.OPEN,
             ConflictStatus.PENDING_CLOSE,
@@ -53,6 +56,7 @@ public class ConflictDetectionService {
     private final CuratedFactMapper curatedFactMapper;
     private final CuratedObjectMapper curatedObjectMapper;
     private final ObservedFactMapper observedFactMapper;
+    private final IdentityLostMarkMapper identityLostMarkMapper;
     private final ConflictDiagnosisService conflictDiagnosisService;
     private final ConflictEventService conflictEventService;
     private final OperationPlanService operationPlanService;
@@ -64,6 +68,7 @@ public class ConflictDetectionService {
             CuratedFactMapper curatedFactMapper,
             CuratedObjectMapper curatedObjectMapper,
             ObservedFactMapper observedFactMapper,
+            IdentityLostMarkMapper identityLostMarkMapper,
             ConflictDiagnosisService conflictDiagnosisService,
             ConflictEventService conflictEventService,
             @Lazy OperationPlanService operationPlanService,
@@ -74,6 +79,7 @@ public class ConflictDetectionService {
         this.curatedFactMapper = curatedFactMapper;
         this.curatedObjectMapper = curatedObjectMapper;
         this.observedFactMapper = observedFactMapper;
+        this.identityLostMarkMapper = identityLostMarkMapper;
         this.conflictDiagnosisService = conflictDiagnosisService;
         this.conflictEventService = conflictEventService;
         this.operationPlanService = operationPlanService;
@@ -200,17 +206,63 @@ public class ConflictDetectionService {
                 "subjectId", subjectId,
                 "relationType", relationType.name()
         ));
-        List<String> voided = operationPlanService.voidActivePlansForConflict(
-                active.getId(), "observation_hollow_heartbeat_timeout");
-        for (String planId : voided) {
-            conflictEventService.append(active.getId(), ConflictEventType.PLAN_VOIDED, null, Map.of(
-                    "planId", planId,
-                    "reason", "observation_hollow_heartbeat_timeout"
-            ));
-        }
+        List<String> voided = voidActivePlans(active.getId(), "observation_hollow_heartbeat_timeout");
         curatedDraftService.voidOpenForConflict(active.getId(), "observation_hollow_heartbeat_timeout");
         conflictDiagnosisService.scheduleAsyncDiagnosis(active.getId());
         return new HollowSuspendResult(active.getId(), voided);
+    }
+
+    /**
+     * 身份失联落地：已有冲突保留。PENDING_CLOSE 无法再看见相等，退回 OPEN。
+     * 不是空洞挂起，不新增 ConflictStatus。
+     */
+    @Transactional
+    public void onIdentityLost(String subjectId) {
+        ConflictCase active = findActive(subjectId, CuratedRelationType.RUNS_ON);
+        if (active == null) {
+            return;
+        }
+        if (active.getStatus() == ConflictStatus.PENDING_CLOSE) {
+            Instant now = Instant.now();
+            conflictCaseMapper.update(null, new LambdaUpdateWrapper<ConflictCase>()
+                    .eq(ConflictCase::getId, active.getId())
+                    .eq(ConflictCase::getStatus, ConflictStatus.PENDING_CLOSE)
+                    .set(ConflictCase::getStatus, ConflictStatus.OPEN)
+                    .set(ConflictCase::getPendingCloseAt, null)
+                    .set(ConflictCase::getUpdatedAt, now));
+            conflictEventService.append(active.getId(), ConflictEventType.UPGRADED, null, Map.of(
+                    "reason", IDENTITY_LOST_REASON,
+                    "subjectId", subjectId,
+                    "relationType", CuratedRelationType.RUNS_ON.name()
+            ));
+        }
+        voidActivePlans(active.getId(), IDENTITY_LOST_REASON);
+        curatedDraftService.voidOpenForConflict(active.getId(), IDENTITY_LOST_REASON);
+        conflictDiagnosisService.scheduleAsyncDiagnosis(active.getId());
+    }
+
+    /**
+     * 标签命中清标后闸门解除：重诊，使修实际 / 改理想可再次出现。
+     * 不改冲突状态，不作废计划或草案（那是失联落地，不是清标）。
+     */
+    @Transactional
+    public void onIdentityLostCleared(String subjectId) {
+        ConflictCase active = findActive(subjectId, CuratedRelationType.RUNS_ON);
+        if (active == null) {
+            return;
+        }
+        conflictDiagnosisService.scheduleAsyncDiagnosis(active.getId());
+    }
+
+    private List<String> voidActivePlans(String conflictId, String reason) {
+        List<String> voided = operationPlanService.voidActivePlansForConflict(conflictId, reason);
+        for (String planId : voided) {
+            conflictEventService.append(conflictId, ConflictEventType.PLAN_VOIDED, null, Map.of(
+                    "planId", planId,
+                    "reason", reason
+            ));
+        }
+        return voided;
     }
 
     /**
@@ -462,18 +514,8 @@ public class ConflictDetectionService {
                 curatedHost != null ? curatedHost.getName() : null
         );
         boolean hollow = row.getStatus() == ConflictStatus.SUSPENDED;
-        ConflictCaseResponse.TrackValue observedValue;
-        if (hollow) {
-            // Do not present stale snapshot as trustworthy 实际 during 空洞挂起.
-            observedValue = ConflictCaseResponse.TrackValue.hollow();
-        } else if (row.getObservedAvailability() == ObservedAvailability.ABSENT) {
-            observedValue = ConflictCaseResponse.TrackValue.absent();
-        } else {
-            observedValue = ConflictCaseResponse.TrackValue.present(
-                    observedHost != null ? observedHost.getId() : row.getObservedTargetId(),
-                    observedHost != null ? observedHost.getName() : null
-            );
-        }
+        boolean identityLost = identityLostMarkMapper.selectById(row.getSubjectId()) != null;
+        ConflictCaseResponse.TrackValue observedValue = observedTrackValue(row, hollow, identityLost, observedHost);
 
         List<ConflictCaseResponse.LineageStep> lineage = readLineage(row.getObservedLineageJson()).stream()
                 .map(step -> {
@@ -517,6 +559,7 @@ public class ConflictDetectionService {
                 row.getSuspendedAt(),
                 row.getStatus() == ConflictStatus.PENDING_CLOSE,
                 hollow,
+                identityLost,
                 conflictDiagnosisService.statusLabelForConflict(row.getId()),
                 new ConflictCaseResponse.Collaboration(
                         Boolean.TRUE.equals(row.getAcknowledged()),
@@ -527,6 +570,29 @@ public class ConflictDetectionService {
                                 ? HandlerAcceptance.NONE
                                 : row.getHandlerAcceptance()
                 )
+        );
+    }
+
+    private ConflictCaseResponse.TrackValue observedTrackValue(
+            ConflictCase row,
+            boolean hollow,
+            boolean identityLost,
+            CuratedObject observedHost
+    ) {
+        if (hollow) {
+            // Do not present stale snapshot as trustworthy 实际 during 空洞挂起.
+            return ConflictCaseResponse.TrackValue.hollow();
+        }
+        if (identityLost) {
+            // 身份失联 is not 观测空洞: keep OPEN, do not show residual observed_fact as 实际.
+            return ConflictCaseResponse.TrackValue.identityLost();
+        }
+        if (row.getObservedAvailability() == ObservedAvailability.ABSENT) {
+            return ConflictCaseResponse.TrackValue.absent();
+        }
+        return ConflictCaseResponse.TrackValue.present(
+                observedHost != null ? observedHost.getId() : row.getObservedTargetId(),
+                observedHost != null ? observedHost.getName() : null
         );
     }
 

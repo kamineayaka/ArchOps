@@ -546,7 +546,10 @@ public class ObservedTruthService {
      * 标签命中即认回：{@code identity_lost_mark} 是当前是否失联的状态表，不是历史。
      */
     private void clearIdentityLostMark(String curatedObjectId) {
-        identityLostMarkMapper.deleteById(curatedObjectId);
+        Integer deleted = identityLostMarkMapper.deleteById(curatedObjectId);
+        if (deleted != null && deleted > 0) {
+            conflictDetectionService.onIdentityLostCleared(curatedObjectId);
+        }
     }
 
     /**
@@ -626,6 +629,7 @@ public class ObservedTruthService {
             mark.setSourceHostId(host.getId());
             mark.setUpgradeChainPromised(false);
             identityLostMarkMapper.insert(mark);
+            conflictDetectionService.onIdentityLost(curated.getId());
             return;
         }
         existing.setReason("LABEL_CLUE_LOST");

@@ -2,6 +2,7 @@ package com.archops.conflict.diagnosis;
 
 import com.archops.conflict.domain.ConflictCase;
 import com.archops.conflict.domain.ConflictDiagnosis;
+import com.archops.conflict.domain.ConflictStatus;
 import com.archops.conflict.domain.DiagnosisSource;
 import com.archops.conflict.domain.DiagnosisStatus;
 import com.archops.conflict.dto.ConflictDiagnosisResponse;
@@ -10,6 +11,7 @@ import com.archops.conflict.mapper.ConflictDiagnosisMapper;
 import com.archops.curated.domain.CuratedObject;
 import com.archops.curated.mapper.CuratedObjectMapper;
 import com.archops.observed.domain.ObservedAvailability;
+import com.archops.observed.mapper.IdentityLostMarkMapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -34,6 +36,7 @@ public class ConflictDiagnosisService {
     private final ConflictDiagnosisMapper diagnosisMapper;
     private final ConflictCaseMapper conflictCaseMapper;
     private final CuratedObjectMapper curatedObjectMapper;
+    private final IdentityLostMarkMapper identityLostMarkMapper;
     private final DiagnosisJobQueue diagnosisJobQueue;
     private final DiagnosisAsyncRunner diagnosisAsyncRunner;
     private final ObjectMapper objectMapper;
@@ -42,6 +45,7 @@ public class ConflictDiagnosisService {
             ConflictDiagnosisMapper diagnosisMapper,
             ConflictCaseMapper conflictCaseMapper,
             CuratedObjectMapper curatedObjectMapper,
+            IdentityLostMarkMapper identityLostMarkMapper,
             DiagnosisJobQueue diagnosisJobQueue,
             ObjectMapper objectMapper,
             @Lazy DiagnosisAsyncRunner diagnosisAsyncRunner
@@ -49,6 +53,7 @@ public class ConflictDiagnosisService {
         this.diagnosisMapper = diagnosisMapper;
         this.conflictCaseMapper = conflictCaseMapper;
         this.curatedObjectMapper = curatedObjectMapper;
+        this.identityLostMarkMapper = identityLostMarkMapper;
         this.diagnosisJobQueue = diagnosisJobQueue;
         this.objectMapper = objectMapper;
         this.diagnosisAsyncRunner = diagnosisAsyncRunner;
@@ -116,23 +121,7 @@ public class ConflictDiagnosisService {
                 ? null
                 : curatedObjectMapper.selectById(conflict.getObservedTargetId());
 
-        DiagnosisRuleEngine.RuleResult rules;
-        if (conflict.getStatus() == com.archops.conflict.domain.ConflictStatus.SUSPENDED) {
-            rules = DiagnosisRuleEngine.diagnoseHollow(
-                    conflict.getCuratedTargetId(),
-                    curatedHost != null ? curatedHost.getName() : null
-            );
-        } else {
-            rules = DiagnosisRuleEngine.diagnoseRunsOnMismatch(
-                    conflict.getCuratedTargetId(),
-                    curatedHost != null ? curatedHost.getName() : null,
-                    conflict.getObservedAvailability() == null
-                            ? ObservedAvailability.PRESENT.name()
-                            : conflict.getObservedAvailability().name(),
-                    conflict.getObservedTargetId(),
-                    observedHost != null ? observedHost.getName() : null
-            );
-        }
+        DiagnosisRuleEngine.RuleResult rules = rulesFor(conflict, curatedHost, observedHost);
 
         // ADR-0044: control plane holds no model keys. LLM enrichment lives on the AI 编排层.
         // Until that process exists, 规则分叉兜底 (ADR-0041) remains the only in-process source.
@@ -185,6 +174,31 @@ public class ConflictDiagnosisService {
                 row.getCreatedAt(),
                 row.getCompletedAt(),
                 row.getErrorMessage()
+        );
+    }
+
+    private DiagnosisRuleEngine.RuleResult rulesFor(
+            ConflictCase conflict,
+            CuratedObject curatedHost,
+            CuratedObject observedHost
+    ) {
+        if (conflict.getStatus() == ConflictStatus.SUSPENDED) {
+            return DiagnosisRuleEngine.diagnoseHollow(
+                    conflict.getCuratedTargetId(),
+                    curatedHost != null ? curatedHost.getName() : null
+            );
+        }
+        if (identityLostMarkMapper.selectById(conflict.getSubjectId()) != null) {
+            return DiagnosisRuleEngine.diagnoseIdentityLost();
+        }
+        return DiagnosisRuleEngine.diagnoseRunsOnMismatch(
+                conflict.getCuratedTargetId(),
+                curatedHost != null ? curatedHost.getName() : null,
+                conflict.getObservedAvailability() == null
+                        ? ObservedAvailability.PRESENT.name()
+                        : conflict.getObservedAvailability().name(),
+                conflict.getObservedTargetId(),
+                observedHost != null ? observedHost.getName() : null
         );
     }
 

@@ -113,7 +113,9 @@ class UnboundBindGateHttpAcceptanceTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status", is("OPEN")))
                 .andExpect(jsonPath("$.data.curatedValue.hostId", is(hostA)))
-                .andExpect(jsonPath("$.data.observedValue.hostId", is(hostB)));
+                .andExpect(jsonPath("$.data.identityLost", is(true)))
+                .andExpect(jsonPath("$.data.observedValue.availability", not("PRESENT")))
+                .andExpect(jsonPath("$.data.observedValue.hostId").value(nullValue()));
 
         OpenUnboundDraft draft = openDraftFromRuntime("u08d-rt-miss");
         JsonNode bindItem = itemByKind(draft.items(), "BIND_UNBOUND_TO_EXISTING");
@@ -128,7 +130,9 @@ class UnboundBindGateHttpAcceptanceTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status", is("OPEN")))
                 .andExpect(jsonPath("$.data.curatedValue.hostId", is(hostA)))
-                .andExpect(jsonPath("$.data.observedValue.hostId", is(hostB)));
+                .andExpect(jsonPath("$.data.identityLost", is(true)))
+                .andExpect(jsonPath("$.data.observedValue.availability", not("PRESENT")))
+                .andExpect(jsonPath("$.data.observedValue.hostId").value(nullValue()));
 
         mockMvc.perform(get("/api/observed/asks/actual-where")
                         .param("containerId", containerX)
