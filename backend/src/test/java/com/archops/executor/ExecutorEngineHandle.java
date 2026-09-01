@@ -8,6 +8,8 @@ import io.grpc.ManagedChannel;
 import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder;
 import org.springframework.context.ConfigurableApplicationContext;
 
+import javax.sql.DataSource;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -24,20 +26,30 @@ public final class ExecutorEngineHandle implements AutoCloseable {
     }
 
     public static ExecutorEngineHandle start() {
+        return start(null);
+    }
+
+    public static ExecutorEngineHandle start(DataSource dataSource) {
         MtlsPemFiles mtls = MtlsPemFiles.generate();
-        ConfigurableApplicationContext context = ExecutorApplication.run(
-                "--spring.main.web-application-type=none",
-                "--spring.autoconfigure.exclude="
-                        + "org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration,"
-                        + "org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration,"
-                        + "org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration,"
-                        + "org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration",
-                "--archops.ssh.mode=fake",
-                "--archops.executor.grpc.port=0",
-                "--archops.executor.tls.ca-cert=" + mtls.caCert(),
-                "--archops.executor.tls.server-cert=" + mtls.serverCert(),
-                "--archops.executor.tls.server-key=" + mtls.serverKey()
-        );
+        ArrayList<String> args = new ArrayList<>();
+        args.add("--spring.main.web-application-type=none");
+        args.add("--archops.ssh.mode=fake");
+        args.add("--archops.executor.grpc.port=0");
+        args.add("--archops.executor.tls.ca-cert=" + mtls.caCert());
+        args.add("--archops.executor.tls.server-cert=" + mtls.serverCert());
+        args.add("--archops.executor.tls.server-key=" + mtls.serverKey());
+        args.add("--spring.flyway.enabled=false");
+        args.add("--spring.autoconfigure.exclude="
+                + "org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration,"
+                + "org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration,"
+                + "org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration,"
+                + "org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration");
+        if (dataSource != null) {
+            args.add("--archops.executor.credentials.enabled=true");
+        } else {
+            args.add("--archops.executor.credentials.enabled=false");
+        }
+        ConfigurableApplicationContext context = ExecutorApplication.run(dataSource, args.toArray(String[]::new));
         return new ExecutorEngineHandle(context, mtls);
     }
 

@@ -4,12 +4,14 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.test.context.DynamicPropertyRegistrar;
 
+import javax.sql.DataSource;
+
 @TestConfiguration(proxyBeanMethods = false)
 public class ExecutorEngineTestConfig {
 
     @Bean(destroyMethod = "close")
-    ExecutorEngineHandle executorEngineHandle() {
-        return ExecutorEngineHandle.start();
+    ExecutorEngineHandle executorEngineHandle(DataSource dataSource) {
+        return ExecutorEngineHandle.start(dataSource);
     }
 
     @Bean

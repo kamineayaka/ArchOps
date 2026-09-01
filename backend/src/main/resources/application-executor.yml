@@ -17,3 +17,6 @@ spring:
 archops:
   ssh:
     mode: ${ARCHOPS_SSH_MODE:fake}
+  executor:
+    credentials:
+      enabled: true

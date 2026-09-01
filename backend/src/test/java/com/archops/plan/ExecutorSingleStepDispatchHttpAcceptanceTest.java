@@ -32,11 +32,13 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -107,6 +109,41 @@ class ExecutorSingleStepDispatchHttpAcceptanceTest {
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status", is("COMPLETED")));
+    }
+
+    @Test
+    void startExecutionFailsWhenEngineHasNoHostCredentialToDecrypt() throws Exception {
+        String conflictId = openConflictAndClaim("e01e-a", "e01e-b", "ctr-e01e", false);
+        String planId = selectAndApprove(conflictId);
+
+        mockMvc.perform(post("/api/operation-plans/{id}/start-execution", planId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("VOIDED")))
+                .andExpect(jsonPath("$.data.voidReason", containsString("SSH credential")));
+        assertThat(engine.recordedCalls()).isEmpty();
+    }
+
+    @Test
+    void dispatchPayloadOmitsPlaintextHostSecret() throws Exception {
+        String secret = "e01-secret-must-not-leak";
+        String conflictId = openConflictAndClaim("e01f-a", "e01f-b", "ctr-e01f", secret);
+        String planId = selectAndApprove(conflictId);
+
+        MvcResult executed = mockMvc.perform(post("/api/operation-plans/{id}/start-execution", planId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("COMPLETED")))
+                .andReturn();
+        assertThat(executed.getResponse().getContentAsString()).doesNotContain(secret);
+        assertThat(engine.recordedCalls()).isNotEmpty();
+        assertThat(engine.recordedCalls()).allSatisfy(call -> {
+            assertThat(call.command()).doesNotContain(secret);
+            assertThat(call.context().values()).noneMatch(value -> value.contains(secret));
+            assertThat(call.hostId()).doesNotContain(secret);
+        });
     }
 
     @Test
@@ -211,8 +248,32 @@ class ExecutorSingleStepDispatchHttpAcceptanceTest {
     }
 
     private String openConflictAndClaim(String hostAName, String hostBName, String objectId) throws Exception {
+        return openConflictAndClaim(hostAName, hostBName, objectId, "fixture-ssh-secret", true);
+    }
+
+    private String openConflictAndClaim(String hostAName, String hostBName, String objectId, boolean storeCredentials)
+            throws Exception {
+        return openConflictAndClaim(hostAName, hostBName, objectId, "fixture-ssh-secret", storeCredentials);
+    }
+
+    private String openConflictAndClaim(String hostAName, String hostBName, String objectId, String secret)
+            throws Exception {
+        return openConflictAndClaim(hostAName, hostBName, objectId, secret, true);
+    }
+
+    private String openConflictAndClaim(
+            String hostAName,
+            String hostBName,
+            String objectId,
+            String secret,
+            boolean storeCredentials
+    ) throws Exception {
         String hostA = createHost(hostAName);
         String hostB = createHost(hostBName);
+        if (storeCredentials) {
+            storeHostCredential(hostA, secret);
+            storeHostCredential(hostB, secret);
+        }
         String containerId = createContainer("app-" + objectId, objectId);
         confirmRunsOn(containerId, hostA);
         heartbeatWithContainer(hostB, "agent-" + objectId, objectId);
@@ -229,6 +290,23 @@ class ExecutorSingleStepDispatchHttpAcceptanceTest {
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk());
         return conflictId;
+    }
+
+    private void storeHostCredential(String hostId, String secret) throws Exception {
+        mockMvc.perform(put("/api/curated/hosts/{id}/ssh-credential", hostId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "connectHost":"10.0.0.8",
+                                  "connectPort":22,
+                                  "username":"ops",
+                                  "secret":"%s",
+                                  "secretKind":"PASSWORD"
+                                }
+                                """.formatted(secret))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
     }
 
     private void heartbeatWithContainer(String hostId, String agentId, String objectId) throws Exception {
