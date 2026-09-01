@@ -2,9 +2,10 @@ package com.archops.plan.service;
 
 import com.archops.common.exception.BusinessException;
 import com.archops.common.lock.PlanExecutionLock;
-import com.archops.common.ssh.ControlledSshPort;
-import com.archops.common.ssh.SshExecRequest;
-import com.archops.common.ssh.SshExecResult;
+import com.archops.common.ssh.PlanStepCommands;
+import com.archops.plan.dispatch.ExecuteStepCommand;
+import com.archops.plan.dispatch.ExecuteStepResult;
+import com.archops.plan.dispatch.ExecutorDispatchPort;
 import com.archops.conflict.diagnosis.ConflictDiagnosisService;
 import com.archops.conflict.diagnosis.DiagnosisRuleEngine;
 import com.archops.conflict.domain.ConflictCase;
@@ -42,7 +43,8 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Branch selection → review → controlled SSH execution with Redis plan mutex (tickets 07–08).
+ * Branch selection → review → start-execution. Production path is gRPC 代发 (ADR-0045);
+ * legacy HTTP tests keep the in-process fake (ADR-0044 决议 7).
  */
 @Service
 public class OperationPlanService {
@@ -60,7 +62,7 @@ public class OperationPlanService {
     private final ConflictDiagnosisService conflictDiagnosisService;
     private final CuratedObjectMapper curatedObjectMapper;
     private final ObjectMapper objectMapper;
-    private final ControlledSshPort controlledSshPort;
+    private final ExecutorDispatchPort executorDispatchPort;
     private final PlanExecutionLock planExecutionLock;
     private final TransactionTemplate transactionTemplate;
     private final ConflictEventService conflictEventService;
@@ -71,7 +73,7 @@ public class OperationPlanService {
             ConflictDiagnosisService conflictDiagnosisService,
             CuratedObjectMapper curatedObjectMapper,
             ObjectMapper objectMapper,
-            ControlledSshPort controlledSshPort,
+            ExecutorDispatchPort executorDispatchPort,
             PlanExecutionLock planExecutionLock,
             TransactionTemplate transactionTemplate,
             ConflictEventService conflictEventService
@@ -81,7 +83,7 @@ public class OperationPlanService {
         this.conflictDiagnosisService = conflictDiagnosisService;
         this.curatedObjectMapper = curatedObjectMapper;
         this.objectMapper = objectMapper;
-        this.controlledSshPort = controlledSshPort;
+        this.executorDispatchPort = executorDispatchPort;
         this.planExecutionLock = planExecutionLock;
         this.transactionTemplate = transactionTemplate;
         this.conflictEventService = conflictEventService;
@@ -175,7 +177,8 @@ public class OperationPlanService {
     }
 
     /**
-     * Execute an APPROVED plan step-by-step via the controlled SSH port under a plan mutex.
+     * Execute an APPROVED plan one frozen step at a time via 控制面代发.
+     * Re-reads VOIDED between steps so 空洞 / 失联 / 升级 can stop the next dispatch.
      * Failure/block voids the plan immediately; steps are frozen (no in-place rewrite/retry).
      */
     public StartExecutionResponse startExecution(String planId, AuthUserPrincipal actor) {
@@ -199,6 +202,8 @@ public class OperationPlanService {
             throw new BusinessException("PLAN_NOT_APPROVED",
                     "Cannot start execution before human approval (no execution intent yet)");
         }
+
+        executorDispatchPort.ensureReady();
 
         if (!planExecutionLock.tryLock(planId, EXEC_LOCK_TTL)) {
             throw new BusinessException("PLAN_EXECUTION_LOCKED",
@@ -230,9 +235,14 @@ public class OperationPlanService {
             List<OperationPlanResponse.ExecutionStepLog> log = new ArrayList<>();
 
             for (OperationPlanResponse.PlanStep step : steps) {
+                if (isVoided(planId)) {
+                    return stopBecauseAlreadyVoided(planId, log);
+                }
+
                 transactionTemplate.executeWithoutResult(status ->
                         operationPlanMapper.update(null, new LambdaUpdateWrapper<OperationPlan>()
                                 .eq(OperationPlan::getId, planId)
+                                .eq(OperationPlan::getStatus, OperationPlanStatus.EXECUTING)
                                 .set(OperationPlan::getCurrentStepSeq, step.seq())));
 
                 String hostId;
@@ -243,15 +253,16 @@ public class OperationPlanService {
                     return voidPlan(planId, log, step, null, null, ex.getMessage());
                 }
 
-                String command = buildCommand(step, hostId);
-                SshExecResult result;
+                Map<String, String> params = step.params() == null ? Map.of() : step.params();
+                String command = PlanStepCommands.command(step.action(), params, hostId);
+                ExecuteStepResult result;
                 try {
-                    result = controlledSshPort.exec(new SshExecRequest(
-                            hostId,
-                            command,
-                            step.action(),
+                    result = executorDispatchPort.executeStep(new ExecuteStepCommand(
+                            planId,
                             step.seq(),
-                            step.params() == null ? Map.of() : step.params()
+                            step.action(),
+                            params,
+                            hostId
                     ));
                 } catch (BusinessException ex) {
                     return voidPlan(planId, log, step, hostId, command, ex.getMessage());
@@ -259,6 +270,11 @@ public class OperationPlanService {
                     return voidPlan(planId, log, step, hostId, command,
                             "SSH execution blocked: " + ex.getMessage());
                 }
+
+                if (isVoided(planId)) {
+                    return stopBecauseAlreadyVoided(planId, log);
+                }
+
                 log.add(new OperationPlanResponse.ExecutionStepLog(
                         step.seq(),
                         step.action(),
@@ -275,9 +291,13 @@ public class OperationPlanService {
                 }
             }
 
+            if (isVoided(planId)) {
+                return stopBecauseAlreadyVoided(planId, log);
+            }
+
             Instant finished = Instant.now();
             String logJson = writeJson(log);
-            transactionTemplate.executeWithoutResult(status ->
+            Integer completed = transactionTemplate.execute(status ->
                     operationPlanMapper.update(null, new LambdaUpdateWrapper<OperationPlan>()
                             .eq(OperationPlan::getId, planId)
                             .eq(OperationPlan::getStatus, OperationPlanStatus.EXECUTING)
@@ -285,6 +305,9 @@ public class OperationPlanService {
                             .set(OperationPlan::getFinishedAt, finished)
                             .set(OperationPlan::getCurrentStepSeq, steps.isEmpty() ? 0 : steps.getLast().seq())
                             .set(OperationPlan::getExecutionLogJson, logJson)));
+            if (completed == null || completed == 0) {
+                return stopBecauseAlreadyVoided(planId, log);
+            }
 
             conflictEventService.append(plan.getConflictId(), ConflictEventType.PLAN_COMPLETED, actor.getUserId(), Map.of(
                     "planId", planId,
@@ -349,6 +372,25 @@ public class OperationPlanService {
         );
     }
 
+    private boolean isVoided(String planId) {
+        return requirePlan(planId).getStatus() == OperationPlanStatus.VOIDED;
+    }
+
+    private StartExecutionResponse stopBecauseAlreadyVoided(
+            String planId,
+            List<OperationPlanResponse.ExecutionStepLog> log
+    ) {
+        OperationPlan latest = requirePlan(planId);
+        return new StartExecutionResponse(
+                planId,
+                OperationPlanStatus.VOIDED.name(),
+                "Execution stopped; plan voided (no in-place retry)",
+                (int) log.stream().filter(OperationPlanResponse.ExecutionStepLog::success).count(),
+                latest.getVoidReason(),
+                List.copyOf(log)
+        );
+    }
+
     private String resolveTargetHostId(OperationPlanResponse.PlanStep step, String conflictId) {
         Map<String, String> params = step.params() == null ? Map.of() : step.params();
         return switch (step.action()) {
@@ -384,20 +426,6 @@ public class OperationPlanService {
             throw new BusinessException("HOST_OFF_GRAPH",
                     "Execution target is not a graph-resident physical host: " + hostId);
         }
-    }
-
-    private static String buildCommand(OperationPlanResponse.PlanStep step, String hostId) {
-        Map<String, String> params = step.params() == null ? Map.of() : step.params();
-        return switch (step.action()) {
-            case "SSH_PRECHECK" -> "archops-precheck --host " + hostId;
-            case "MIGRATE_CONTAINER" -> "archops-migrate --from " + params.getOrDefault("fromHostId", "")
-                    + " --to " + params.getOrDefault("toHostId", "")
-                    + " --subject " + params.getOrDefault("subjectId", "");
-            case "REFRESH_OBSERVATION" -> "archops-refresh-observation --subject "
-                    + params.getOrDefault("subjectId", "")
-                    + " --host " + hostId;
-            default -> "archops-unknown-action " + step.action();
-        };
     }
 
     private List<OperationPlanResponse.PlanStep> buildFixActualSteps(ConflictCase conflict) {

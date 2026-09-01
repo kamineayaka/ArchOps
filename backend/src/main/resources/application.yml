@@ -37,8 +37,18 @@ archops:
     heartbeat-timeout: ${ARCHOPS_HEARTBEAT_TIMEOUT:5m}
     hollow-scan-interval-ms: ${ARCHOPS_HOLLOW_SCAN_INTERVAL_MS:5000}
   ssh:
-    # fake (default/CI) | mina (production MINA SSHD)
+    # fake (legacy HTTP tests, default/CI) | dispatch (gRPC 代发) | mina (执行引擎 only)
     mode: ${ARCHOPS_SSH_MODE:fake}
+  executor:
+    address: ${ARCHOPS_EXECUTOR_ADDRESS:127.0.0.1:8443}
+    grpc:
+      port: ${ARCHOPS_EXECUTOR_GRPC_PORT:8443}
+    tls:
+      ca-cert: ${ARCHOPS_EXECUTOR_TLS_CA_CERT:}
+      server-cert: ${ARCHOPS_EXECUTOR_TLS_SERVER_CERT:}
+      server-key: ${ARCHOPS_EXECUTOR_TLS_SERVER_KEY:}
+      client-cert: ${ARCHOPS_EXECUTOR_TLS_CLIENT_CERT:}
+      client-key: ${ARCHOPS_EXECUTOR_TLS_CLIENT_KEY:}
   credentials:
     # Base64-encoded AES-128/192/256 key. Required in production; blank uses a local-dev default.
     encryption-key-base64: ${ARCHOPS_CREDENTIALS_ENCRYPTION_KEY_BASE64:}

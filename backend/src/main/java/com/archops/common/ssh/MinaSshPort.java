@@ -10,7 +10,6 @@ import org.apache.sshd.client.session.ClientSession;
 import org.apache.sshd.common.config.keys.FilePasswordProvider;
 import org.apache.sshd.common.util.security.SecurityUtils;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.stereotype.Component;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -22,9 +21,9 @@ import java.util.EnumSet;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Production SSH adapter (Apache MINA SSHD). Credentials loaded encrypted from PG and decrypted in-memory only.
+ * Production SSH adapter (Apache MINA SSHD) on the 执行引擎 only.
+ * Not a control-plane {@code @Component}: {@link com.archops.executor.ExecutorApplication} imports it.
  */
-@Component
 @ConditionalOnProperty(name = "archops.ssh.mode", havingValue = "mina")
 public class MinaSshPort implements ControlledSshPort {
 
