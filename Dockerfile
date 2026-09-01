@@ -33,12 +33,24 @@ RUN set -eux; \
       sed -i 's/^validateDistributionUrl=.*/validateDistributionUrl=false/' gradle/wrapper/gradle-wrapper.properties; \
     fi; \
     chmod +x ./gradlew; \
-    ./gradlew bootJar --no-daemon
+    ./gradlew bootJar executorBootJar --no-daemon; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends openssl; \
+    rm -rf /var/lib/apt/lists/*; \
+    java -jar build/libs/archops-executor.jar --generate-mtls /mtls
 
-# Stage 3: runtime image
+# Stage 3: runtime image (control plane or 执行引擎 via APP_JAR)
 FROM ${DOCKER_HUB_MIRROR}/eclipse-temurin:21-jre-jammy AS runtime
 WORKDIR /app
 ENV JAVA_OPTS=""
-COPY --from=backend-build /backend/build/libs/*.jar /app/archops.jar
-EXPOSE 8080
-ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar /app/archops.jar"]
+ENV APP_JAR=/app/archops.jar
+ENV ARCHOPS_EXECUTOR_TLS_CA_CERT=/mtls/ca.crt
+ENV ARCHOPS_EXECUTOR_TLS_SERVER_CERT=/mtls/server.crt
+ENV ARCHOPS_EXECUTOR_TLS_SERVER_KEY=/mtls/server.key
+ENV ARCHOPS_EXECUTOR_TLS_CLIENT_CERT=/mtls/client.crt
+ENV ARCHOPS_EXECUTOR_TLS_CLIENT_KEY=/mtls/client.key
+COPY --from=backend-build /backend/build/libs/archops.jar /app/archops.jar
+COPY --from=backend-build /backend/build/libs/archops-executor.jar /app/executor.jar
+COPY --from=backend-build /mtls /mtls
+EXPOSE 8080 8443
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar $APP_JAR"]

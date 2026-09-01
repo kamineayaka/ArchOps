@@ -1,17 +1,20 @@
 package com.archops.executor;
 
 import com.archops.executor.grpc.ExecuteStepGrpcService;
-import io.grpc.Grpc;
-import io.grpc.InsecureServerCredentials;
+import com.archops.executor.tls.ExecutorMtls;
 import io.grpc.Server;
+import io.grpc.health.v1.HealthCheckResponse;
+import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder;
+import io.grpc.protobuf.services.HealthStatusManager;
 import jakarta.annotation.PreDestroy;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.nio.file.Path;
 
 /**
- * gRPC listener for ExecuteStep (and later grpc.health.v1).
+ * gRPC listener for ExecuteStep + grpc.health.v1 under mTLS (ADR-0045).
  */
 @Component
 public class ExecutorGrpcServer {
@@ -20,10 +23,18 @@ public class ExecutorGrpcServer {
 
     public ExecutorGrpcServer(
             ExecuteStepGrpcService executeStepGrpcService,
-            @Value("${archops.executor.grpc.port:8443}") int port
+            @Value("${archops.executor.grpc.port:8443}") int port,
+            @Value("${archops.executor.tls.ca-cert}") String caCert,
+            @Value("${archops.executor.tls.server-cert}") String serverCert,
+            @Value("${archops.executor.tls.server-key}") String serverKey
     ) {
-        this.server = Grpc.newServerBuilderForPort(port, InsecureServerCredentials.create())
+        HealthStatusManager health = new HealthStatusManager();
+        health.setStatus("", HealthCheckResponse.ServingStatus.SERVING);
+        health.setStatus("archops.executor.v1.Executor", HealthCheckResponse.ServingStatus.SERVING);
+        this.server = NettyServerBuilder.forPort(port)
+                .sslContext(ExecutorMtls.serverContext(Path.of(serverCert), Path.of(serverKey), Path.of(caCert)))
                 .addService(executeStepGrpcService)
+                .addService(health.getHealthService())
                 .build();
         try {
             this.server.start();

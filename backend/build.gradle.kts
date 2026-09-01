@@ -71,3 +71,20 @@ protobuf {
 tasks.withType<Test> {
     useJUnitPlatform()
 }
+
+tasks.named<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") {
+    archiveFileName.set("archops.jar")
+    mainClass.set("com.archops.ArchOpsApplication")
+}
+
+tasks.register<org.springframework.boot.gradle.tasks.bundling.BootJar>("executorBootJar") {
+    group = "build"
+    description = "Fat jar for the 执行引擎 process"
+    archiveFileName.set("archops-executor.jar")
+    mainClass.set("com.archops.executor.ExecutorApplication")
+    classpath = sourceSets.main.get().runtimeClasspath
+}
+
+tasks.named("assemble") {
+    dependsOn("executorBootJar")
+}
