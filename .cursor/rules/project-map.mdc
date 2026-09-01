@@ -6,7 +6,7 @@ alwaysApply: true
 # ArchOps 项目地图
 
 运维关系真相控制平面。  
-**Agent 入口**：根目录 `AGENTS.md`（及 `CLAUDE.md`）。领域：`CONTEXT.md` / ADR-0039。技术栈：ADR-0043。进程切分：ADR-0044。
+**Agent 入口**：根目录 `AGENTS.md`（及 `CLAUDE.md`）。领域：`CONTEXT.md` / ADR-0039。技术栈：ADR-0043。进程切分：ADR-0044。内部代发：ADR-0045。
 
 ## 技术栈（ADR-0043）
 
@@ -15,7 +15,7 @@ alwaysApply: true
 | `backend/` | Java 21、Spring Boot 3、Gradle、MyBatis-Plus、Flyway、PostgreSQL、Redis |
 | `frontend/` | React + TypeScript + Ant Design（嵌入 `archops:latest`） |
 | `agent/` | Python 3.12+；systemd 交付 |
-| `deploy/` | `archops:latest` + 执行引擎 + AI 编排层 + postgres + redis（ADR-0044；编排层/执行引擎进程待拆） |
+| `deploy/` | `archops:latest` + 执行引擎 + AI 编排层 + postgres + redis（ADR-0044；本刀只加执行引擎，编排层另开） |
 | `docs/` | 合同、ADR、Spec、prompts、`docs/agents/`（Matt tracker + TDD overlay） |
 | `.cursor/skills/` | Cloud Agent 技能（Matt 工程链 + ArchOps `add-*`） |
 | `.scratch/vertical-slice-mvp/issues/` | 竖切工单（01–13 已闭合） |
@@ -24,7 +24,9 @@ alwaysApply: true
 | `docs/specs/unbound-identity-rebind.md` | 未绑定 / 身份失联重绑 Spec（**01–09 已闭合**） |
 | `.scratch/unbound-identity-rebind/issues/` | 未绑定工单（**01–09 已闭合**；审计报告同目录） |
 | `docs/specs/conflict-upgrade-void-plans.md` | 冲突升级作废活跃计划 Spec（审计 A1；**01 TDD-done，本刀闭合**） |
-| `.scratch/conflict-upgrade-void-plans/issues/` | 工单 01 **done**（不要自动做 ADR-0044；不要发明未绑定 10） |
+| `.scratch/conflict-upgrade-void-plans/issues/` | 工单 01 **done** |
+| `docs/specs/control-plane-executor.md` | 控制面执行引擎 Spec（审计 B 第一刀；ADR-0045） |
+| `.scratch/control-plane-executor/issues/` | **frontier = 01**（不要写入 unbound / A1 目录） |
 
 ## 模块边界
 

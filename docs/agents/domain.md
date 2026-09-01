@@ -9,7 +9,7 @@ This is a **single-context** repo. `CONTEXT.md` and the domain contract (**ADR-0
 - Use glossary terms exactly; do not invent synonyms.
 - `/domain-modeling` and `/grill-with-docs` **must not** silently rewrite `CONTEXT.md` or existing ADRs.
 - New terms or contract changes require a **new ADR** first (`AGENTS.md`). Implementation must not change semantics in code.
-- Technical stack is **ADR-0043** (Gradle / MyBatis-Plus / React+Ant / PG+Redis). Process split is **ADR-0044** (control-plane hub, executor, AI orchestrator). Skills must not introduce Maven, JPA-as-base, Vue, Neo4j-required-in-v1, or LangChain.
+- Technical stack is **ADR-0043** (Gradle / MyBatis-Plus / React+Ant / PG+Redis). Process split is **ADR-0044** (control-plane hub, executor, AI orchestrator). Control-plane → executor transport is **ADR-0045** (gRPC). Skills must not introduce Maven, JPA-as-base, Vue, Neo4j-required-in-v1, or LangChain.
 
 ## Before exploring, read these
 

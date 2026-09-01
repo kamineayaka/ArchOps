@@ -1,21 +1,22 @@
 # 新对话接手指南
 
-领域合同（ADR-0039）与技术栈（ADR-0043）已冻结；运行时拓扑 **ADR-0044**（控制面枢纽 / 执行引擎 / AI 编排层）。  
+领域合同（ADR-0039）与技术栈（ADR-0043）已冻结；运行时拓扑 **ADR-0044**（控制面枢纽 / 执行引擎 / AI 编排层）；控制面→执行引擎运输 **ADR-0045**（gRPC）。  
 **Cloud / 任意 Agent 必读根目录 [`AGENTS.md`](../AGENTS.md)**（及 [`CLAUDE.md`](../CLAUDE.md)）。  
 **脚手架已按 ADR-0043 重建**：`backend/`、`frontend/`、`agent/`、`deploy/`、根 `Dockerfile` 为可启动最小骨架；竖切按工单推进。
 
 ## 必读
 
 1. `CONTEXT.md`
-2. `docs/adr/0039` … `0044`（栈 **0043**，进程切分 **0044**）
+2. `docs/adr/0039` … `0045`（栈 **0043**，进程切分 **0044**，控制面→执行引擎运输 **0045**）
 3. `docs/mvp-vertical-slice.md`（竖切范围对照）
 4. `docs/specs/vertical-slice-mvp.md`（竖切 Spec；01–13 已闭合）
 5. `docs/specs/change-curated-draft.md`（改策展/草案逐条确认 Spec；**已闭合**）
 6. `docs/specs/unbound-identity-rebind.md`（未绑定 / 身份失联重绑 Spec；**01–09 已闭合**）
 7. `docs/specs/conflict-upgrade-void-plans.md`（冲突升级作废活跃计划；审计 A1；**01 TDD-done，本刀闭合**）
-8. `docs/agents/tdd.md`（`/implement` 的 TDD overlay：red → green → refactor）
-9. `docs/scaffold-bootstrap-prompt.md`（脚手架专用；已完成后可作审计对照）
-10. `.cursor/rules/project-map.mdc`
+8. `docs/specs/control-plane-executor.md`（控制面执行引擎；审计 B 第一刀；**frontier = 01**）
+9. `docs/agents/tdd.md`（`/implement` 的 TDD overlay：red → green → refactor）
+10. `docs/scaffold-bootstrap-prompt.md`（脚手架专用；已完成后可作审计对照）
+11. `.cursor/rules/project-map.mdc`
 
 ## 当前状态
 
@@ -46,7 +47,8 @@
 | 未绑定 / 身份失联工单 | **01–09 已闭合**（07 = 薄 UI；09 = 失联叠加心跳超时的问法） → [`.scratch/unbound-identity-rebind/issues/`](../.scratch/unbound-identity-rebind/issues/)（不要写进 `change-curated-draft`；不要发明未绑定 10） |
 | 未绑定 01–03 合同审计 | **已出报告** → [`.scratch/unbound-identity-rebind/audit-01-03-opus.md`](../.scratch/unbound-identity-rebind/audit-01-03-opus.md)（三轴 + 探针表；票 08 已处置 C-4 / C-2 / S-3，票 04 已处置 C-3 / S-4 / S-2，票 09 已处置 C-1） |
 | 代码 vs ADR-0044 只读审计 | **已出报告** → [`.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md`](../.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md)（A2 = 票 05；A3 = 票 09 已闭合；**A1 = conflict-upgrade-void-plans 01 TDD-done**；B1–B5 为 0044 过渡债，另开） |
-| 冲突升级作废活跃计划 | **01 TDD-done / 本刀闭合** → [`docs/specs/conflict-upgrade-void-plans.md`](specs/conflict-upgrade-void-plans.md) / [`.scratch/conflict-upgrade-void-plans/issues/`](../.scratch/conflict-upgrade-void-plans/issues/)（审计 A1；不要写入未绑定目录；不要自动做 ADR-0044） |
+| 冲突升级作废活跃计划 | **01 TDD-done / 本刀闭合** → [`docs/specs/conflict-upgrade-void-plans.md`](specs/conflict-upgrade-void-plans.md) / [`.scratch/conflict-upgrade-void-plans/issues/`](../.scratch/conflict-upgrade-void-plans/issues/)（审计 A1；不要写入未绑定目录） |
+| 控制面执行引擎（0044 B 第一刀） | **已拆票；frontier = 01** → [`docs/specs/control-plane-executor.md`](specs/control-plane-executor.md) / [`.scratch/control-plane-executor/issues/01-executor-single-step-dispatch.md`](../.scratch/control-plane-executor/issues/01-executor-single-step-dispatch.md)（ADR-0045。不要写入 unbound / A1 目录；不要做编排层 / B-live / 工作台） |
 | Matt 工作流 skills / tracker | **已入库**（`.cursor/skills/` + `.agents/skills/` + `docs/agents/`；TDD overlay [`docs/agents/tdd.md`](agents/tdd.md)；Cloud 不依赖本机 `~/.agents`） |
 | 国内镜像默认 | **已合并**（PR #53：Gradle 腾讯云 / Maven 阿里云 / npm npmmirror / Docker DaoCloud） |
 | kamiserver 人工验收 | **通过**（2026-08：Compose postgres+redis healthy 且宿主机端口已映射 → `./gradlew bootRun` → `GET /api/health`；竖切演示闭环已在该 VM 走通） |
@@ -82,7 +84,10 @@
 27. ~~`/implement` `/tdd` 未绑定票 09~~：已完成（失联叠加心跳超时时问法仍须说出观测空洞；`availability=HOLLOW` + `identityLost=true`；审计 C-1 / 0044 审计 A3；witnessed red → green → refactor；`IdentityLostHeartbeatTimeoutAskHttpAcceptanceTest`）。本刀问法读模型闭合。不要发明未绑定 10。  
 28. ~~人排期开 A1~~：用户 2026-08-27 明示。已发布 Spec + 票 01 → [`docs/specs/conflict-upgrade-void-plans.md`](specs/conflict-upgrade-void-plans.md) / [`.scratch/conflict-upgrade-void-plans/issues/01-upgrade-voids-active-plans.md`](../.scratch/conflict-upgrade-void-plans/issues/01-upgrade-voids-active-plans.md)。  
 29. ~~`/implement` `/tdd` 冲突升级作废计划票 01~~：已完成（审计 A1；`upgradeOpen` / `reopenFromPendingClose` 复用 `voidActivePlans`，`voidReason=conflict_upgrade`；witnessed red → green → refactor；`ConflictUpgradeVoidsActivePlanHttpAcceptanceTest`）。**本刀闭合。**  
-30. **下一对话：`/grill-with-docs` 定 ADR-0044 工单包切面**（执行引擎 / 单步代发 / 步骤断言 / B-live / 编排层）。开场 prompt：[`docs/grill-adr-0044-slice-prompt.md`](grill-adr-0044-slice-prompt.md)。不要自动 `/implement`。不要发明未绑定 10。不要把 WebClient 加回控制面。不要把 B6 工作台当第一刀。  
+30. ~~`/grill-with-docs` 定 ADR-0044 工单包切面~~：已定为 **执行引擎成真 + 单步 gRPC 代发 + MINA/凭证迁出**（B；slug `control-plane-executor`；ADR-0045）。  
+31. ~~`/to-spec`~~：已发布 [`docs/specs/control-plane-executor.md`](specs/control-plane-executor.md) + [`docs/adr/0045-control-plane-executor-grpc.md`](adr/0045-control-plane-executor-grpc.md)。  
+32. ~~`/to-tickets`~~：已发布票 01 → [`.scratch/control-plane-executor/issues/01-executor-single-step-dispatch.md`](../.scratch/control-plane-executor/issues/01-executor-single-step-dispatch.md)。  
+33. **下一对话：`/implement` `/tdd` 控制面执行引擎票 01**（frontier）。开场 prompt：[`docs/implement-control-plane-executor-01-prompt.md`](implement-control-plane-executor-01-prompt.md)。不要发明未绑定 10。不要把 WebClient 加回控制面。不要把编排层 / B-live / B6 工作台写入本票。  
 
 ### 工单阻塞简图
 
@@ -124,6 +129,12 @@
 01 upgradeOpen / reopenFromPendingClose 作废活跃操作计划（TDD-done）
 ```
 
+控制面执行引擎（审计 B 第一刀；**frontier = 01**）：
+
+```
+01 执行引擎成真：单步 gRPC 代发 + MINA/凭证迁出（ready-for-agent）
+```
+
 （一次只做一张。）
 
 ## 本地启动摘要
@@ -132,4 +143,4 @@
 
 ## 栈摘要
 
-见 ADR-0043 + **ADR-0044**：Gradle / MyBatis-Plus / React+Ant / PG+Redis 多副本 / Python systemd Host Agent / 控制面 `archops:latest` + 执行引擎 + AI 编排层。MINA SSHD 目前仍在控制面（票 08，默认 `archops.ssh.mode=fake`），须迁执行引擎。控制面进程内 WebClient 出站已按 ADR-0044 删除。
+见 ADR-0043 + **ADR-0044** + **ADR-0045**：Gradle / MyBatis-Plus / React+Ant / PG+Redis 多副本 / Python systemd Host Agent / 控制面 `archops:latest` + 执行引擎 + AI 编排层。MINA SSHD 目前仍在控制面（票 08，默认 `archops.ssh.mode=fake`），本刀须迁执行引擎；单步代发为 gRPC。控制面进程内 WebClient 出站已按 ADR-0044 删除。
