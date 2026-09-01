@@ -15,7 +15,7 @@
 - [ ] Compose（或同形测试夹具）起执行引擎；`grpc.health.v1` 在自签客户端证书下为 SERVING
 - [x] 已接受处理人 `POST .../start-execution`：逐步 gRPC 代发；引擎侧 fake 记录 seq/action/`targetHostId`；计划可 `COMPLETED`；**控制面生产 MINA 未执行**
 - [ ] 主机凭证由引擎解密；代发包无明文秘密；控制面代发路径不解密
-- [ ] 多步执行中心跳超时 → 观测空洞作废计划：不再下发下一步；GET 计划 `VOIDED`（既有 hollow `voidReason`）；对该 id `start-execution` → `PLAN_VOIDED`
+- [x] 多步执行中心跳超时 → 观测空洞作废计划：不再下发下一步；GET 计划 `VOIDED`（既有 hollow `voidReason`）；对该 id `start-execution` → `PLAN_VOIDED`
 - [ ] 在途步脚本化成功返回时若计划已 `VOIDED`：丢弃成功，计划保持 `VOIDED`（不 `COMPLETED`）
 - [ ] 无/错客户端证书调引擎 gRPC → 拒绝；引擎 down / 非 SERVING → `start-execution` 失败且不回退控制面生产 SSH
 - [ ] 不回归：既有规则诊断 → 选支 → 人审 HTTP；竖切可用控制面 `archops.ssh.mode=fake` **不经引擎**；失败即停作废、禁止改步重试；Host Agent 仍 POST `/api/agent/heartbeat` 直连控制面
@@ -66,3 +66,7 @@ BUILD FAILED
 ```
 
 空洞作废发生在第 1 步 in-flight 时仍下发后续步（引擎 fake 记录 >1）。
+
+### Cycle 2 green + refactor (2026-09-01)
+
+Same test command: BUILD SUCCESSFUL. 步间 / RPC 返回后重读 `VOIDED`，停发下一步；COMPLETED 只 CAS `EXECUTING`。Refactor：`isVoided` / `stopBecauseAlreadyVoided`。

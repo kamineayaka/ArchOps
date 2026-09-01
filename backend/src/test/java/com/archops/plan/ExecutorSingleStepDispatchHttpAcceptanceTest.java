@@ -115,40 +115,8 @@ class ExecutorSingleStepDispatchHttpAcceptanceTest {
         String conflictId = openConflictAndClaim("e01b-a", "e01b-b", objectId);
         String planId = selectAndApprove(conflictId);
 
-        CountDownLatch entered = new CountDownLatch(1);
-        CountDownLatch release = new CountDownLatch(1);
-        engine.fakeSsh().armBlock(entered, release);
-
-        ExecutorService pool = Executors.newSingleThreadExecutor();
-        try {
-            Future<String> executionStatus = pool.submit(() -> {
-                MvcResult result = mockMvc.perform(post("/api/operation-plans/{id}/start-execution", planId)
-                                .header(TempAuthHeaders.USER_ID, GENERAL_ID)
-                                .accept(MediaType.APPLICATION_JSON))
-                        .andReturn();
-                return objectMapper.readTree(result.getResponse().getContentAsString())
-                        .path("data").path("status").asText();
-            });
-
-            assertThat(entered.await(10, TimeUnit.SECONDS)).isTrue();
-
-            hostAgentMapper.update(null, new LambdaUpdateWrapper<HostAgent>()
-                    .eq(HostAgent::getAgentId, "agent-" + objectId)
-                    .set(HostAgent::getLastHeartbeatAt, Instant.now().minus(2, ChronoUnit.MINUTES)));
-
-            mockMvc.perform(post("/api/observed/scan-heartbeat-timeouts")
-                            .header(TempAuthHeaders.USER_ID, GENERAL_ID)
-                            .accept(MediaType.APPLICATION_JSON))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.data.voidedPlanIds", hasItem(planId)));
-
-            engine.fakeSsh().releaseBlock();
-            assertThat(executionStatus.get(30, TimeUnit.SECONDS)).isEqualTo("VOIDED");
-        } finally {
-            engine.fakeSsh().releaseBlock();
-            pool.shutdownNow();
-        }
-
+        JsonNode body = startExecutionThenHollowWhileFirstStepBlocked(objectId, planId);
+        assertThat(body.path("status").asText()).isEqualTo("VOIDED");
         assertThat(engine.recordedCalls()).hasSize(1);
         assertThat(engine.recordedCalls().getFirst().action()).isEqualTo("SSH_PRECHECK");
 
@@ -164,6 +132,62 @@ class ExecutorSingleStepDispatchHttpAcceptanceTest {
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code", is("PLAN_VOIDED")));
+    }
+
+    @Test
+    void inFlightEngineSuccessAfterHollowIsDiscardedAndPlanStaysVoided() throws Exception {
+        String objectId = "ctr-e01c";
+        String conflictId = openConflictAndClaim("e01c-a", "e01c-b", objectId);
+        String planId = selectAndApprove(conflictId);
+
+        JsonNode body = startExecutionThenHollowWhileFirstStepBlocked(objectId, planId);
+        assertThat(body.path("status").asText()).isEqualTo("VOIDED");
+        assertThat(body.path("status").asText()).isNotEqualTo("COMPLETED");
+        assertThat(body.path("completedSteps").asInt()).isEqualTo(0);
+        assertThat(engine.recordedCalls()).hasSize(1);
+        assertThat(engine.recordedCalls().getFirst().success()).isTrue();
+
+        mockMvc.perform(get("/api/operation-plans/{id}", planId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("VOIDED")))
+                .andExpect(jsonPath("$.data.voidReason", is("observation_hollow_heartbeat_timeout")));
+    }
+
+    private JsonNode startExecutionThenHollowWhileFirstStepBlocked(String objectId, String planId) throws Exception {
+        CountDownLatch entered = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        engine.fakeSsh().armBlock(entered, release);
+
+        ExecutorService pool = Executors.newSingleThreadExecutor();
+        try {
+            Future<JsonNode> execution = pool.submit(() -> {
+                MvcResult result = mockMvc.perform(post("/api/operation-plans/{id}/start-execution", planId)
+                                .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                                .accept(MediaType.APPLICATION_JSON))
+                        .andReturn();
+                return objectMapper.readTree(result.getResponse().getContentAsString()).path("data");
+            });
+
+            assertThat(entered.await(10, TimeUnit.SECONDS)).isTrue();
+
+            hostAgentMapper.update(null, new LambdaUpdateWrapper<HostAgent>()
+                    .eq(HostAgent::getAgentId, "agent-" + objectId)
+                    .set(HostAgent::getLastHeartbeatAt, Instant.now().minus(2, ChronoUnit.MINUTES)));
+
+            mockMvc.perform(post("/api/observed/scan-heartbeat-timeouts")
+                            .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                            .accept(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.voidedPlanIds", hasItem(planId)));
+
+            engine.fakeSsh().releaseBlock();
+            return execution.get(30, TimeUnit.SECONDS);
+        } finally {
+            engine.fakeSsh().releaseBlock();
+            pool.shutdownNow();
+        }
     }
 
     private String selectAndApprove(String conflictId) throws Exception {
