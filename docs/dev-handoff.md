@@ -48,7 +48,8 @@
 | 未绑定 01–03 合同审计 | **已出报告** → [`.scratch/unbound-identity-rebind/audit-01-03-opus.md`](../.scratch/unbound-identity-rebind/audit-01-03-opus.md)（三轴 + 探针表；票 08 已处置 C-4 / C-2 / S-3，票 04 已处置 C-3 / S-4 / S-2，票 09 已处置 C-1） |
 | 代码 vs ADR-0044 只读审计 | **已出报告** → [`.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md`](../.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md)（A2 = 票 05；A3 = 票 09 已闭合；**A1 = conflict-upgrade-void-plans 01 TDD-done**；**B1–B3 = control-plane-executor 01 TDD-done**；B4/B5/B6 另开） |
 | 冲突升级作废活跃计划 | **01 TDD-done / 本刀闭合** → [`docs/specs/conflict-upgrade-void-plans.md`](specs/conflict-upgrade-void-plans.md) / [`.scratch/conflict-upgrade-void-plans/issues/`](../.scratch/conflict-upgrade-void-plans/issues/)（审计 A1；不要写入未绑定目录） |
-| 控制面执行引擎（0044 B 第一刀） | **01 TDD-done / 本刀闭合** → [`docs/specs/control-plane-executor.md`](specs/control-plane-executor.md) / [`.scratch/control-plane-executor/issues/01-executor-single-step-dispatch.md`](../.scratch/control-plane-executor/issues/01-executor-single-step-dispatch.md)（ADR-0045。不要写入 unbound / A1 目录；不要自动做编排层 / B-live / 工作台） |
+| 控制面执行引擎（0044 B 第一刀） | **01 TDD-done / 本刀闭合** → [`docs/specs/control-plane-executor.md`](specs/control-plane-executor.md) / [`.scratch/control-plane-executor/issues/01-executor-single-step-dispatch.md`](../.scratch/control-plane-executor/issues/01-executor-single-step-dispatch.md)（ADR-0045。不要写入 unbound / A1 目录） |
+| 步骤断言（下一刀 grilling） | 开场 prompt → [`docs/grill-step-assertion-prompt.md`](grill-step-assertion-prompt.md)（新 slug；不要写成执行引擎票 02） |
 | Matt 工作流 skills / tracker | **已入库**（`.cursor/skills/` + `.agents/skills/` + `docs/agents/`；TDD overlay [`docs/agents/tdd.md`](agents/tdd.md)；Cloud 不依赖本机 `~/.agents`） |
 | 国内镜像默认 | **已合并**（PR #53：Gradle 腾讯云 / Maven 阿里云 / npm npmmirror / Docker DaoCloud） |
 | kamiserver 人工验收 | **通过**（2026-08：Compose postgres+redis healthy 且宿主机端口已映射 → `./gradlew bootRun` → `GET /api/health`；竖切演示闭环已在该 VM 走通） |
@@ -88,7 +89,7 @@
 31. ~~`/to-spec`~~：已发布 [`docs/specs/control-plane-executor.md`](specs/control-plane-executor.md) + [`docs/adr/0045-control-plane-executor-grpc.md`](adr/0045-control-plane-executor-grpc.md)。  
 32. ~~`/to-tickets`~~：已发布票 01 → [`.scratch/control-plane-executor/issues/01-executor-single-step-dispatch.md`](../.scratch/control-plane-executor/issues/01-executor-single-step-dispatch.md)。  
 33. ~~`/implement` `/tdd` 控制面执行引擎票 01~~：已完成（单步 gRPC 代发；空洞停发/丢弃在途成功；`grpc.health.v1` SERVING；mTLS；凭证由引擎解密；MINA 仅执行引擎 `@Import`）。witnessed red → green → refactor；`ExecutorSingleStepDispatchHttpAcceptanceTest` / `ExecutorGrpcHealthAcceptanceTest` / `ExecutorDownHttpAcceptanceTest`。**本刀闭合。**  
-34. **下一对话：不要自动做 B-live / 编排层 / 工作台三档 / 步骤断言 schema**。不要发明未绑定 10。人排期后再 `/implement`。  
+34. **下一对话：`/grill-with-docs` 定步骤断言切面**（审计 B3 剩余；人已排期主题）。开场 prompt：[`docs/grill-step-assertion-prompt.md`](grill-step-assertion-prompt.md)。不要 `/implement`。不要发明未绑定 10。不要自动做编排层 / B-live / 工作台。不要往 `control-plane-executor` 加票 02。  
 
 ### 工单阻塞简图
 
