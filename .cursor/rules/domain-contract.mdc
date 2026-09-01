@@ -22,6 +22,6 @@ alwaysApply: true
 
 ## 工作方式
 
-- 一次一张 frontier 票（竖切 / 改策展 / 未绑定 / A1 / 控制面执行引擎 01 均已闭合）。代码 vs ADR-0044 审计：A1/A2/A3 已闭合；B1–B3 = 执行引擎第一刀已落地；B4/B5/B6 不要自动做。不要发明未绑定 10。
+- 一次一张 frontier 票（竖切 / 改策展 / 未绑定 / A1 / 控制面执行引擎 01 均已闭合）。代码 vs ADR-0044 审计：A1/A2/A3 已闭合；B1/B2 + 单步代发已落地；**B3 剩余 = 步骤断言 / 逐步事件**（下一刀 grilling：`docs/grill-step-assertion-prompt.md`）；B4/B5/B6 不要自动做。不要发明未绑定 10。不要往 `control-plane-executor` 加票 02。
 - `/implement` 走 **red → green → refactor**（`docs/agents/tdd.md`）
 - 不复活旧域包；不扩票外范围（自我迭代、可达矩阵、完整 xterm 等）
