@@ -203,6 +203,8 @@ public class OperationPlanService {
                     "Cannot start execution before human approval (no execution intent yet)");
         }
 
+        executorDispatchPort.ensureReady();
+
         if (!planExecutionLock.tryLock(planId, EXEC_LOCK_TTL)) {
             throw new BusinessException("PLAN_EXECUTION_LOCKED",
                     "Another replica (or worker) holds the execution lock for this plan");

@@ -8,6 +8,9 @@ import com.archops.executor.v1.ExecuteStepResponse;
 import com.archops.executor.v1.ExecutorGrpc;
 import io.grpc.ManagedChannel;
 import io.grpc.StatusRuntimeException;
+import io.grpc.health.v1.HealthCheckRequest;
+import io.grpc.health.v1.HealthCheckResponse;
+import io.grpc.health.v1.HealthGrpc;
 import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder;
 import jakarta.annotation.PreDestroy;
 import org.springframework.beans.factory.annotation.Value;
@@ -38,6 +41,22 @@ public class GrpcExecutorDispatchClient implements ExecutorDispatchPort {
                 .sslContext(ExecutorMtls.clientContext(Path.of(clientCert), Path.of(clientKey), Path.of(caCert)))
                 .build();
         this.stub = ExecutorGrpc.newBlockingStub(channel);
+    }
+
+    @Override
+    public void ensureReady() {
+        try {
+            HealthCheckResponse response = HealthGrpc.newBlockingStub(channel)
+                    .withDeadlineAfter(3, TimeUnit.SECONDS)
+                    .check(HealthCheckRequest.getDefaultInstance());
+            if (response.getStatus() != HealthCheckResponse.ServingStatus.SERVING) {
+                throw new BusinessException("EXECUTOR_UNAVAILABLE",
+                        "执行引擎 health is " + response.getStatus() + ", not SERVING");
+            }
+        } catch (StatusRuntimeException ex) {
+            throw new BusinessException("EXECUTOR_UNAVAILABLE",
+                    "执行引擎 is not SERVING: " + ex.getStatus());
+        }
     }
 
     @Override

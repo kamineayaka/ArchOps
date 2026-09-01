@@ -6,4 +6,8 @@ package com.archops.plan.dispatch;
 public interface ExecutorDispatchPort {
 
     ExecuteStepResult executeStep(ExecuteStepCommand command);
+
+    default void ensureReady() {
+        // Local fake is always ready.
+    }
 }

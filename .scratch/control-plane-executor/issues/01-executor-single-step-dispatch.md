@@ -17,7 +17,7 @@
 - [ ] 主机凭证由引擎解密；代发包无明文秘密；控制面代发路径不解密
 - [x] 多步执行中心跳超时 → 观测空洞作废计划：不再下发下一步；GET 计划 `VOIDED`（既有 hollow `voidReason`）；对该 id `start-execution` → `PLAN_VOIDED`
 - [x] 在途步脚本化成功返回时若计划已 `VOIDED`：丢弃成功，计划保持 `VOIDED`（不 `COMPLETED`）
-- [x] 无/错客户端证书调引擎 gRPC → 拒绝；引擎 down / 非 SERVING → `start-execution` 失败且不回退控制面生产 SSH
+- [ ] 无/错客户端证书调引擎 gRPC → 拒绝；引擎 down / 非 SERVING → `start-execution` 失败且不回退控制面生产 SSH
 - [ ] 不回归：既有规则诊断 → 选支 → 人审 HTTP；竖切可用控制面 `archops.ssh.mode=fake` **不经引擎**；失败即停作废、禁止改步重试；Host Agent 仍 POST `/api/agent/heartbeat` 直连控制面
 - [ ] 不改 `CONTEXT.md` / ADR-0039 / 0043 / **0044 正文**；不把整份计划交给引擎；引擎不读操作计划表、不写策展/观测/冲突；无编排层进程；无薄 UI
 
@@ -99,3 +99,12 @@ BUILD FAILED
 ### Cycle 4 green + refactor (2026-09-01)
 
 Same test command: BUILD SUCCESSFUL. 引擎 gRPC 要求客户端证书；health 为 SERVING。Compose 增加 executor 服务与 health probe。Refactor：`ExecutorEngineHandle.controlPlaneChannel()`。
+
+### Cycle 5 reuse (2026-09-01)
+
+```text
+cd backend && ./gradlew test --tests com.archops.executor.ExecutorGrpcHealthAcceptanceTest.healthCheckWithoutClientCertificateIsRejected
+cd backend && ./gradlew test --tests com.archops.executor.ExecutorGrpcHealthAcceptanceTest.healthCheckWithWrongClientCertificateIsRejected
+```
+
+First-run BUILD SUCCESSFUL（reuse of `ClientAuth.REQUIRE` from cycle 4）。无证书 / 非 CA 客户端证书均 `StatusRuntimeException`。显式负面断言保留。
