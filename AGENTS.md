@@ -12,8 +12,8 @@
 6. `docs/specs/change-curated-draft.md` — 改策展/草案逐条确认 Spec（**01–06 TDD-done，本刀闭合**）
 7. `docs/specs/unbound-identity-rebind.md` — 未绑定 / 身份失联重绑 Spec（**01–09 已闭合**）
 8. `docs/specs/conflict-upgrade-void-plans.md` — 冲突升级作废活跃计划（审计 A1；**01 TDD-done，本刀闭合**）
-9. `docs/specs/control-plane-executor.md` — 控制面执行引擎（B 第一刀；**Spec 已发布，工单待 /to-tickets**）
-10. 当前工单：见 `docs/dev-handoff.md`。未绑定 01–09 / 竖切 / 改策展 / A1 均已闭合。不要发明未绑定 10。不要做 B-live / 编排层 / 工作台三档。不要 `/implement` 直到本刀票 01 写入 tracker。
+9. `docs/specs/control-plane-executor.md` — 控制面执行引擎（B 第一刀；**frontier = 01**）
+10. 当前工单：见 `docs/dev-handoff.md`。**frontier = `.scratch/control-plane-executor/issues/01-executor-single-step-dispatch.md`**。未绑定 01–09 / 竖切 / 改策展 / A1 均已闭合。不要发明未绑定 10。不要做 B-live / 编排层 / 工作台三档。
 11. `docs/dev-handoff.md` — 进度与下一票
 12. `docs/agents/tdd.md` — ArchOps TDD overlay（`/implement` 必读）
 13. `.cursor/rules/project-map.mdc`、`backend-java.mdc`、`frontend-react.mdc`
@@ -109,7 +109,7 @@ Single-context: frozen `CONTEXT.md` + `docs/adr/` (ADR-0039 / ADR-0043 / ADR-004
 - 改策展 Spec：`docs/specs/change-curated-draft.md`（已发布）；工单 `.scratch/change-curated-draft/issues/`（01–06 已拆）。**01–06 TDD-done。本刀闭合。**
 - 未绑定 Spec：[`docs/specs/unbound-identity-rebind.md`](docs/specs/unbound-identity-rebind.md)；工单 `.scratch/unbound-identity-rebind/issues/`（01–07 已拆，审计后补 08 / 09）。**01–09 已闭合**。不要发明未绑定 10。
 - 冲突升级作废活跃计划：[`docs/specs/conflict-upgrade-void-plans.md`](docs/specs/conflict-upgrade-void-plans.md) / [`.scratch/conflict-upgrade-void-plans/issues/01-upgrade-voids-active-plans.md`](.scratch/conflict-upgrade-void-plans/issues/01-upgrade-voids-active-plans.md)（审计 A1；**01 TDD-done，本刀闭合**）。
-- **现行 frontier Spec**：[`docs/specs/control-plane-executor.md`](docs/specs/control-plane-executor.md)（审计 B 第一刀：执行引擎 + 单步 gRPC 代发 + MINA/凭证迁出）。ADR-0045 冻运输。工单尚未写入 `.scratch/control-plane-executor/issues/`（先 `/to-tickets`）。不要发明未绑定 10。不要把 B-live / 编排层 / 工作台三档写入本刀。
+- **现行 frontier**：[`docs/specs/control-plane-executor.md`](docs/specs/control-plane-executor.md) / [`.scratch/control-plane-executor/issues/01-executor-single-step-dispatch.md`](.scratch/control-plane-executor/issues/01-executor-single-step-dispatch.md)（审计 B 第一刀）。ADR-0045 冻运输。开场 prompt：[`docs/implement-control-plane-executor-01-prompt.md`](docs/implement-control-plane-executor-01-prompt.md)。不要发明未绑定 10。不要把 B-live / 编排层 / 工作台三档写入本刀。
 - 01–03 合同审计：[`.scratch/unbound-identity-rebind/audit-01-03-opus.md`](.scratch/unbound-identity-rebind/audit-01-03-opus.md)。票 08 已处置 C-4 / C-2 / S-3；票 04 已处置 C-3 / S-4 / S-2；票 09 已处置 C-1。
 - 代码 vs ADR-0044 只读审计：[`.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md`](.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md)。A1/A2/A3 已闭合；**B1–B3 本刀**；B4/B5/B6 另开。
 - `/implement` 必须走 TDD overlay：[`docs/agents/tdd.md`](docs/agents/tdd.md)
@@ -118,6 +118,6 @@ Single-context: frozen `CONTEXT.md` + `docs/adr/` (ADR-0039 / ADR-0043 / ADR-004
 
 ## 7. 云端提示词建议（用户可贴）
 
-未绑定 **01–09 已闭合**。冲突升级作废活跃计划 **01 TDD-done / 本刀闭合**（审计 A1）。**现行 Spec** = [`docs/specs/control-plane-executor.md`](docs/specs/control-plane-executor.md)（工单待 `/to-tickets`）。不要发明未绑定 10。不要加改策展 07。不要把 WebClient 加回控制面。不要做编排层 / B-live / 工作台三档。
+未绑定 **01–09 已闭合**。冲突升级作废活跃计划 **01 TDD-done / 本刀闭合**（审计 A1）。**现行 frontier** = 控制面执行引擎票 01。不要发明未绑定 10。不要加改策展 07。不要把 WebClient 加回控制面。不要做编排层 / B-live / 工作台三档。
 
-> 读 AGENTS.md、CONTEXT.md、ADR-0044 / 0045 与 `docs/specs/control-plane-executor.md`。下一拍 `/to-tickets`。不要 `/implement` 直到票 01 在 `.scratch/control-plane-executor/issues/`。不要复活 Vue/JPA/Neo4j/Maven/LangChain。不要把 LLM 加回控制面。
+> 读 AGENTS.md、CONTEXT.md、ADR-0044 / 0045 与 `docs/specs/control-plane-executor.md`。只做 `.scratch/control-plane-executor/issues/01-executor-single-step-dispatch.md`。开场 prompt：`docs/implement-control-plane-executor-01-prompt.md`。不要复活 Vue/JPA/Neo4j/Maven/LangChain。不要把 LLM 加回控制面。

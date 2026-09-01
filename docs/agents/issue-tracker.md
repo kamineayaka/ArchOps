@@ -19,7 +19,7 @@ Already published:
 | change-curated-draft | `docs/specs/change-curated-draft.md` | `.scratch/change-curated-draft/issues/`（**01–06 TDD-done**；本刀闭合） |
 | unbound-identity-rebind | `docs/specs/unbound-identity-rebind.md` | `.scratch/unbound-identity-rebind/issues/`（01–07 已拆，审计后补 08 / 09；**01–09 已闭合**） |
 | conflict-upgrade-void-plans | `docs/specs/conflict-upgrade-void-plans.md` | `.scratch/conflict-upgrade-void-plans/issues/`（**01 TDD-done，本刀闭合**；审计 A1） |
-| control-plane-executor | `docs/specs/control-plane-executor.md` | `.scratch/control-plane-executor/`（**Spec 已发布**；工单待 `/to-tickets`。审计 B 第一刀。不要写入 unbound / A1 目录） |
+| control-plane-executor | `docs/specs/control-plane-executor.md` | `.scratch/control-plane-executor/issues/`（**frontier = 01**；审计 B 第一刀。不要写入 unbound / A1 目录） |
 
 ## When a skill says "publish to the issue tracker"
 
