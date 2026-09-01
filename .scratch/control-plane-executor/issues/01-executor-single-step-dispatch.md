@@ -26,3 +26,24 @@
 ## Comments
 
 开场 prompt：[`docs/implement-control-plane-executor-01-prompt.md`](../../../docs/implement-control-plane-executor-01-prompt.md)。一次只做本票。票内 TDD 按故事圈（夹具起引擎 → 一步代发 → 迁 MINA/凭证 → 空洞停发/丢弃 → health/mTLS 负面），不要先交只探活的空骨架。样板：`ControlledSshExecHttpAcceptanceTest`、`HeartbeatTimeoutHollowHttpAcceptanceTest`、`VerticalSliceHttpE2eAcceptanceTest`。
+
+### Cycle 1 witnessed red (2026-09-01)
+
+```text
+cd backend && ./gradlew test --tests com.archops.plan.ExecutorSingleStepDispatchHttpAcceptanceTest.startExecutionDispatchesFrozenStepsToEngineFakeWithoutControlPlaneMina
+```
+
+```text
+> Task :compileTestJava FAILED
+ExecutorEngineHandle.java:22: error: cannot find symbol
+        ConfigurableApplicationContext context = new SpringApplication(ExecutorApplication.class).run(
+                                                                       ^
+  symbol:   class ExecutorApplication
+ExecutorEngineHandle.java:36: error: cannot find symbol
+        return context.getBean(ExecutorGrpcServer.class).port();
+                               ^
+  symbol:   class ExecutorGrpcServer
+BUILD FAILED
+```
+
+无执行引擎进程 / 无 gRPC ExecuteStep / `start-execution` 仍走控制面 in-process SSH。

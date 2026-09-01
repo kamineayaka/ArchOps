@@ -1,0 +1,19 @@
+spring:
+  config:
+    activate:
+      on-profile: executor
+  application:
+    name: archops-executor
+  main:
+    web-application-type: none
+  flyway:
+    enabled: false
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+
+archops:
+  ssh:
+    mode: ${ARCHOPS_SSH_MODE:fake}
