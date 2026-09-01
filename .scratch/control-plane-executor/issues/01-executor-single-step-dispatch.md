@@ -4,7 +4,7 @@
 
 **Blocked by:** （无）
 
-**Status:** ready-for-agent
+**Status:** done
 
 **TDD:** `/implement` 走 [`docs/agents/tdd.md`](../../../docs/agents/tdd.md)：**red → green → refactor**，一圈一条测试（主接缝 HTTP；进程/mTLS 接缝见 Spec）。Spec：[`docs/specs/control-plane-executor.md`](../../../docs/specs/control-plane-executor.md)。合同：`CONTEXT.md`「操作计划」「执行引擎」「控制面代发」；ADR-0044 决议 1–3、7；ADR-0045。
 
@@ -14,12 +14,12 @@
 
 - [x] Compose（或同形测试夹具）起执行引擎；`grpc.health.v1` 在自签客户端证书下为 SERVING
 - [x] 已接受处理人 `POST .../start-execution`：逐步 gRPC 代发；引擎侧 fake 记录 seq/action/`targetHostId`；计划可 `COMPLETED`；**控制面生产 MINA 未执行**
-- [ ] 主机凭证由引擎解密；代发包无明文秘密；控制面代发路径不解密
+- [x] 主机凭证由引擎解密；代发包无明文秘密；控制面代发路径不解密
 - [x] 多步执行中心跳超时 → 观测空洞作废计划：不再下发下一步；GET 计划 `VOIDED`（既有 hollow `voidReason`）；对该 id `start-execution` → `PLAN_VOIDED`
 - [x] 在途步脚本化成功返回时若计划已 `VOIDED`：丢弃成功，计划保持 `VOIDED`（不 `COMPLETED`）
 - [x] 无/错客户端证书调引擎 gRPC → 拒绝；引擎 down / 非 SERVING → `start-execution` 失败且不回退控制面生产 SSH
-- [ ] 不回归：既有规则诊断 → 选支 → 人审 HTTP；竖切可用控制面 `archops.ssh.mode=fake` **不经引擎**；失败即停作废、禁止改步重试；Host Agent 仍 POST `/api/agent/heartbeat` 直连控制面
-- [ ] 不改 `CONTEXT.md` / ADR-0039 / 0043 / **0044 正文**；不把整份计划交给引擎；引擎不读操作计划表、不写策展/观测/冲突；无编排层进程；无薄 UI
+- [x] 不回归：既有规则诊断 → 选支 → 人审 HTTP；竖切可用控制面 `archops.ssh.mode=fake` **不经引擎**；失败即停作废、禁止改步重试；Host Agent 仍 POST `/api/agent/heartbeat` 直连控制面
+- [x] 不改 `CONTEXT.md` / ADR-0039 / 0043 / **0044 正文**；不把整份计划交给引擎；引擎不读操作计划表、不写策展/观测/冲突；无编排层进程；无薄 UI
 
 **Out of this ticket:** 打断 MINA 会话；步骤断言 schema；逐步事件给编排层；AI 编排层 / 模型出站；B-live；工作台三档；未绑定 10；改策展 07；重开 A1；把 WebClient/密钥加回控制面；外接 CA；Playwright；真 SSH 公网机。
 
@@ -125,3 +125,56 @@ BUILD FAILED
 ### Cycle 6 green + refactor (2026-09-01)
 
 Same test command: BUILD SUCCESSFUL. 下发前 `grpc.health.v1` 必须 SERVING，否则 `EXECUTOR_UNAVAILABLE`，计划仍 `APPROVED`，控制面无 `MinaSshPort`。
+
+### Cycle 7 witnessed red (2026-09-01)
+
+```text
+cd backend && ./gradlew test --tests com.archops.plan.ExecutorSingleStepDispatchHttpAcceptanceTest.startExecutionFailsWhenEngineHasNoHostCredentialToDecrypt
+```
+
+```text
+ExecutorSingleStepDispatchHttpAcceptanceTest > startExecutionFailsWhenEngineHasNoHostCredentialToDecrypt() FAILED
+    java.lang.AssertionError at ExecutorSingleStepDispatchHttpAcceptanceTest.java:121
+    Expected VOIDED / SSH credential, but start-execution still COMPLETED without decrypting host ciphertext
+BUILD FAILED
+```
+
+### Cycle 7 green + refactor (2026-09-01)
+
+Same test command: BUILD SUCCESSFUL. 引擎 `requireDecrypted(targetHostId)`；代发包/SSH 记录不含明文 secret。测试夹具与控制面共享 DataSource。Compose 引擎 `ARCHOPS_SSH_MODE=mina`。
+
+### Cycle 8 reuse/regression (2026-09-01)
+
+```text
+cd backend && ./gradlew test \
+  --tests com.archops.plan.ControlledSshExecHttpAcceptanceTest \
+  --tests com.archops.slice.VerticalSliceHttpE2eAcceptanceTest \
+  --tests com.archops.conflict.ConflictDiagnosisHttpAcceptanceTest \
+  --tests com.archops.plan.OperationPlanReviewHttpAcceptanceTest \
+  --tests com.archops.observed.ObservedHeartbeatHttpAcceptanceTest
+```
+
+```text
+ControlledSshExecHttpAcceptanceTest: tests=6 failures=0
+VerticalSliceHttpE2eAcceptanceTest: tests=4 failures=0
+ConflictDiagnosisHttpAcceptanceTest: tests=9 failures=0
+OperationPlanReviewHttpAcceptanceTest: tests=2 failures=0
+ObservedHeartbeatHttpAcceptanceTest: tests=4 failures=0
+BUILD SUCCESSFUL
+```
+
+First-run green（reuse of control-plane `archops.ssh.mode=fake` / 决议 7）. 规则诊断 → 选支 → 人审；竖切 fake 不经引擎；失败即停作废；Host Agent `POST /api/agent/heartbeat` 仍直连控制面。无生产改动。
+
+### Ticket-end suite (2026-09-01)
+
+```text
+cd backend && ./gradlew cleanTest test
+```
+
+BUILD SUCCESSFUL：184 tests, 0 failures。无新 Flyway。未改 `CONTEXT.md` / ADR-0039 / 0043 / **0044 正文**。Review 后补：`MinaSshPort` 不再是控制面 `@Component`；引擎 MapperScan 排除草案/事实 mapper；Compose 把控制面客户端证书 ENV 钉在 `archops`（引擎探活按 ADR-0045 显式自带）。
+
+### Code-review (Standards + Spec, vs origin/main)
+
+**Standards:** 1 hard finding fixed — engine `@MapperScan("com.archops.curated.mapper")` loaded draft/fact mappers + hub still scanned `MinaSshPort`. Now: exclude draft/fact mappers; `MinaSshPort` is engine-`@Import` only. Judgement left: duplicated HTTP fixtures in dispatch/down tests; `requireDecrypted` then MINA decrypts again; hub client imports `ExecutorMtls`; `HostSshCredentialService.upsert` is imported on the engine but ExecuteStep only calls `requireDecrypted`.
+
+**Spec:** no remaining product gap vs ticket Must. Between-step stop consumes the `VOIDED` flag (空洞 / 失联 / A1 升级 all write it). Client cert files still live at `/mtls` in the shared image (self-signed fixtures); Compose no longer defaults the hub client key as image-wide ENV. No 编排层 process, no thin UI, no CONTEXT/0044 body edits.

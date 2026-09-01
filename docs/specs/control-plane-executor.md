@@ -1,9 +1,9 @@
 # Spec: 控制面执行引擎（单步代发 + MINA/凭证迁出）
 
-**Status**: spec published；工单 **01 ready-for-agent**（**frontier = 01**）  
+**Status**: spec published；工单 01 **TDD-done**；**本刀闭合**  
 **Basis**: ADR-0044（运行时拓扑；本刀**实现** 0044，不重开拒绝项）；ADR-0045（控制面→执行引擎 = gRPC + Protobuf；`grpc.health.v1`；仅控制面可调 / mTLS）；ADR-0043；`CONTEXT.md`「操作计划」「执行引擎」「控制面代发」「步骤断言」（schema 本刀后置）「心跳」  
 **Source**: [`.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md`](../../.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md) **B1–B3 的第一刀**（B4 B-live / B5 编排层出站 / B6 工作台另刀）  
-**Predecessor**: 竖切 / 改策展 / 未绑定 01–09 / 冲突升级作废活跃计划（A1）均已闭合。控制面进程内 LLM 出站已删；规则诊断兜底仍能警告→选支→人审→执行（0044 决议 7）。失败即停作废、禁止改步重试已在控制面。Host Agent 心跳仍直连控制面。现码偏离：Compose 仍三件套；生产 MINA 与主机凭证仍在控制面；`start-execution` 一次 HTTP + Redis 锁内跑完整份计划。  
+**Predecessor**: 竖切 / 改策展 / 未绑定 01–09 / 冲突升级作废活跃计划（A1）均已闭合。控制面进程内 LLM 出站已删；规则诊断兜底仍能警告→选支→人审→执行（0044 决议 7）。失败即停作废、禁止改步重试已在控制面。Host Agent 心跳仍直连控制面。本刀补上独立执行引擎、单步 gRPC 代发、MINA/凭证迁出、空洞停发/丢弃在途成功。  
 **Testing seams (confirmed)**: **主接缝 = 控制面公开 HTTP API**（含 Agent 心跳/快照 ingest；已接受处理人 `start-execution` / 计划 `VOIDED`）。**新进程接缝 = 执行引擎 `grpc.health.v1`**（Compose 可 up、SERVING）。**窄负面接缝 = 无/错客户端证书调引擎 gRPC → 拒绝**。`/implement` 按 [`docs/agents/tdd.md`](../agents/tdd.md) 走 **red → green → refactor**。前端薄 UI 不进本刀自动化主接缝。不要 Playwright。不要「真 SSH 一台公网机」当完成定义。
 
 **Confirmed scope pins**
@@ -225,8 +225,8 @@ Forbidden on the wire: plaintext host secrets; full step list; 诊断作业包; 
 
 ## Further Notes
 
-- **Issue tracker**: [`.scratch/control-plane-executor/issues/`](../../.scratch/control-plane-executor/issues/)（**frontier = 01**）。禁止写入 `.scratch/unbound-identity-rebind/`、`.scratch/change-curated-draft/`、`.scratch/conflict-upgrade-void-plans/`。
+- **Issue tracker**: [`.scratch/control-plane-executor/issues/`](../../.scratch/control-plane-executor/issues/)（票 01 **TDD-done**；本刀闭合）。禁止写入 `.scratch/unbound-identity-rebind/`、`.scratch/change-curated-draft/`、`.scratch/conflict-upgrade-void-plans/`。
 - **ADR-0045**: [`docs/adr/0045-control-plane-executor-grpc.md`](../adr/0045-control-plane-executor-grpc.md) — 运输与谁可以调；字段表以本 Spec 为准。
-- **Ticket 01 Must** = this Spec’s Must（已拆；用户批准一张票）。
-- **Next Matt step**: `/implement` `/tdd` 票 01。开场 prompt：[`docs/implement-control-plane-executor-01-prompt.md`](../implement-control-plane-executor-01-prompt.md)。不要本对话顺手实现。
+- **Ticket 01 Must** = this Spec’s Must（已拆；用户批准一张票；**TDD-done**）。
+- **Next Matt step**: 票 01 **TDD-done**；本刀闭合。不要自动做 B-live / 编排层 / 工作台三档 / 步骤断言 schema。人排期后再 `/implement`。
 - **Why a new ADR**: internal gRPC is hard to reverse, surprising next to public REST, and a real trade-off vs JSON HTTP / Redis queue. It does **not** reopen 0044 rejections.
