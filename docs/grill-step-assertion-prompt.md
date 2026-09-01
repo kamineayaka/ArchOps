@@ -6,12 +6,12 @@
 - `grilling` — `.cursor/skills/grilling/SKILL.md`（或 `.agents/skills/grilling/SKILL.md`）
 - `domain-modeling` — `.cursor/skills/domain-modeling/SKILL.md`（或 `.agents/skills/domain-modeling/SKILL.md`）
 
-本文件是 **grilling 入口**，不是 `/implement`。控制面执行引擎票 01 **已 TDD-done 并入 main**。本对话只定 **步骤断言**这一刀的切面（多宽、是否带逐步事件、slug、接缝）。不要重开执行引擎刀，不要把本刀写成 `control-plane-executor` 票 02。
+本文件是 **grilling 入口**，不是 `/implement`。控制面执行引擎票 01 **已 TDD-done 并入 main**。本对话只定 **步骤断言**这一刀的切面（多宽、是否带逐步事件、slug、接缝、断言写在哪、谁判定）。不要重开执行引擎刀，不要把本刀写成 `control-plane-executor` 票 02。
 
 Matt 主路径：idea → **`/grill-with-docs`** → **`/to-spec`** → **`/to-tickets`** → 每票新对话 **`/implement` `/tdd`**。  
 grilling、spec、tickets 尽量留在**同一上下文窗口**（不要在 `/to-tickets` 之前 `/clear`）。每个 `/implement` 另开对话。
 
-上一刀 grilling 入口：[`docs/grill-adr-0044-slice-prompt.md`](grill-adr-0044-slice-prompt.md)（已闭合：切面 B）。
+上一刀 grilling 入口：[`docs/grill-adr-0044-slice-prompt.md`](grill-adr-0044-slice-prompt.md)（已闭合：切面 B = 执行引擎成真）。
 
 ---
 
@@ -26,8 +26,10 @@ grilling、spec、tickets 尽量留在**同一上下文窗口**（不要在 `/to
 - AGENTS.md（执行纪律；一次一张票；禁止写入 unbound / change-curated / conflict-upgrade-void-plans / control-plane-executor 目录当本刀工单）
 - grill-with-docs / grilling / domain-modeling skills
 - docs/agents/domain.md（合同冻结：禁止静默改 CONTEXT.md / 已有 ADR）
-- CONTEXT.md 只用已有术语，不发明同义新词（Avoid 栏禁止的词不要用）。本刀核心词是「步骤断言」「操作计划」「执行引擎」「控制面代发」。禁止用「断言测试 / assertion test / 健康检查」偷换步骤断言。
-- grilling skill 与本 prompt 冲突时：本 prompt + AGENTS.md + ADR-0044 + ADR-0045 为准。尤其禁止 grill-with-docs 边问边改 CONTEXT / ADR-0044 / ADR-0045 正文。
+- CONTEXT.md 只用已有术语，不发明同义新词（Avoid 栏禁止的词不要用）。本刀核心词是「步骤断言」「操作计划」「执行引擎」「控制面代发」。禁止用「断言测试 / assertion test / 健康检查 / 步骤校验器」偷换步骤断言。
+- grilling skill 与本 prompt 冲突时：本 prompt + AGENTS.md + ADR-0044 + ADR-0045 为准。
+- domain-modeling skill 写着「术语一敲定就改 CONTEXT.md」：对本对话作废。本对话只用术语校准；落笔等到确认后的 /to-spec（默认仍不改 CONTEXT / 0044 / 0045 正文）。
+- grill-with-docs 是路由器：只启动 grilling + domain-modeling。它「边问边写 ADR/glossary」对本对话作废。
 
 ================================================================================
 0. 任务边界（完成标准：一句话说出本对话交付物，且不把 /implement 算进范围）
@@ -35,7 +37,7 @@ grilling、spec、tickets 尽量留在**同一上下文窗口**（不要在 `/to
 
 本对话交付：
 - 按 grilling skill 多轮面试：每轮列出当前 frontier 全部问题（编号 + 推荐答案），然后停下来等我答。
-- 事实（Compose 现服务、ExecuteStep proto、PlanStep 字段、success 如何判定、有无编排层进程）由你查代码，不要问我。
+- 事实（Compose 现服务、ExecuteStep proto、PlanStep 字段、success 如何判定、fake stdout、有无编排层进程）由你查 origin/main 代码，不要问我。
 - 决策由我做。推荐答案必须写清，但不得把推荐当成已批准。
 - frontier 空了之后：用合同术语复述共享理解（本刀 Must / Out of Scope / 接缝 / slug / 是否新 ADR / 票内大致顺序），等我确认。确认前不要 /to-spec。
 
@@ -52,8 +54,11 @@ grilling、spec、tickets 尽量留在**同一上下文窗口**（不要在 `/to
 - 静默改 CONTEXT.md / ADR-0039 / ADR-0043 / ADR-0044 / ADR-0045 正文
 - 引入 Vue / JPA 当地基 / Maven / LangChain / Redis 当关系真相 SSOT
 - 模型阅读输出判本步成败（0044 已拒绝）
+- 新开 ExecuteStep 以外的第二运输；改 mTLS 为共享 token
 
 冲突优先级：ADR 与 CONTEXT > 已发布 Spec > 工单 > 本 prompt。竖切 Spec 里「单进程 MINA / 密钥在控制面」是沉积误报（审计 C），不得用来否定 0044。`docs/specs/control-plane-executor.md` 把步骤断言标 Out of Scope，不得用来否定本刀开新 slug；那是上一刀边界，不是合同拒绝。
+
+审计 B3 原文仍写「无单步代发」：那半边已被执行引擎 01 闭合。本刀只补 B3 剩余 = 步骤断言（+ 可选逐步事件）。不要把「再做一次单步代发」问成 Q1。
 
 本条消息已点名本刀 = **步骤断言**。Q1 不再问「要不要做执行引擎」，只问本刀切多宽。
 
@@ -75,15 +80,18 @@ grilling、spec、tickets 尽量留在**同一上下文窗口**（不要在 `/to
 10. .scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md — 只取 **B3 剩余**（无步骤断言、无逐步事件）。B1/B2 与「单步代发」已由执行引擎 01 闭合。B4/B5/B6 另刀。C 类忽略为实现依据
 11. docs/agents/issue-tracker.md（新刀必须新 `.scratch/<slug>/`）
 
-事实自查（读 origin/main 代码，不要问我）：
+事实自查（读 origin/main 代码，不要问我；第一轮复述里用一行对照「应为」）：
 - `deploy/compose/compose.yaml` 现有哪些 service（应为 postgres / redis / archops / executor）
-- `OperationPlanResponse.PlanStep` 现有字段（应为 seq / action / description / params，无断言）
-- `executor.proto` ExecuteStepRequest/Response 字段；`success` 现由谁置位（应为 SSH/fake 退出，不是步骤断言）
-- `ExecuteStepGrpcService` 是否读操作计划表（应为否）
+- `OperationPlanResponse.PlanStep` 字段（应为 seq / action / description / params，无断言）
+- `OperationPlanResponse.ExecutionStepLog` 字段（应为 seq / action / hostId / command / success / failureReason，无断言成败）
+- `executor.proto` ExecuteStepRequest（应为 plan_id, step_seq, action, params, target_host_id）与 Response（step_seq, success, structured_output, failure_reason）
+- `ExecuteStepGrpcService`：是否读操作计划表（应为否）；`success` 由谁置位（应为 `sshPort.exec` 的 SSH/fake 退出，structured_output = stdout）
+- `RecordingFakeSshPort` 成功 stdout（应为 `"fake-ok " + action`）；现 fake 能否在 SSH 成功时返回「不匹配的 structured_output」（应为否，只有 failActions）
+- `OperationPlanService.startExecution`：仍是一次 HTTP 循环逐步 ExecuteStep；`!result.success()` 即 VOIDED（现等于 SSH 失败）
 - 控制面是否仍有 DiagnosisLlmClient / WebClient / 模型密钥（应为已删）
-- 仓库有无独立 orchestrator 进程/目录
-- Host Agent 是否仍 POST `/api/agent/heartbeat` 直连控制面
-- 规则诊断 → 选支 → 人审 → start-execution 经引擎 fake 的 HTTP 测试是否仍在
+- 仓库有无独立 orchestrator 进程/目录（应为无）
+- Host Agent 是否仍 POST `/api/agent/heartbeat` 直连控制面（应为是）
+- 规则诊断 → 选支 → 人审 → start-execution 经引擎 fake 的 HTTP 测试是否仍在（应为是；`ExecutorSingleStepDispatchHttpAcceptanceTest` 等）
 
 ================================================================================
 2. 当前位置（完成标准：第一轮提问前用 ≤12 行复述；不得说「下一张还是未绑定 10 / 执行引擎 01」）
@@ -100,7 +108,7 @@ grilling、spec、tickets 尽量留在**同一上下文窗口**（不要在 `/to
 - ExecuteStep 不含断言；引擎 `success` = SSH/fake 退出码，不是对工具结构化结果的预先约定
 - 无逐步事件给编排层（编排层进程仍不存在）
 
-上一刀故意留下的窗口：SSH 退出 0 即可 COMPLETED，即便结构化结果不符合「应该看到什么」。
+上一刀故意留下的窗口：SSH 退出 0 即可 COMPLETED，即便 structured_output 不符合「应该看到什么」。现 fake 成功路径固定返回 `fake-ok {action}`，无法单独脚本化「退出成功但结构化结果不对」。
 
 ADR-0044 已拒绝、grilling 不得重开：
 - 模型阅读日志/输出判本步成败
@@ -108,11 +116,12 @@ ADR-0044 已拒绝、grilling 不得重开：
 - 编排层短时令牌/证书直连执行引擎
 - 整份计划交给引擎内跑完
 - 用 B-live 阅读代替步骤断言（CONTEXT 步骤断言 _Avoid_）
+- 引擎直读操作计划表（0045 已拒绝；plan_id 只做关联）
 
 验收接缝默认（可推翻，推翻须明示）：
 - 主接缝 = 控制面公开 HTTP（start-execution：断言失败 → 计划 VOIDED，即使引擎 SSH 退出成功）
-- 内部仍走既有 ExecuteStep gRPC（可扩展字段）；不要新开处理人 API
-- 引擎 fake 可脚本化 structured_output；不要 Playwright；不要真 SSH 公网机
+- 内部仍走既有 ExecuteStep gRPC（可扩展字段）；不要新开处理人 API，不要新 RPC 替代 ExecuteStep
+- 引擎 fake 必须能脚本化「SSH 成功 + structured_output 不匹配」；不要 Playwright；不要真 SSH 公网机
 - 既有执行引擎 / 规则诊断 HTTP 测试必须仍绿
 - 薄 UI 不是本刀 Must
 - 本对话不写测试
@@ -166,31 +175,39 @@ G. 我另点名（必须仍以步骤断言为主，并用 0044 决议编号说�
 若第一条消息已点名 A–G 之一，把 Q1 视为已决，从未决的 Q2–Q4 开始。本条已点名主题「步骤断言」，**尚未**圈定 A–G 宽度，所以仍要问 Q1。
 
 ================================================================================
-5. 后续轮次（完成标准：选中切面之后才展开；每轮问完就停）
+5. 后续轮次（完成标准：选中切面之后才展开；每轮 4–6 问然后停；不要一次问 15 个）
 ================================================================================
 
-Q1 选定后，下一轮只问被解开的问题（举例，不要提前全问）：
+Q1 选定后，按依赖解开再问。下面是必须覆盖的决策（举例，按轮次拆，不要提前全问）。每轮你都可以改推荐。
 
-共同：
-- 用户可感知的一条故事（人审后的计划某步：SSH 成功但结构化结果不符合约定 → 怎样 VOIDED）
-- Out of Scope（至少：编排层进程、B-live、工作台、打断 MINA、把 LLM 加回控制面、未绑定 10）
+共同（第二轮）：
+- 用户可感知的一条故事（人审后的计划某步：SSH 成功但 structured_output 不符合约定 → 计划 VOIDED，不得改步重试）
+- Out of Scope（至少：编排层进程、B-live、工作台、打断 MINA、把 LLM 加回控制面、未绑定 10、新 RPC 替代 ExecuteStep）
 - 薄 UI 是否本刀 Must（推荐否）
 - 已存在、无人审后再写断言的旧计划 / 竖切夹具：缺省是「无断言则退回仅退出码」还是「无断言即失败」？（推荐：无断言字段时保持上一刀行为，避免竖切断裂；**新生成**的修实际计划必须带断言）
 
-若选 B 或 F-票01=B：
-- 断言写在计划步骤哪一块（与 params 并列的约定结构，不要用自然语言让模型解释）
-- 引擎判定的最小运算（例如：structured_output 含约定键值 / 退出码与约定同时成立）；禁止「LLM 读 stdout」
-- ExecuteStep 是否必须把断言放进 request（推荐是：引擎判定，控制面不代判）
-- 谁在生成计划时写入断言（当前是规则夹具生成修实际步骤，不是编排层；本刀可规则模板写死约定，不必等编排层）
+若选 B 或 F-票01=B（第三轮）：
+- 断言写在计划步骤哪一块（与 params 并列的结构化约定，不要用自然语言让模型解释）。推荐：`PlanStep` 增加结构化字段（例如 expected 键值 / JSON 对象），不是 description 里的中文句子
+- 引擎判定的最小运算（推荐：structured_output 含约定键值，且 SSH/fake 退出也成功；两者都成立才 `success=true`）。禁止「LLM 读 stdout」。禁止引擎 SELECT 操作计划表
+- ExecuteStep 是否必须把断言放进 request（推荐是：引擎判定，控制面不代判；plan_id 仍只做关联）
+- Response 是否另加 `assertion_ok`，还是沿用 `success` 表示「退出 ∧ 断言」（推荐沿用 `success`，`failure_reason` 区分 SSH 失败 vs 断言失败；避免控制面再解一次约定）
+- 谁在生成计划时写入断言（当前是规则夹具 `buildFixActualSteps`，不是编排层；本刀可规则模板写死约定，不必等编排层）
+- fake：必须能脚本化「退出成功 + 错误 structured_output」。现 `RecordingFakeSshPort` 只有 failActions
 
-若选 C：
-- 逐步事件落谁：冲突事件 / 计划 executionLog / 新表。推荐复用或扩展已有 executionLog + 冲突事件，不新开编排层 inbox
+若选 C（在 B 的第三轮之后加一轮）：
+- 逐步事件落谁：冲突事件 / 计划 executionLog / 新表。推荐扩展已有 executionLog（带上 structured_output 与断言成败），不新开编排层 inbox
 - 编排层不存在时「推送」是否只等于控制面已持久化（推荐是）
+
+包装（第四轮，B 或 C 都要）：
+- 票 01 是否 = 本刀全部 Must（推荐是：不要先交空字段骨架）。若选 F，票 01 仍须可独立 HTTP 验收
+- proto：在现有 ExecuteStep 上加字段，还是新 RPC（推荐加字段；不要第二运输）
+- 是否新薄 ADR-0046 冻断言字段（推荐否：写进 Spec 即可，除非你要否决引擎判定）
+- Compose：本刀不启编排层；executor 进程保留
+- 空洞/升级/失联 VOIDED 后停发下一步：必须仍绿（回归，不是本刀新故事）
+- 不要新开 cancel API；打断 MINA 仍 Should/later
 
 若选 D（若我坚持）：
 - 决议 7：规则兜底 HTTP 必须仍绿；密钥不得进控制面
-
-不要一次问 15 个。每轮你都可以改推荐。
 
 ================================================================================
 6. 收束（frontier 空了才做；仍不要写代码）

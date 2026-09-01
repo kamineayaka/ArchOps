@@ -26,7 +26,8 @@ alwaysApply: true
 | `docs/specs/conflict-upgrade-void-plans.md` | 冲突升级作废活跃计划 Spec（审计 A1；**01 TDD-done，本刀闭合**） |
 | `.scratch/conflict-upgrade-void-plans/issues/` | 工单 01 **done** |
 | `docs/specs/control-plane-executor.md` | 控制面执行引擎 Spec（审计 B 第一刀；ADR-0045；**01 TDD-done，本刀闭合**） |
-| `.scratch/control-plane-executor/issues/` | 工单 01 **done**（不要自动做 B-live / 编排层 / 工作台） |
+| `.scratch/control-plane-executor/issues/` | 工单 01 **done**（不要自动做 B-live / 编排层 / 工作台；不要加票 02） |
+| `docs/grill-step-assertion-prompt.md` | 下一刀 grilling 入口：步骤断言（新 slug；B3 剩余） |
 
 ## 模块边界
 
