@@ -13,7 +13,7 @@
 现码缺口：Compose 仅 postgres/redis/archops；`MinaSshPort` 在控制面；`startExecution` 一次 Redis 锁内跑完整份计划，步间不重读 `VOIDED`。无执行引擎进程、无 gRPC ExecuteStep、无步骤断言（本票也不做断言 schema）。
 
 - [ ] Compose（或同形测试夹具）起执行引擎；`grpc.health.v1` 在自签客户端证书下为 SERVING
-- [ ] 已接受处理人 `POST .../start-execution`：逐步 gRPC 代发；引擎侧 fake 记录 seq/action/`targetHostId`；计划可 `COMPLETED`；**控制面生产 MINA 未执行**
+- [x] 已接受处理人 `POST .../start-execution`：逐步 gRPC 代发；引擎侧 fake 记录 seq/action/`targetHostId`；计划可 `COMPLETED`；**控制面生产 MINA 未执行**
 - [ ] 主机凭证由引擎解密；代发包无明文秘密；控制面代发路径不解密
 - [ ] 多步执行中心跳超时 → 观测空洞作废计划：不再下发下一步；GET 计划 `VOIDED`（既有 hollow `voidReason`）；对该 id `start-execution` → `PLAN_VOIDED`
 - [ ] 在途步脚本化成功返回时若计划已 `VOIDED`：丢弃成功，计划保持 `VOIDED`（不 `COMPLETED`）
@@ -47,3 +47,22 @@ BUILD FAILED
 ```
 
 无执行引擎进程 / 无 gRPC ExecuteStep / `start-execution` 仍走控制面 in-process SSH。
+
+### Cycle 1 green + refactor (2026-09-01)
+
+Same test command: BUILD SUCCESSFUL. 控制面 `archops.ssh.mode=dispatch` 经 gRPC ExecuteStep 打到独立引擎上下文的 fake；`MinaSshPort` 不在控制面。Refactor：`PlanStepCommands`、`ExecuteStepResult.from`、ExecuteStep 响应映射。
+
+### Cycle 2 witnessed red (2026-09-01)
+
+```text
+cd backend && ./gradlew test --tests com.archops.plan.ExecutorSingleStepDispatchHttpAcceptanceTest.hollowDuringExecutionStopsNextDispatchAndLeavesPlanVoided
+```
+
+```text
+ExecutorSingleStepDispatchHttpAcceptanceTest > hollowDuringExecutionStopsNextDispatchAndLeavesPlanVoided() FAILED
+    java.lang.AssertionError at ExecutorSingleStepDispatchHttpAcceptanceTest.java:152
+    assertThat(engine.recordedCalls()).hasSize(1);
+BUILD FAILED
+```
+
+空洞作废发生在第 1 步 in-flight 时仍下发后续步（引擎 fake 记录 >1）。

@@ -177,7 +177,8 @@ public class OperationPlanService {
     }
 
     /**
-     * Execute an APPROVED plan step-by-step via the controlled SSH port under a plan mutex.
+     * Execute an APPROVED plan one frozen step at a time via 控制面代发.
+     * Re-reads VOIDED between steps so 空洞 / 失联 / 升级 can stop the next dispatch.
      * Failure/block voids the plan immediately; steps are frozen (no in-place rewrite/retry).
      */
     public StartExecutionResponse startExecution(String planId, AuthUserPrincipal actor) {
@@ -232,9 +233,14 @@ public class OperationPlanService {
             List<OperationPlanResponse.ExecutionStepLog> log = new ArrayList<>();
 
             for (OperationPlanResponse.PlanStep step : steps) {
+                if (isVoided(planId)) {
+                    return stopBecauseAlreadyVoided(planId, log);
+                }
+
                 transactionTemplate.executeWithoutResult(status ->
                         operationPlanMapper.update(null, new LambdaUpdateWrapper<OperationPlan>()
                                 .eq(OperationPlan::getId, planId)
+                                .eq(OperationPlan::getStatus, OperationPlanStatus.EXECUTING)
                                 .set(OperationPlan::getCurrentStepSeq, step.seq())));
 
                 String hostId;
@@ -262,6 +268,11 @@ public class OperationPlanService {
                     return voidPlan(planId, log, step, hostId, command,
                             "SSH execution blocked: " + ex.getMessage());
                 }
+
+                if (isVoided(planId)) {
+                    return stopBecauseAlreadyVoided(planId, log);
+                }
+
                 log.add(new OperationPlanResponse.ExecutionStepLog(
                         step.seq(),
                         step.action(),
@@ -278,9 +289,13 @@ public class OperationPlanService {
                 }
             }
 
+            if (isVoided(planId)) {
+                return stopBecauseAlreadyVoided(planId, log);
+            }
+
             Instant finished = Instant.now();
             String logJson = writeJson(log);
-            transactionTemplate.executeWithoutResult(status ->
+            Integer completed = transactionTemplate.execute(status ->
                     operationPlanMapper.update(null, new LambdaUpdateWrapper<OperationPlan>()
                             .eq(OperationPlan::getId, planId)
                             .eq(OperationPlan::getStatus, OperationPlanStatus.EXECUTING)
@@ -288,6 +303,9 @@ public class OperationPlanService {
                             .set(OperationPlan::getFinishedAt, finished)
                             .set(OperationPlan::getCurrentStepSeq, steps.isEmpty() ? 0 : steps.getLast().seq())
                             .set(OperationPlan::getExecutionLogJson, logJson)));
+            if (completed == null || completed == 0) {
+                return stopBecauseAlreadyVoided(planId, log);
+            }
 
             conflictEventService.append(plan.getConflictId(), ConflictEventType.PLAN_COMPLETED, actor.getUserId(), Map.of(
                     "planId", planId,
@@ -348,6 +366,25 @@ public class OperationPlanService {
                 "Execution stopped; plan voided (no in-place retry)",
                 (int) log.stream().filter(OperationPlanResponse.ExecutionStepLog::success).count(),
                 reason,
+                List.copyOf(log)
+        );
+    }
+
+    private boolean isVoided(String planId) {
+        return requirePlan(planId).getStatus() == OperationPlanStatus.VOIDED;
+    }
+
+    private StartExecutionResponse stopBecauseAlreadyVoided(
+            String planId,
+            List<OperationPlanResponse.ExecutionStepLog> log
+    ) {
+        OperationPlan latest = requirePlan(planId);
+        return new StartExecutionResponse(
+                planId,
+                OperationPlanStatus.VOIDED.name(),
+                "Execution stopped; plan voided (no in-place retry)",
+                (int) log.stream().filter(OperationPlanResponse.ExecutionStepLog::success).count(),
+                latest.getVoidReason(),
                 List.copyOf(log)
         );
     }
