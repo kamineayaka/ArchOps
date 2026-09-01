@@ -5,7 +5,7 @@ alwaysApply: true
 
 # 领域合同与防漂移
 
-编码前默认已读 `AGENTS.md`、`CONTEXT.md`、ADR-0039、ADR-0043、ADR-0044。
+编码前默认已读 `AGENTS.md`、`CONTEXT.md`、ADR-0039、ADR-0043、ADR-0044、ADR-0045。
 
 ## 语义
 
@@ -17,11 +17,11 @@ alwaysApply: true
 ## 栈（ADR-0043 + ADR-0044）
 
 - Gradle + MyBatis-Plus + React/Ant + PG + Redis 多副本
-- 控制面枢纽；执行引擎与 AI 编排层独立进程（ADR-0044）；控制面不持模型密钥
+- 控制面枢纽；执行引擎与 AI 编排层独立进程（ADR-0044）；控制面→引擎单步代发 = gRPC（ADR-0045）；控制面不持模型密钥
 - 禁止：Maven、JPA 当地基、Vue 现行前端、v1 必选 Neo4j、LangChain 主干、Redis 当真相
 
 ## 工作方式
 
-- 一次一张 frontier 票（竖切 / 改策展 / 未绑定 / A1 升级作废计划均已闭合）。代码 vs ADR-0044 审计 `.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md`：A1/A2/A3 已闭合；B1–B5 / 0044 拆分不要自动做。不要发明未绑定 10。
+- 一次一张 frontier 票（竖切 / 改策展 / 未绑定 / A1 均已闭合）。现行 Spec `docs/specs/control-plane-executor.md`（工单待拆）。代码 vs ADR-0044 审计：A1/A2/A3 已闭合；本刀 = B 执行引擎成真。不要发明未绑定 10。不要做 B-live / 编排层 / 工作台三档。
 - `/implement` 走 **red → green → refactor**（`docs/agents/tdd.md`）
 - 不复活旧域包；不扩票外范围（自我迭代、可达矩阵、完整 xterm 等）
