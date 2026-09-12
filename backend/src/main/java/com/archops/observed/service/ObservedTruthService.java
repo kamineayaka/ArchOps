@@ -37,6 +37,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+/**
+ * Heartbeat ingest, freshness, and 规范问法「实际在哪」.
+ * Unbound-candidate listing / ingest mapping lives on UnboundObservationService.
+ */
 @Service
 public class ObservedTruthService {
 
