@@ -3,15 +3,12 @@ package com.archops.plan;
 import com.archops.common.ssh.RecordingFakeSshPort;
 import com.archops.common.ssh.SshCallRecord;
 import com.archops.conflict.ConflictDiagnosisWait;
-import com.archops.plan.domain.OperationPlan;
 import com.archops.plan.mapper.OperationPlanMapper;
+import com.archops.support.FrozenOperationPlanFixture;
 import com.archops.support.HttpAcceptanceTest;
 import com.archops.user.security.TempAuthHeaders;
-import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -58,9 +55,12 @@ class ControlledSshExecHttpAcceptanceTest {
     @Autowired
     private OperationPlanMapper operationPlanMapper;
 
+    private FrozenOperationPlanFixture frozenPlans;
+
     @BeforeEach
     void resetFake() {
         fakeSsh.clear();
+        frozenPlans = new FrozenOperationPlanFixture(mockMvc, objectMapper, operationPlanMapper);
     }
 
     @Test
@@ -172,16 +172,7 @@ class ControlledSshExecHttpAcceptanceTest {
     @Test
     void offGraphHostTargetVoidsPlan() throws Exception {
         String conflictId = openConflictAndClaim("p8o-a", "p8o-b", "ctr-p8-off");
-        String planId = selectAndApprove(conflictId);
-
-        OperationPlan plan = operationPlanMapper.selectById(planId);
-        ArrayNode steps = (ArrayNode) objectMapper.readTree(plan.getStepsJson());
-        ObjectNode first = (ObjectNode) steps.get(0);
-        ObjectNode params = (ObjectNode) first.get("params");
-        params.put("hostId", "host-not-in-graph");
-        operationPlanMapper.update(null, new LambdaUpdateWrapper<OperationPlan>()
-                .eq(OperationPlan::getId, planId)
-                .set(OperationPlan::getStepsJson, objectMapper.writeValueAsString(steps)));
+        String planId = frozenPlans.insertApprovedOffGraphHostTarget(conflictId, GENERAL_ID);
 
         mockMvc.perform(post("/api/operation-plans/{id}/start-execution", planId)
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)

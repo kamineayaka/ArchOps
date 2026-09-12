@@ -41,6 +41,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 public final class FrozenOperationPlanFixture {
 
+    /** Not a graph-resident physical host; first-step {@code params.hostId} for the VOID path. */
+    public static final String OFF_GRAPH_HOST_ID = "host-not-in-graph";
+
     private final MockMvc mockMvc;
     private final ObjectMapper json;
     private final OperationPlanMapper plans;
@@ -57,7 +60,16 @@ public final class FrozenOperationPlanFixture {
      */
     public String insertApprovedWithoutExpected(String conflictId, String actorUserId) throws Exception {
         World world = loadWorld(conflictId, actorUserId);
-        return insertApproved(world, stepsJsonWithoutExpected(world));
+        return insertApproved(world, fixActualStepsJson(world, world.observedHostId(), false));
+    }
+
+    /**
+     * Inserts an APPROVED 修实际 plan whose first step targets {@link #OFF_GRAPH_HOST_ID}.
+     * Later steps keep graph-resident hosts; start-execution must VOID before SSH.
+     */
+    public String insertApprovedOffGraphHostTarget(String conflictId, String actorUserId) throws Exception {
+        World world = loadWorld(conflictId, actorUserId);
+        return insertApproved(world, fixActualStepsJson(world, OFF_GRAPH_HOST_ID, true));
     }
 
     private World loadWorld(String conflictId, String actorUserId) throws Exception {
@@ -119,34 +131,44 @@ public final class FrozenOperationPlanFixture {
         return planId;
     }
 
-    private String stepsJsonWithoutExpected(World world) throws Exception {
+    private String fixActualStepsJson(World world, String precheckHostId, boolean includeExpected)
+            throws Exception {
         ArrayNode steps = json.createArrayNode();
-        steps.add(stepWithoutExpected(
+        steps.add(frozenStep(
                 1,
                 PlanStepAction.SSH_PRECHECK.name(),
                 "在实际宿主上确认容器仍可操作",
-                Map.of("hostId", world.observedHostId(), "hostName", world.observedHostName())));
-        steps.add(stepWithoutExpected(
+                Map.of("hostId", precheckHostId, "hostName", world.observedHostName()),
+                includeExpected ? Map.of("precheck", "passed") : null));
+        steps.add(frozenStep(
                 2,
                 PlanStepAction.MIGRATE_CONTAINER.name(),
                 "将容器迁回策展宿主 " + world.curatedHostName() + "（纯修现场，无草案）",
                 Map.of(
                         "fromHostId", world.observedHostId(),
                         "toHostId", world.curatedHostId(),
-                        "subjectId", world.subjectId())));
-        steps.add(stepWithoutExpected(
+                        "subjectId", world.subjectId()),
+                includeExpected ? Map.of("migrated", "true") : null));
+        steps.add(frozenStep(
                 3,
                 PlanStepAction.REFRESH_OBSERVATION.name(),
                 "执行后刷新观测快照以核验「运行于」",
-                Map.of("subjectId", world.subjectId())));
+                Map.of("subjectId", world.subjectId()),
+                includeExpected ? Map.of("refresh", "ok") : null));
         return json.writeValueAsString(steps);
     }
 
-    private ObjectNode stepWithoutExpected(
+    /**
+     * @param expected {@code null} omits the key (pre-B3 JSON). An empty map is not used:
+     *                 missing vs empty are both exit-code-only in the engine, but US9 is
+     *                 “without {@code expected}”.
+     */
+    private ObjectNode frozenStep(
             int seq,
             String action,
             String description,
-            Map<String, String> params
+            Map<String, String> params,
+            Map<String, String> expected
     ) {
         ObjectNode step = json.createObjectNode();
         step.put("seq", seq);
@@ -154,6 +176,10 @@ public final class FrozenOperationPlanFixture {
         step.put("description", description);
         ObjectNode paramsNode = step.putObject("params");
         params.forEach(paramsNode::put);
+        if (expected != null) {
+            ObjectNode expectedNode = step.putObject("expected");
+            expected.forEach(expectedNode::put);
+        }
         return step;
     }
 
