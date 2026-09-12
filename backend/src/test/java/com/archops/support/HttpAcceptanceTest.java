@@ -13,6 +13,7 @@ import java.lang.annotation.Target;
 /**
  * HTTP acceptance base: real PostgreSQL via Embedded Postgres (Zonky).
  * Redis autoconfig is off until a ticket under test needs the broker.
+ * Injects an explicit credential-encryption fixture key (no source-code default).
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
@@ -26,7 +27,8 @@ import java.lang.annotation.Target;
 @TestPropertySource(properties = {
         "spring.autoconfigure.exclude="
                 + "org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration,"
-                + "org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration"
+                + "org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration",
+        TestCredentialEncryptionKey.SPRING_PROPERTY
 })
 public @interface HttpAcceptanceTest {
 }

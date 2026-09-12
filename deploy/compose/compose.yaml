@@ -54,7 +54,8 @@ services:
       ARCHOPS_EXECUTOR_TLS_CA_CERT: /mtls/ca.crt
       ARCHOPS_EXECUTOR_TLS_CLIENT_CERT: /mtls/client.crt
       ARCHOPS_EXECUTOR_TLS_CLIENT_KEY: /mtls/client.key
-      ARCHOPS_CREDENTIALS_ENCRYPTION_KEY_BASE64: ${ARCHOPS_CREDENTIALS_ENCRYPTION_KEY_BASE64:-}
+      # Same value as executor. Blank is refused at boot (no source-code default).
+      ARCHOPS_CREDENTIALS_ENCRYPTION_KEY_BASE64: ${ARCHOPS_CREDENTIALS_ENCRYPTION_KEY_BASE64}
     ports:
       - "${ARCHOPS_PORT:-8080}:8080"
 
@@ -81,7 +82,8 @@ services:
       # Health probe must present the hub client cert (ADR-0045). Not for ExecuteStep.
       ARCHOPS_EXECUTOR_TLS_CLIENT_CERT: /mtls/client.crt
       ARCHOPS_EXECUTOR_TLS_CLIENT_KEY: /mtls/client.key
-      ARCHOPS_CREDENTIALS_ENCRYPTION_KEY_BASE64: ${ARCHOPS_CREDENTIALS_ENCRYPTION_KEY_BASE64:-}
+      # Same value as archops. Blank is refused at boot (no source-code default).
+      ARCHOPS_CREDENTIALS_ENCRYPTION_KEY_BASE64: ${ARCHOPS_CREDENTIALS_ENCRYPTION_KEY_BASE64}
     ports:
       - "${ARCHOPS_EXECUTOR_PORT:-8443}:8443"
     healthcheck:

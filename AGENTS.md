@@ -76,7 +76,7 @@
 Cloud Agents run in an **Ubuntu VM** configured by [`.cursor/environment.json`](.cursor/environment.json) (see [`.cursor/CLOUD.md`](.cursor/CLOUD.md)). Not the developer's Windows laptop.
 
 - After boot, `start` brings up **Postgres + Redis** via Compose. App env defaults: `POSTGRES_HOST=localhost`, `REDIS_HOST=localhost`, user/db/password `archops`.
-- Backend: `cd backend && ./gradlew bootRun` (also started as terminal `backend`). Health: `curl -s http://127.0.0.1:8080/api/health`
+- Backend: `cd backend && ./gradlew bootRun` (also started as terminal `backend`). Requires `ARCHOPS_CREDENTIALS_ENCRYPTION_KEY_BASE64` (Cloud terminal injects a fixture key; Compose hub + executor share the same env). Health: `curl -s http://127.0.0.1:8080/api/health`
 - Frontend: `cd frontend && npm run dev -- --host 0.0.0.0 --port 5173` (terminal `frontend`)
 - Tests: `cd backend && ./gradlew test` (many HTTP tests use embedded Postgres; still keep Compose Redis up if the app under test needs Redis)
 - Warm deps already ran in Build `install` (`scripts/cloud-install.sh`). Re-run install commands only when deps change.

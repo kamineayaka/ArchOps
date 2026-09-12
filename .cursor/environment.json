@@ -20,8 +20,8 @@
   "terminals": [
     {
       "name": "backend",
-      "command": "cd backend && ./gradlew bootRun --no-daemon",
-      "description": "Spring Boot control plane on :8080 (health: GET /api/health). Needs Compose Postgres+Redis from start."
+      "command": "cd backend && ARCHOPS_CREDENTIALS_ENCRYPTION_KEY_BASE64=YXJjaG9wcy1maXh0dXJlLWFlcy0yNTYta2V5ISEhISE= ./gradlew bootRun --no-daemon",
+      "description": "Spring Boot control plane on :8080 (health: GET /api/health). Needs Compose Postgres+Redis from start. Injects an explicit fixture encryption key (not a Compose default)."
     },
     {
       "name": "frontend",

@@ -16,6 +16,7 @@ import java.util.Base64;
 
 /**
  * AES-GCM encryption for host SSH secrets. Ciphertext only is persisted; never log plaintext.
+ * Construction fails closed when the key is blank — there is no source-code default.
  */
 @Component
 public class SecretBox {
@@ -28,14 +29,17 @@ public class SecretBox {
     private final SecureRandom random = new SecureRandom();
 
     public SecretBox(
-            @Value("${archops.credentials.encryption-key-base64:}") String keyBase64
+            @Value("${archops.credentials.encryption-key-base64}") String keyBase64
     ) {
-        byte[] raw;
         if (keyBase64 == null || keyBase64.isBlank()) {
-            // Dev/test default (32 bytes) — production MUST set ARCHOPS_CREDENTIALS_ENCRYPTION_KEY_BASE64.
-            raw = "0123456789abcdef0123456789abcdef".getBytes(StandardCharsets.UTF_8);
-        } else {
+            throw new IllegalStateException(
+                    "archops.credentials.encryption-key-base64 is required; set ARCHOPS_CREDENTIALS_ENCRYPTION_KEY_BASE64");
+        }
+        byte[] raw;
+        try {
             raw = Base64.getDecoder().decode(keyBase64.trim());
+        } catch (IllegalArgumentException ex) {
+            throw new IllegalStateException("archops.credentials.encryption-key-base64 must be valid Base64", ex);
         }
         if (raw.length != 16 && raw.length != 24 && raw.length != 32) {
             throw new IllegalStateException("archops.credentials.encryption-key-base64 must decode to 16/24/32 bytes");
