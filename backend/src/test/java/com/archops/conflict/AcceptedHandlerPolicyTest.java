@@ -1,0 +1,40 @@
+package com.archops.conflict;
+
+import com.archops.common.exception.BusinessException;
+import com.archops.conflict.domain.ConflictCase;
+import com.archops.conflict.domain.HandlerAcceptance;
+import com.archops.user.domain.PlatformRole;
+import com.archops.user.security.AuthUserPrincipal;
+import org.junit.jupiter.api.Test;
+
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+class AcceptedHandlerPolicyTest {
+
+    @Test
+    void pendingAcceptThrowsPlanRequiresAcceptedHandler() {
+        ConflictCase conflict = conflict("user-handler", HandlerAcceptance.PENDING_ACCEPT);
+        AuthUserPrincipal actor = actor("user-handler");
+
+        assertThatThrownBy(() -> AcceptedHandlerPolicy.require(
+                        conflict,
+                        actor,
+                        "PLAN_REQUIRES_ACCEPTED_HANDLER",
+                        "Only the 已接受冲突处理人 may open an operation plan for this conflict"))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("Only the 已接受冲突处理人 may open an operation plan for this conflict")
+                .extracting(ex -> ((BusinessException) ex).getCode())
+                .isEqualTo("PLAN_REQUIRES_ACCEPTED_HANDLER");
+    }
+
+    private static ConflictCase conflict(String handlerUserId, HandlerAcceptance acceptance) {
+        ConflictCase row = new ConflictCase();
+        row.setHandlerUserId(handlerUserId);
+        row.setHandlerAcceptance(acceptance);
+        return row;
+    }
+
+    private static AuthUserPrincipal actor(String userId) {
+        return new AuthUserPrincipal(userId, userId, PlatformRole.GENERAL);
+    }
+}
