@@ -1,5 +1,6 @@
 package com.archops.common.ssh;
 
+import com.archops.plan.domain.PlanStepAction;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
@@ -108,11 +109,16 @@ public class RecordingFakeSshPort implements ControlledSshPort {
     }
 
     private static String defaultSuccessStdout(String action) {
+        return PlanStepAction.tryParse(action)
+                .map(RecordingFakeSshPort::defaultSuccessStdout)
+                .orElse("fake-ok " + action);
+    }
+
+    private static String defaultSuccessStdout(PlanStepAction action) {
         return switch (action) {
-            case "SSH_PRECHECK" -> "{\"precheck\":\"passed\",\"source\":\"fake\"}";
-            case "MIGRATE_CONTAINER" -> "{\"migrated\":\"true\",\"source\":\"fake\"}";
-            case "REFRESH_OBSERVATION" -> "{\"refresh\":\"ok\",\"source\":\"fake\"}";
-            default -> "fake-ok " + action;
+            case SSH_PRECHECK -> "{\"precheck\":\"passed\",\"source\":\"fake\"}";
+            case MIGRATE_CONTAINER -> "{\"migrated\":\"true\",\"source\":\"fake\"}";
+            case REFRESH_OBSERVATION -> "{\"refresh\":\"ok\",\"source\":\"fake\"}";
         };
     }
 }
