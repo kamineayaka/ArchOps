@@ -4,6 +4,7 @@ import com.archops.common.ssh.RecordingFakeSshPort;
 import com.archops.common.ssh.SshCallRecord;
 import com.archops.executor.tls.ExecutorMtls;
 import com.archops.executor.tls.MtlsPemFiles;
+import com.archops.support.TestCredentialEncryptionKey;
 import io.grpc.ManagedChannel;
 import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder;
 import org.springframework.context.ConfigurableApplicationContext;
@@ -38,6 +39,7 @@ public final class ExecutorEngineHandle implements AutoCloseable {
         args.add("--archops.executor.tls.ca-cert=" + mtls.caCert());
         args.add("--archops.executor.tls.server-cert=" + mtls.serverCert());
         args.add("--archops.executor.tls.server-key=" + mtls.serverKey());
+        args.add("--archops.credentials.encryption-key-base64=" + TestCredentialEncryptionKey.BASE64);
         args.add("--spring.flyway.enabled=false");
         args.add("--spring.autoconfigure.exclude="
                 + "org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration,"
