@@ -56,3 +56,24 @@ GET 已审修实际计划没有 `steps[].expected`。无步骤断言字段、默
 ### Cycle 1 green + refactor (2026-09-12)
 
 Same test command: BUILD SUCCESSFUL. 规则模板写入冻结 `expected`；同一 ExecuteStep 加 `expected`；引擎退出成功后 JSON 对象包含匹配；默认 fake JSON 满足约定（允许多余键）；`executionLog.structuredOutput` 落控制面。Refactor：默认 stdout 方法改为 private。
+
+### Cycle 2 witnessed red (2026-09-12)
+
+```text
+cd backend && ./gradlew test --tests com.archops.plan.PlanStepAssertionHttpAcceptanceTest.exitSuccessWithMismatchedJsonVoidsPlanAsStepAssertionFailedAndBlocksRetry
+```
+
+```text
+> Task :compileTestJava FAILED
+PlanStepAssertionHttpAcceptanceTest.java:107: error: cannot find symbol
+        engine.fakeSsh().succeedWithStdout("SSH_PRECHECK", "{\"precheck\":\"failed\",\"source\":\"fake\"}");
+                        ^
+  symbol:   method succeedWithStdout(String,String)
+BUILD FAILED
+```
+
+引擎 fake 无法脚本化「退出成功 + 任意 structured_output」。
+
+### Cycle 2 green + refactor (2026-09-12)
+
+Same test command: BUILD SUCCESSFUL. `succeedWithStdout` 独立于 `failActions`；退出成功但 JSON 不匹配 → `VOIDED`，`failureReason` 以 `STEP_ASSERTION_FAILED` 开头，再 start → `PLAN_VOIDED`。Refactor：hamcrest `startsWith` 静态导入。
