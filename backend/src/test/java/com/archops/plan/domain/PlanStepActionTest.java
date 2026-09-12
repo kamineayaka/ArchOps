@@ -18,6 +18,20 @@ class PlanStepActionTest {
     }
 
     @Test
+    void blankOrNullWireThrowsPlanStepUnknown() {
+        assertThatThrownBy(() -> PlanStepAction.parse(null))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("Unknown frozen plan action: null")
+                .extracting(ex -> ((BusinessException) ex).getCode())
+                .isEqualTo("PLAN_STEP_UNKNOWN");
+        assertThatThrownBy(() -> PlanStepAction.parse("   "))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("Unknown frozen plan action:    ")
+                .extracting(ex -> ((BusinessException) ex).getCode())
+                .isEqualTo("PLAN_STEP_UNKNOWN");
+    }
+
+    @Test
     void frozenWireLiteralsParseToCatalogConstants() {
         assertThat(PlanStepAction.parse("SSH_PRECHECK").name()).isEqualTo("SSH_PRECHECK");
         assertThat(PlanStepAction.parse("MIGRATE_CONTAINER").name()).isEqualTo("MIGRATE_CONTAINER");

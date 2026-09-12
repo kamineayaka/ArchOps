@@ -11,6 +11,9 @@ public enum PlanStepAction {
     REFRESH_OBSERVATION;
 
     public static PlanStepAction parse(String wire) {
+        if (wire == null || wire.isBlank()) {
+            throw unknown(wire);
+        }
         try {
             return PlanStepAction.valueOf(wire);
         } catch (IllegalArgumentException ex) {
