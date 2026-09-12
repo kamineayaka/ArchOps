@@ -6,25 +6,20 @@ import com.archops.common.ssh.PlanStepCommands;
 import com.archops.common.ssh.SshExecRequest;
 import com.archops.common.ssh.SshExecResult;
 import com.archops.curated.service.HostSshCredentialService;
+import com.archops.executor.StepAssertionJudge;
 import com.archops.executor.v1.ExecuteStepRequest;
 import com.archops.executor.v1.ExecuteStepResponse;
 import com.archops.executor.v1.ExecutorGrpc;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.grpc.stub.StreamObserver;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
-
-import java.util.Map;
 
 /**
  * Engine-side ExecuteStep: run one frozen tool call; do not read 操作计划 rows.
  */
 @Component
 public class ExecuteStepGrpcService extends ExecutorGrpc.ExecutorImplBase {
-
-    static final String STEP_ASSERTION_FAILED = "STEP_ASSERTION_FAILED";
 
     private final ControlledSshPort sshPort;
     private final ObjectProvider<HostSshCredentialService> credentials;
@@ -74,32 +69,11 @@ public class ExecuteStepGrpcService extends ExecutorGrpc.ExecutorImplBase {
         if (!result.success()) {
             return toResponse(request.getStepSeq(), false, stdout, result.failureReason());
         }
-        Map<String, String> expected = request.getExpectedMap();
-        JsonNode object = jsonObjectOrNull(stdout);
-        if (object == null) {
-            return toResponse(request.getStepSeq(), true, stdout, null);
-        }
-        for (Map.Entry<String, String> entry : expected.entrySet()) {
-            JsonNode value = object.get(entry.getKey());
-            if (value == null || !value.isTextual() || !entry.getValue().equals(value.asText())) {
-                return toResponse(
-                        request.getStepSeq(),
-                        false,
-                        stdout,
-                        STEP_ASSERTION_FAILED + ": structured_output does not contain "
-                                + entry.getKey() + "=" + entry.getValue());
-            }
+        String mismatch = StepAssertionJudge.mismatchReason(stdout, request.getExpectedMap(), objectMapper);
+        if (mismatch != null) {
+            return toResponse(request.getStepSeq(), false, stdout, mismatch);
         }
         return toResponse(request.getStepSeq(), true, stdout, null);
-    }
-
-    private JsonNode jsonObjectOrNull(String structuredOutput) {
-        try {
-            JsonNode root = objectMapper.readTree(structuredOutput == null ? "" : structuredOutput);
-            return root != null && root.isObject() ? root : null;
-        } catch (JsonProcessingException ex) {
-            return null;
-        }
     }
 
     private static ExecuteStepResponse toResponse(
