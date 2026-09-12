@@ -19,7 +19,7 @@ public final class AcceptedHandlerPolicy {
             String errorCode,
             String message
     ) {
-        if (conflict.getHandlerAcceptance() == HandlerAcceptance.PENDING_ACCEPT) {
+        if (conflict.getHandlerAcceptance() != HandlerAcceptance.ACCEPTED) {
             throw new BusinessException("PLAN_REQUIRES_ACCEPTED_HANDLER", message);
         }
     }
