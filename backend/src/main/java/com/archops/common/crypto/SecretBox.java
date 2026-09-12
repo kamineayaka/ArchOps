@@ -29,7 +29,7 @@ public class SecretBox {
     private final SecureRandom random = new SecureRandom();
 
     public SecretBox(
-            @Value("${archops.credentials.encryption-key-base64:}") String keyBase64
+            @Value("${archops.credentials.encryption-key-base64}") String keyBase64
     ) {
         if (keyBase64 == null || keyBase64.isBlank()) {
             throw new IllegalStateException(

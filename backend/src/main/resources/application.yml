@@ -50,5 +50,6 @@ archops:
       client-cert: ${ARCHOPS_EXECUTOR_TLS_CLIENT_CERT:}
       client-key: ${ARCHOPS_EXECUTOR_TLS_CLIENT_KEY:}
   credentials:
-    # Base64-encoded AES-128/192/256 key. Required in production; blank uses a local-dev default.
-    encryption-key-base64: ${ARCHOPS_CREDENTIALS_ENCRYPTION_KEY_BASE64:}
+    # Base64-encoded AES-128/192/256 key. Required; blank fails closed (no source-code default).
+    # Control plane and 执行引擎 must share ARCHOPS_CREDENTIALS_ENCRYPTION_KEY_BASE64.
+    encryption-key-base64: ${ARCHOPS_CREDENTIALS_ENCRYPTION_KEY_BASE64}

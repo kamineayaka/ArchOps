@@ -30,6 +30,12 @@ class SecretBoxTest {
                 .hasMessageContaining("ARCHOPS_CREDENTIALS_ENCRYPTION_KEY_BASE64")
                 .hasMessageNotContaining(publicDefault)
                 .hasMessageNotContaining(publicDefaultBase64);
+        assertThatThrownBy(() -> new SecretBox("   "))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("ARCHOPS_CREDENTIALS_ENCRYPTION_KEY_BASE64");
+        assertThatThrownBy(() -> new SecretBox(null))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("ARCHOPS_CREDENTIALS_ENCRYPTION_KEY_BASE64");
 
         SecretBox explicitPublicDefault = new SecretBox(publicDefaultBase64);
         String probe = "probe-secret";

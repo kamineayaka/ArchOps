@@ -43,9 +43,12 @@ powershell -ExecutionPolicy Bypass -File scripts\fix-windows-dev-env.ps1
 
 ```bash
 cd backend
+export ARCHOPS_CREDENTIALS_ENCRYPTION_KEY_BASE64="$(openssl rand -base64 32)"
 ./gradlew bootRun
 # Windows: .\gradlew.bat bootRun
 ```
+
+`ARCHOPS_CREDENTIALS_ENCRYPTION_KEY_BASE64` is required for boot (AES key, Base64, 16/24/32 bytes). There is no source-code default. Cloud Agent `backend` terminal injects an explicit fixture key.
 
 健康检查：`GET http://localhost:8080/api/health`  
 期望：`{"success":true,"code":"OK","message":"ok","data":{"status":"UP"}}`
@@ -76,6 +79,9 @@ python agent/heartbeat.py --interval 0
 bash deploy/scripts/build-images.sh
 # 产出 archops:latest
 
+# Set ARCHOPS_CREDENTIALS_ENCRYPTION_KEY_BASE64 in deploy/compose/.env
+# (copy from .env.example; generate with openssl rand -base64 32).
+# Hub and executor use the same value. Blank is refused at boot.
 docker compose -f deploy/compose/compose.yaml up -d
 ```
 

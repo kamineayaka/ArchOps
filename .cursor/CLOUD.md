@@ -16,7 +16,7 @@ Repo config: [`.cursor/environment.json`](./environment.json) + [`.cursor/Docker
 
 1. **Build (`install`)** — `scripts/cloud-install.sh`: warm Gradle + `npm ci` (idempotent, no long-running services).
 2. **Agent start (`start`)** — `scripts/cloud-start.sh`: start dockerd, `docker compose … up -d postgres redis`.
-3. **Terminals** — `backend` (`./gradlew bootRun`), `frontend` (`npm run dev` on `:5173`).
+3. **Terminals** — `backend` (`./gradlew bootRun` with an explicit fixture `ARCHOPS_CREDENTIALS_ENCRYPTION_KEY_BASE64`), `frontend` (`npm run dev` on `:5173`).
 
 Default DB/Redis env matches `deploy/compose/.env.example` (`archops` / `archops` on localhost ports).
 
