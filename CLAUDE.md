@@ -16,7 +16,8 @@ Claude / Cloud 编码助手请把本仓库的 **`AGENTS.md` 当作最高执行�
 10. [docs/dev-handoff.md](./docs/dev-handoff.md) — 进度与下一票
 11. Tickets: 竖切 [.scratch/vertical-slice-mvp/issues/](./.scratch/vertical-slice-mvp/issues/) 已 done；改策展 [.scratch/change-curated-draft/issues/](./.scratch/change-curated-draft/issues/)（**01–06 TDD-done**）；未绑定 [.scratch/unbound-identity-rebind/issues/](./.scratch/unbound-identity-rebind/issues/)（**01–09 已闭合**）；A1 [.scratch/conflict-upgrade-void-plans/issues/01-upgrade-voids-active-plans.md](./.scratch/conflict-upgrade-void-plans/issues/01-upgrade-voids-active-plans.md)（**TDD-done**）；B 第一刀 [.scratch/control-plane-executor/issues/01-executor-single-step-dispatch.md](./.scratch/control-plane-executor/issues/01-executor-single-step-dispatch.md)（**TDD-done**）；步骤断言 [.scratch/plan-step-assertion/issues/01-engine-judges-step-assertion.md](./.scratch/plan-step-assertion/issues/01-engine-judges-step-assertion.md)（**TDD-done**）  
 12. Cloud VM setup: [.cursor/CLOUD.md](./.cursor/CLOUD.md) · [.cursor/environment.json](./.cursor/environment.json)  
-13. Matt tracker config: [`docs/agents/`](./docs/agents/)（含 [`docs/agents/tdd.md`](./docs/agents/tdd.md)）
+13. [`docs/agents/implement-kickoff.md`](./docs/agents/implement-kickoff.md) — `/implement` uses this file; do not invent a one-off prompt; historical `docs/implement-*-prompt.md` are superseded for new tickets.
+14. Matt tracker config: [`docs/agents/`](./docs/agents/)（含 [`docs/agents/tdd.md`](./docs/agents/tdd.md)）
 
 ## Agent skills
 

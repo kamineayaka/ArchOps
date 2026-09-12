@@ -15,9 +15,10 @@
 9. `docs/specs/control-plane-executor.md` — 控制面执行引擎（B 第一刀；**01 TDD-done，本刀闭合**）
 10. `docs/specs/plan-step-assertion.md` — 步骤断言（B3 剩余；**01 TDD-done，本刀闭合**）。不要写入 `.scratch/control-plane-executor/`。不要自动做 B-live / 编排层 / 工作台三档。不要发明未绑定 10。
 11. `docs/dev-handoff.md` — 进度与下一票
-12. `docs/agents/tdd.md` — ArchOps TDD overlay（`/implement` 必读）
-13. `.cursor/rules/project-map.mdc`、`backend-java.mdc`、`frontend-react.mdc`
-14. `docs/agents/` — Matt 工作流 tracker / triage / domain 布局（Cloud 已 vendoring `.cursor/skills/`）
+12. `/implement` → [`docs/agents/implement-kickoff.md`](docs/agents/implement-kickoff.md)。不要发明一次性 prompt。历史 `docs/implement-*-prompt.md` 对新票作废。
+13. `docs/agents/tdd.md` — ArchOps TDD overlay（`/implement` 必读）
+14. `.cursor/rules/project-map.mdc`、`backend-java.mdc`、`frontend-react.mdc`
+15. `docs/agents/` — Matt 工作流 tracker / triage / domain 布局（Cloud 已 vendoring `.cursor/skills/`）
 
 **不要**把 git 历史里的旧 ArchOps（Neo4j 必选、Maven、Vue/Naive、JPA 域模型、architecture proposal、旧 Agent 工具）当作现行实现样板。
 
@@ -66,7 +67,7 @@
 2. Spec / 票 / ADR 冲突时：**ADR 与 CONTEXT > Spec > 票**；票过宽则缩到验收标准。
 3. 不要「顺便」引入：Neo4j、Vue、Maven、JPA 全域、LangChain、完整 xterm、网络可达矩阵、自我迭代、多租户。
 4. 不要从旧提交恢复已删除的 `ai/` `asset/` `graph/` 等旧域包当业务基础。
-5. `/implement` 驱动 `/tdd`：**red → green → refactor**，一圈一条测试。先在确认接缝上跑出 **witnessed red**，再写该圈生产代码。ArchOps overlay：[`docs/agents/tdd.md`](docs/agents/tdd.md)。Skill：`.cursor/skills/tdd/SKILL.md`（桌面：`.agents/skills/tdd/SKILL.md`）。与 skill 冲突时以本文件与 overlay 为准。
+5. `/implement` 使用 [`docs/agents/implement-kickoff.md`](docs/agents/implement-kickoff.md)；不要发明一次性 prompt。历史 `docs/implement-*-prompt.md` 对新票作废。`/implement` 驱动 `/tdd`：**red → green → refactor**，一圈一条测试。先在确认接缝上跑出 **witnessed red**，再写该圈生产代码。ArchOps overlay：[`docs/agents/tdd.md`](docs/agents/tdd.md)。Skill：`.cursor/skills/tdd/SKILL.md`（桌面：`.agents/skills/tdd/SKILL.md`）。与 skill 冲突时以本文件与 overlay 为准。
 6. 测试主接缝：控制面 HTTP API（含 Agent ingest）；SSH 可用 fake；前端最小冒烟，且排在该票 HTTP 循环变绿之后。
 7. 提交信息聚焦 why；每个绿灯切片可提交；不要提交 `.env`、密钥、`node_modules`、`build/`。
 
