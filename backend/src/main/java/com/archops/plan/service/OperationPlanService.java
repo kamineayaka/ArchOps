@@ -4,6 +4,7 @@ import com.archops.common.exception.BusinessException;
 import com.archops.common.json.PersistentJson;
 import com.archops.common.lock.PlanExecutionLock;
 import com.archops.common.ssh.PlanStepCommands;
+import com.archops.plan.FrozenPlanStepCatalog;
 import com.archops.plan.dispatch.ExecuteStepCommand;
 import com.archops.plan.dispatch.ExecuteStepResult;
 import com.archops.plan.dispatch.ExecutorDispatchPort;
@@ -17,13 +18,9 @@ import com.archops.conflict.domain.DiagnosisStatus;
 import com.archops.conflict.dto.ConflictDiagnosisResponse;
 import com.archops.conflict.mapper.ConflictCaseMapper;
 import com.archops.conflict.service.ConflictEventService;
-import com.archops.curated.domain.CuratedObject;
-import com.archops.curated.domain.CuratedObjectKind;
-import com.archops.curated.mapper.CuratedObjectMapper;
 import com.archops.plan.domain.OperationPlan;
 import com.archops.plan.domain.OperationPlanStatus;
 import com.archops.plan.domain.PlanBranchKind;
-import com.archops.plan.domain.PlanStepAction;
 import com.archops.plan.dto.OperationPlanResponse;
 import com.archops.plan.dto.StartExecutionResponse;
 import com.archops.plan.mapper.OperationPlanMapper;
@@ -49,10 +46,6 @@ import java.util.UUID;
 @Service
 public class OperationPlanService {
 
-    private static final Map<String, String> EXPECTED_PRECHECK = Map.of("precheck", "passed");
-    private static final Map<String, String> EXPECTED_MIGRATED = Map.of("migrated", "true");
-    private static final Map<String, String> EXPECTED_REFRESH = Map.of("refresh", "ok");
-
     private static final List<OperationPlanStatus> ACTIVE = List.of(
             OperationPlanStatus.DRAFT_REVIEW,
             OperationPlanStatus.APPROVED,
@@ -64,7 +57,7 @@ public class OperationPlanService {
     private final OperationPlanMapper operationPlanMapper;
     private final ConflictCaseMapper conflictCaseMapper;
     private final ConflictDiagnosisService conflictDiagnosisService;
-    private final CuratedObjectMapper curatedObjectMapper;
+    private final FrozenPlanStepCatalog frozenPlanStepCatalog;
     private final PersistentJson persistentJson;
     private final ExecutorDispatchPort executorDispatchPort;
     private final PlanExecutionLock planExecutionLock;
@@ -75,7 +68,7 @@ public class OperationPlanService {
             OperationPlanMapper operationPlanMapper,
             ConflictCaseMapper conflictCaseMapper,
             ConflictDiagnosisService conflictDiagnosisService,
-            CuratedObjectMapper curatedObjectMapper,
+            FrozenPlanStepCatalog frozenPlanStepCatalog,
             PersistentJson persistentJson,
             ExecutorDispatchPort executorDispatchPort,
             PlanExecutionLock planExecutionLock,
@@ -85,7 +78,7 @@ public class OperationPlanService {
         this.operationPlanMapper = operationPlanMapper;
         this.conflictCaseMapper = conflictCaseMapper;
         this.conflictDiagnosisService = conflictDiagnosisService;
-        this.curatedObjectMapper = curatedObjectMapper;
+        this.frozenPlanStepCatalog = frozenPlanStepCatalog;
         this.persistentJson = persistentJson;
         this.executorDispatchPort = executorDispatchPort;
         this.planExecutionLock = planExecutionLock;
@@ -121,7 +114,7 @@ public class OperationPlanService {
         }
 
         Instant now = Instant.now();
-        List<OperationPlanResponse.PlanStep> steps = buildFixActualSteps(conflict);
+        List<OperationPlanResponse.PlanStep> steps = frozenPlanStepCatalog.buildFixActualSteps(conflict);
         OperationPlan plan = new OperationPlan();
         plan.setId("plan-" + UUID.randomUUID());
         plan.setConflictId(conflictId);
@@ -251,8 +244,8 @@ public class OperationPlanService {
 
                 String hostId;
                 try {
-                    hostId = resolveTargetHostId(step, plan.getConflictId());
-                    requireGraphPhysicalHost(hostId);
+                    hostId = frozenPlanStepCatalog.resolveTargetHostId(step, plan.getConflictId());
+                    frozenPlanStepCatalog.requireGraphPhysicalHost(hostId);
                 } catch (BusinessException ex) {
                     return voidPlan(planId, log, step, null, null, ex.getMessage());
                 }
@@ -395,81 +388,6 @@ public class OperationPlanService {
                 (int) log.stream().filter(OperationPlanResponse.ExecutionStepLog::success).count(),
                 latest.getVoidReason(),
                 List.copyOf(log)
-        );
-    }
-
-    private String resolveTargetHostId(OperationPlanResponse.PlanStep step, String conflictId) {
-        Map<String, String> params = step.params() == null ? Map.of() : step.params();
-        return switch (PlanStepAction.parse(step.action())) {
-            case SSH_PRECHECK -> requiredParam(params, "hostId");
-            case MIGRATE_CONTAINER -> {
-                // Migration is initiated from the observed (actual) host.
-                String from = requiredParam(params, "fromHostId");
-                // Also validate destination is graph-resident before SSH.
-                requireGraphPhysicalHost(requiredParam(params, "toHostId"));
-                yield from;
-            }
-            case REFRESH_OBSERVATION -> {
-                ConflictCase conflict = requireOpenConflict(conflictId);
-                yield conflict.getCuratedTargetId();
-            }
-        };
-    }
-
-    private static String requiredParam(Map<String, String> params, String key) {
-        String value = params.get(key);
-        if (value == null || value.isBlank()) {
-            throw new BusinessException("PLAN_STEP_HOST_MISSING",
-                    "Frozen step missing required host param: " + key);
-        }
-        return value;
-    }
-
-    private void requireGraphPhysicalHost(String hostId) {
-        CuratedObject host = curatedObjectMapper.selectById(hostId);
-        if (host == null || host.getKind() != CuratedObjectKind.PHYSICAL_HOST) {
-            throw new BusinessException("HOST_OFF_GRAPH",
-                    "Execution target is not a graph-resident physical host: " + hostId);
-        }
-    }
-
-    private List<OperationPlanResponse.PlanStep> buildFixActualSteps(ConflictCase conflict) {
-        String curatedHostId = conflict.getCuratedTargetId();
-        String observedHostId = conflict.getObservedTargetId();
-        CuratedObject curatedHost = curatedObjectMapper.selectById(curatedHostId);
-        CuratedObject observedHost = observedHostId == null ? null : curatedObjectMapper.selectById(observedHostId);
-        String curatedName = curatedHost != null ? curatedHost.getName() : curatedHostId;
-        String observedName = observedHost != null ? observedHost.getName() : observedHostId;
-
-        return List.of(
-                new OperationPlanResponse.PlanStep(
-                        1,
-                        PlanStepAction.SSH_PRECHECK.name(),
-                        "在实际宿主上确认容器仍可操作",
-                        Map.of(
-                                "hostId", observedHostId == null ? "" : observedHostId,
-                                "hostName", observedName == null ? "" : observedName
-                        ),
-                        EXPECTED_PRECHECK
-                ),
-                new OperationPlanResponse.PlanStep(
-                        2,
-                        PlanStepAction.MIGRATE_CONTAINER.name(),
-                        "将容器迁回策展宿主 " + curatedName + "（纯修现场，无草案）",
-                        Map.of(
-                                "fromHostId", observedHostId == null ? "" : observedHostId,
-                                "toHostId", curatedHostId,
-                                "subjectId", conflict.getSubjectId()
-                        ),
-                        EXPECTED_MIGRATED
-                ),
-                new OperationPlanResponse.PlanStep(
-                        3,
-                        PlanStepAction.REFRESH_OBSERVATION.name(),
-                        "执行后刷新观测快照以核验「运行于」",
-                        Map.of("subjectId", conflict.getSubjectId()),
-                        EXPECTED_REFRESH
-                )
         );
     }
 
