@@ -138,6 +138,31 @@ class PlanStepAssertionHttpAcceptanceTest {
                 .andExpect(jsonPath("$.code", is("PLAN_VOIDED")));
     }
 
+    @Test
+    void exitSuccessWithNonJsonStructuredOutputVoidsPlanAsStepAssertionFailed() throws Exception {
+        String conflictId = openConflictAndClaim("psa3-a", "psa3-b", "ctr-psa3");
+        String planId = selectAndApprove(conflictId);
+        engine.fakeSsh().succeedWithStdout("SSH_PRECHECK", "precheck log line, not a JSON object");
+
+        mockMvc.perform(post("/api/operation-plans/{id}/start-execution", planId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("VOIDED")))
+                .andExpect(jsonPath("$.data.voidReason", startsWith("STEP_ASSERTION_FAILED")))
+                .andExpect(jsonPath("$.data.executionLog[0].success", is(false)))
+                .andExpect(jsonPath("$.data.executionLog[0].failureReason", startsWith("STEP_ASSERTION_FAILED")))
+                .andExpect(jsonPath("$.data.executionLog[0].structuredOutput",
+                        is("precheck log line, not a JSON object")));
+
+        mockMvc.perform(get("/api/operation-plans/{id}", planId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("VOIDED")))
+                .andExpect(jsonPath("$.data.voidReason", startsWith("STEP_ASSERTION_FAILED")));
+    }
+
     private void assertJsonContains(String structuredOutput, String key, String value) throws Exception {
         assertThat(structuredOutput).isNotBlank();
         JsonNode object = objectMapper.readTree(structuredOutput);
