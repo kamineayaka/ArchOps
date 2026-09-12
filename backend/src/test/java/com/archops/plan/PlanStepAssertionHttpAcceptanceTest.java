@@ -3,15 +3,12 @@ package com.archops.plan;
 import com.archops.conflict.ConflictDiagnosisWait;
 import com.archops.executor.ExecutorEngineHandle;
 import com.archops.executor.ExecutorEngineTestConfig;
-import com.archops.plan.domain.OperationPlan;
 import com.archops.plan.mapper.OperationPlanMapper;
+import com.archops.support.FrozenOperationPlanFixture;
 import com.archops.support.HttpAcceptanceTest;
 import com.archops.user.security.TempAuthHeaders;
-import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -57,9 +54,12 @@ class PlanStepAssertionHttpAcceptanceTest {
     @Autowired
     private OperationPlanMapper operationPlanMapper;
 
+    private FrozenOperationPlanFixture frozenPlans;
+
     @BeforeEach
     void resetEngineFake() {
         engine.fakeSsh().clear();
+        frozenPlans = new FrozenOperationPlanFixture(mockMvc, objectMapper, operationPlanMapper);
     }
 
     @Test
@@ -203,8 +203,7 @@ class PlanStepAssertionHttpAcceptanceTest {
     @Test
     void planJsonWithoutExpectedStillCompletesOnExitCodeOnly() throws Exception {
         String conflictId = openConflictAndClaim("psa5-a", "psa5-b", "ctr-psa5");
-        String planId = selectAndApprove(conflictId);
-        stripExpectedFromStoredSteps(planId);
+        String planId = frozenPlans.insertApprovedWithoutExpected(conflictId, GENERAL_ID);
         engine.fakeSsh().succeedWithStdout("SSH_PRECHECK", "not-json and would fail assertion");
         engine.fakeSsh().succeedWithStdout("MIGRATE_CONTAINER", "{\"migrated\":\"false\"}");
         engine.fakeSsh().succeedWithStdout("REFRESH_OBSERVATION", "{\"refresh\":\"nope\"}");
@@ -225,17 +224,6 @@ class PlanStepAssertionHttpAcceptanceTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status", is("COMPLETED")))
                 .andExpect(jsonPath("$.data.executionLog[0].success", is(true)));
-    }
-
-    private void stripExpectedFromStoredSteps(String planId) throws Exception {
-        OperationPlan plan = operationPlanMapper.selectById(planId);
-        ArrayNode steps = (ArrayNode) objectMapper.readTree(plan.getStepsJson());
-        for (JsonNode step : steps) {
-            ((ObjectNode) step).remove("expected");
-        }
-        operationPlanMapper.update(null, new LambdaUpdateWrapper<OperationPlan>()
-                .eq(OperationPlan::getId, planId)
-                .set(OperationPlan::getStepsJson, objectMapper.writeValueAsString(steps)));
     }
 
     private void assertJsonContains(String structuredOutput, String key, String value) throws Exception {
