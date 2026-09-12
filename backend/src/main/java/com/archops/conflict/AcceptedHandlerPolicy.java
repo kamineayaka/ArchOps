@@ -6,7 +6,11 @@ import com.archops.conflict.domain.HandlerAcceptance;
 import com.archops.user.security.AuthUserPrincipal;
 
 /**
- * Single 已接受处理人 gate. Callers keep distinct HTTP codes and per-site messages.
+ * Frozen collaboration gate: only the 已接受冲突处理人 may proceed.
+ * Predicate is {@code HandlerAcceptance.ACCEPTED} and {@code actor.userId}
+ * equals {@code handlerUserId}. Callers supply the HTTP code so plan
+ * operations stay {@code PLAN_REQUIRES_ACCEPTED_HANDLER} and confirm-close
+ * stays {@code CONFIRM_CLOSE_REQUIRES_ACCEPTED_HANDLER}.
  */
 public final class AcceptedHandlerPolicy {
 
@@ -22,7 +26,7 @@ public final class AcceptedHandlerPolicy {
         boolean ok = conflict.getHandlerAcceptance() == HandlerAcceptance.ACCEPTED
                 && actor.getUserId().equals(conflict.getHandlerUserId());
         if (!ok) {
-            throw new BusinessException("PLAN_REQUIRES_ACCEPTED_HANDLER", message);
+            throw new BusinessException(errorCode, message);
         }
     }
 }
