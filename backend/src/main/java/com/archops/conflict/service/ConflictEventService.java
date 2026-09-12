@@ -1,13 +1,12 @@
 package com.archops.conflict.service;
 
+import com.archops.common.json.PersistentJson;
 import com.archops.conflict.domain.ConflictCaseEvent;
 import com.archops.conflict.domain.ConflictEventType;
 import com.archops.conflict.dto.ConflictEventResponse;
 import com.archops.conflict.mapper.ConflictCaseEventMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,12 +22,15 @@ import java.util.UUID;
 @Service
 public class ConflictEventService {
 
-    private final ConflictCaseEventMapper eventMapper;
-    private final ObjectMapper objectMapper;
+    private static final TypeReference<LinkedHashMap<String, Object>> DETAIL = new TypeReference<>() {
+    };
 
-    public ConflictEventService(ConflictCaseEventMapper eventMapper, ObjectMapper objectMapper) {
+    private final ConflictCaseEventMapper eventMapper;
+    private final PersistentJson persistentJson;
+
+    public ConflictEventService(ConflictCaseEventMapper eventMapper, PersistentJson persistentJson) {
         this.eventMapper = eventMapper;
-        this.objectMapper = objectMapper;
+        this.persistentJson = persistentJson;
     }
 
     @Transactional
@@ -38,7 +40,7 @@ public class ConflictEventService {
         event.setConflictId(conflictId);
         event.setEventType(type);
         event.setActorUserId(actorUserId);
-        event.setDetailJson(writeDetail(detail == null ? Map.of() : detail));
+        event.setDetailJson(persistentJson.write(detail == null ? Map.of() : detail));
         event.setCreatedAt(Instant.now());
         eventMapper.insert(event);
     }
@@ -59,28 +61,8 @@ public class ConflictEventService {
                 row.getConflictId(),
                 row.getEventType(),
                 row.getActorUserId(),
-                readDetail(row.getDetailJson()),
+                persistentJson.read(row.getDetailJson(), DETAIL, new LinkedHashMap<>()),
                 row.getCreatedAt()
         );
-    }
-
-    private String writeDetail(Map<String, Object> detail) {
-        try {
-            return objectMapper.writeValueAsString(detail);
-        } catch (JsonProcessingException ex) {
-            return "{}";
-        }
-    }
-
-    private Map<String, Object> readDetail(String json) {
-        if (json == null || json.isBlank()) {
-            return Map.of();
-        }
-        try {
-            return objectMapper.readValue(json, new TypeReference<LinkedHashMap<String, Object>>() {
-            });
-        } catch (JsonProcessingException ex) {
-            return Map.of();
-        }
     }
 }
