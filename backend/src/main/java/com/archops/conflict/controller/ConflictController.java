@@ -10,8 +10,8 @@ import com.archops.conflict.dto.ConflictEventResponse;
 import com.archops.conflict.dto.OpenOperationPlanResponse;
 import com.archops.conflict.dto.RejectHandlerRequest;
 import com.archops.conflict.dto.TransferHandlerRequest;
+import com.archops.conflict.service.ConflictCaseAssembler;
 import com.archops.conflict.service.ConflictCollaborationService;
-import com.archops.conflict.service.ConflictDetectionService;
 import com.archops.conflict.service.ConflictEventService;
 import com.archops.curated.domain.CuratedRelationType;
 import com.archops.user.security.AuthUserPrincipal;
@@ -36,43 +36,43 @@ import java.util.List;
 @PreAuthorize("isAuthenticated()")
 public class ConflictController {
 
-    private final ConflictDetectionService conflictDetectionService;
     private final ConflictCollaborationService conflictCollaborationService;
     private final ConflictDiagnosisService conflictDiagnosisService;
     private final ConflictEventService conflictEventService;
+    private final ConflictCaseAssembler conflictCaseAssembler;
 
     public ConflictController(
-            ConflictDetectionService conflictDetectionService,
             ConflictCollaborationService conflictCollaborationService,
             ConflictDiagnosisService conflictDiagnosisService,
-            ConflictEventService conflictEventService
+            ConflictEventService conflictEventService,
+            ConflictCaseAssembler conflictCaseAssembler
     ) {
-        this.conflictDetectionService = conflictDetectionService;
         this.conflictCollaborationService = conflictCollaborationService;
         this.conflictDiagnosisService = conflictDiagnosisService;
         this.conflictEventService = conflictEventService;
+        this.conflictCaseAssembler = conflictCaseAssembler;
     }
 
     /** Active conflicts: OPEN + PENDING_CLOSE (CLOSED excluded). */
     @GetMapping
     public ApiResponse<List<ConflictCaseResponse>> listActive() {
-        return ApiResponse.ok(conflictDetectionService.listActive());
+        return ApiResponse.ok(conflictCaseAssembler.listActive());
     }
 
     @GetMapping("/{id}")
     public ApiResponse<ConflictCaseResponse> get(@PathVariable String id) {
-        return ApiResponse.ok(conflictDetectionService.getById(id));
+        return ApiResponse.ok(conflictCaseAssembler.getById(id));
     }
 
     @GetMapping("/{id}/events")
     public ApiResponse<List<ConflictEventResponse>> events(@PathVariable String id) {
-        conflictDetectionService.getById(id);
+        conflictCaseAssembler.getById(id);
         return ApiResponse.ok(conflictEventService.listForConflict(id));
     }
 
     @GetMapping("/{id}/diagnosis")
     public ApiResponse<ConflictDiagnosisResponse> diagnosis(@PathVariable String id) {
-        conflictDetectionService.getById(id);
+        conflictCaseAssembler.getById(id);
         ConflictDiagnosisResponse latest = conflictDiagnosisService.latestForConflict(id);
         if (latest == null) {
             throw new BusinessException("DIAGNOSIS_NOT_FOUND", "No diagnosis for conflict: " + id);
@@ -85,7 +85,7 @@ public class ConflictController {
             @RequestParam String subjectId,
             @RequestParam(defaultValue = "RUNS_ON") CuratedRelationType relationType
     ) {
-        return ApiResponse.ok(conflictDetectionService.getActiveByMergeKey(subjectId, relationType));
+        return ApiResponse.ok(conflictCaseAssembler.getActiveByMergeKey(subjectId, relationType));
     }
 
     /** 一般角色认领未已知悉冲突 → 已接受处理人（含归属）. */

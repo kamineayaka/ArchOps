@@ -34,6 +34,7 @@ public class ConflictCollaborationService {
 
     private final ConflictCaseMapper conflictCaseMapper;
     private final ConflictDetectionService conflictDetectionService;
+    private final ConflictCaseAssembler conflictCaseAssembler;
     private final ConflictEventService conflictEventService;
     private final UserLookupService userLookupService;
     private final TransactionTemplate requiresNewTx;
@@ -41,12 +42,14 @@ public class ConflictCollaborationService {
     public ConflictCollaborationService(
             ConflictCaseMapper conflictCaseMapper,
             ConflictDetectionService conflictDetectionService,
+            ConflictCaseAssembler conflictCaseAssembler,
             ConflictEventService conflictEventService,
             UserLookupService userLookupService,
             PlatformTransactionManager transactionManager
     ) {
         this.conflictCaseMapper = conflictCaseMapper;
         this.conflictDetectionService = conflictDetectionService;
+        this.conflictCaseAssembler = conflictCaseAssembler;
         this.conflictEventService = conflictEventService;
         this.userLookupService = userLookupService;
         this.requiresNewTx = new TransactionTemplate(transactionManager);
@@ -80,7 +83,7 @@ public class ConflictCollaborationService {
         conflictEventService.append(conflictId, ConflictEventType.HANDLER_ACCEPTED, actor.getUserId(), Map.of(
                 "via", "claim"
         ));
-        return conflictDetectionService.getById(conflictId);
+        return conflictCaseAssembler.getById(conflictId);
     }
 
     /**
@@ -105,7 +108,7 @@ public class ConflictCollaborationService {
         conflictEventService.append(conflictId, ConflictEventType.ACKNOWLEDGED, actor.getUserId(), Map.of(
                 "via", "acknowledge"
         ));
-        return conflictDetectionService.getById(conflictId);
+        return conflictCaseAssembler.getById(conflictId);
     }
 
     /**
@@ -133,7 +136,7 @@ public class ConflictCollaborationService {
             conflictEventService.append(conflictId, ConflictEventType.HANDLER_ACCEPTED, actor.getUserId(), Map.of(
                     "via", "acknowledge_and_self_appoint"
             ));
-            return conflictDetectionService.getById(conflictId);
+            return conflictCaseAssembler.getById(conflictId);
         }
 
         if (!actor.getUserId().equals(row.getOwnerUserId())) {
@@ -152,7 +155,7 @@ public class ConflictCollaborationService {
         conflictEventService.append(conflictId, ConflictEventType.HANDLER_ACCEPTED, actor.getUserId(), Map.of(
                 "via", "self_appoint"
         ));
-        return conflictDetectionService.getById(conflictId);
+        return conflictCaseAssembler.getById(conflictId);
     }
 
     /**
@@ -192,7 +195,7 @@ public class ConflictCollaborationService {
                 "assigneeUserId", assignee.getId(),
                 "ownerUserId", row.getOwnerUserId()
         ));
-        return conflictDetectionService.getById(conflictId);
+        return conflictCaseAssembler.getById(conflictId);
     }
 
     /**
@@ -210,7 +213,7 @@ public class ConflictCollaborationService {
         conflictEventService.append(conflictId, ConflictEventType.HANDLER_ACCEPTED, actor.getUserId(), Map.of(
                 "via", "accept_assignment"
         ));
-        return conflictDetectionService.getById(conflictId);
+        return conflictCaseAssembler.getById(conflictId);
     }
 
     /**
@@ -236,7 +239,7 @@ public class ConflictCollaborationService {
         detail.put("reason", trimmed);
         detail.put("ownerUserId", ownerUserId);
         conflictEventService.append(conflictId, ConflictEventType.HANDLER_REJECTED, actor.getUserId(), detail);
-        return conflictDetectionService.getById(conflictId);
+        return conflictCaseAssembler.getById(conflictId);
     }
 
     /**
@@ -274,7 +277,7 @@ public class ConflictCollaborationService {
         detail.put("fromAcceptance", previousAcceptance);
         detail.put("ownerUserId", row.getOwnerUserId());
         conflictEventService.append(conflictId, ConflictEventType.HANDLER_TRANSFER_OFFERED, actor.getUserId(), detail);
-        return conflictDetectionService.getById(conflictId);
+        return conflictCaseAssembler.getById(conflictId);
     }
 
     /**
@@ -358,7 +361,7 @@ public class ConflictCollaborationService {
                 "curatedTargetId", curated.getTargetId(),
                 "observedTargetId", observed.getTargetId()
         ));
-        return conflictDetectionService.getById(conflictId);
+        return conflictCaseAssembler.getById(conflictId);
     }
 
     private ConflictCase requireOpen(String conflictId) {

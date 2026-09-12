@@ -10,59 +10,41 @@ import com.archops.conflict.mapper.ConflictCaseMapper;
 import com.archops.conflict.service.ConflictDetectionService;
 import com.archops.conflict.service.ConflictEventService;
 import com.archops.curated.domain.CuratedDraft;
+import com.archops.curated.domain.CuratedDraftEvent;
 import com.archops.curated.domain.CuratedDraftItem;
 import com.archops.curated.domain.CuratedDraftItemKind;
 import com.archops.curated.domain.CuratedDraftItemStatus;
+import com.archops.curated.domain.CuratedDraftOrigin;
 import com.archops.curated.domain.CuratedDraftStatus;
 import com.archops.curated.domain.CuratedFact;
 import com.archops.curated.domain.CuratedObject;
 import com.archops.curated.domain.CuratedRelationType;
-import com.archops.curated.dto.ConfirmRunsOnRequest;
-import com.archops.curated.dto.CreateContainerRequest;
+import com.archops.curated.dto.CuratedDraftEventResponse;
 import com.archops.curated.dto.CuratedDraftResponse;
-import com.archops.curated.dto.CuratedObjectResponse;
+import com.archops.curated.mapper.CuratedDraftEventMapper;
 import com.archops.curated.mapper.CuratedDraftItemMapper;
 import com.archops.curated.mapper.CuratedDraftMapper;
-import com.archops.curated.mapper.CuratedDraftEventMapper;
-import com.archops.curated.dto.CuratedDraftEventResponse;
-import com.archops.curated.domain.CuratedDraftEventType;
-import com.archops.curated.domain.CuratedDraftEvent;
 import com.archops.curated.mapper.CuratedFactMapper;
 import com.archops.curated.mapper.CuratedObjectMapper;
-import com.archops.curated.domain.CuratedDraftOrigin;
-import com.archops.curated.CuratedObjectLabels;
-import com.archops.observed.domain.IdentityLostMark;
-import com.archops.observed.domain.ObservedAvailability;
-import com.archops.observed.domain.ObservedFact;
-import com.archops.observed.domain.UnboundBindMemory;
-import com.archops.observed.domain.UnboundObservationCandidate;
-import com.archops.observed.domain.UnboundReason;
-import com.archops.observed.mapper.IdentityLostMarkMapper;
-import com.archops.observed.mapper.ObservedFactMapper;
-import com.archops.observed.mapper.UnboundBindMemoryMapper;
-import com.archops.observed.mapper.UnboundObservationCandidateMapper;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.archops.user.security.AuthUserPrincipal;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.fasterxml.jackson.core.type.TypeReference;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 
 /**
- * Rule-templated 改理想 草案 (ticket 03), per-item review (ticket 04),
- * and OPEN-draft voiding on 冲突升级/空洞 (ticket 05).
- * Confirmation-before-write is not 策展真相.
+ * Rule-templated 改理想 草案, per-item review, and OPEN-draft voiding on 冲突升级/空洞.
+ * 未绑定 rebind origins live on UnboundDraftService. Confirmation-before-write is not 策展真相.
  */
 @Service
 public class CuratedDraftService {
@@ -75,10 +57,6 @@ public class CuratedDraftService {
     private final ConflictEventService conflictEventService;
     private final ConflictDetectionService conflictDetectionService;
     private final CuratedTruthService curatedTruthService;
-    private final UnboundObservationCandidateMapper unboundObservationCandidateMapper;
-    private final IdentityLostMarkMapper identityLostMarkMapper;
-    private final ObservedFactMapper observedFactMapper;
-    private final UnboundBindMemoryMapper unboundBindMemoryMapper;
     private final CuratedDraftEventMapper curatedDraftEventMapper;
     private final PersistentJson persistentJson;
 
@@ -91,10 +69,6 @@ public class CuratedDraftService {
             ConflictEventService conflictEventService,
             ConflictDetectionService conflictDetectionService,
             CuratedTruthService curatedTruthService,
-            UnboundObservationCandidateMapper unboundObservationCandidateMapper,
-            IdentityLostMarkMapper identityLostMarkMapper,
-            ObservedFactMapper observedFactMapper,
-            UnboundBindMemoryMapper unboundBindMemoryMapper,
             CuratedDraftEventMapper curatedDraftEventMapper,
             PersistentJson persistentJson
     ) {
@@ -106,10 +80,6 @@ public class CuratedDraftService {
         this.conflictEventService = conflictEventService;
         this.conflictDetectionService = conflictDetectionService;
         this.curatedTruthService = curatedTruthService;
-        this.unboundObservationCandidateMapper = unboundObservationCandidateMapper;
-        this.identityLostMarkMapper = identityLostMarkMapper;
-        this.observedFactMapper = observedFactMapper;
-        this.unboundBindMemoryMapper = unboundBindMemoryMapper;
         this.curatedDraftEventMapper = curatedDraftEventMapper;
         this.persistentJson = persistentJson;
     }
@@ -193,52 +163,6 @@ public class CuratedDraftService {
         return toResponse(draft, items);
     }
 
-
-    @Transactional
-    public CuratedDraftResponse createFromUnboundCandidate(String candidateId, AuthUserPrincipal actor) {
-        UnboundObservationCandidate candidate = unboundObservationCandidateMapper.selectById(candidateId);
-        if (candidate == null) {
-            throw new BusinessException("UNBOUND_CANDIDATE_NOT_FOUND",
-                    "No unbound observation candidate: " + candidateId);
-        }
-        if (findOpenUnboundForCandidate(candidateId) != null
-                || findOpenUnboundForHostRuntime(candidate.getSourceHostId(), candidate.getRuntimeId()) != null) {
-            throw new BusinessException("UNBOUND_DRAFT_ALREADY_OPEN",
-                    "Field entity already has an open 未绑定草案");
-        }
-
-        Instant now = Instant.now();
-        CuratedDraft draft = new CuratedDraft();
-        draft.setId("draft-" + UUID.randomUUID());
-        draft.setConflictId(null);
-        draft.setDiagnosisId(null);
-        draft.setSelectedForkId(null);
-        draft.setOrigin(CuratedDraftOrigin.UNBOUND_CANDIDATE);
-        draft.setCandidateId(candidate.getId());
-        draft.setSourceHostId(candidate.getSourceHostId());
-        draft.setRuntimeId(candidate.getRuntimeId());
-        draft.setStatus(CuratedDraftStatus.OPEN);
-        draft.setCreatedBy(actor.getUserId());
-        draft.setCreatedAt(now);
-        try {
-            curatedDraftMapper.insert(draft);
-        } catch (DataIntegrityViolationException ex) {
-            throw new BusinessException("UNBOUND_DRAFT_ALREADY_OPEN",
-                    "Field entity already has an open 未绑定草案");
-        }
-
-        List<CuratedDraftItem> items = buildUnboundItems(draft.getId(), candidate, now);
-        for (CuratedDraftItem item : items) {
-            curatedDraftItemMapper.insert(item);
-        }
-        appendDraftEvent(draft.getId(), CuratedDraftEventType.DRAFT_CREATED, actor.getUserId(), Map.of(
-                "draftId", draft.getId(),
-                "hint", "草案已创建",
-                "origin", CuratedDraftOrigin.UNBOUND_CANDIDATE.name()
-        ));
-        return toResponse(draft, items);
-    }
-
     @Transactional(readOnly = true)
     public List<CuratedDraftEventResponse> listEvents(String draftId) {
         CuratedDraft draft = curatedDraftMapper.selectById(draftId);
@@ -251,33 +175,6 @@ public class CuratedDraftService {
                 .stream()
                 .map(this::toEventResponse)
                 .toList();
-    }
-
-    private void appendDraftEvent(
-            String draftId,
-            CuratedDraftEventType type,
-            String actorUserId,
-            Map<String, Object> detail
-    ) {
-        CuratedDraftEvent event = new CuratedDraftEvent();
-        event.setId("devt-" + UUID.randomUUID());
-        event.setDraftId(draftId);
-        event.setEventType(type);
-        event.setActorUserId(actorUserId);
-        event.setDetailJson(writeJson(detail == null ? Map.of() : detail));
-        event.setCreatedAt(Instant.now());
-        curatedDraftEventMapper.insert(event);
-    }
-
-    private CuratedDraftEventResponse toEventResponse(CuratedDraftEvent row) {
-        return new CuratedDraftEventResponse(
-                row.getId(),
-                row.getDraftId(),
-                row.getEventType(),
-                row.getActorUserId(),
-                readPayloadMap(row.getDetailJson()),
-                row.getCreatedAt()
-        );
     }
 
     /**
@@ -311,103 +208,6 @@ public class CuratedDraftService {
     }
 
     /**
-     * 标签命中收尾：作废仍指向被消费候选 / 被消费现场实体键 / 绑到 X / 已接受新建主语为 X
-     * 的 OPEN 未绑定草案。不改条目状态，不写策展，不作废改理想草案。
-     */
-    @Transactional
-    public void voidOpenUnboundAfterLabelMatch(
-            String curatedObjectId,
-            Collection<String> consumedCandidateIds,
-            Collection<String> consumedHostRuntimeKeys
-    ) {
-        Set<String> candidateIds = consumedCandidateIds == null ? Set.of() : Set.copyOf(consumedCandidateIds);
-        Set<String> hostRuntimeKeys = consumedHostRuntimeKeys == null ? Set.of() : Set.copyOf(consumedHostRuntimeKeys);
-        List<CuratedDraft> openUnbound = curatedDraftMapper.selectList(new LambdaQueryWrapper<CuratedDraft>()
-                .eq(CuratedDraft::getOrigin, CuratedDraftOrigin.UNBOUND_CANDIDATE)
-                .eq(CuratedDraft::getStatus, CuratedDraftStatus.OPEN));
-        for (CuratedDraft draft : openUnbound) {
-            if (shouldVoidUnboundDraft(draft, curatedObjectId, candidateIds, hostRuntimeKeys)) {
-                voidUnboundDraft(draft.getId());
-            }
-        }
-    }
-
-    private boolean shouldVoidUnboundDraft(
-            CuratedDraft draft,
-            String curatedObjectId,
-            Set<String> candidateIds,
-            Set<String> hostRuntimeKeys
-    ) {
-        if (draft.getCandidateId() != null && candidateIds.contains(draft.getCandidateId())) {
-            return true;
-        }
-        if (draft.getRuntimeId() != null
-                && hostRuntimeKeys.contains(unboundHostRuntimeKey(draft.getSourceHostId(), draft.getRuntimeId()))) {
-            return true;
-        }
-        List<CuratedDraftItem> items = curatedDraftItemMapper.selectList(new LambdaQueryWrapper<CuratedDraftItem>()
-                .eq(CuratedDraftItem::getDraftId, draft.getId()));
-        for (CuratedDraftItem item : items) {
-            if (!curatedObjectId.equals(item.getSubjectId())) {
-                continue;
-            }
-            if (item.getKind() == CuratedDraftItemKind.BIND_UNBOUND_TO_EXISTING) {
-                return true;
-            }
-            if (item.getKind() == CuratedDraftItemKind.CREATE_CONTAINER_FROM_UNBOUND
-                    && item.getStatus() == CuratedDraftItemStatus.ACCEPTED) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private void voidUnboundDraft(String draftId) {
-        int updated = curatedDraftMapper.update(null, new LambdaUpdateWrapper<CuratedDraft>()
-                .eq(CuratedDraft::getId, draftId)
-                .eq(CuratedDraft::getOrigin, CuratedDraftOrigin.UNBOUND_CANDIDATE)
-                .eq(CuratedDraft::getStatus, CuratedDraftStatus.OPEN)
-                .set(CuratedDraft::getStatus, CuratedDraftStatus.VOIDED));
-        if (updated != 1) {
-            return;
-        }
-        appendDraftEvent(draftId, CuratedDraftEventType.DRAFT_VOIDED, null, Map.of(
-                "draftId", draftId,
-                "hint", "草案已作废"
-        ));
-    }
-
-    static String unboundHostRuntimeKey(String sourceHostId, String runtimeId) {
-        return sourceHostId + "\0" + runtimeId;
-    }
-
-    /**
-     * 未绑定草案逐条确认：接受即写该条（新建容器），拒绝不写。
-     */
-    @Transactional
-    public CuratedDraftResponse acceptUnboundItem(String draftId, String itemId, AuthUserPrincipal actor) {
-        UnboundItemReview review = beginUnboundItemReview(draftId, itemId);
-        if (review.item().getKind() == CuratedDraftItemKind.CREATE_CONTAINER_FROM_UNBOUND
-                || review.item().getKind() == CuratedDraftItemKind.BIND_UNBOUND_TO_EXISTING) {
-            requireUnboundCandidateNotConsumed(review.draft());
-        }
-        applyUnboundAccept(review.draft(), review.item(), actor.getUserId());
-        markItem(review.item(), CuratedDraftItemStatus.ACCEPTED);
-        appendDraftEvent(review.draft().getId(), CuratedDraftEventType.DRAFT_ITEM_ACCEPTED, actor.getUserId(),
-                unboundItemAuditDetail(review, "草案条目已接受"));
-        return respond(review.draft());
-    }
-
-    @Transactional
-    public CuratedDraftResponse rejectUnboundItem(String draftId, String itemId, AuthUserPrincipal actor) {
-        UnboundItemReview review = beginUnboundItemReview(draftId, itemId);
-        markItem(review.item(), CuratedDraftItemStatus.REJECTED);
-        appendDraftEvent(review.draft().getId(), CuratedDraftEventType.DRAFT_ITEM_REJECTED, actor.getUserId(),
-                unboundItemAuditDetail(review, "草案条目已拒绝"));
-        return respond(review.draft());
-    }
-
-    /**
      * Accept writes that item's 策展 运行于 immediately, then runs the same merge-key compare
      * as snapshot ingest (equal → 待确认关闭, never auto CLOSED).
      */
@@ -437,172 +237,15 @@ public class CuratedDraftService {
         return respond(review.draft());
     }
 
-    private UnboundItemReview beginUnboundItemReview(String draftId, String itemId) {
-        CuratedDraft draft = curatedDraftMapper.selectById(draftId);
-        if (draft == null || draft.getOrigin() != CuratedDraftOrigin.UNBOUND_CANDIDATE) {
-            throw new BusinessException("DRAFT_NOT_FOUND", "No open 未绑定草案: " + draftId);
-        }
-        if (draft.getStatus() == CuratedDraftStatus.VOIDED) {
-            throw new BusinessException("DRAFT_VOIDED", "草案已作废");
-        }
-        if (draft.getStatus() != CuratedDraftStatus.OPEN) {
-            throw new BusinessException("DRAFT_NOT_FOUND", "No open 未绑定草案: " + draftId);
-        }
-        CuratedDraftItem item = requireItemOnDraft(draft.getId(), itemId);
-        return new UnboundItemReview(draft, item);
-    }
-
-    private void requireUnboundCandidateNotConsumed(CuratedDraft draft) {
-        Long existing = unboundBindMemoryMapper.selectCount(new LambdaQueryWrapper<UnboundBindMemory>()
-                .eq(UnboundBindMemory::getSourceHostId, draft.getSourceHostId())
-                .eq(UnboundBindMemory::getRuntimeId, draft.getRuntimeId()));
-        if (existing != null && existing > 0) {
-            throw candidateConsumed();
-        }
-    }
-
-    private void applyUnboundAccept(CuratedDraft draft, CuratedDraftItem item, String actorUserId) {
-        if (item.getKind() == CuratedDraftItemKind.CREATE_CONTAINER_FROM_UNBOUND) {
-            writeAcceptedCreateContainer(draft, item, actorUserId);
-            return;
-        }
-        if (item.getKind() == CuratedDraftItemKind.CURATED_RUNS_ON_INSERT) {
-            writeAcceptedFirstRunsOn(item, actorUserId);
-            return;
-        }
-        if (item.getKind() == CuratedDraftItemKind.BIND_UNBOUND_TO_EXISTING) {
-            writeAcceptedBind(draft, item);
-            return;
-        }
-        throw new BusinessException("UNBOUND_ITEM_KIND_UNSUPPORTED",
-                "未绑定草案本票不审该条目 kind: " + item.getKind());
-    }
-
-    private void writeAcceptedFirstRunsOn(CuratedDraftItem item, String actorUserId) {
-        CuratedDraftItem create = requireCreateAcceptedBeforeRunsOn(item);
-        item.setSubjectId(create.getSubjectId());
-        curatedTruthService.confirmRunsOn(
-                new ConfirmRunsOnRequest(create.getSubjectId(), item.getToHostId()), actorUserId);
-    }
-
-    private CuratedDraftItem requireCreateAcceptedBeforeRunsOn(CuratedDraftItem runsOnItem) {
-        CuratedDraftItem create = findSibling(runsOnItem.getDraftId(), CuratedDraftItemKind.CREATE_CONTAINER_FROM_UNBOUND);
-        if (create == null
-                || create.getStatus() != CuratedDraftItemStatus.ACCEPTED
-                || create.getSubjectId() == null
-                || create.getSubjectId().isBlank()) {
-            throw new BusinessException("UNBOUND_RUNS_ON_BEFORE_CREATE",
-                    "不能在新建策展容器之前接受策展「运行于」");
-        }
-        return create;
-    }
-
-    private CuratedDraftItem findSibling(String draftId, CuratedDraftItemKind kind) {
-        return curatedDraftItemMapper.selectList(new LambdaQueryWrapper<CuratedDraftItem>()
-                        .eq(CuratedDraftItem::getDraftId, draftId)
-                        .eq(CuratedDraftItem::getKind, kind))
-                .stream()
-                .findFirst()
-                .orElse(null);
-    }
-
-    private void writeAcceptedCreateContainer(CuratedDraft draft, CuratedDraftItem item, String actorUserId) {
-        Map<String, Object> payload = readPayloadMap(item.getPayloadJson());
-        String name = stringPayload(payload, "proposedName");
-        String objectId = stringPayload(payload, "immutableObjectId");
-        if (name == null || name.isBlank() || objectId == null || objectId.isBlank()) {
-            throw new BusinessException("UNBOUND_CREATE_IMMUTABLE_ID_MISSING",
-                    "MISSING_LABEL 新建没有可写的现场不可变 object id");
-        }
-        CuratedObjectResponse created = curatedTruthService.createContainer(
-                new CreateContainerRequest(name, objectId), actorUserId);
-        item.setSubjectId(created.id());
-        rememberBind(draft, created.id());
-    }
-
-    private void writeAcceptedBind(CuratedDraft draft, CuratedDraftItem item) {
-        String targetId = item.getSubjectId();
-        if (targetId == null || targetId.isBlank()) {
-            throw new BusinessException("UNBOUND_ITEM_KIND_UNSUPPORTED",
-                    "绑到已有缺少目标策展对象");
-        }
-        IdentityLostMark lost = identityLostMarkMapper.selectById(targetId);
-        if (lost == null || labelMatchedAfterIdentityLoss(lost)) {
-            throw new BusinessException("UNBOUND_BIND_TARGET_HEALTHY",
-                    "只能绑到仍身份失联、且失联之后未再标签命中的对象");
-        }
-        requireTargetNotAlreadyBound(targetId);
-        rememberBind(draft, targetId);
-    }
-
-    /**
-     * 一个策展对象只能是一个现场实体的本体（ADR-0011）：另一个候选已绑到它时拒绝。
-     */
-    private void requireTargetNotAlreadyBound(String targetId) {
-        if (alreadyBound(targetId)) {
-            throw targetAlreadyBound();
-        }
-    }
-
-    private boolean alreadyBound(String curatedObjectId) {
-        Long bound = unboundBindMemoryMapper.selectCount(new LambdaQueryWrapper<UnboundBindMemory>()
-                .eq(UnboundBindMemory::getCuratedObjectId, curatedObjectId));
-        return bound != null && bound > 0;
-    }
-
-    /**
-     * 只有晚于失联标的 PRESENT 才证明标签又命中了。失联之前留下的旧观测 `运行于`
-     * 不是可靠实际（ADR-0012 B1：标签被删或被改的既有容器仍须能经草案绑回）。
-     */
-    private boolean labelMatchedAfterIdentityLoss(IdentityLostMark lost) {
-        ObservedFact observed = observedFactMapper.selectOne(new LambdaQueryWrapper<ObservedFact>()
-                .eq(ObservedFact::getSubjectId, lost.getCuratedObjectId())
-                .eq(ObservedFact::getRelationType, CuratedRelationType.RUNS_ON));
-        if (observed == null || observed.getAvailability() != ObservedAvailability.PRESENT) {
-            return false;
-        }
-        return !observed.getObservedAt().isBefore(lost.getMarkedAt());
-    }
-
-    private void rememberBind(CuratedDraft draft, String curatedObjectId) {
-        UnboundBindMemory memory = new UnboundBindMemory();
-        memory.setId("ubm-" + UUID.randomUUID());
-        memory.setSourceHostId(draft.getSourceHostId());
-        memory.setRuntimeId(draft.getRuntimeId());
-        memory.setCuratedObjectId(curatedObjectId);
-        memory.setCreatedAt(Instant.now());
-        try {
-            unboundBindMemoryMapper.insert(memory);
-        } catch (DataIntegrityViolationException ex) {
-            throw bindMemoryRace(ex);
-        }
-    }
-
-    /**
-     * 两条唯一约束语义不同：现场实体键冲突说明该候选已被并入（`UNBOUND_CANDIDATE_CONSUMED`），
-     * 策展对象键冲突才是「目标已被别的现场实体绑定」。事务已因约束失败中止，只能靠异常本身判别。
-     */
-    private static BusinessException bindMemoryRace(DataIntegrityViolationException ex) {
-        Throwable cause = ex.getMostSpecificCause();
-        String detail = cause == null ? "" : String.valueOf(cause.getMessage());
-        return detail.contains("unbound_bind_memory_object_uq")
-                ? targetAlreadyBound()
-                : candidateConsumed();
-    }
-
-    private static BusinessException targetAlreadyBound() {
-        return new BusinessException("UNBOUND_BIND_TARGET_ALREADY_BOUND",
-                "该策展对象已由另一个现场实体绑定，不能再绑第二个");
-    }
-
-    private static BusinessException candidateConsumed() {
-        return new BusinessException("UNBOUND_CANDIDATE_CONSUMED",
-                "该现场实体已因绑定或新建被消费，不能再次并入");
-    }
-
-    private static String stringPayload(Map<String, Object> payload, String key) {
-        Object value = payload.get(key);
-        return value == null ? null : String.valueOf(value);
+    private CuratedDraftEventResponse toEventResponse(CuratedDraftEvent row) {
+        return new CuratedDraftEventResponse(
+                row.getId(),
+                row.getDraftId(),
+                row.getEventType(),
+                row.getActorUserId(),
+                readPayloadMap(row.getDetailJson()),
+                row.getCreatedAt()
+        );
     }
 
     private OpenItemReview beginItemReview(String conflictId, String itemId, AuthUserPrincipal actor) {
@@ -798,124 +441,9 @@ public class CuratedDraftService {
         );
     }
 
-    private CuratedDraft findOpenUnboundForCandidate(String candidateId) {
-        return curatedDraftMapper.selectOne(new LambdaQueryWrapper<CuratedDraft>()
-                .eq(CuratedDraft::getCandidateId, candidateId)
-                .eq(CuratedDraft::getOrigin, CuratedDraftOrigin.UNBOUND_CANDIDATE)
-                .eq(CuratedDraft::getStatus, CuratedDraftStatus.OPEN)
-                .orderByDesc(CuratedDraft::getCreatedAt)
-                .last("LIMIT 1"));
-    }
-
-    private CuratedDraft findOpenUnboundForHostRuntime(String sourceHostId, String runtimeId) {
-        if (sourceHostId == null || runtimeId == null || runtimeId.isBlank()) {
-            return null;
-        }
-        return curatedDraftMapper.selectOne(new LambdaQueryWrapper<CuratedDraft>()
-                .eq(CuratedDraft::getSourceHostId, sourceHostId)
-                .eq(CuratedDraft::getRuntimeId, runtimeId)
-                .eq(CuratedDraft::getOrigin, CuratedDraftOrigin.UNBOUND_CANDIDATE)
-                .eq(CuratedDraft::getStatus, CuratedDraftStatus.OPEN)
-                .orderByDesc(CuratedDraft::getCreatedAt)
-                .last("LIMIT 1"));
-    }
-
-    private List<CuratedDraftItem> buildUnboundItems(
-            String draftId,
-            UnboundObservationCandidate candidate,
-            Instant now
-    ) {
-        List<CuratedDraftItem> items = new ArrayList<>();
-        int seq = 1;
-        if (candidate.getReason() == UnboundReason.UNKNOWN_OBJECT_ID) {
-            IdentityLostMark lost = findIdentityLostOnHost(candidate.getSourceHostId());
-            if (lost != null) {
-                items.add(newItem(draftId, seq++, CuratedDraftItemKind.BIND_UNBOUND_TO_EXISTING,
-                        lost.getCuratedObjectId(), null, null, "{}", now));
-            }
-            Map<String, String> labels = readStringMap(candidate.getLabelsJson());
-            String immutableObjectId = labels.get(CuratedObjectLabels.OBJECT_ID_KEY);
-            Map<String, Object> createPayload = new LinkedHashMap<>();
-            createPayload.put("immutableObjectId", immutableObjectId);
-            createPayload.put("labels", Map.of(CuratedObjectLabels.OBJECT_ID_KEY, immutableObjectId));
-            createPayload.put("proposedName", candidate.getName());
-            items.add(newItem(draftId, seq++, CuratedDraftItemKind.CREATE_CONTAINER_FROM_UNBOUND,
-                    null, null, null, writeJson(createPayload), now));
-            items.add(newItem(draftId, seq++, CuratedDraftItemKind.CURATED_RUNS_ON_INSERT,
-                    null, null, candidate.getSourceHostId(), "{}", now));
-        } else if (candidate.getReason() == UnboundReason.MISSING_LABEL) {
-            IdentityLostMark lost = findIdentityLostOnHost(candidate.getSourceHostId());
-            if (lost == null) {
-                throw new BusinessException("UNBOUND_DRAFT_FIXTURE_UNAVAILABLE",
-                        "MISSING_LABEL candidate has no identity-lost target on host");
-            }
-            items.add(newItem(draftId, seq++, CuratedDraftItemKind.BIND_UNBOUND_TO_EXISTING,
-                    lost.getCuratedObjectId(), null, null, "{}", now));
-            Map<String, Object> createPayload = new LinkedHashMap<>();
-            createPayload.put("immutableObjectId", null);
-            createPayload.put("proposedName", candidate.getName());
-            items.add(newItem(draftId, seq++, CuratedDraftItemKind.CREATE_CONTAINER_FROM_UNBOUND,
-                    null, null, null, writeJson(createPayload), now));
-        } else {
-            throw new BusinessException("UNBOUND_DRAFT_FIXTURE_UNAVAILABLE",
-                    "Unsupported unbound reason for draft fixture");
-        }
-        return items;
-    }
-
-    /**
-     * Rule fixture: pick one identity-lost object on the candidate host that no other field
-     * entity is already bound to. Deterministic when several marks qualify (curatedObjectId asc).
-     */
-    private IdentityLostMark findIdentityLostOnHost(String hostId) {
-        List<IdentityLostMark> marks = identityLostMarkMapper.selectList(
-                new LambdaQueryWrapper<IdentityLostMark>()
-                        .eq(IdentityLostMark::getSourceHostId, hostId)
-                        .orderByAsc(IdentityLostMark::getCuratedObjectId));
-        for (IdentityLostMark mark : marks) {
-            if (!alreadyBound(mark.getCuratedObjectId())) {
-                return mark;
-            }
-        }
-        return null;
-    }
-
-    private CuratedDraftItem newItem(
-            String draftId,
-            int seq,
-            CuratedDraftItemKind kind,
-            String subjectId,
-            String fromHostId,
-            String toHostId,
-            String payloadJson,
-            Instant now
-    ) {
-        CuratedDraftItem item = new CuratedDraftItem();
-        item.setId("ditem-" + UUID.randomUUID());
-        item.setDraftId(draftId);
-        item.setSeq(seq);
-        item.setKind(kind);
-        item.setStatus(CuratedDraftItemStatus.PENDING);
-        item.setSubjectId(subjectId);
-        item.setFromHostId(fromHostId);
-        item.setToHostId(toHostId);
-        item.setPayloadJson(payloadJson == null ? "{}" : payloadJson);
-        item.setCreatedAt(now);
-        return item;
-    }
-
     private Map<String, Object> readPayloadMap(String payloadJson) {
         return persistentJson.read(payloadJson, new TypeReference<Map<String, Object>>() {
         }, Map.of());
-    }
-
-    private Map<String, String> readStringMap(String json) {
-        return persistentJson.read(json, new TypeReference<Map<String, String>>() {
-        }, Map.of());
-    }
-
-    private String writeJson(Object value) {
-        return persistentJson.write(value);
     }
 
     private String writePayload(String fromHostId, String toHostId) {
@@ -924,15 +452,6 @@ public class CuratedDraftService {
                 "fromHostId", fromHostId,
                 "toHostId", toHostId
         ));
-    }
-
-    private static Map<String, Object> unboundItemAuditDetail(UnboundItemReview review, String hint) {
-        Map<String, Object> detail = new LinkedHashMap<>();
-        detail.put("draftId", review.draft().getId());
-        detail.put("itemId", review.item().getId());
-        detail.put("subjectId", review.item().getSubjectId());
-        detail.put("hint", hint);
-        return detail;
     }
 
     private static Map<String, Object> itemAuditDetail(OpenItemReview review, String hint, boolean written) {
@@ -948,8 +467,5 @@ public class CuratedDraftService {
     }
 
     private record OpenItemReview(CuratedDraft draft, CuratedDraftItem item) {
-    }
-
-    private record UnboundItemReview(CuratedDraft draft, CuratedDraftItem item) {
     }
 }

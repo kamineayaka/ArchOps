@@ -1,14 +1,15 @@
 package com.archops.observed.controller;
 
 import com.archops.common.api.ApiResponse;
+import com.archops.curated.dto.CuratedDraftResponse;
+import com.archops.curated.service.UnboundDraftService;
 import com.archops.observed.dto.ActualWhereResponse;
 import com.archops.observed.dto.HeartbeatTimeoutScanResponse;
 import com.archops.observed.dto.IdentityLostResponse;
 import com.archops.observed.dto.UnboundCandidateResponse;
 import com.archops.observed.service.ObservationFreshnessService;
-import com.archops.curated.dto.CuratedDraftResponse;
-import com.archops.curated.service.CuratedDraftService;
 import com.archops.observed.service.ObservedTruthService;
+import com.archops.observed.service.UnboundObservationService;
 import com.archops.user.security.AuthUserPrincipal;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -31,16 +32,19 @@ public class ObservedController {
 
     private final ObservedTruthService observedTruthService;
     private final ObservationFreshnessService observationFreshnessService;
-    private final CuratedDraftService curatedDraftService;
+    private final UnboundObservationService unboundObservationService;
+    private final UnboundDraftService unboundDraftService;
 
     public ObservedController(
             ObservedTruthService observedTruthService,
             ObservationFreshnessService observationFreshnessService,
-            CuratedDraftService curatedDraftService
+            UnboundObservationService unboundObservationService,
+            UnboundDraftService unboundDraftService
     ) {
         this.observedTruthService = observedTruthService;
         this.observationFreshnessService = observationFreshnessService;
-        this.curatedDraftService = curatedDraftService;
+        this.unboundObservationService = unboundObservationService;
+        this.unboundDraftService = unboundDraftService;
     }
 
     /**
@@ -61,12 +65,12 @@ public class ObservedController {
 
     @GetMapping("/unbound-candidates")
     public ApiResponse<List<UnboundCandidateResponse>> unboundCandidates() {
-        return ApiResponse.ok(observedTruthService.listUnbound());
+        return ApiResponse.ok(unboundObservationService.listUnbound());
     }
 
     @GetMapping("/identity-lost/{curatedObjectId}")
     public ApiResponse<IdentityLostResponse> identityLost(@PathVariable String curatedObjectId) {
-        return ApiResponse.ok(observedTruthService.getIdentityLost(curatedObjectId));
+        return ApiResponse.ok(unboundObservationService.getIdentityLost(curatedObjectId));
     }
 
     @PostMapping("/unbound-candidates/{candidateId}/drafts")
@@ -74,6 +78,6 @@ public class ObservedController {
             @PathVariable String candidateId,
             @AuthenticationPrincipal AuthUserPrincipal principal
     ) {
-        return ApiResponse.ok(curatedDraftService.createFromUnboundCandidate(candidateId, principal));
+        return ApiResponse.ok(unboundDraftService.createFromUnboundCandidate(candidateId, principal));
     }
 }
