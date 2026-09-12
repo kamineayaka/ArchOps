@@ -43,6 +43,22 @@ class AcceptedHandlerPolicyTest {
                 .isEqualTo("PLAN_REQUIRES_ACCEPTED_HANDLER");
     }
 
+    @Test
+    void acceptedButActorIsNotHandlerThrowsPlanRequiresAcceptedHandler() {
+        ConflictCase conflict = conflict("user-handler", HandlerAcceptance.ACCEPTED);
+        AuthUserPrincipal actor = actor("user-other");
+
+        assertThatThrownBy(() -> AcceptedHandlerPolicy.require(
+                        conflict,
+                        actor,
+                        "PLAN_REQUIRES_ACCEPTED_HANDLER",
+                        "Only the 已接受冲突处理人 may select a branch or manage the operation plan"))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("Only the 已接受冲突处理人 may select a branch or manage the operation plan")
+                .extracting(ex -> ((BusinessException) ex).getCode())
+                .isEqualTo("PLAN_REQUIRES_ACCEPTED_HANDLER");
+    }
+
     private static ConflictCase conflict(String handlerUserId, HandlerAcceptance acceptance) {
         ConflictCase row = new ConflictCase();
         row.setHandlerUserId(handlerUserId);

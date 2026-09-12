@@ -19,7 +19,9 @@ public final class AcceptedHandlerPolicy {
             String errorCode,
             String message
     ) {
-        if (conflict.getHandlerAcceptance() != HandlerAcceptance.ACCEPTED) {
+        boolean ok = conflict.getHandlerAcceptance() == HandlerAcceptance.ACCEPTED
+                && actor.getUserId().equals(conflict.getHandlerUserId());
+        if (!ok) {
             throw new BusinessException("PLAN_REQUIRES_ACCEPTED_HANDLER", message);
         }
     }
