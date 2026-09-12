@@ -1,6 +1,7 @@
 package com.archops.plan.service;
 
 import com.archops.common.exception.BusinessException;
+import com.archops.common.json.PersistentJson;
 import com.archops.common.lock.PlanExecutionLock;
 import com.archops.common.ssh.PlanStepCommands;
 import com.archops.plan.dispatch.ExecuteStepCommand;
@@ -29,9 +30,7 @@ import com.archops.plan.mapper.OperationPlanMapper;
 import com.archops.user.security.AuthUserPrincipal;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -66,7 +65,7 @@ public class OperationPlanService {
     private final ConflictCaseMapper conflictCaseMapper;
     private final ConflictDiagnosisService conflictDiagnosisService;
     private final CuratedObjectMapper curatedObjectMapper;
-    private final ObjectMapper objectMapper;
+    private final PersistentJson persistentJson;
     private final ExecutorDispatchPort executorDispatchPort;
     private final PlanExecutionLock planExecutionLock;
     private final TransactionTemplate transactionTemplate;
@@ -77,7 +76,7 @@ public class OperationPlanService {
             ConflictCaseMapper conflictCaseMapper,
             ConflictDiagnosisService conflictDiagnosisService,
             CuratedObjectMapper curatedObjectMapper,
-            ObjectMapper objectMapper,
+            PersistentJson persistentJson,
             ExecutorDispatchPort executorDispatchPort,
             PlanExecutionLock planExecutionLock,
             TransactionTemplate transactionTemplate,
@@ -87,7 +86,7 @@ public class OperationPlanService {
         this.conflictCaseMapper = conflictCaseMapper;
         this.conflictDiagnosisService = conflictDiagnosisService;
         this.curatedObjectMapper = curatedObjectMapper;
-        this.objectMapper = objectMapper;
+        this.persistentJson = persistentJson;
         this.executorDispatchPort = executorDispatchPort;
         this.planExecutionLock = planExecutionLock;
         this.transactionTemplate = transactionTemplate;
@@ -562,34 +561,16 @@ public class OperationPlanService {
     }
 
     private String writeJson(Object value) {
-        try {
-            return objectMapper.writeValueAsString(value);
-        } catch (JsonProcessingException ex) {
-            return value instanceof List<?> ? "[]" : "{}";
-        }
+        return persistentJson.write(value);
     }
 
     private List<OperationPlanResponse.PlanStep> readSteps(String json) {
-        if (json == null || json.isBlank()) {
-            return List.of();
-        }
-        try {
-            return objectMapper.readValue(json, new TypeReference<>() {
-            });
-        } catch (JsonProcessingException ex) {
-            return List.of();
-        }
+        return persistentJson.read(json, new TypeReference<>() {
+        }, List.of());
     }
 
     private List<OperationPlanResponse.ExecutionStepLog> readExecutionLog(String json) {
-        if (json == null || json.isBlank()) {
-            return List.of();
-        }
-        try {
-            return objectMapper.readValue(json, new TypeReference<>() {
-            });
-        } catch (JsonProcessingException ex) {
-            return List.of();
-        }
+        return persistentJson.read(json, new TypeReference<>() {
+        }, List.of());
     }
 }

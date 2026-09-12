@@ -1,6 +1,7 @@
 package com.archops.conflict.service;
 
 import com.archops.common.exception.BusinessException;
+import com.archops.common.json.PersistentJson;
 import com.archops.conflict.diagnosis.ConflictDiagnosisService;
 import com.archops.conflict.domain.ConflictCase;
 import com.archops.conflict.domain.ConflictEventType;
@@ -22,9 +23,7 @@ import com.archops.observed.mapper.ObservedFactMapper;
 import com.archops.plan.service.OperationPlanService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -63,7 +62,7 @@ public class ConflictDetectionService {
     private final ConflictEventService conflictEventService;
     private final OperationPlanService operationPlanService;
     private final CuratedDraftService curatedDraftService;
-    private final ObjectMapper objectMapper;
+    private final PersistentJson persistentJson;
 
     public ConflictDetectionService(
             ConflictCaseMapper conflictCaseMapper,
@@ -75,7 +74,7 @@ public class ConflictDetectionService {
             ConflictEventService conflictEventService,
             @Lazy OperationPlanService operationPlanService,
             @Lazy CuratedDraftService curatedDraftService,
-            ObjectMapper objectMapper
+            PersistentJson persistentJson
     ) {
         this.conflictCaseMapper = conflictCaseMapper;
         this.curatedFactMapper = curatedFactMapper;
@@ -86,7 +85,7 @@ public class ConflictDetectionService {
         this.conflictEventService = conflictEventService;
         this.operationPlanService = operationPlanService;
         this.curatedDraftService = curatedDraftService;
-        this.objectMapper = objectMapper;
+        this.persistentJson = persistentJson;
     }
 
     /**
@@ -611,24 +610,12 @@ public class ConflictDetectionService {
     }
 
     private List<LineageRecord> readLineage(String json) {
-        if (json == null || json.isBlank()) {
-            return new ArrayList<>();
-        }
-        try {
-            List<LineageRecord> parsed = objectMapper.readValue(json, new TypeReference<>() {
-            });
-            return new ArrayList<>(parsed);
-        } catch (JsonProcessingException ex) {
-            return new ArrayList<>();
-        }
+        return new ArrayList<>(persistentJson.read(json, new TypeReference<>() {
+        }, List.of()));
     }
 
     private String writeLineage(List<LineageRecord> lineage) {
-        try {
-            return objectMapper.writeValueAsString(lineage);
-        } catch (JsonProcessingException ex) {
-            return "[]";
-        }
+        return persistentJson.write(lineage);
     }
 
     private static String newId(String prefix) {

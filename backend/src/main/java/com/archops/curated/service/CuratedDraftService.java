@@ -1,6 +1,7 @@
 package com.archops.curated.service;
 
 import com.archops.common.exception.BusinessException;
+import com.archops.common.json.PersistentJson;
 import com.archops.conflict.AcceptedHandlerPolicy;
 import com.archops.conflict.domain.ConflictCase;
 import com.archops.conflict.domain.ConflictEventType;
@@ -44,8 +45,6 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.archops.user.security.AuthUserPrincipal;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -81,7 +80,7 @@ public class CuratedDraftService {
     private final ObservedFactMapper observedFactMapper;
     private final UnboundBindMemoryMapper unboundBindMemoryMapper;
     private final CuratedDraftEventMapper curatedDraftEventMapper;
-    private final ObjectMapper objectMapper;
+    private final PersistentJson persistentJson;
 
     public CuratedDraftService(
             CuratedDraftMapper curatedDraftMapper,
@@ -97,7 +96,7 @@ public class CuratedDraftService {
             ObservedFactMapper observedFactMapper,
             UnboundBindMemoryMapper unboundBindMemoryMapper,
             CuratedDraftEventMapper curatedDraftEventMapper,
-            ObjectMapper objectMapper
+            PersistentJson persistentJson
     ) {
         this.curatedDraftMapper = curatedDraftMapper;
         this.curatedDraftItemMapper = curatedDraftItemMapper;
@@ -112,7 +111,7 @@ public class CuratedDraftService {
         this.observedFactMapper = observedFactMapper;
         this.unboundBindMemoryMapper = unboundBindMemoryMapper;
         this.curatedDraftEventMapper = curatedDraftEventMapper;
-        this.objectMapper = objectMapper;
+        this.persistentJson = persistentJson;
     }
 
     @Transactional(readOnly = true)
@@ -906,45 +905,25 @@ public class CuratedDraftService {
     }
 
     private Map<String, Object> readPayloadMap(String payloadJson) {
-        if (payloadJson == null || payloadJson.isBlank()) {
-            return Map.of();
-        }
-        try {
-            return objectMapper.readValue(payloadJson, new TypeReference<Map<String, Object>>() {});
-        } catch (JsonProcessingException ex) {
-            return Map.of();
-        }
+        return persistentJson.read(payloadJson, new TypeReference<Map<String, Object>>() {
+        }, Map.of());
     }
 
     private Map<String, String> readStringMap(String json) {
-        if (json == null || json.isBlank()) {
-            return Map.of();
-        }
-        try {
-            return objectMapper.readValue(json, new TypeReference<Map<String, String>>() {});
-        } catch (JsonProcessingException ex) {
-            return Map.of();
-        }
+        return persistentJson.read(json, new TypeReference<Map<String, String>>() {
+        }, Map.of());
     }
 
     private String writeJson(Object value) {
-        try {
-            return objectMapper.writeValueAsString(value);
-        } catch (JsonProcessingException ex) {
-            return "{}";
-        }
+        return persistentJson.write(value);
     }
 
     private String writePayload(String fromHostId, String toHostId) {
-        try {
-            return objectMapper.writeValueAsString(Map.of(
-                    "relationType", CuratedRelationType.RUNS_ON.name(),
-                    "fromHostId", fromHostId,
-                    "toHostId", toHostId
-            ));
-        } catch (JsonProcessingException ex) {
-            return "{}";
-        }
+        return persistentJson.write(Map.of(
+                "relationType", CuratedRelationType.RUNS_ON.name(),
+                "fromHostId", fromHostId,
+                "toHostId", toHostId
+        ));
     }
 
     private static Map<String, Object> unboundItemAuditDetail(UnboundItemReview review, String hint) {

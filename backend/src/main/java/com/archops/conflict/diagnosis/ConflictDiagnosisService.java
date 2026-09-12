@@ -1,5 +1,6 @@
 package com.archops.conflict.diagnosis;
 
+import com.archops.common.json.PersistentJson;
 import com.archops.conflict.domain.ConflictCase;
 import com.archops.conflict.domain.ConflictDiagnosis;
 import com.archops.conflict.domain.ConflictStatus;
@@ -13,9 +14,7 @@ import com.archops.curated.mapper.CuratedObjectMapper;
 import com.archops.observed.domain.ObservedAvailability;
 import com.archops.observed.mapper.IdentityLostMarkMapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Lazy;
@@ -39,7 +38,7 @@ public class ConflictDiagnosisService {
     private final IdentityLostMarkMapper identityLostMarkMapper;
     private final DiagnosisJobQueue diagnosisJobQueue;
     private final DiagnosisAsyncRunner diagnosisAsyncRunner;
-    private final ObjectMapper objectMapper;
+    private final PersistentJson persistentJson;
 
     public ConflictDiagnosisService(
             ConflictDiagnosisMapper diagnosisMapper,
@@ -47,7 +46,7 @@ public class ConflictDiagnosisService {
             CuratedObjectMapper curatedObjectMapper,
             IdentityLostMarkMapper identityLostMarkMapper,
             DiagnosisJobQueue diagnosisJobQueue,
-            ObjectMapper objectMapper,
+            PersistentJson persistentJson,
             @Lazy DiagnosisAsyncRunner diagnosisAsyncRunner
     ) {
         this.diagnosisMapper = diagnosisMapper;
@@ -55,7 +54,7 @@ public class ConflictDiagnosisService {
         this.curatedObjectMapper = curatedObjectMapper;
         this.identityLostMarkMapper = identityLostMarkMapper;
         this.diagnosisJobQueue = diagnosisJobQueue;
-        this.objectMapper = objectMapper;
+        this.persistentJson = persistentJson;
         this.diagnosisAsyncRunner = diagnosisAsyncRunner;
     }
 
@@ -212,22 +211,11 @@ public class ConflictDiagnosisService {
     }
 
     private String writeForks(List<ConflictDiagnosisResponse.ForkSuggestion> forks) {
-        try {
-            return objectMapper.writeValueAsString(forks);
-        } catch (JsonProcessingException ex) {
-            return "[]";
-        }
+        return persistentJson.write(forks);
     }
 
     private List<ConflictDiagnosisResponse.ForkSuggestion> readForks(String json) {
-        if (json == null || json.isBlank()) {
-            return List.of();
-        }
-        try {
-            return objectMapper.readValue(json, new TypeReference<>() {
-            });
-        } catch (JsonProcessingException ex) {
-            return List.of();
-        }
+        return persistentJson.read(json, new TypeReference<>() {
+        }, List.of());
     }
 }

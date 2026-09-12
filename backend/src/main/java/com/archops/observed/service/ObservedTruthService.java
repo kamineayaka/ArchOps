@@ -3,6 +3,7 @@ package com.archops.observed.service;
 import com.archops.agent.dto.AgentHeartbeatRequest;
 import com.archops.agent.dto.AgentHeartbeatResponse;
 import com.archops.common.exception.BusinessException;
+import com.archops.common.json.PersistentJson;
 import com.archops.conflict.service.ConflictDetectionService;
 import com.archops.curated.CuratedObjectLabels;
 import com.archops.curated.domain.CuratedFact;
@@ -31,9 +32,7 @@ import com.archops.observed.mapper.UnboundBindMemoryMapper;
 import com.archops.observed.mapper.UnboundObservationCandidateMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -63,7 +62,7 @@ public class ObservedTruthService {
     private final ConflictDetectionService conflictDetectionService;
     private final ObservationFreshnessService observationFreshnessService;
     private final CuratedDraftService curatedDraftService;
-    private final ObjectMapper objectMapper;
+    private final PersistentJson persistentJson;
 
     public ObservedTruthService(
             HostAgentMapper hostAgentMapper,
@@ -76,7 +75,7 @@ public class ObservedTruthService {
             ConflictDetectionService conflictDetectionService,
             @Lazy ObservationFreshnessService observationFreshnessService,
             @Lazy CuratedDraftService curatedDraftService,
-            ObjectMapper objectMapper
+            PersistentJson persistentJson
     ) {
         this.hostAgentMapper = hostAgentMapper;
         this.observedFactMapper = observedFactMapper;
@@ -88,7 +87,7 @@ public class ObservedTruthService {
         this.conflictDetectionService = conflictDetectionService;
         this.observationFreshnessService = observationFreshnessService;
         this.curatedDraftService = curatedDraftService;
-        this.objectMapper = objectMapper;
+        this.persistentJson = persistentJson;
     }
 
     @Transactional
@@ -685,23 +684,11 @@ public class ObservedTruthService {
     }
 
     private Map<String, String> parseLabels(String labelsJson) {
-        if (labelsJson == null || labelsJson.isBlank()) {
-            return Map.of();
-        }
-        try {
-            Map<String, String> labels = objectMapper.readValue(labelsJson, LABEL_MAP);
-            return labels == null ? Map.of() : labels;
-        } catch (JsonProcessingException ex) {
-            return Map.of();
-        }
+        return persistentJson.read(labelsJson, LABEL_MAP, Map.of());
     }
 
     private String toJson(Map<String, String> labels) {
-        try {
-            return objectMapper.writeValueAsString(labels);
-        } catch (JsonProcessingException ex) {
-            return "{}";
-        }
+        return persistentJson.write(labels);
     }
 
     private static String newId(String prefix) {
