@@ -6,13 +6,13 @@ import com.archops.common.ssh.PlanStepCommands;
 import com.archops.plan.dispatch.ExecuteStepCommand;
 import com.archops.plan.dispatch.ExecuteStepResult;
 import com.archops.plan.dispatch.ExecutorDispatchPort;
+import com.archops.conflict.AcceptedHandlerPolicy;
 import com.archops.conflict.diagnosis.ConflictDiagnosisService;
 import com.archops.conflict.diagnosis.DiagnosisRuleEngine;
 import com.archops.conflict.domain.ConflictCase;
 import com.archops.conflict.domain.ConflictEventType;
 import com.archops.conflict.domain.ConflictStatus;
 import com.archops.conflict.domain.DiagnosisStatus;
-import com.archops.conflict.domain.HandlerAcceptance;
 import com.archops.conflict.dto.ConflictDiagnosisResponse;
 import com.archops.conflict.mapper.ConflictCaseMapper;
 import com.archops.conflict.service.ConflictEventService;
@@ -531,12 +531,8 @@ public class OperationPlanService {
     }
 
     private static void requireAcceptedHandler(ConflictCase conflict, AuthUserPrincipal actor) {
-        boolean ok = conflict.getHandlerAcceptance() == HandlerAcceptance.ACCEPTED
-                && actor.getUserId().equals(conflict.getHandlerUserId());
-        if (!ok) {
-            throw new BusinessException("PLAN_REQUIRES_ACCEPTED_HANDLER",
-                    "Only the 已接受冲突处理人 may select a branch or manage the operation plan");
-        }
+        AcceptedHandlerPolicy.require(conflict, actor, "PLAN_REQUIRES_ACCEPTED_HANDLER",
+                "Only the 已接受冲突处理人 may select a branch or manage the operation plan");
     }
 
     private OperationPlanResponse toResponse(OperationPlan plan) {

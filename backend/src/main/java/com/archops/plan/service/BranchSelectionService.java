@@ -2,12 +2,12 @@ package com.archops.plan.service;
 
 import com.archops.common.api.BranchSelectionResult;
 import com.archops.common.exception.BusinessException;
+import com.archops.conflict.AcceptedHandlerPolicy;
 import com.archops.conflict.diagnosis.ConflictDiagnosisService;
 import com.archops.conflict.diagnosis.DiagnosisRuleEngine;
 import com.archops.conflict.domain.ConflictCase;
 import com.archops.conflict.domain.ConflictStatus;
 import com.archops.conflict.domain.DiagnosisStatus;
-import com.archops.conflict.domain.HandlerAcceptance;
 import com.archops.conflict.dto.ConflictDiagnosisResponse;
 import com.archops.conflict.mapper.ConflictCaseMapper;
 import com.archops.curated.service.CuratedDraftService;
@@ -46,7 +46,8 @@ public class BranchSelectionService {
     @Transactional
     public BranchSelectionResult select(String conflictId, String forkId, String expectedDiagnosisId, AuthUserPrincipal actor) {
         ConflictCase conflict = requireOpenConflict(conflictId);
-        requireAcceptedHandler(conflict, actor);
+        AcceptedHandlerPolicy.require(conflict, actor, "PLAN_REQUIRES_ACCEPTED_HANDLER",
+                "Only the 已接受冲突处理人 may select a branch or manage the operation plan");
         // 身份失联闸门 must not cover PLAN_REQUIRES_ACCEPTED_HANDLER.
         rejectUniqueSiteForkWhenIdentityLost(conflict, forkId);
 
@@ -116,14 +117,5 @@ public class BranchSelectionService {
             throw new BusinessException("CONFLICT_NOT_OPEN", "Conflict is not open: " + conflictId);
         }
         return row;
-    }
-
-    private static void requireAcceptedHandler(ConflictCase conflict, AuthUserPrincipal actor) {
-        boolean ok = conflict.getHandlerAcceptance() == HandlerAcceptance.ACCEPTED
-                && actor.getUserId().equals(conflict.getHandlerUserId());
-        if (!ok) {
-            throw new BusinessException("PLAN_REQUIRES_ACCEPTED_HANDLER",
-                    "Only the 已接受冲突处理人 may select a branch or manage the operation plan");
-        }
     }
 }

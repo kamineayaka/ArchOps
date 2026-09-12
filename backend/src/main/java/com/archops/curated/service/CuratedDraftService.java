@@ -1,9 +1,9 @@
 package com.archops.curated.service;
 
 import com.archops.common.exception.BusinessException;
+import com.archops.conflict.AcceptedHandlerPolicy;
 import com.archops.conflict.domain.ConflictCase;
 import com.archops.conflict.domain.ConflictEventType;
-import com.archops.conflict.domain.HandlerAcceptance;
 import com.archops.conflict.dto.ConflictDiagnosisResponse;
 import com.archops.conflict.mapper.ConflictCaseMapper;
 import com.archops.conflict.service.ConflictDetectionService;
@@ -608,7 +608,8 @@ public class CuratedDraftService {
 
     private OpenItemReview beginItemReview(String conflictId, String itemId, AuthUserPrincipal actor) {
         CuratedDraft draft = requireReviewableDraft(conflictId);
-        requireAcceptedHandler(requireConflict(conflictId), actor);
+        AcceptedHandlerPolicy.require(requireConflict(conflictId), actor, "PLAN_REQUIRES_ACCEPTED_HANDLER",
+                "Only the 已接受冲突处理人 may accept or reject 草案 items");
         CuratedDraftItem item = requireItemOnDraft(draft.getId(), itemId);
         return new OpenItemReview(draft, item);
     }
@@ -676,15 +677,6 @@ public class CuratedDraftService {
             throw new BusinessException("CONFLICT_NOT_FOUND", "Conflict not found: " + conflictId);
         }
         return conflict;
-    }
-
-    private static void requireAcceptedHandler(ConflictCase conflict, AuthUserPrincipal actor) {
-        boolean ok = conflict.getHandlerAcceptance() == HandlerAcceptance.ACCEPTED
-                && actor.getUserId().equals(conflict.getHandlerUserId());
-        if (!ok) {
-            throw new BusinessException("PLAN_REQUIRES_ACCEPTED_HANDLER",
-                    "Only the 已接受冲突处理人 may accept or reject 草案 items");
-        }
     }
 
     private CuratedDraftItem requireItemOnDraft(String draftId, String itemId) {

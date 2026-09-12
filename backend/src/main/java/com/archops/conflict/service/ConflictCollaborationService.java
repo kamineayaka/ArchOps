@@ -1,6 +1,7 @@
 package com.archops.conflict.service;
 
 import com.archops.common.exception.BusinessException;
+import com.archops.conflict.AcceptedHandlerPolicy;
 import com.archops.conflict.domain.ConflictCase;
 import com.archops.conflict.domain.ConflictEventType;
 import com.archops.conflict.domain.ConflictStatus;
@@ -283,12 +284,8 @@ public class ConflictCollaborationService {
     @Transactional(readOnly = true)
     public OpenOperationPlanResponse openOperationPlan(String conflictId, AuthUserPrincipal actor) {
         ConflictCase row = requireOpen(conflictId);
-        boolean acceptedHandler = row.getHandlerAcceptance() == HandlerAcceptance.ACCEPTED
-                && actor.getUserId().equals(row.getHandlerUserId());
-        if (!acceptedHandler) {
-            throw new BusinessException("PLAN_REQUIRES_ACCEPTED_HANDLER",
-                    "Only the 已接受冲突处理人 may open an operation plan for this conflict");
-        }
+        AcceptedHandlerPolicy.require(row, actor, "PLAN_REQUIRES_ACCEPTED_HANDLER",
+                "Only the 已接受冲突处理人 may open an operation plan for this conflict");
         return new OpenOperationPlanResponse(
                 conflictId,
                 "OPEN_INTENT_ACCEPTED",
@@ -310,12 +307,8 @@ public class ConflictCollaborationService {
             throw new BusinessException("CONFLICT_NOT_PENDING_CLOSE",
                     "Only 待确认关闭 conflicts can be confirmed closed");
         }
-        boolean acceptedHandler = row.getHandlerAcceptance() == HandlerAcceptance.ACCEPTED
-                && actor.getUserId().equals(row.getHandlerUserId());
-        if (!acceptedHandler) {
-            throw new BusinessException("CONFIRM_CLOSE_REQUIRES_ACCEPTED_HANDLER",
-                    "Only the 已接受冲突处理人 may confirm close");
-        }
+        AcceptedHandlerPolicy.require(row, actor, "CONFIRM_CLOSE_REQUIRES_ACCEPTED_HANDLER",
+                "Only the 已接受冲突处理人 may confirm close");
 
         ConflictDetectionService.TrackPair tracks = conflictDetectionService.currentTracks(row);
         CuratedFact curated = tracks.curated();
