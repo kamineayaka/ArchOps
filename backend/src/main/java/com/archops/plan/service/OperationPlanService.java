@@ -49,6 +49,10 @@ import java.util.UUID;
 @Service
 public class OperationPlanService {
 
+    private static final Map<String, String> EXPECTED_PRECHECK = Map.of("precheck", "passed");
+    private static final Map<String, String> EXPECTED_MIGRATED = Map.of("migrated", "true");
+    private static final Map<String, String> EXPECTED_REFRESH = Map.of("refresh", "ok");
+
     private static final List<OperationPlanStatus> ACTIVE = List.of(
             OperationPlanStatus.DRAFT_REVIEW,
             OperationPlanStatus.APPROVED,
@@ -448,7 +452,7 @@ public class OperationPlanService {
                                 "hostId", observedHostId == null ? "" : observedHostId,
                                 "hostName", observedName == null ? "" : observedName
                         ),
-                        Map.of("precheck", "passed")
+                        EXPECTED_PRECHECK
                 ),
                 new OperationPlanResponse.PlanStep(
                         2,
@@ -459,14 +463,14 @@ public class OperationPlanService {
                                 "toHostId", curatedHostId,
                                 "subjectId", conflict.getSubjectId()
                         ),
-                        Map.of("migrated", "true")
+                        EXPECTED_MIGRATED
                 ),
                 new OperationPlanResponse.PlanStep(
                         3,
                         "REFRESH_OBSERVATION",
                         "执行后刷新观测快照以核验「运行于」",
                         Map.of("subjectId", conflict.getSubjectId()),
-                        Map.of("refresh", "ok")
+                        EXPECTED_REFRESH
                 )
         );
     }

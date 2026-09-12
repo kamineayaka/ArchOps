@@ -23,7 +23,6 @@ public class RecordingFakeSshPort implements ControlledSshPort {
 
     private final CopyOnWriteArrayList<SshCallRecord> calls = new CopyOnWriteArrayList<>();
     private final Set<String> failActions = ConcurrentHashMap.newKeySet();
-    private final ConcurrentHashMap<String, String> successStdoutByAction = new ConcurrentHashMap<>();
     private final AtomicReference<CountDownLatch> blockLatch = new AtomicReference<>();
     private final AtomicReference<CountDownLatch> enteredLatch = new AtomicReference<>();
 
@@ -46,8 +45,7 @@ public class RecordingFakeSshPort implements ControlledSshPort {
         boolean fail = failActions.contains(request.action());
         SshExecResult result = fail
                 ? SshExecResult.fail("fake-ssh failure for action " + request.action())
-                : SshExecResult.ok(successStdoutByAction.getOrDefault(
-                        request.action(), defaultSuccessStdout(request.action())));
+                : SshExecResult.ok(defaultSuccessStdout(request.action()));
         calls.add(new SshCallRecord(
                 Instant.now(),
                 request.hostId(),
@@ -69,20 +67,12 @@ public class RecordingFakeSshPort implements ControlledSshPort {
     public void clear() {
         calls.clear();
         failActions.clear();
-        successStdoutByAction.clear();
         blockLatch.set(null);
         enteredLatch.set(null);
     }
 
     public void failOnAction(String action) {
         failActions.add(action);
-    }
-
-    /**
-     * Script exit success with an arbitrary structured_output, independent of {@link #failOnAction}.
-     */
-    public void succeedWithStdout(String action, String stdout) {
-        successStdoutByAction.put(action, stdout);
     }
 
     /**
@@ -110,10 +100,6 @@ public class RecordingFakeSshPort implements ControlledSshPort {
         return out;
     }
 
-    /**
-     * Default success stdout for rules-template actions is a JSON object that satisfies
-     * the frozen 步骤断言 maps (extra keys allowed).
-     */
     private static String defaultSuccessStdout(String action) {
         return switch (action) {
             case "SSH_PRECHECK" -> "{\"precheck\":\"passed\",\"source\":\"fake\"}";
