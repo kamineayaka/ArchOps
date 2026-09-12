@@ -429,7 +429,8 @@ export default function UnboundCandidatesPage() {
 
       <Card size="small" title="身份失联 · 规范问法">
         <Paragraph type="secondary">
-          身份失联不是观测空洞，也不是观测消失。对已知策展对象查询既有 GET；400 IDENTITY_LOST_NOT_FOUND
+          身份失联不是观测空洞，也不是观测消失。通道超时与失联可并存：规范问法须同时说出空洞与身份失联。
+          对已知策展对象查询既有 GET；400 IDENTITY_LOST_NOT_FOUND
           表示未失联。没有失联集合路由。
         </Paragraph>
         {conflictBypassError ? (
@@ -519,6 +520,11 @@ export default function UnboundCandidatesPage() {
                   </Text>
                   <Text type="secondary">
                     availability={actualAvailability ?? '—'}
+                    {' · identityLost='}
+                    {String(actualWhere.identityLost)}
+                    {actualAvailability === 'HOLLOW' && actualWhere.identityLost
+                      ? ' · 空洞与失联并存，不得互相吞掉'
+                      : ''}
                     {actualIsLost ? ' · 不得展示为 PRESENT，旧宿主不是可用实际' : ''}
                   </Text>
                   {actualIsLost && actualAvailability === 'PRESENT' ? (
