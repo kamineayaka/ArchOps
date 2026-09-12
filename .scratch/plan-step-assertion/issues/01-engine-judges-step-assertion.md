@@ -77,3 +77,19 @@ BUILD FAILED
 ### Cycle 2 green + refactor (2026-09-12)
 
 Same test command: BUILD SUCCESSFUL. `succeedWithStdout` 独立于 `failActions`；退出成功但 JSON 不匹配 → `VOIDED`，`failureReason` 以 `STEP_ASSERTION_FAILED` 开头，再 start → `PLAN_VOIDED`。Refactor：hamcrest `startsWith` 静态导入。
+
+### Cycle 3 reuse (2026-09-12)
+
+```text
+cd backend && ./gradlew test --tests com.archops.plan.PlanStepAssertionHttpAcceptanceTest.exitSuccessWithNonJsonStructuredOutputVoidsPlanAsStepAssertionFailed
+```
+
+First-run BUILD SUCCESSFUL（cycle 1 引擎判定已把非 JSON 对象写成 `STEP_ASSERTION_FAILED`）。显式 HTTP 断言保留。
+
+### Cycle 4 reuse (2026-09-12)
+
+```text
+cd backend && ./gradlew test --tests com.archops.plan.PlanStepAssertionHttpAcceptanceTest.fakeExitFailureVoidsPlanAsSshFailureNotStepAssertion
+```
+
+First-run BUILD SUCCESSFUL（退出失败仍走 SSH `failure_reason`，不用 `STEP_ASSERTION_FAILED`）。显式区分两种失败。
