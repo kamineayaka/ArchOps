@@ -36,3 +36,23 @@ REFRESH_OBSERVATION  expected { "refresh": "ok" }
 ## Comments
 
 一次只做本票。票内 TDD 按 Spec HTTP tracer 圈：happy path（带 `expected` COMPLETED + log）→ 退出成功但不匹配 VOIDED → 非 JSON VOIDED → SSH 失败可区分 → 无 `expected` 回归。不要先交只加空字段的骨架。样板：`ExecutorSingleStepDispatchHttpAcceptanceTest`、`OperationPlanReviewHttpAcceptanceTest`、`ControlledSshExecHttpAcceptanceTest`。新测试夹具：引擎在测、`archops.ssh.mode=dispatch`、fake 可脚本化成功 stdout。
+
+### Cycle 1 witnessed red (2026-09-12)
+
+```text
+cd backend && ./gradlew test --tests com.archops.plan.PlanStepAssertionHttpAcceptanceTest.approvedFixActualPlanCarriesExpectedAndCompletesWhenEngineJsonContainsIt
+```
+
+```text
+PlanStepAssertionHttpAcceptanceTest > approvedFixActualPlanCarriesExpectedAndCompletesWhenEngineJsonContainsIt() FAILED
+    java.lang.AssertionError: No value at JSON path "$.data.steps[0].expected.precheck"
+        Caused by:
+        com.jayway.jsonpath.PathNotFoundException: Missing property in path $['data']['steps'][0]['expected']
+BUILD FAILED
+```
+
+GET 已审修实际计划没有 `steps[].expected`。无步骤断言字段、默认 fake stdout 仍是 `fake-ok {action}`。
+
+### Cycle 1 green + refactor (2026-09-12)
+
+Same test command: BUILD SUCCESSFUL. 规则模板写入冻结 `expected`；同一 ExecuteStep 加 `expected`；引擎退出成功后 JSON 对象包含匹配；默认 fake JSON 满足约定（允许多余键）；`executionLog.structuredOutput` 落控制面。Refactor：默认 stdout 方法改为 private。

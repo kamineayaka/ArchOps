@@ -16,6 +16,7 @@ message ExecuteStepRequest {
   string action = 3;
   map<string, string> params = 4;
   string target_host_id = 5;
+  map<string, string> expected = 6;
 }
 
 message ExecuteStepResponse {

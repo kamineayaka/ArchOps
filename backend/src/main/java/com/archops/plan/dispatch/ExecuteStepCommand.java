@@ -10,6 +10,7 @@ public record ExecuteStepCommand(
         int stepSeq,
         String action,
         Map<String, String> params,
-        String targetHostId
+        String targetHostId,
+        Map<String, String> expected
 ) {
 }

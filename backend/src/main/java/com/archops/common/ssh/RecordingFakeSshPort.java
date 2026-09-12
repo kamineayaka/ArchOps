@@ -45,7 +45,7 @@ public class RecordingFakeSshPort implements ControlledSshPort {
         boolean fail = failActions.contains(request.action());
         SshExecResult result = fail
                 ? SshExecResult.fail("fake-ssh failure for action " + request.action())
-                : SshExecResult.ok("fake-ok " + request.action());
+                : SshExecResult.ok(defaultSuccessStdout(request.action()));
         calls.add(new SshCallRecord(
                 Instant.now(),
                 request.hostId(),
@@ -98,5 +98,18 @@ public class RecordingFakeSshPort implements ControlledSshPort {
             out.add(call.command());
         }
         return out;
+    }
+
+    /**
+     * Default success stdout for rules-template actions is a JSON object that satisfies
+     * the frozen 步骤断言 maps (extra keys allowed).
+     */
+    private static String defaultSuccessStdout(String action) {
+        return switch (action) {
+            case "SSH_PRECHECK" -> "{\"precheck\":\"passed\",\"source\":\"fake\"}";
+            case "MIGRATE_CONTAINER" -> "{\"migrated\":\"true\",\"source\":\"fake\"}";
+            case "REFRESH_OBSERVATION" -> "{\"refresh\":\"ok\",\"source\":\"fake\"}";
+            default -> "fake-ok " + action;
+        };
     }
 }

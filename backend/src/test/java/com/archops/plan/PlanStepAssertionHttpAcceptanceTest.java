@@ -1,0 +1,226 @@
+package com.archops.plan;
+
+import com.archops.conflict.ConflictDiagnosisWait;
+import com.archops.executor.ExecutorEngineHandle;
+import com.archops.executor.ExecutorEngineTestConfig;
+import com.archops.support.HttpAcceptanceTest;
+import com.archops.user.security.TempAuthHeaders;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
+import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.is;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+/**
+ * plan-step-assertion 01: engine judges frozen expected; detailed results land on executionLog.
+ */
+@HttpAcceptanceTest
+@TestPropertySource(properties = {
+        "archops.ssh.mode=dispatch",
+        "archops.observation.heartbeat-timeout=30s",
+        "archops.observation.hollow-scan-interval-ms=3600000"
+})
+@Import(ExecutorEngineTestConfig.class)
+class PlanStepAssertionHttpAcceptanceTest {
+
+    private static final String GENERAL_ID = "user-general-demo";
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @Autowired
+    private ExecutorEngineHandle engine;
+
+    @BeforeEach
+    void resetEngineFake() {
+        engine.fakeSsh().clear();
+    }
+
+    @Test
+    void approvedFixActualPlanCarriesExpectedAndCompletesWhenEngineJsonContainsIt() throws Exception {
+        String conflictId = openConflictAndClaim("psa1-a", "psa1-b", "ctr-psa1");
+        String planId = selectAndApprove(conflictId);
+
+        mockMvc.perform(get("/api/operation-plans/{id}", planId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.steps", hasSize(3)))
+                .andExpect(jsonPath("$.data.steps[0].action", is("SSH_PRECHECK")))
+                .andExpect(jsonPath("$.data.steps[0].expected.precheck", is("passed")))
+                .andExpect(jsonPath("$.data.steps[1].action", is("MIGRATE_CONTAINER")))
+                .andExpect(jsonPath("$.data.steps[1].expected.migrated", is("true")))
+                .andExpect(jsonPath("$.data.steps[2].action", is("REFRESH_OBSERVATION")))
+                .andExpect(jsonPath("$.data.steps[2].expected.refresh", is("ok")));
+
+        MvcResult executed = mockMvc.perform(post("/api/operation-plans/{id}/start-execution", planId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("COMPLETED")))
+                .andExpect(jsonPath("$.data.completedSteps", is(3)))
+                .andExpect(jsonPath("$.data.executionLog", hasSize(3)))
+                .andReturn();
+
+        JsonNode startLog = objectMapper.readTree(executed.getResponse().getContentAsString())
+                .path("data").path("executionLog");
+        assertJsonContains(startLog.get(0).path("structuredOutput").asText(), "precheck", "passed");
+        assertJsonContains(startLog.get(1).path("structuredOutput").asText(), "migrated", "true");
+        assertJsonContains(startLog.get(2).path("structuredOutput").asText(), "refresh", "ok");
+
+        MvcResult fetched = mockMvc.perform(get("/api/operation-plans/{id}", planId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("COMPLETED")))
+                .andExpect(jsonPath("$.data.steps[0].expected.precheck", is("passed")))
+                .andExpect(jsonPath("$.data.executionLog", hasSize(3)))
+                .andReturn();
+        JsonNode getLog = objectMapper.readTree(fetched.getResponse().getContentAsString())
+                .path("data").path("executionLog");
+        assertJsonContains(getLog.get(0).path("structuredOutput").asText(), "precheck", "passed");
+        assertJsonContains(getLog.get(1).path("structuredOutput").asText(), "migrated", "true");
+        assertJsonContains(getLog.get(2).path("structuredOutput").asText(), "refresh", "ok");
+    }
+
+    private void assertJsonContains(String structuredOutput, String key, String value) throws Exception {
+        assertThat(structuredOutput).isNotBlank();
+        JsonNode object = objectMapper.readTree(structuredOutput);
+        assertThat(object.isObject()).isTrue();
+        assertThat(object.path(key).isTextual()).isTrue();
+        assertThat(object.path(key).asText()).isEqualTo(value);
+    }
+
+    private String selectAndApprove(String conflictId) throws Exception {
+        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, conflictId, GENERAL_ID);
+        MvcResult created = mockMvc.perform(post("/api/conflicts/{id}/branch-selection", conflictId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"forkId\":\"FIX_ACTUAL_TO_CURATED\"}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("DRAFT_REVIEW")))
+                .andReturn();
+        String planId = objectMapper.readTree(created.getResponse().getContentAsString())
+                .path("data").path("id").asText();
+        mockMvc.perform(post("/api/operation-plans/{id}/approve", planId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("APPROVED")));
+        return planId;
+    }
+
+    private String openConflictAndClaim(String hostAName, String hostBName, String objectId) throws Exception {
+        String hostA = createHost(hostAName);
+        String hostB = createHost(hostBName);
+        storeHostCredential(hostA);
+        storeHostCredential(hostB);
+        String containerId = createContainer("app-" + objectId, objectId);
+        confirmRunsOn(containerId, hostA);
+        heartbeatWithContainer(hostB, "agent-" + objectId, objectId);
+        MvcResult result = mockMvc.perform(get("/api/conflicts/by-merge-key")
+                        .param("subjectId", containerId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn();
+        String conflictId = objectMapper.readTree(result.getResponse().getContentAsString())
+                .path("data").path("id").asText();
+        mockMvc.perform(post("/api/conflicts/{id}/claim", conflictId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+        return conflictId;
+    }
+
+    private void storeHostCredential(String hostId) throws Exception {
+        mockMvc.perform(put("/api/curated/hosts/{id}/ssh-credential", hostId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "connectHost":"10.0.0.8",
+                                  "connectPort":22,
+                                  "username":"ops",
+                                  "secret":"fixture-ssh-secret",
+                                  "secretKind":"PASSWORD"
+                                }
+                                """)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+    }
+
+    private void heartbeatWithContainer(String hostId, String agentId, String objectId) throws Exception {
+        mockMvc.perform(post("/api/agent/heartbeat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "agentId":"%s",
+                                  "hostId":"%s",
+                                  "snapshot":{
+                                    "containers":[{
+                                      "runtimeId":"docker-x",
+                                      "name":"app",
+                                      "labels":{"archops.object_id":"%s"}
+                                    }]
+                                  }
+                                }
+                                """.formatted(agentId, hostId, objectId))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+    }
+
+    private String createHost(String name) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/curated/hosts")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"" + name + "\"}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn();
+        return readDataId(result);
+    }
+
+    private String createContainer(String name, String objectId) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/curated/containers")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"" + name + "\",\"objectId\":\"" + objectId + "\"}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn();
+        return readDataId(result);
+    }
+
+    private void confirmRunsOn(String containerId, String hostId) throws Exception {
+        mockMvc.perform(post("/api/curated/facts/runs-on")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"containerId\":\"" + containerId + "\",\"hostId\":\"" + hostId + "\"}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+    }
+
+    private String readDataId(MvcResult result) throws Exception {
+        return objectMapper.readTree(result.getResponse().getContentAsString())
+                .path("data").path("id").asText();
+    }
+}
