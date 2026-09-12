@@ -5,6 +5,8 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class PersistentJsonTest {
@@ -14,6 +16,15 @@ class PersistentJsonTest {
     @Test
     void writeFailureMustNotBecomeEmptyObject() {
         assertThatThrownBy(() -> json.write(new BrokenWriteValue()))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("Failed to write JSON")
+                .extracting(ex -> ((BusinessException) ex).getCode())
+                .isEqualTo("JSON_PROCESSING_FAILED");
+    }
+
+    @Test
+    void writeFailureMustNotBecomeEmptyArray() {
+        assertThatThrownBy(() -> json.write(List.of(new BrokenWriteValue())))
                 .isInstanceOf(BusinessException.class)
                 .hasMessage("Failed to write JSON")
                 .extracting(ex -> ((BusinessException) ex).getCode())
