@@ -84,6 +84,9 @@ public class GrpcExecutorDispatchClient implements ExecutorDispatchPort {
         if (command.params() != null) {
             request.putAllParams(command.params());
         }
+        if (command.expected() != null && !command.expected().isEmpty()) {
+            request.putAllExpected(command.expected());
+        }
         return request.build();
     }
 

@@ -23,6 +23,7 @@ public class RecordingFakeSshPort implements ControlledSshPort {
 
     private final CopyOnWriteArrayList<SshCallRecord> calls = new CopyOnWriteArrayList<>();
     private final Set<String> failActions = ConcurrentHashMap.newKeySet();
+    private final ConcurrentHashMap<String, String> successStdoutByAction = new ConcurrentHashMap<>();
     private final AtomicReference<CountDownLatch> blockLatch = new AtomicReference<>();
     private final AtomicReference<CountDownLatch> enteredLatch = new AtomicReference<>();
 
@@ -45,7 +46,8 @@ public class RecordingFakeSshPort implements ControlledSshPort {
         boolean fail = failActions.contains(request.action());
         SshExecResult result = fail
                 ? SshExecResult.fail("fake-ssh failure for action " + request.action())
-                : SshExecResult.ok("fake-ok " + request.action());
+                : SshExecResult.ok(successStdoutByAction.getOrDefault(
+                        request.action(), defaultSuccessStdout(request.action())));
         calls.add(new SshCallRecord(
                 Instant.now(),
                 request.hostId(),
@@ -67,12 +69,17 @@ public class RecordingFakeSshPort implements ControlledSshPort {
     public void clear() {
         calls.clear();
         failActions.clear();
+        successStdoutByAction.clear();
         blockLatch.set(null);
         enteredLatch.set(null);
     }
 
     public void failOnAction(String action) {
         failActions.add(action);
+    }
+
+    public void succeedWithStdout(String action, String stdout) {
+        successStdoutByAction.put(action, stdout);
     }
 
     /**
@@ -98,5 +105,14 @@ public class RecordingFakeSshPort implements ControlledSshPort {
             out.add(call.command());
         }
         return out;
+    }
+
+    private static String defaultSuccessStdout(String action) {
+        return switch (action) {
+            case "SSH_PRECHECK" -> "{\"precheck\":\"passed\",\"source\":\"fake\"}";
+            case "MIGRATE_CONTAINER" -> "{\"migrated\":\"true\",\"source\":\"fake\"}";
+            case "REFRESH_OBSERVATION" -> "{\"refresh\":\"ok\",\"source\":\"fake\"}";
+            default -> "fake-ok " + action;
+        };
     }
 }

@@ -34,7 +34,8 @@ public record OperationPlanResponse(
             int seq,
             String action,
             String description,
-            Map<String, String> params
+            Map<String, String> params,
+            Map<String, String> expected
     ) {
     }
 
@@ -44,7 +45,8 @@ public record OperationPlanResponse(
             String hostId,
             String command,
             boolean success,
-            String failureReason
+            String failureReason,
+            String structuredOutput
     ) {
     }
 }

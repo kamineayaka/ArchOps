@@ -1,6 +1,6 @@
 # Spec: 步骤断言（引擎判定 + 逐步详细结果落控制面）
 
-**Status**: spec published；工单 01 **ready-for-agent**（frontier）  
+**Status**: spec published；工单 01 **TDD-done**；**本刀闭合**  
 **Basis**: ADR-0044 决议 4（步骤断言由执行引擎判定）与决议 2 在本刀收缩后的「逐步详细结果落控制面」；ADR-0045（既有 ExecuteStep 加料，不改 0045 正文）；ADR-0043；`CONTEXT.md`「操作计划」「步骤断言」「执行引擎」「控制面代发」「AI 编排层」（执行期只观察）  
 **Source**: [`.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md`](../../.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md) **B3 剩余**（无步骤断言、无逐步事件。单步代发已由执行引擎 01 闭合）  
 **Predecessor**: 竖切 / 改策展 / 未绑定 01–09 / 冲突升级作废活跃计划（A1）/ 控制面执行引擎 01 均已闭合。失败即停作废、禁止改步重试已在控制面。引擎 `success` 现等于 SSH/fake 退出。本刀关闭「退出 0 即 COMPLETED」窗口，并把逐步详细结果写入已有计划 `executionLog`。  
@@ -238,7 +238,7 @@ Forbidden: LLM/model reading stdout; 控制面 re-evaluating `expected` after a 
 
 ## Further Notes
 
-- **Issue tracker**: [`.scratch/plan-step-assertion/issues/`](../../.scratch/plan-step-assertion/issues/)（票 01 `ready-for-agent`；禁止写入 `control-plane-executor` / `unbound-identity-rebind` / `change-curated-draft` / `conflict-upgrade-void-plans`）。
+- **Issue tracker**: [`.scratch/plan-step-assertion/issues/`](../../.scratch/plan-step-assertion/issues/)（票 01 **TDD-done**；本刀闭合。禁止写入 `control-plane-executor` / `unbound-identity-rebind` / `change-curated-draft` / `conflict-upgrade-void-plans`）。
 - **Predecessor spec**: [`docs/specs/control-plane-executor.md`](control-plane-executor.md) listed 步骤断言 schema as Out of Scope; that was the previous knife’s boundary, not a contract rejection.
 - **Why no new ADR**: 0044 already froze 引擎判定 and rejected 模型判步; 0045 already froze ExecuteStep. This knife fills omitted fields in a Spec.
-- **Next Matt step**: frontier = 票 01。新对话 `/implement` `/tdd`。不要自动做编排层 / B-live / 工作台。不要往 `control-plane-executor` 加票 02。
+- **Next Matt step**: 票 01 **TDD-done**；本刀闭合。不要自动做编排层 / B-live / 工作台。不要往 `control-plane-executor` 加票 02。

@@ -49,6 +49,10 @@ import java.util.UUID;
 @Service
 public class OperationPlanService {
 
+    private static final Map<String, String> EXPECTED_PRECHECK = Map.of("precheck", "passed");
+    private static final Map<String, String> EXPECTED_MIGRATED = Map.of("migrated", "true");
+    private static final Map<String, String> EXPECTED_REFRESH = Map.of("refresh", "ok");
+
     private static final List<OperationPlanStatus> ACTIVE = List.of(
             OperationPlanStatus.DRAFT_REVIEW,
             OperationPlanStatus.APPROVED,
@@ -262,7 +266,8 @@ public class OperationPlanService {
                             step.seq(),
                             step.action(),
                             params,
-                            hostId
+                            hostId,
+                            step.expected()
                     ));
                 } catch (BusinessException ex) {
                     return voidPlan(planId, log, step, hostId, command, ex.getMessage());
@@ -281,7 +286,8 @@ public class OperationPlanService {
                         hostId,
                         command,
                         result.success(),
-                        result.failureReason()
+                        result.failureReason(),
+                        result.structuredOutput()
                 ));
                 if (!result.success()) {
                     String reason = result.failureReason() == null
@@ -344,7 +350,8 @@ public class OperationPlanService {
                     hostId,
                     command,
                     false,
-                    reason
+                    reason,
+                    null
             ));
         }
         Instant finished = Instant.now();
@@ -444,7 +451,8 @@ public class OperationPlanService {
                         Map.of(
                                 "hostId", observedHostId == null ? "" : observedHostId,
                                 "hostName", observedName == null ? "" : observedName
-                        )
+                        ),
+                        EXPECTED_PRECHECK
                 ),
                 new OperationPlanResponse.PlanStep(
                         2,
@@ -454,13 +462,15 @@ public class OperationPlanService {
                                 "fromHostId", observedHostId == null ? "" : observedHostId,
                                 "toHostId", curatedHostId,
                                 "subjectId", conflict.getSubjectId()
-                        )
+                        ),
+                        EXPECTED_MIGRATED
                 ),
                 new OperationPlanResponse.PlanStep(
                         3,
                         "REFRESH_OBSERVATION",
                         "执行后刷新观测快照以核验「运行于」",
-                        Map.of("subjectId", conflict.getSubjectId())
+                        Map.of("subjectId", conflict.getSubjectId()),
+                        EXPECTED_REFRESH
                 )
         );
     }
