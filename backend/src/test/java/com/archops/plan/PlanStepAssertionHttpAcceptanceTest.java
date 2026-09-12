@@ -19,6 +19,7 @@ import org.springframework.test.web.servlet.MvcResult;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -98,6 +99,42 @@ class PlanStepAssertionHttpAcceptanceTest {
         assertJsonContains(getLog.get(0).path("structuredOutput").asText(), "precheck", "passed");
         assertJsonContains(getLog.get(1).path("structuredOutput").asText(), "migrated", "true");
         assertJsonContains(getLog.get(2).path("structuredOutput").asText(), "refresh", "ok");
+    }
+
+    @Test
+    void exitSuccessWithMismatchedJsonVoidsPlanAsStepAssertionFailedAndBlocksRetry() throws Exception {
+        String conflictId = openConflictAndClaim("psa2-a", "psa2-b", "ctr-psa2");
+        String planId = selectAndApprove(conflictId);
+        engine.fakeSsh().succeedWithStdout("SSH_PRECHECK", "{\"precheck\":\"failed\",\"source\":\"fake\"}");
+
+        MvcResult executed = mockMvc.perform(post("/api/operation-plans/{id}/start-execution", planId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("VOIDED")))
+                .andExpect(jsonPath("$.data.executionLog", hasSize(1)))
+                .andReturn();
+        JsonNode data = objectMapper.readTree(executed.getResponse().getContentAsString()).path("data");
+        assertThat(data.path("voidReason").asText()).startsWith("STEP_ASSERTION_FAILED");
+        JsonNode log0 = data.path("executionLog").get(0);
+        assertThat(log0.path("success").asBoolean()).isFalse();
+        assertThat(log0.path("failureReason").asText()).startsWith("STEP_ASSERTION_FAILED");
+        assertJsonContains(log0.path("structuredOutput").asText(), "precheck", "failed");
+        assertThat(engine.recordedCalls()).hasSize(1);
+
+        mockMvc.perform(get("/api/operation-plans/{id}", planId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("VOIDED")))
+                .andExpect(jsonPath("$.data.voidReason", startsWith("STEP_ASSERTION_FAILED")))
+                .andExpect(jsonPath("$.data.executionLog[0].failureReason", startsWith("STEP_ASSERTION_FAILED")));
+
+        mockMvc.perform(post("/api/operation-plans/{id}/start-execution", planId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("PLAN_VOIDED")));
     }
 
     private void assertJsonContains(String structuredOutput, String key, String value) throws Exception {

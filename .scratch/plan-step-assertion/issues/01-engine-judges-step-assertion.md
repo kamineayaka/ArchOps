@@ -23,7 +23,7 @@ REFRESH_OBSERVATION  expected { "refresh": "ok" }
 引擎判定：`structured_output` 为 JSON 对象；每个 `expected` 键必须存在且值为相等字符串；多余键允许；不能解析为对象 → 步骤断言失败。`success` = 退出 ∧ 步骤断言（无/空 `expected` 则仍只看退出码）。`failure_reason` 步骤断言失败以 `STEP_ASSERTION_FAILED` 开头；SSH 失败不得用该 token。
 
 - [x] 新生成修实际计划：GET 计划 `steps[]` 每步非空 `expected`（上表）；人审后 `start-execution` 经引擎 fake（默认 JSON 满足约定）→ `COMPLETED`；`executionLog` 每步带 `structuredOutput`
-- [ ] 引擎 fake **退出成功** + JSON **不匹配**某步 `expected` → 计划 `VOIDED`；该步 `failureReason` 以 `STEP_ASSERTION_FAILED` 开头；`executionLog` 含该步 `structuredOutput`；再 `start-execution` → `PLAN_VOIDED`（不得改步重试）
+- [x] 引擎 fake **退出成功** + JSON **不匹配**某步 `expected` → 计划 `VOIDED`；该步 `failureReason` 以 `STEP_ASSERTION_FAILED` 开头；`executionLog` 含该步 `structuredOutput`；再 `start-execution` → `PLAN_VOIDED`（不得改步重试）
 - [ ] 退出成功 + `structured_output` 不是 JSON 对象 → `VOIDED`，同为 `STEP_ASSERTION_FAILED`
 - [ ] fake 退出失败 → `VOIDED` 为 SSH 失败；`failureReason` **不以** `STEP_ASSERTION_FAILED` 开头
 - [ ] 无 `expected` 字段的旧计划 / 既有代发夹具：仍只看退出码；`ExecutorSingleStepDispatchHttpAcceptanceTest` 等仍绿
@@ -57,3 +57,25 @@ This knife's production was removed first. GET 已审修实际计划 has no `ste
 ### Cycle 1 green + refactor (TDD redo, 2026-09-12)
 
 Same test command: BUILD SUCCESSFUL. Minimum: frozen `expected` on new 修实际 steps; copy onto existing ExecuteStep; persist `executionLog.structuredOutput`; default fake JSON satisfies the template maps so exit 0 → COMPLETED. Engine does **not** fail mismatch or non-JSON. Refactor: named `EXPECTED_*` maps on the rules template.
+
+### Cycle 2 witnessed red (TDD redo, 2026-09-12)
+
+Compile then assertion, after `succeedWithStdout` existed so the missing behavior is the judge:
+
+```text
+cd backend && ./gradlew test --tests com.archops.plan.PlanStepAssertionHttpAcceptanceTest.exitSuccessWithMismatchedJsonVoidsPlanAsStepAssertionFailedAndBlocksRetry
+```
+
+```text
+PlanStepAssertionHttpAcceptanceTest > exitSuccessWithMismatchedJsonVoidsPlanAsStepAssertionFailedAndBlocksRetry() FAILED
+    java.lang.AssertionError: JSON path "$.data.status"
+    Expected: is "VOIDED"
+         but: was "COMPLETED"
+BUILD FAILED
+```
+
+Exit 0 + JSON object that mismatches `expected` still COMPLETED (engine success = exit only).
+
+### Cycle 2 green + refactor (TDD redo, 2026-09-12)
+
+Same test command: BUILD SUCCESSFUL. Engine judges JSON **object** containment after exit 0; `STEP_ASSERTION_FAILED` voids and blocks retry. Non-object stdout still treated as exit-code success (cycle 3). Refactor: `toJudgedResponse`.

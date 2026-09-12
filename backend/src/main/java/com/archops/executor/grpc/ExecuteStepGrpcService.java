@@ -9,9 +9,14 @@ import com.archops.curated.service.HostSshCredentialService;
 import com.archops.executor.v1.ExecuteStepRequest;
 import com.archops.executor.v1.ExecuteStepResponse;
 import com.archops.executor.v1.ExecutorGrpc;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.grpc.stub.StreamObserver;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Component;
+
+import java.util.Map;
 
 /**
  * Engine-side ExecuteStep: run one frozen tool call; do not read 操作计划 rows.
@@ -19,15 +24,20 @@ import org.springframework.stereotype.Component;
 @Component
 public class ExecuteStepGrpcService extends ExecutorGrpc.ExecutorImplBase {
 
+    static final String STEP_ASSERTION_FAILED = "STEP_ASSERTION_FAILED";
+
     private final ControlledSshPort sshPort;
     private final ObjectProvider<HostSshCredentialService> credentials;
+    private final ObjectMapper objectMapper;
 
     public ExecuteStepGrpcService(
             ControlledSshPort sshPort,
-            ObjectProvider<HostSshCredentialService> credentials
+            ObjectProvider<HostSshCredentialService> credentials,
+            ObjectMapper objectMapper
     ) {
         this.sshPort = sshPort;
         this.credentials = credentials;
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -49,7 +59,7 @@ public class ExecuteStepGrpcService extends ExecutorGrpc.ExecutorImplBase {
                     request.getStepSeq(),
                     request.getParamsMap()
             ));
-            response = toResponse(request.getStepSeq(), result.success(), result.stdout(), result.failureReason());
+            response = toJudgedResponse(request, result);
         } catch (BusinessException ex) {
             response = toResponse(request.getStepSeq(), false, "", ex.getMessage());
         } catch (RuntimeException ex) {
@@ -57,6 +67,39 @@ public class ExecuteStepGrpcService extends ExecutorGrpc.ExecutorImplBase {
         }
         responseObserver.onNext(response);
         responseObserver.onCompleted();
+    }
+
+    private ExecuteStepResponse toJudgedResponse(ExecuteStepRequest request, SshExecResult result) {
+        String stdout = result.stdout() == null ? "" : result.stdout();
+        if (!result.success()) {
+            return toResponse(request.getStepSeq(), false, stdout, result.failureReason());
+        }
+        Map<String, String> expected = request.getExpectedMap();
+        JsonNode object = jsonObjectOrNull(stdout);
+        if (object == null) {
+            return toResponse(request.getStepSeq(), true, stdout, null);
+        }
+        for (Map.Entry<String, String> entry : expected.entrySet()) {
+            JsonNode value = object.get(entry.getKey());
+            if (value == null || !value.isTextual() || !entry.getValue().equals(value.asText())) {
+                return toResponse(
+                        request.getStepSeq(),
+                        false,
+                        stdout,
+                        STEP_ASSERTION_FAILED + ": structured_output does not contain "
+                                + entry.getKey() + "=" + entry.getValue());
+            }
+        }
+        return toResponse(request.getStepSeq(), true, stdout, null);
+    }
+
+    private JsonNode jsonObjectOrNull(String structuredOutput) {
+        try {
+            JsonNode root = objectMapper.readTree(structuredOutput == null ? "" : structuredOutput);
+            return root != null && root.isObject() ? root : null;
+        } catch (JsonProcessingException ex) {
+            return null;
+        }
     }
 
     private static ExecuteStepResponse toResponse(
