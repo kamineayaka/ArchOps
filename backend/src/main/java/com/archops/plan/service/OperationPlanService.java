@@ -22,6 +22,7 @@ import com.archops.curated.mapper.CuratedObjectMapper;
 import com.archops.plan.domain.OperationPlan;
 import com.archops.plan.domain.OperationPlanStatus;
 import com.archops.plan.domain.PlanBranchKind;
+import com.archops.plan.domain.PlanStepAction;
 import com.archops.plan.dto.OperationPlanResponse;
 import com.archops.plan.dto.StartExecutionResponse;
 import com.archops.plan.mapper.OperationPlanMapper;
@@ -400,21 +401,19 @@ public class OperationPlanService {
 
     private String resolveTargetHostId(OperationPlanResponse.PlanStep step, String conflictId) {
         Map<String, String> params = step.params() == null ? Map.of() : step.params();
-        return switch (step.action()) {
-            case "SSH_PRECHECK" -> requiredParam(params, "hostId");
-            case "MIGRATE_CONTAINER" -> {
+        return switch (PlanStepAction.parse(step.action())) {
+            case SSH_PRECHECK -> requiredParam(params, "hostId");
+            case MIGRATE_CONTAINER -> {
                 // Migration is initiated from the observed (actual) host.
                 String from = requiredParam(params, "fromHostId");
                 // Also validate destination is graph-resident before SSH.
                 requireGraphPhysicalHost(requiredParam(params, "toHostId"));
                 yield from;
             }
-            case "REFRESH_OBSERVATION" -> {
+            case REFRESH_OBSERVATION -> {
                 ConflictCase conflict = requireOpenConflict(conflictId);
                 yield conflict.getCuratedTargetId();
             }
-            default -> throw new BusinessException("PLAN_STEP_UNKNOWN",
-                    "Unknown frozen plan action: " + step.action());
         };
     }
 
@@ -446,7 +445,7 @@ public class OperationPlanService {
         return List.of(
                 new OperationPlanResponse.PlanStep(
                         1,
-                        "SSH_PRECHECK",
+                        PlanStepAction.SSH_PRECHECK.name(),
                         "在实际宿主上确认容器仍可操作",
                         Map.of(
                                 "hostId", observedHostId == null ? "" : observedHostId,
@@ -456,7 +455,7 @@ public class OperationPlanService {
                 ),
                 new OperationPlanResponse.PlanStep(
                         2,
-                        "MIGRATE_CONTAINER",
+                        PlanStepAction.MIGRATE_CONTAINER.name(),
                         "将容器迁回策展宿主 " + curatedName + "（纯修现场，无草案）",
                         Map.of(
                                 "fromHostId", observedHostId == null ? "" : observedHostId,
@@ -467,7 +466,7 @@ public class OperationPlanService {
                 ),
                 new OperationPlanResponse.PlanStep(
                         3,
-                        "REFRESH_OBSERVATION",
+                        PlanStepAction.REFRESH_OBSERVATION.name(),
                         "执行后刷新观测快照以核验「运行于」",
                         Map.of("subjectId", conflict.getSubjectId()),
                         EXPECTED_REFRESH
