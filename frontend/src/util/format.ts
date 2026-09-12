@@ -1,4 +1,4 @@
-import type { ObservedValue, TrackValue } from '../api/types';
+import type { ObservedValue, OperationPlan, TrackValue } from '../api/types';
 
 export function formatUnboundLabels(labels: Record<string, string> | null | undefined): string {
   if (!labels || Object.keys(labels).length === 0) {
@@ -30,7 +30,31 @@ export function formatTrack(track: TrackValue | null | undefined): string {
   return track.availability;
 }
 
-/** 规范问法「实际在哪」：失联不得把旧宿主写成可用实际，也不得展示为 PRESENT。 */
+/**
+ * 规范问法「实际」投影。空洞与失联可并存（ticket 09 HTTP：`availability=HOLLOW` 且
+ * `identityLost=true`）；不得互相吞掉。失联时不得把旧宿主写成 PRESENT。
+ */
+export function formatObservedActual(
+  observed: TrackValue | ObservedValue | null | undefined,
+  flags: { observationHollow?: boolean; identityLost?: boolean } = {},
+): string {
+  const hollow =
+    Boolean(flags.observationHollow) || observed?.availability === 'HOLLOW';
+  const lost =
+    Boolean(flags.identityLost) || observed?.availability === 'IDENTITY_LOST';
+  if (hollow && lost) {
+    return '空洞（不可信）；身份失联';
+  }
+  if (hollow) {
+    return '空洞（不可信）';
+  }
+  if (lost) {
+    return '身份失联';
+  }
+  return formatTrack(observed);
+}
+
+/** 规范问法「实际在哪」：与冲突页同一套双轨说法。 */
 export function formatActualWhereValue(
   observed: ObservedValue | null | undefined,
   identityLost: boolean,
@@ -38,10 +62,42 @@ export function formatActualWhereValue(
   if (!observed) {
     return identityLost ? '身份失联' : '—';
   }
-  if (identityLost || observed.availability === 'IDENTITY_LOST') {
-    return '身份失联';
+  return formatObservedActual(observed, { identityLost });
+}
+
+export function formatExpected(expected: Record<string, string> | null | undefined): string | null {
+  if (!expected) {
+    return null;
   }
-  return formatTrack(observed);
+  const entries = Object.entries(expected);
+  if (entries.length === 0) {
+    return null;
+  }
+  return entries.map(([key, value]) => `${key}=${value}`).join(', ');
+}
+
+export function formatStructuredOutput(output: string | null | undefined): string | null {
+  if (output == null) {
+    return null;
+  }
+  const trimmed = output.trim();
+  if (trimmed.length === 0) {
+    return null;
+  }
+  try {
+    return JSON.stringify(JSON.parse(trimmed), null, 2);
+  } catch {
+    return trimmed;
+  }
+}
+
+export function isActiveOperationPlan(plan: OperationPlan | null | undefined): boolean {
+  return (
+    !!plan &&
+    (plan.status === 'DRAFT_REVIEW' ||
+      plan.status === 'APPROVED' ||
+      plan.status === 'EXECUTING')
+  );
 }
 
 export function formatUnboundDraftItemKind(kind: string): string {

@@ -14,6 +14,12 @@ export function getActivePlan(conflictId: string): Promise<OperationPlan> {
   );
 }
 
+export function getPlan(planId: string): Promise<OperationPlan> {
+  return apiRequest<OperationPlan>(
+    `/api/operation-plans/${encodeURIComponent(planId)}`,
+  );
+}
+
 export function approvePlan(planId: string): Promise<OperationPlan> {
   return apiRequest<OperationPlan>(
     `/api/operation-plans/${encodeURIComponent(planId)}/approve`,

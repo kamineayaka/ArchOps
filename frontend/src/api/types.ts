@@ -134,6 +134,11 @@ export type PlanStep = {
   action: string;
   description: string;
   params: Record<string, string>;
+  /**
+   * Frozen 步骤断言 from GET/approve plan JSON (`steps[].expected`).
+   * Omitted, null, or empty on pre-B3 plans: success is SSH/fake exit only.
+   */
+  expected?: Record<string, string> | null;
 };
 
 export type ExecutionStepLog = {
@@ -143,6 +148,11 @@ export type ExecutionStepLog = {
   command: string;
   success: boolean;
   failureReason: string | null;
+  /**
+   * Tool structured stdout from GET/start-execution `executionLog[].structuredOutput`.
+   * Omitted or null on pre-B3 log lines.
+   */
+  structuredOutput?: string | null;
 };
 
 export type OperationPlan = {

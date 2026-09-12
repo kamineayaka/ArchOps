@@ -6,7 +6,7 @@ import { listActiveConflicts } from '../api/conflicts';
 import type { ConflictCase } from '../api/types';
 import { ApiError } from '../api/types';
 import { useDemoUser } from '../auth/DemoUserContext';
-import { formatTrack } from '../util/format';
+import { formatObservedActual, formatTrack } from '../util/format';
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -64,19 +64,27 @@ export default function ConflictListPage() {
     {
       title: '实际（观测）',
       key: 'observed',
-      render: (_, row) =>
-        row.observationHollow ? (
-          <Text type="secondary">空洞（不可信）</Text>
-        ) : (
-          formatTrack(row.observedValue)
-        ),
+      render: (_, row) => (
+        <Text type={row.observationHollow ? 'secondary' : undefined}>
+          {formatObservedActual(row.observedValue, {
+            observationHollow: row.observationHollow,
+            identityLost: row.identityLost,
+          })}
+        </Text>
+      ),
     },
     {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
-      width: 140,
-      render: (status: string) => <Tag color={STATUS_COLOR[status] ?? 'default'}>{status}</Tag>,
+      width: 220,
+      render: (status: string, row) => (
+        <Space size={4} wrap>
+          <Tag color={STATUS_COLOR[status] ?? 'default'}>{status}</Tag>
+          {row.observationHollow ? <Tag>观测空洞</Tag> : null}
+          {row.identityLost ? <Tag color="orange">身份失联</Tag> : null}
+        </Space>
+      ),
     },
     {
       title: '诊断',
@@ -100,7 +108,7 @@ export default function ConflictListPage() {
             开放冲突
           </Title>
           <Paragraph type="secondary" style={{ marginBottom: 0 }}>
-            双轨偏差列表。空洞 ≠ 冲突；待确认关闭仍出现在此表。
+            双轨偏差列表。空洞 ≠ 冲突；身份失联不是空洞，二者可并存且不得互相吞掉；待确认关闭仍出现在此表。
           </Paragraph>
         </div>
         <Button onClick={() => void load()} loading={loading}>

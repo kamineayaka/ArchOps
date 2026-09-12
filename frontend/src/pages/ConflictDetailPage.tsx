@@ -22,13 +22,20 @@ import {
   getConflict,
   getDiagnosis,
 } from '../api/conflicts';
-import { approvePlan, getActivePlan, selectBranch, startExecution } from '../api/plans';
+import { approvePlan, getActivePlan, getPlan, selectBranch, startExecution } from '../api/plans';
 import { getOpenDraft, getDraftById, acceptDraftItem, rejectDraftItem } from '../api/drafts';
 import { getShouldWhere } from '../api/curated';
 import type { ConflictCase, ConflictDiagnosis, CuratedDraft, OperationPlan } from '../api/types';
 import { ApiError } from '../api/types';
 import { useDemoUser } from '../auth/DemoUserContext';
-import { formatTrack, isAcceptedHandler } from '../util/format';
+import {
+  formatExpected,
+  formatObservedActual,
+  formatStructuredOutput,
+  formatTrack,
+  isAcceptedHandler,
+  isActiveOperationPlan,
+} from '../util/format';
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -50,6 +57,26 @@ function rememberDraftId(conflictId: string, draftId: string): void {
 function recalledDraftId(conflictId: string): string | null {
   try {
     return sessionStorage.getItem(draftMemoryKey(conflictId));
+  } catch {
+    return null;
+  }
+}
+
+function planMemoryKey(conflictId: string): string {
+  return `archops.operation-plan.${conflictId}`;
+}
+
+function rememberPlanId(conflictId: string, planId: string): void {
+  try {
+    sessionStorage.setItem(planMemoryKey(conflictId), planId);
+  } catch {
+    // Demo recall only: COMPLETED/VOIDED leave /active, GET by id still works.
+  }
+}
+
+function recalledPlanId(conflictId: string): string | null {
+  try {
+    return sessionStorage.getItem(planMemoryKey(conflictId));
   } catch {
     return null;
   }
@@ -97,24 +124,35 @@ export default function ConflictDetailPage() {
         }
       }
 
-      // Active-plan API only accepts OPEN conflicts; skip when closed/pending/suspended.
+      // /active only returns DRAFT_REVIEW/APPROVED/EXECUTING on OPEN. After
+      // start-execution the plan is COMPLETED or VOIDED; recall GET /operation-plans/{id}
+      // so frozen expected and executionLog.structuredOutput remain visible.
+      let nextPlan: OperationPlan | null = null;
+      let nextPlanError: string | null = null;
       if (c.status === 'OPEN') {
         try {
-          const p = await getActivePlan(id);
-          setPlan(p);
-          setPlanError(null);
+          nextPlan = await getActivePlan(id);
+          rememberPlanId(id, nextPlan.id);
         } catch (err) {
-          setPlan(null);
-          if (err instanceof ApiError && err.code === 'PLAN_NOT_FOUND') {
-            setPlanError(null);
-          } else {
-            setPlanError(err instanceof ApiError ? err.message : String(err));
+          if (!(err instanceof ApiError) || err.code !== 'PLAN_NOT_FOUND') {
+            nextPlanError = err instanceof ApiError ? err.message : String(err);
           }
         }
-      } else {
-        setPlan(null);
-        setPlanError(null);
       }
+      if (!nextPlan && !nextPlanError) {
+        const remembered = recalledPlanId(id);
+        if (remembered) {
+          try {
+            nextPlan = await getPlan(remembered);
+          } catch (err) {
+            if (!(err instanceof ApiError) || err.code !== 'PLAN_NOT_FOUND') {
+              nextPlanError = err instanceof ApiError ? err.message : String(err);
+            }
+          }
+        }
+      }
+      setPlan(nextPlan);
+      setPlanError(nextPlanError);
 
       try {
         let dft: CuratedDraft | null = null;
@@ -210,6 +248,8 @@ export default function ConflictDetailPage() {
   const accepted = isAcceptedHandler(collab, userId);
   const openDraft = draft?.status === 'OPEN';
   const voidedDraft = draft?.status === 'VOIDED';
+  const planActive = isActiveOperationPlan(plan);
+  const executionLog = plan?.executionLog ?? null;
   const isSenior = user?.role === 'SENIOR';
   const isGeneral = user?.role === 'GENERAL';
   const canCollab =
@@ -228,6 +268,7 @@ export default function ConflictDetailPage() {
           <Tag>{conflict.status}</Tag>
           {conflict.pendingCloseReminderVisible && <Tag color="blue">待确认关闭</Tag>}
           {conflict.observationHollow && <Tag>观测空洞</Tag>}
+          {conflict.identityLost && <Tag color="orange">身份失联</Tag>}
           <Text type="secondary">{conflict.id}</Text>
         </Space>
       </div>
@@ -241,9 +282,10 @@ export default function ConflictDetailPage() {
             {formatTrack(conflict.curatedValue)}
           </Descriptions.Item>
           <Descriptions.Item label="实际（观测）">
-            {conflict.observationHollow
-              ? '空洞（不可信）'
-              : formatTrack(conflict.observedValue)}
+            {formatObservedActual(conflict.observedValue, {
+              observationHollow: conflict.observationHollow,
+              identityLost: conflict.identityLost,
+            })}
           </Descriptions.Item>
           <Descriptions.Item label="诊断状态">{conflict.diagnosisStatus}</Descriptions.Item>
         </Descriptions>
@@ -327,14 +369,20 @@ export default function ConflictDetailPage() {
             <Divider style={{ margin: '12px 0' }} />
             <Button
               type="primary"
-              disabled={!accepted || diagnosis.status !== 'READY' || !!plan || openDraft}
+              disabled={!accepted || diagnosis.status !== 'READY' || planActive || openDraft}
               loading={busy}
               onClick={() =>
                 void runAction(
                   selectedForkId === CHANGE_CURATED_FORK
                     ? '已选择改理想并生成草案'
                     : '已选择分叉并生成计划',
-                  () => selectBranch(conflict.id, selectedForkId),
+                  async () => {
+                    const result = await selectBranch(conflict.id, selectedForkId);
+                    if ('steps' in result) {
+                      rememberPlanId(conflict.id, result.id);
+                    }
+                    return result;
+                  },
                 )
               }
             >
@@ -342,7 +390,7 @@ export default function ConflictDetailPage() {
                 ? '选择改理想并生成草案'
                 : '选择分叉并生成操作计划'}
             </Button>
-            {plan && (
+            {planActive && (
               <Paragraph type="secondary" style={{ marginTop: 8, marginBottom: 0 }}>
                 已有活跃计划，不可再选支。
               </Paragraph>
@@ -455,6 +503,7 @@ export default function ConflictDetailPage() {
               <Descriptions.Item label="状态">
                 <Tag>{plan.status}</Tag>
                 {plan.executionIntent && <Tag color="blue">已冻结执行意图</Tag>}
+                {!planActive ? <Tag>非活跃</Tag> : null}
               </Descriptions.Item>
               <Descriptions.Item label="选支">{plan.selectedForkId}</Descriptions.Item>
               <Descriptions.Item label="分支">{plan.branchKind}</Descriptions.Item>
@@ -464,16 +513,60 @@ export default function ConflictDetailPage() {
             </Descriptions>
             <List
               size="small"
-              header="步骤（只读审查）"
+              header="步骤（只读审查；步骤断言是冻结 expected，不是观测/策展）"
               dataSource={plan.steps}
-              renderItem={(step) => (
-                <List.Item>
-                  <Text>
-                    {step.seq}. [{step.action}] {step.description}
-                  </Text>
-                </List.Item>
-              )}
+              renderItem={(step) => {
+                const expected = formatExpected(step.expected);
+                return (
+                  <List.Item>
+                    <Space direction="vertical" size={0}>
+                      <Text>
+                        {step.seq}. [{step.action}] {step.description}
+                      </Text>
+                      {expected ? (
+                        <Text type="secondary">步骤断言 expected: {expected}</Text>
+                      ) : null}
+                    </Space>
+                  </List.Item>
+                );
+              }}
             />
+            {executionLog && executionLog.length > 0 ? (
+              <List
+                size="small"
+                header="逐步详细结果（executionLog）"
+                dataSource={executionLog}
+                style={{ marginTop: 8 }}
+                renderItem={(log) => {
+                  const structured = formatStructuredOutput(log.structuredOutput);
+                  return (
+                    <List.Item>
+                      <Space direction="vertical" size={0} style={{ width: '100%' }}>
+                        <Space wrap size="small">
+                          <Text>
+                            {log.seq}. [{log.action}]
+                          </Text>
+                          <Tag color={log.success ? 'green' : 'red'}>
+                            {log.success ? '成功' : '失败'}
+                          </Tag>
+                        </Space>
+                        {log.failureReason ? (
+                          <Text type="danger">{log.failureReason}</Text>
+                        ) : null}
+                        {structured ? (
+                          <Typography.Paragraph
+                            style={{ marginBottom: 0, fontSize: 12, whiteSpace: 'pre-wrap' }}
+                          >
+                            <Text type="secondary">structuredOutput</Text>
+                            <pre style={{ margin: '4px 0 0', overflowX: 'auto' }}>{structured}</pre>
+                          </Typography.Paragraph>
+                        ) : null}
+                      </Space>
+                    </List.Item>
+                  );
+                }}
+              />
+            ) : null}
             <Space wrap style={{ marginTop: 12 }}>
               <Button
                 type="primary"
@@ -487,14 +580,18 @@ export default function ConflictDetailPage() {
                 disabled={!accepted || plan.status !== 'APPROVED'}
                 loading={busy}
                 onClick={() =>
-                  void runAction('已启动受控执行', () => startExecution(plan.id))
+                  void runAction('已启动受控执行', async () => {
+                    const result = await startExecution(plan.id);
+                    rememberPlanId(conflict.id, result.planId);
+                    return result;
+                  })
                 }
               >
                 启动受控执行
               </Button>
             </Space>
             <Paragraph type="secondary" style={{ marginTop: 8, marginBottom: 0 }}>
-              执行走控制面计划冻结路径（fake/MINA SSH），界面不提供旁路直连或终端。
+              执行由控制面按冻结计划单步代发执行引擎（ADR-0044 / ADR-0045）；界面不提供旁路直连或终端。
             </Paragraph>
           </>
         )}
