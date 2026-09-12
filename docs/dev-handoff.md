@@ -14,7 +14,7 @@
 6. `docs/specs/unbound-identity-rebind.md`（未绑定 / 身份失联重绑 Spec；**01–09 已闭合**）
 7. `docs/specs/conflict-upgrade-void-plans.md`（冲突升级作废活跃计划；审计 A1；**01 TDD-done，本刀闭合**）
 8. `docs/specs/control-plane-executor.md`（控制面执行引擎；审计 B 第一刀；**01 TDD-done，本刀闭合**）
-9. `docs/specs/plan-step-assertion.md`（步骤断言；审计 B3 剩余；**Spec 已发布，工单尚未拆**）
+9. `docs/specs/plan-step-assertion.md`（步骤断言；审计 B3 剩余；**Spec 已发布；frontier = 01**）
 10. `docs/agents/tdd.md`（`/implement` 的 TDD overlay：red → green → refactor）
 11. `docs/scaffold-bootstrap-prompt.md`（脚手架专用；已完成后可作审计对照）
 12. `.cursor/rules/project-map.mdc`
@@ -50,7 +50,7 @@
 | 代码 vs ADR-0044 只读审计 | **已出报告** → [`.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md`](../.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md)（A2 = 票 05；A3 = 票 09 已闭合；**A1 = conflict-upgrade-void-plans 01 TDD-done**；**B1–B3 = control-plane-executor 01 TDD-done**；B4/B5/B6 另开） |
 | 冲突升级作废活跃计划 | **01 TDD-done / 本刀闭合** → [`docs/specs/conflict-upgrade-void-plans.md`](specs/conflict-upgrade-void-plans.md) / [`.scratch/conflict-upgrade-void-plans/issues/`](../.scratch/conflict-upgrade-void-plans/issues/)（审计 A1；不要写入未绑定目录） |
 | 控制面执行引擎（0044 B 第一刀） | **01 TDD-done / 本刀闭合** → [`docs/specs/control-plane-executor.md`](specs/control-plane-executor.md) / [`.scratch/control-plane-executor/issues/01-executor-single-step-dispatch.md`](../.scratch/control-plane-executor/issues/01-executor-single-step-dispatch.md)（ADR-0045。不要写入 unbound / A1 目录；不要加票 02） |
-| 步骤断言（0044 B3 剩余） | **Spec 已发布** → [`docs/specs/plan-step-assertion.md`](specs/plan-step-assertion.md) / [`.scratch/plan-step-assertion/`](../.scratch/plan-step-assertion/)（工单尚未拆。不要写成执行引擎票 02） |
+| 步骤断言（0044 B3 剩余） | **Spec 已发布；frontier = 01** → [`docs/specs/plan-step-assertion.md`](specs/plan-step-assertion.md) / [`.scratch/plan-step-assertion/issues/01-engine-judges-step-assertion.md`](../.scratch/plan-step-assertion/issues/01-engine-judges-step-assertion.md)（不要写成执行引擎票 02） |
 | Matt 工作流 skills / tracker | **已入库**（`.cursor/skills/` + `.agents/skills/` + `docs/agents/`；TDD overlay [`docs/agents/tdd.md`](agents/tdd.md)；Cloud 不依赖本机 `~/.agents`） |
 | 国内镜像默认 | **已合并**（PR #53：Gradle 腾讯云 / Maven 阿里云 / npm npmmirror / Docker DaoCloud） |
 | kamiserver 人工验收 | **通过**（2026-08：Compose postgres+redis healthy 且宿主机端口已映射 → `./gradlew bootRun` → `GET /api/health`；竖切演示闭环已在该 VM 走通） |
@@ -92,7 +92,8 @@
 33. ~~`/implement` `/tdd` 控制面执行引擎票 01~~：已完成（单步 gRPC 代发；空洞停发/丢弃在途成功；`grpc.health.v1` SERVING；mTLS；凭证由引擎解密；MINA 仅执行引擎 `@Import`）。witnessed red → green → refactor；`ExecutorSingleStepDispatchHttpAcceptanceTest` / `ExecutorGrpcHealthAcceptanceTest` / `ExecutorDownHttpAcceptanceTest`。**本刀闭合。**  
 34. ~~`/grill-with-docs` 定步骤断言切面~~：已定为 **步骤断言成真 + 引擎判定 + 逐步详细结果落控制面**（C；slug `plan-step-assertion`；不立新 ADR）。  
 35. ~~步骤断言 `/to-spec`~~：已发布 [`docs/specs/plan-step-assertion.md`](specs/plan-step-assertion.md)。  
-36. **下一对话：同一窗口 `/to-tickets`**（票 01 = 本 Spec 全部 Must）。不要 `/implement` 直到工单 `ready-for-agent`。不要发明未绑定 10。不要自动做编排层 / B-live / 工作台。不要往 `control-plane-executor` 加票 02。  
+36. ~~步骤断言 `/to-tickets`~~：已发布票 01 → [`.scratch/plan-step-assertion/issues/01-engine-judges-step-assertion.md`](../.scratch/plan-step-assertion/issues/01-engine-judges-step-assertion.md)。  
+37. **下一对话：`/implement` `/tdd` 步骤断言票 01**（frontier）。不要发明未绑定 10。不要自动做编排层 / B-live / 工作台。不要往 `control-plane-executor` 加票 02。不要改 CONTEXT / ADR-0044 / 0045 正文。  
 
 ### 工单阻塞简图
 
@@ -140,10 +141,10 @@
 01 执行引擎成真：单步 gRPC 代发 + MINA/凭证迁出（TDD-done）
 ```
 
-步骤断言（审计 B3 剩余；**Spec 已发布，工单尚未拆**）：
+步骤断言（审计 B3 剩余；**Spec 已发布；frontier = 01**）：
 
 ```
-（待 /to-tickets：票 01 = Spec 全部 Must）
+01 步骤断言成真：引擎判定 + executionLog 详细结果（ready-for-agent）
 ```
 
 （一次只做一张。）

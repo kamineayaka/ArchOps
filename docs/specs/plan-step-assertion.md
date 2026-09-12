@@ -1,6 +1,6 @@
 # Spec: 步骤断言（引擎判定 + 逐步详细结果落控制面）
 
-**Status**: spec published；工单尚未拆（`/to-tickets` 待批准）  
+**Status**: spec published；工单 01 **ready-for-agent**（frontier）  
 **Basis**: ADR-0044 决议 4（步骤断言由执行引擎判定）与决议 2 在本刀收缩后的「逐步详细结果落控制面」；ADR-0045（既有 ExecuteStep 加料，不改 0045 正文）；ADR-0043；`CONTEXT.md`「操作计划」「步骤断言」「执行引擎」「控制面代发」「AI 编排层」（执行期只观察）  
 **Source**: [`.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md`](../../.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md) **B3 剩余**（无步骤断言、无逐步事件。单步代发已由执行引擎 01 闭合）  
 **Predecessor**: 竖切 / 改策展 / 未绑定 01–09 / 冲突升级作废活跃计划（A1）/ 控制面执行引擎 01 均已闭合。失败即停作废、禁止改步重试已在控制面。引擎 `success` 现等于 SSH/fake 退出。本刀关闭「退出 0 即 COMPLETED」窗口，并把逐步详细结果写入已有计划 `executionLog`。  
@@ -10,7 +10,7 @@
 
 1. 不改 `CONTEXT.md`，不重开 ADR-0039 / 0043 / **0044 正文** / **0045 正文**。**不立 ADR-0046**。ExecuteStep 增步骤断言字段写进本 Spec。
 2. 本刀 = 审计 B3 剩余：步骤断言成真 + 执行引擎判定 + 逐步详细结果落控制面。编排层进程 / B-live / 工作台三档 **Out of Scope**。不要往 `.scratch/control-plane-executor/` 加票 02。
-3. 票 01（待拆）= 本 Spec 全部 Must。不要先交空 `expected` 字段骨架。
+3. 票 01 = 本 Spec 全部 Must。不要先交空 `expected` 字段骨架。
 4. 主接缝仍是现有 `start-execution` 同步 HTTP；内部代发仍是既有 ExecuteStep gRPC（加字段，不新开 RPC）。
 5. 无步骤断言字段的旧计划保持上一刀：只看 SSH/fake 退出码。新生成的修实际计划必须带非空 `expected`。
 
@@ -238,7 +238,7 @@ Forbidden: LLM/model reading stdout; 控制面 re-evaluating `expected` after a 
 
 ## Further Notes
 
-- **Issue tracker**: 新目录 [`.scratch/plan-step-assertion/`](../../.scratch/plan-step-assertion/)（禁止写入 `control-plane-executor` / `unbound-identity-rebind` / `change-curated-draft` / `conflict-upgrade-void-plans`）。工单尚未拆。
+- **Issue tracker**: [`.scratch/plan-step-assertion/issues/`](../../.scratch/plan-step-assertion/issues/)（票 01 `ready-for-agent`；禁止写入 `control-plane-executor` / `unbound-identity-rebind` / `change-curated-draft` / `conflict-upgrade-void-plans`）。
 - **Predecessor spec**: [`docs/specs/control-plane-executor.md`](control-plane-executor.md) listed 步骤断言 schema as Out of Scope; that was the previous knife’s boundary, not a contract rejection.
 - **Why no new ADR**: 0044 already froze 引擎判定 and rejected 模型判步; 0045 already froze ExecuteStep. This knife fills omitted fields in a Spec.
-- **Next Matt step**: `/to-tickets`（票 01 = 本 Spec 全部 Must）。不要 `/implement` 直到工单 `ready-for-agent`。不要自动做编排层 / B-live / 工作台。
+- **Next Matt step**: frontier = 票 01。新对话 `/implement` `/tdd`。不要自动做编排层 / B-live / 工作台。不要往 `control-plane-executor` 加票 02。
