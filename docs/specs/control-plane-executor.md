@@ -228,5 +228,5 @@ Forbidden on the wire: plaintext host secrets; full step list; 诊断作业包; 
 - **Issue tracker**: [`.scratch/control-plane-executor/issues/`](../../.scratch/control-plane-executor/issues/)（票 01 **TDD-done**；本刀闭合）。禁止写入 `.scratch/unbound-identity-rebind/`、`.scratch/change-curated-draft/`、`.scratch/conflict-upgrade-void-plans/`。
 - **ADR-0045**: [`docs/adr/0045-control-plane-executor-grpc.md`](../adr/0045-control-plane-executor-grpc.md) — 运输与谁可以调；字段表以本 Spec 为准。
 - **Ticket 01 Must** = this Spec’s Must（已拆；用户批准一张票；**TDD-done**）。
-- **Next Matt step**: 票 01 **TDD-done**；本刀闭合。步骤断言另开 slug：[`docs/specs/plan-step-assertion.md`](plan-step-assertion.md)。不要往本目录加票 02。不要自动做 B-live / 编排层 / 工作台三档。
+- **Next Matt step**: 票 01 **TDD-done**；本刀闭合。步骤断言另开 slug：[`docs/specs/plan-step-assertion.md`](plan-step-assertion.md)（**01 TDD-done**）。不要往本目录加票 02。不要自动做 B-live / 编排层 / 工作台三档。
 - **Why a new ADR**: internal gRPC is hard to reverse, surprising next to public REST, and a real trade-off vs JSON HTTP / Redis queue. It does **not** reopen 0044 rejections.
