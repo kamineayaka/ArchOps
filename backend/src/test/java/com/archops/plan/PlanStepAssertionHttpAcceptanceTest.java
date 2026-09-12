@@ -162,6 +162,36 @@ class PlanStepAssertionHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data.voidReason", startsWith("STEP_ASSERTION_FAILED")));
     }
 
+    @Test
+    void fakeExitFailureVoidsPlanAsSshFailureNotStepAssertion() throws Exception {
+        String conflictId = openConflictAndClaim("psa4-a", "psa4-b", "ctr-psa4");
+        String planId = selectAndApprove(conflictId);
+        engine.fakeSsh().failOnAction("SSH_PRECHECK");
+
+        MvcResult executed = mockMvc.perform(post("/api/operation-plans/{id}/start-execution", planId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("VOIDED")))
+                .andExpect(jsonPath("$.data.executionLog[0].success", is(false)))
+                .andReturn();
+        JsonNode data = objectMapper.readTree(executed.getResponse().getContentAsString()).path("data");
+        String voidReason = data.path("voidReason").asText();
+        String failureReason = data.path("executionLog").get(0).path("failureReason").asText();
+        assertThat(voidReason).isNotBlank();
+        assertThat(voidReason).doesNotStartWith("STEP_ASSERTION_FAILED");
+        assertThat(failureReason).isNotBlank();
+        assertThat(failureReason).doesNotStartWith("STEP_ASSERTION_FAILED");
+        assertThat(engine.recordedCalls()).hasSize(1);
+        assertThat(engine.recordedCalls().getFirst().success()).isFalse();
+
+        mockMvc.perform(get("/api/operation-plans/{id}", planId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("VOIDED")));
+    }
+
     private void assertJsonContains(String structuredOutput, String key, String value) throws Exception {
         assertThat(structuredOutput).isNotBlank();
         JsonNode object = objectMapper.readTree(structuredOutput);

@@ -24,7 +24,7 @@ REFRESH_OBSERVATION  expected { "refresh": "ok" }
 
 - [x] 新生成修实际计划：GET 计划 `steps[]` 每步非空 `expected`（上表）；人审后 `start-execution` 经引擎 fake（默认 JSON 满足约定）→ `COMPLETED`；`executionLog` 每步带 `structuredOutput`
 - [x] 引擎 fake **退出成功** + JSON **不匹配**某步 `expected` → 计划 `VOIDED`；该步 `failureReason` 以 `STEP_ASSERTION_FAILED` 开头；`executionLog` 含该步 `structuredOutput`；再 `start-execution` → `PLAN_VOIDED`（不得改步重试）
-- [ ] 退出成功 + `structured_output` 不是 JSON 对象 → `VOIDED`，同为 `STEP_ASSERTION_FAILED`
+- [x] 退出成功 + `structured_output` 不是 JSON 对象 → `VOIDED`，同为 `STEP_ASSERTION_FAILED`
 - [ ] fake 退出失败 → `VOIDED` 为 SSH 失败；`failureReason` **不以** `STEP_ASSERTION_FAILED` 开头
 - [ ] 无 `expected` 字段的旧计划 / 既有代发夹具：仍只看退出码；`ExecutorSingleStepDispatchHttpAcceptanceTest` 等仍绿
 - [ ] 不回归：空洞 / 升级 / 失联 VOIDED 后停发下一步；规则诊断 → 选支 → 人审；竖切控制面 fake 不经引擎；Host Agent 仍直连控制面心跳；非处理人不能 `start-execution`
@@ -79,3 +79,23 @@ Exit 0 + JSON object that mismatches `expected` still COMPLETED (engine success 
 ### Cycle 2 green + refactor (TDD redo, 2026-09-12)
 
 Same test command: BUILD SUCCESSFUL. Engine judges JSON **object** containment after exit 0; `STEP_ASSERTION_FAILED` voids and blocks retry. Non-object stdout still treated as exit-code success (cycle 3). Refactor: `toJudgedResponse`.
+
+### Cycle 3 witnessed red (TDD redo, 2026-09-12)
+
+```text
+cd backend && ./gradlew test --tests com.archops.plan.PlanStepAssertionHttpAcceptanceTest.exitSuccessWithNonJsonStructuredOutputVoidsPlanAsStepAssertionFailed
+```
+
+```text
+PlanStepAssertionHttpAcceptanceTest > exitSuccessWithNonJsonStructuredOutputVoidsPlanAsStepAssertionFailed() FAILED
+    java.lang.AssertionError: JSON path "$.data.status"
+    Expected: is "VOIDED"
+         but: was "COMPLETED"
+BUILD FAILED
+```
+
+Cycle 2 left non-object stdout as exit-code success.
+
+### Cycle 3 green + refactor (TDD redo, 2026-09-12)
+
+Same test command: BUILD SUCCESSFUL. Non-JSON / non-object → `STEP_ASSERTION_FAILED`. Refactor: extract `StepAssertionJudge`.
