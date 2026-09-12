@@ -4,6 +4,7 @@ import com.archops.common.api.ApiResponse;
 import com.archops.curated.dto.CuratedDraftEventResponse;
 import com.archops.curated.dto.CuratedDraftResponse;
 import com.archops.curated.service.CuratedDraftService;
+import com.archops.curated.service.UnboundDraftService;
 import com.archops.user.security.AuthUserPrincipal;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -24,9 +25,14 @@ import java.util.List;
 public class CuratedDraftController {
 
     private final CuratedDraftService curatedDraftService;
+    private final UnboundDraftService unboundDraftService;
 
-    public CuratedDraftController(CuratedDraftService curatedDraftService) {
+    public CuratedDraftController(
+            CuratedDraftService curatedDraftService,
+            UnboundDraftService unboundDraftService
+    ) {
         this.curatedDraftService = curatedDraftService;
+        this.unboundDraftService = unboundDraftService;
     }
 
     @GetMapping("/curated-drafts/{draftId}")
@@ -58,7 +64,7 @@ public class CuratedDraftController {
             @PathVariable String itemId,
             @AuthenticationPrincipal AuthUserPrincipal principal
     ) {
-        return ApiResponse.ok(curatedDraftService.acceptUnboundItem(draftId, itemId, principal));
+        return ApiResponse.ok(unboundDraftService.acceptUnboundItem(draftId, itemId, principal));
     }
 
     @PostMapping("/curated-drafts/{draftId}/items/{itemId}/reject")
@@ -67,7 +73,7 @@ public class CuratedDraftController {
             @PathVariable String itemId,
             @AuthenticationPrincipal AuthUserPrincipal principal
     ) {
-        return ApiResponse.ok(curatedDraftService.rejectUnboundItem(draftId, itemId, principal));
+        return ApiResponse.ok(unboundDraftService.rejectUnboundItem(draftId, itemId, principal));
     }
 
     @PostMapping("/conflicts/{conflictId}/curated-drafts/open/items/{itemId}/accept")

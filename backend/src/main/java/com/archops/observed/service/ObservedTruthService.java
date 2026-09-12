@@ -13,7 +13,7 @@ import com.archops.curated.domain.CuratedRelationType;
 import com.archops.curated.dto.CuratedObjectResponse;
 import com.archops.curated.mapper.CuratedFactMapper;
 import com.archops.curated.mapper.CuratedObjectMapper;
-import com.archops.curated.service.CuratedDraftService;
+import com.archops.curated.service.UnboundDraftService;
 import com.archops.observed.domain.HostAgent;
 import com.archops.observed.domain.IdentityLostMark;
 import com.archops.observed.domain.ObservedAvailability;
@@ -61,7 +61,7 @@ public class ObservedTruthService {
     private final CuratedFactMapper curatedFactMapper;
     private final ConflictDetectionService conflictDetectionService;
     private final ObservationFreshnessService observationFreshnessService;
-    private final CuratedDraftService curatedDraftService;
+    private final UnboundDraftService unboundDraftService;
     private final PersistentJson persistentJson;
 
     public ObservedTruthService(
@@ -74,7 +74,7 @@ public class ObservedTruthService {
             CuratedFactMapper curatedFactMapper,
             ConflictDetectionService conflictDetectionService,
             @Lazy ObservationFreshnessService observationFreshnessService,
-            @Lazy CuratedDraftService curatedDraftService,
+            UnboundDraftService unboundDraftService,
             PersistentJson persistentJson
     ) {
         this.hostAgentMapper = hostAgentMapper;
@@ -86,7 +86,7 @@ public class ObservedTruthService {
         this.curatedFactMapper = curatedFactMapper;
         this.conflictDetectionService = conflictDetectionService;
         this.observationFreshnessService = observationFreshnessService;
-        this.curatedDraftService = curatedDraftService;
+        this.unboundDraftService = unboundDraftService;
         this.persistentJson = persistentJson;
     }
 
@@ -592,7 +592,7 @@ public class ObservedTruthService {
                 candidateIds.add(hitRow.getId());
             }
         }
-        curatedDraftService.voidOpenUnboundAfterLabelMatch(curatedObjectId, candidateIds, hostRuntimeKeys);
+        unboundDraftService.voidOpenUnboundAfterLabelMatch(curatedObjectId, candidateIds, hostRuntimeKeys);
         for (UnboundBindMemory memory : memories) {
             deleteUnboundCandidate(memory.getSourceHostId(), memory.getRuntimeId());
         }

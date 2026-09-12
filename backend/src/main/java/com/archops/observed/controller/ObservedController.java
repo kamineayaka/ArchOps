@@ -7,7 +7,7 @@ import com.archops.observed.dto.IdentityLostResponse;
 import com.archops.observed.dto.UnboundCandidateResponse;
 import com.archops.observed.service.ObservationFreshnessService;
 import com.archops.curated.dto.CuratedDraftResponse;
-import com.archops.curated.service.CuratedDraftService;
+import com.archops.curated.service.UnboundDraftService;
 import com.archops.observed.service.ObservedTruthService;
 import com.archops.user.security.AuthUserPrincipal;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -31,16 +31,16 @@ public class ObservedController {
 
     private final ObservedTruthService observedTruthService;
     private final ObservationFreshnessService observationFreshnessService;
-    private final CuratedDraftService curatedDraftService;
+    private final UnboundDraftService unboundDraftService;
 
     public ObservedController(
             ObservedTruthService observedTruthService,
             ObservationFreshnessService observationFreshnessService,
-            CuratedDraftService curatedDraftService
+            UnboundDraftService unboundDraftService
     ) {
         this.observedTruthService = observedTruthService;
         this.observationFreshnessService = observationFreshnessService;
-        this.curatedDraftService = curatedDraftService;
+        this.unboundDraftService = unboundDraftService;
     }
 
     /**
@@ -74,6 +74,6 @@ public class ObservedController {
             @PathVariable String candidateId,
             @AuthenticationPrincipal AuthUserPrincipal principal
     ) {
-        return ApiResponse.ok(curatedDraftService.createFromUnboundCandidate(candidateId, principal));
+        return ApiResponse.ok(unboundDraftService.createFromUnboundCandidate(candidateId, principal));
     }
 }
