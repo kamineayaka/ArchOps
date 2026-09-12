@@ -3,10 +3,15 @@ package com.archops.plan;
 import com.archops.conflict.ConflictDiagnosisWait;
 import com.archops.executor.ExecutorEngineHandle;
 import com.archops.executor.ExecutorEngineTestConfig;
+import com.archops.plan.domain.OperationPlan;
+import com.archops.plan.mapper.OperationPlanMapper;
 import com.archops.support.HttpAcceptanceTest;
 import com.archops.user.security.TempAuthHeaders;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -48,6 +53,9 @@ class PlanStepAssertionHttpAcceptanceTest {
 
     @Autowired
     private ExecutorEngineHandle engine;
+
+    @Autowired
+    private OperationPlanMapper operationPlanMapper;
 
     @BeforeEach
     void resetEngineFake() {
@@ -190,6 +198,44 @@ class PlanStepAssertionHttpAcceptanceTest {
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status", is("VOIDED")));
+    }
+
+    @Test
+    void planJsonWithoutExpectedStillCompletesOnExitCodeOnly() throws Exception {
+        String conflictId = openConflictAndClaim("psa5-a", "psa5-b", "ctr-psa5");
+        String planId = selectAndApprove(conflictId);
+        stripExpectedFromStoredSteps(planId);
+        engine.fakeSsh().succeedWithStdout("SSH_PRECHECK", "not-json and would fail assertion");
+        engine.fakeSsh().succeedWithStdout("MIGRATE_CONTAINER", "{\"migrated\":\"false\"}");
+        engine.fakeSsh().succeedWithStdout("REFRESH_OBSERVATION", "{\"refresh\":\"nope\"}");
+
+        mockMvc.perform(post("/api/operation-plans/{id}/start-execution", planId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("COMPLETED")))
+                .andExpect(jsonPath("$.data.completedSteps", is(3)))
+                .andExpect(jsonPath("$.data.executionLog", hasSize(3)))
+                .andExpect(jsonPath("$.data.executionLog[0].structuredOutput",
+                        is("not-json and would fail assertion")));
+
+        mockMvc.perform(get("/api/operation-plans/{id}", planId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("COMPLETED")))
+                .andExpect(jsonPath("$.data.executionLog[0].success", is(true)));
+    }
+
+    private void stripExpectedFromStoredSteps(String planId) throws Exception {
+        OperationPlan plan = operationPlanMapper.selectById(planId);
+        ArrayNode steps = (ArrayNode) objectMapper.readTree(plan.getStepsJson());
+        for (JsonNode step : steps) {
+            ((ObjectNode) step).remove("expected");
+        }
+        operationPlanMapper.update(null, new LambdaUpdateWrapper<OperationPlan>()
+                .eq(OperationPlan::getId, planId)
+                .set(OperationPlan::getStepsJson, objectMapper.writeValueAsString(steps)));
     }
 
     private void assertJsonContains(String structuredOutput, String key, String value) throws Exception {

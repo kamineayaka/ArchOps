@@ -16,6 +16,10 @@ public final class StepAssertionJudge {
     private StepAssertionJudge() {
     }
 
+    public static boolean hasExpected(Map<String, String> expected) {
+        return expected != null && !expected.isEmpty();
+    }
+
     /**
      * @return {@code null} when {@code structuredOutput} is a JSON object that contains every
      *         expected string pair; otherwise a {@code failure_reason} starting with

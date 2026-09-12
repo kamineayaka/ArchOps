@@ -69,6 +69,9 @@ public class ExecuteStepGrpcService extends ExecutorGrpc.ExecutorImplBase {
         if (!result.success()) {
             return toResponse(request.getStepSeq(), false, stdout, result.failureReason());
         }
+        if (!StepAssertionJudge.hasExpected(request.getExpectedMap())) {
+            return toResponse(request.getStepSeq(), true, stdout, null);
+        }
         String mismatch = StepAssertionJudge.mismatchReason(stdout, request.getExpectedMap(), objectMapper);
         if (mismatch != null) {
             return toResponse(request.getStepSeq(), false, stdout, mismatch);
