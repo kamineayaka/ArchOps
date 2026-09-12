@@ -1,24 +1,18 @@
 package com.archops.conflict.service;
 
-import com.archops.common.exception.BusinessException;
 import com.archops.common.json.PersistentJson;
 import com.archops.conflict.diagnosis.ConflictDiagnosisService;
 import com.archops.conflict.domain.ConflictCase;
 import com.archops.conflict.domain.ConflictEventType;
 import com.archops.conflict.domain.ConflictStatus;
 import com.archops.conflict.domain.HandlerAcceptance;
-import com.archops.conflict.dto.ConflictCaseResponse;
 import com.archops.conflict.mapper.ConflictCaseMapper;
 import com.archops.curated.domain.CuratedFact;
-import com.archops.curated.domain.CuratedObject;
 import com.archops.curated.domain.CuratedRelationType;
-import com.archops.curated.dto.CuratedObjectResponse;
 import com.archops.curated.mapper.CuratedFactMapper;
-import com.archops.curated.mapper.CuratedObjectMapper;
 import com.archops.curated.service.CuratedDraftService;
 import com.archops.observed.domain.ObservedAvailability;
 import com.archops.observed.domain.ObservedFact;
-import com.archops.observed.mapper.IdentityLostMarkMapper;
 import com.archops.observed.mapper.ObservedFactMapper;
 import com.archops.plan.service.OperationPlanService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -36,11 +30,11 @@ import java.util.Objects;
 import java.util.UUID;
 
 /**
-     * Emits conflict warnings when curated ≠ currently available observed on a merge key.
-     * When tracks become equal, transitions to PENDING_CLOSE (never auto-closes).
-     * Observed-target 升级 voids OPEN 改理想草案 and active 操作计划;
-     * draft SQL stays in CuratedDraftService.
-     */
+ * Emits conflict warnings when curated ≠ currently available observed on a merge key.
+ * When tracks become equal, transitions to PENDING_CLOSE (never auto-closes).
+ * Observed-target 升级 voids OPEN 改理想草案 and active 操作计划;
+ * draft SQL stays in CuratedDraftService. HTTP DTO assembly lives on ConflictCaseAssembler.
+ */
 @Service
 public class ConflictDetectionService {
 
@@ -55,9 +49,7 @@ public class ConflictDetectionService {
 
     private final ConflictCaseMapper conflictCaseMapper;
     private final CuratedFactMapper curatedFactMapper;
-    private final CuratedObjectMapper curatedObjectMapper;
     private final ObservedFactMapper observedFactMapper;
-    private final IdentityLostMarkMapper identityLostMarkMapper;
     private final ConflictDiagnosisService conflictDiagnosisService;
     private final ConflictEventService conflictEventService;
     private final OperationPlanService operationPlanService;
@@ -67,9 +59,7 @@ public class ConflictDetectionService {
     public ConflictDetectionService(
             ConflictCaseMapper conflictCaseMapper,
             CuratedFactMapper curatedFactMapper,
-            CuratedObjectMapper curatedObjectMapper,
             ObservedFactMapper observedFactMapper,
-            IdentityLostMarkMapper identityLostMarkMapper,
             ConflictDiagnosisService conflictDiagnosisService,
             ConflictEventService conflictEventService,
             @Lazy OperationPlanService operationPlanService,
@@ -78,9 +68,7 @@ public class ConflictDetectionService {
     ) {
         this.conflictCaseMapper = conflictCaseMapper;
         this.curatedFactMapper = curatedFactMapper;
-        this.curatedObjectMapper = curatedObjectMapper;
         this.observedFactMapper = observedFactMapper;
-        this.identityLostMarkMapper = identityLostMarkMapper;
         this.conflictDiagnosisService = conflictDiagnosisService;
         this.conflictEventService = conflictEventService;
         this.operationPlanService = operationPlanService;
@@ -264,50 +252,6 @@ public class ConflictDetectionService {
             ));
         }
         return voided;
-    }
-
-    /**
-     * Active reminders: OPEN + PENDING_CLOSE + SUSPENDED (CLOSED excluded).
-     */
-    @Transactional(readOnly = true)
-    public List<ConflictCaseResponse> listActive() {
-        return conflictCaseMapper.selectList(new LambdaQueryWrapper<ConflictCase>()
-                        .in(ConflictCase::getStatus, ACTIVE)
-                        .orderByDesc(ConflictCase::getUpdatedAt))
-                .stream()
-                .map(this::toResponse)
-                .toList();
-    }
-
-    /** @deprecated use {@link #listActive()} — kept for older callers. */
-    @Deprecated
-    @Transactional(readOnly = true)
-    public List<ConflictCaseResponse> listOpen() {
-        return listActive();
-    }
-
-    @Transactional(readOnly = true)
-    public ConflictCaseResponse getById(String id) {
-        ConflictCase row = conflictCaseMapper.selectById(id);
-        if (row == null) {
-            throw new BusinessException("CONFLICT_NOT_FOUND", "Conflict not found: " + id);
-        }
-        return toResponse(row);
-    }
-
-    @Transactional(readOnly = true)
-    public ConflictCaseResponse getActiveByMergeKey(String subjectId, CuratedRelationType relationType) {
-        ConflictCase active = findActive(subjectId, relationType);
-        if (active == null) {
-            throw new BusinessException("CONFLICT_NOT_FOUND",
-                    "No active conflict for merge key subject=" + subjectId + " relation=" + relationType);
-        }
-        return toResponse(active);
-    }
-
-    @Transactional(readOnly = true)
-    public ConflictCaseResponse getOpenByMergeKey(String subjectId, CuratedRelationType relationType) {
-        return getActiveByMergeKey(subjectId, relationType);
     }
 
     /**
@@ -505,100 +449,6 @@ public class ConflictDetectionService {
     private boolean sameObservedSnapshot(ConflictCase open, ObservedFact observed) {
         return open.getObservedAvailability() == observed.getAvailability()
                 && Objects.equals(open.getObservedTargetId(), observed.getTargetId());
-    }
-
-    ConflictCaseResponse toResponse(ConflictCase row) {
-        CuratedObject subject = curatedObjectMapper.selectById(row.getSubjectId());
-        CuratedObject curatedHost = curatedObjectMapper.selectById(row.getCuratedTargetId());
-        CuratedObject observedHost = row.getObservedTargetId() == null
-                ? null
-                : curatedObjectMapper.selectById(row.getObservedTargetId());
-
-        ConflictCaseResponse.TrackValue curatedValue = ConflictCaseResponse.TrackValue.present(
-                curatedHost != null ? curatedHost.getId() : row.getCuratedTargetId(),
-                curatedHost != null ? curatedHost.getName() : null
-        );
-        boolean hollow = row.getStatus() == ConflictStatus.SUSPENDED;
-        boolean identityLost = identityLostMarkMapper.selectById(row.getSubjectId()) != null;
-        ConflictCaseResponse.TrackValue observedValue = observedTrackValue(row, hollow, identityLost, observedHost);
-
-        List<ConflictCaseResponse.LineageStep> lineage = readLineage(row.getObservedLineageJson()).stream()
-                .map(step -> {
-                    String hostName = null;
-                    if (step.hostId() != null) {
-                        CuratedObject host = curatedObjectMapper.selectById(step.hostId());
-                        hostName = host != null ? host.getName() : null;
-                    }
-                    return new ConflictCaseResponse.LineageStep(
-                            step.availability(),
-                            step.hostId(),
-                            hostName,
-                            step.at()
-                    );
-                })
-                .toList();
-
-        ConflictCaseResponse.ConflictStatusView statusView = switch (row.getStatus()) {
-            case OPEN -> ConflictCaseResponse.ConflictStatusView.OPEN;
-            case PENDING_CLOSE -> ConflictCaseResponse.ConflictStatusView.PENDING_CLOSE;
-            case CLOSED -> ConflictCaseResponse.ConflictStatusView.CLOSED;
-            case SUSPENDED -> ConflictCaseResponse.ConflictStatusView.SUSPENDED;
-        };
-
-        return new ConflictCaseResponse(
-                row.getId(),
-                statusView,
-                new ConflictCaseResponse.MergeKey(
-                        row.getSubjectId(),
-                        row.getRelationType(),
-                        row.getRelationType().labelZh()
-                ),
-                subject != null ? CuratedObjectResponse.from(subject) : null,
-                curatedValue,
-                observedValue,
-                lineage,
-                row.getFirstWarnedAt(),
-                row.getUpdatedAt(),
-                row.getPendingCloseAt(),
-                row.getClosedAt(),
-                row.getSuspendedAt(),
-                row.getStatus() == ConflictStatus.PENDING_CLOSE,
-                hollow,
-                identityLost,
-                conflictDiagnosisService.statusLabelForConflict(row.getId()),
-                new ConflictCaseResponse.Collaboration(
-                        Boolean.TRUE.equals(row.getAcknowledged()),
-                        row.getAcknowledgedAt(),
-                        row.getOwnerUserId(),
-                        row.getHandlerUserId(),
-                        row.getHandlerAcceptance() == null
-                                ? HandlerAcceptance.NONE
-                                : row.getHandlerAcceptance()
-                )
-        );
-    }
-
-    private ConflictCaseResponse.TrackValue observedTrackValue(
-            ConflictCase row,
-            boolean hollow,
-            boolean identityLost,
-            CuratedObject observedHost
-    ) {
-        if (hollow) {
-            // Do not present stale snapshot as trustworthy 实际 during 空洞挂起.
-            return ConflictCaseResponse.TrackValue.hollow();
-        }
-        if (identityLost) {
-            // 身份失联 is not 观测空洞: keep OPEN, do not show residual observed_fact as 实际.
-            return ConflictCaseResponse.TrackValue.identityLost();
-        }
-        if (row.getObservedAvailability() == ObservedAvailability.ABSENT) {
-            return ConflictCaseResponse.TrackValue.absent();
-        }
-        return ConflictCaseResponse.TrackValue.present(
-                observedHost != null ? observedHost.getId() : row.getObservedTargetId(),
-                observedHost != null ? observedHost.getName() : null
-        );
     }
 
     private LineageRecord lineageStep(ObservedFact observed, Instant at) {
