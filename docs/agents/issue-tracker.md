@@ -21,7 +21,7 @@ Already published:
 | conflict-upgrade-void-plans | `docs/specs/conflict-upgrade-void-plans.md` | `.scratch/conflict-upgrade-void-plans/issues/`（**01 TDD-done，本刀闭合**；审计 A1） |
 | control-plane-executor | `docs/specs/control-plane-executor.md` | `.scratch/control-plane-executor/issues/`（**01 TDD-done，本刀闭合**；审计 B 第一刀。不要写入 unbound / A1 目录。不要加票 02） |
 | plan-step-assertion | `docs/specs/plan-step-assertion.md` | `.scratch/plan-step-assertion/issues/`（**01 TDD-done，本刀闭合**；不要写入 `control-plane-executor`） |
-| conflict-without-identity | `docs/specs/conflict-without-identity.md` | `.scratch/conflict-without-identity/issues/`（**01 与 03 done**；**04 ready-for-agent**；票 02 在独立 PR；05–07 已写未开始。合同 ADR-0046。不要发明未绑定 10，不要加执行引擎票 02） |
+| conflict-without-identity | `docs/specs/conflict-without-identity.md` | `.scratch/conflict-without-identity/issues/`（**01、03、04 done**；本分支无下一张可开工票；票 02 在独立 PR；05 仍被 02 挡住；06–07 已写未开始。合同 ADR-0046。不要发明未绑定 10，不要加执行引擎票 02） |
 
 ## When a skill says "publish to the issue tracker"
 
