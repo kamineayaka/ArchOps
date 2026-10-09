@@ -30,8 +30,8 @@ alwaysApply: true
 | `docs/specs/plan-step-assertion.md` | 步骤断言 Spec（B3 剩余；**01 TDD-done，本刀闭合**） |
 | `.scratch/plan-step-assertion/issues/` | 工单 01 **done**（不要写入 `control-plane-executor`） |
 | `docs/adr/0046-conflict-discovery-and-resolution-without-identity.md` | 冲突主线只有发现与解决 |
-| `docs/specs/conflict-without-identity.md` | 身份退出冲突领域（**frontier = 票 02**；票 01 done） |
-| `.scratch/conflict-without-identity/issues/` | 01 done；02 ready-for-agent；03–07 已写未开始 |
+| `docs/specs/conflict-without-identity.md` | 身份退出冲突领域（**frontier = 票 03**；票 01–02 done） |
+| `.scratch/conflict-without-identity/issues/` | 01–02 done；03 ready-for-agent；04–07 已写未开始 |
 
 ## 模块边界
 
