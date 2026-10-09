@@ -169,10 +169,10 @@ public class UnboundDraftService {
     }
 
     @Transactional
-    public CuratedDraftResponse rejectUnboundItem(String draftId, String itemId, AuthUserPrincipal actor) {
+    public CuratedDraftResponse rejectUnboundItem(String draftId, String itemId) {
         UnboundItemReview review = beginUnboundItemReview(draftId, itemId);
         markItem(review.item(), CuratedDraftItemStatus.REJECTED);
-        appendDraftEvent(review.draft().getId(), CuratedDraftEventType.DRAFT_ITEM_REJECTED, actor.getUserId(),
+        appendDraftEvent(review.draft().getId(), CuratedDraftEventType.DRAFT_ITEM_REJECTED, null,
                 unboundItemAuditDetail(review, "草案条目已拒绝"));
         return curatedDraftService.getByDraftId(review.draft().getId());
     }

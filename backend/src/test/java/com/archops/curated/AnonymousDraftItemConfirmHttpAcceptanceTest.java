@@ -156,6 +156,29 @@ class AnonymousDraftItemConfirmHttpAcceptanceTest {
                         everyItem(nullValue())));
     }
 
+    @Test
+    void unboundRejectWithoutIdentityRecordsNoActor() throws Exception {
+        String hostId = createHost("adi-ubr-a");
+        heartbeatUnknown(hostId, "adi-ubr-ag", "adi-ubr-rt", "adi-ubr-name", "adi-ubr-never");
+        String draftId = openUnboundDraft("adi-ubr-rt");
+        String createItemId = itemIdByKind(readDraftItems(draftId), "CREATE_CONTAINER_FROM_UNBOUND");
+
+        mockMvc.perform(post("/api/curated-drafts/{draftId}/items/{itemId}/reject", draftId, createItemId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[?(@.id=='" + createItemId + "')].status",
+                        everyItem(is("REJECTED"))));
+
+        mockMvc.perform(get("/api/curated-drafts/{draftId}/events", draftId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[?(@.eventType=='DRAFT_ITEM_REJECTED')].actorUserId",
+                        everyItem(nullValue())));
+    }
+
     private OpenChangeCurated openChangeCuratedDraft(
             String hostAName,
             String hostBName,

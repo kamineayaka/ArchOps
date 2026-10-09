@@ -51,6 +51,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/conflicts/*/curated-drafts/open/items/*/accept").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/conflicts/*/curated-drafts/open/items/*/reject").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/curated-drafts/*/items/*/accept").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/curated-drafts/*/items/*/reject").permitAll()
                         .requestMatchers("/", "/index.html", "/assets/**", "/favicon.ico").permitAll()
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().permitAll())

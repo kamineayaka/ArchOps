@@ -5,9 +5,7 @@ import com.archops.curated.dto.CuratedDraftEventResponse;
 import com.archops.curated.dto.CuratedDraftResponse;
 import com.archops.curated.service.CuratedDraftService;
 import com.archops.curated.service.UnboundDraftService;
-import com.archops.user.security.AuthUserPrincipal;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -18,7 +16,7 @@ import java.util.List;
 
 /**
  * 改理想草案 reads / item review, plus 未绑定草案 by-id reads and per-item accept/reject.
- * 改理想逐条确认 and 未绑定逐条接受 are explicit requests and do not require a user identity.
+ * 改理想逐条确认 and 未绑定逐条确认 are explicit requests and do not require a user identity.
  */
 @RestController
 @RequestMapping("/api")
@@ -69,12 +67,12 @@ public class CuratedDraftController {
     }
 
     @PostMapping("/curated-drafts/{draftId}/items/{itemId}/reject")
+    @PreAuthorize("permitAll()")
     public ApiResponse<CuratedDraftResponse> rejectUnboundItem(
             @PathVariable String draftId,
-            @PathVariable String itemId,
-            @AuthenticationPrincipal AuthUserPrincipal principal
+            @PathVariable String itemId
     ) {
-        return ApiResponse.ok(unboundDraftService.rejectUnboundItem(draftId, itemId, principal));
+        return ApiResponse.ok(unboundDraftService.rejectUnboundItem(draftId, itemId));
     }
 
     @PostMapping("/conflicts/{conflictId}/curated-drafts/open/items/{itemId}/accept")

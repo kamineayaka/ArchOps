@@ -580,7 +580,7 @@ class UnboundDraftItemReviewHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data[?(@.eventType=='DRAFT_ITEM_ACCEPTED')].actorUserId",
                         everyItem(nullValue())))
                 .andExpect(jsonPath("$.data[?(@.eventType=='DRAFT_ITEM_REJECTED')].actorUserId",
-                        hasItem(GENERAL_ID)))
+                        everyItem(nullValue())))
                 .andExpect(jsonPath("$.data[?(@.eventType=='DRAFT_ITEM_ACCEPTED')].detail.draftId",
                         hasItem(draft.draftId())))
                 .andExpect(jsonPath("$.data[?(@.eventType=='DRAFT_ITEM_ACCEPTED')].detail.itemId",
