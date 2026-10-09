@@ -18,7 +18,13 @@ import { confirmCloseConflict, getConflict, getDiagnosis } from '../api/conflict
 import { approvePlan, getActivePlan, getPlan, selectBranch, startExecution } from '../api/plans';
 import { getOpenDraft, getDraftById, acceptDraftItem, rejectDraftItem } from '../api/drafts';
 import { getShouldWhere } from '../api/curated';
-import type { ConflictCase, ConflictDiagnosis, CuratedDraft, OperationPlan } from '../api/types';
+import type {
+  ConflictCase,
+  ConflictDiagnosis,
+  CuratedDraft,
+  OperationPlan,
+  StartExecutionResult,
+} from '../api/types';
 import { ApiError } from '../api/types';
 import {
   formatExpected,
@@ -107,6 +113,20 @@ export default function ConflictDetailPage() {
       const next = result as ConflictCase;
       conflictRef.current = next;
       setConflict(next);
+      return;
+    }
+    if (typeof row.planId === 'string' && typeof row.status === 'string' && 'executionLog' in row) {
+      const started = result as StartExecutionResult;
+      setPlan((current) =>
+        current && current.id === started.planId
+          ? {
+              ...current,
+              status: started.status,
+              voidReason: started.voidReason,
+              executionLog: started.executionLog,
+            }
+          : current,
+      );
     }
   };
 
