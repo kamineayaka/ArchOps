@@ -101,6 +101,38 @@ class AnonymousDraftItemConfirmHttpAcceptanceTest {
                         everyItem(nullValue())));
     }
 
+    @Test
+    void itemReviewWithUserHeaderStillOmitsActor() throws Exception {
+        OpenChangeCurated world = openChangeCuratedDraft(
+                "adi-hd-a", "adi-hd-b", "ctr-adi-003", "ctr-adi-003-y");
+
+        mockMvc.perform(post(
+                        "/api/conflicts/{conflictId}/curated-drafts/open/items/{itemId}/reject",
+                        world.conflictId(), world.itemYId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+        mockMvc.perform(post(
+                        "/api/conflicts/{conflictId}/curated-drafts/open/items/{itemId}/accept",
+                        world.conflictId(), world.itemXId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/conflicts/{id}/events", world.conflictId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[?(@.eventType=='DRAFT_ITEM_REJECTED')].actorUserId",
+                        everyItem(nullValue())))
+                .andExpect(jsonPath("$.data[?(@.eventType=='DRAFT_ITEM_ACCEPTED')].actorUserId",
+                        everyItem(nullValue())));
+    }
+
     private OpenChangeCurated openChangeCuratedDraft(
             String hostAName,
             String hostBName,
