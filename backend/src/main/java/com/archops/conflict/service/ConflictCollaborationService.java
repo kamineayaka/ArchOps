@@ -84,42 +84,11 @@ public class ConflictCollaborationService {
     }
 
     /**
-     * 归属方（高级角色）指派一般角色为待接受冲突处理人。
-     * 已有处理人（待接受/已接受）时不可强行改派。
+     * 指派不再写入处理人.
      */
-    @Transactional
-    public ConflictCaseResponse assignHandler(String conflictId, String assigneeUserId, AuthUserPrincipal actor) {
-        requireRole(actor, PlatformRole.SENIOR, "CONFLICT_ASSIGN_ROLE_DENIED",
-                "Only 高级角色 may assign a conflict handler");
-        ConflictCase row = requireOpen(conflictId);
-        if (!Boolean.TRUE.equals(row.getAcknowledged()) || row.getOwnerUserId() == null) {
-            throw new BusinessException("CONFLICT_NOT_ACKNOWLEDGED",
-                    "Conflict must be 已知悉 with 冲突归属 before assign");
-        }
-        if (!actor.getUserId().equals(row.getOwnerUserId())) {
-            throw new BusinessException("CONFLICT_NOT_OWNER",
-                    "Only the 冲突归属方 may assign a handler");
-        }
-        if (row.getHandlerAcceptance() != HandlerAcceptance.NONE || row.getHandlerUserId() != null) {
-            throw new BusinessException("CONFLICT_HANDLER_EXISTS",
-                    "Cannot reassign while a handler is pending or accepted; handler must reject/transfer or finish");
-        }
-        PlatformUser assignee = requireGeneralUser(assigneeUserId, "CONFLICT_ASSIGNEE_INVALID");
-        if (assignee.getId().equals(actor.getUserId())) {
-            throw new BusinessException("CONFLICT_ASSIGNEE_INVALID",
-                    "Use self-appoint instead of assigning yourself");
-        }
-
-        Instant now = Instant.now();
-        conflictCaseMapper.update(null, new LambdaUpdateWrapper<ConflictCase>()
-                .eq(ConflictCase::getId, row.getId())
-                .set(ConflictCase::getHandlerUserId, assignee.getId())
-                .set(ConflictCase::getHandlerAcceptance, HandlerAcceptance.PENDING_ACCEPT)
-                .set(ConflictCase::getUpdatedAt, now));
-        conflictEventService.append(conflictId, ConflictEventType.HANDLER_ASSIGNED, actor.getUserId(), Map.of(
-                "assigneeUserId", assignee.getId(),
-                "ownerUserId", row.getOwnerUserId()
-        ));
+    @Transactional(readOnly = true)
+    public ConflictCaseResponse assignHandler(String conflictId) {
+        requireOpen(conflictId);
         return conflictCaseAssembler.getById(conflictId);
     }
 

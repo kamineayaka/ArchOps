@@ -107,14 +107,13 @@ public class ConflictController {
         return ApiResponse.ok(conflictCollaborationService.acknowledgeAndSelfAppoint(id));
     }
 
-    /** 归属方（高级角色）指派一般角色为待接受处理人. */
+    /** 指派不再写入处理人. */
     @PostMapping("/{id}/assign-handler")
     public ApiResponse<ConflictCaseResponse> assignHandler(
             @PathVariable String id,
-            @Valid @RequestBody AssignHandlerRequest request,
-            @AuthenticationPrincipal AuthUserPrincipal principal
+            @Valid @RequestBody AssignHandlerRequest request
     ) {
-        return ApiResponse.ok(conflictCollaborationService.assignHandler(id, request.assigneeUserId(), principal));
+        return ApiResponse.ok(conflictCollaborationService.assignHandler(id));
     }
 
     /** 待接受处理人接受指派/转让. */
