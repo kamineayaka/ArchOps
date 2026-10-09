@@ -3,7 +3,6 @@ package com.archops.conflict.controller;
 import com.archops.common.api.ApiResponse;
 import com.archops.common.exception.BusinessException;
 import com.archops.conflict.diagnosis.ConflictDiagnosisService;
-import com.archops.conflict.dto.AssignHandlerRequest;
 import com.archops.conflict.dto.ConflictCaseResponse;
 import com.archops.conflict.dto.ConflictDiagnosisResponse;
 import com.archops.conflict.dto.ConflictEventResponse;
@@ -105,12 +104,9 @@ public class ConflictController {
         return ApiResponse.ok(conflictCollaborationService.acknowledgeAndSelfAppoint(id));
     }
 
-    /** 指派不再写入处理人. */
+    /** 指派不再写入处理人，也不再要求指派对象. */
     @PostMapping("/{id}/assign-handler")
-    public ApiResponse<ConflictCaseResponse> assignHandler(
-            @PathVariable String id,
-            @Valid @RequestBody AssignHandlerRequest request
-    ) {
+    public ApiResponse<ConflictCaseResponse> assignHandler(@PathVariable String id) {
         return ApiResponse.ok(conflictCollaborationService.assignHandler(id));
     }
 

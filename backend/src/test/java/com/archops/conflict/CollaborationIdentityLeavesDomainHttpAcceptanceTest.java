@@ -166,6 +166,28 @@ class CollaborationIdentityLeavesDomainHttpAcceptanceTest {
     }
 
     @Test
+    void assignWithoutIdentityBodyDoesNotRecordCollaborationIdentity() throws Exception {
+        String conflictId = openConflict("id6n-a", "id6n-b", "ctr-id6-009");
+
+        mockMvc.perform(post("/api/conflicts/{id}/assign-handler", conflictId)
+                        .header(TempAuthHeaders.USER_ID, SENIOR_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
+    }
+
+    @Test
+    void rejectWithoutIdentityBodyDoesNotRecordCollaborationIdentity() throws Exception {
+        String conflictId = openConflict("id6j-a", "id6j-b", "ctr-id6-010");
+
+        mockMvc.perform(post("/api/conflicts/{id}/reject-handler", conflictId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
+    }
+
+    @Test
     void openPlanDoesNotUseHandlerGateOrReturnHandlerId() throws Exception {
         String conflictId = openConflict("id6p-a", "id6p-b", "ctr-id6-008");
 
