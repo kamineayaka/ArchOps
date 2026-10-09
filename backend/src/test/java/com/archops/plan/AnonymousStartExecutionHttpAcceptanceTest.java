@@ -66,6 +66,40 @@ class AnonymousStartExecutionHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data[?(@.eventType=='PLAN_COMPLETED')].actorUserId", everyItem(nullValue())));
     }
 
+    @Test
+    void voidedPlanStartExecutionStaysPlanVoided() throws Exception {
+        String hostA = createHost("ex5v-a");
+        String hostB = createHost("ex5v-b");
+        String hostC = createHost("ex5v-c");
+        String containerId = createContainer("app-ctr-ex5-void", "ctr-ex5-void");
+        confirmRunsOn(containerId, hostA);
+        heartbeatWithContainer(hostB, "agent-ctr-ex5-void", "ctr-ex5-void");
+        MvcResult conflict = mockMvc.perform(get("/api/conflicts/by-merge-key")
+                        .param("subjectId", containerId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn();
+        String conflictId = objectMapper.readTree(conflict.getResponse().getContentAsString())
+                .path("data").path("id").asText();
+        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, conflictId, GENERAL_ID);
+        MvcResult created = mockMvc.perform(post("/api/conflicts/{id}/branch-selection", conflictId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"forkId\":\"FIX_ACTUAL_TO_CURATED\"}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn();
+        String planId = objectMapper.readTree(created.getResponse().getContentAsString())
+                .path("data").path("id").asText();
+
+        heartbeatWithContainer(hostC, "agent-ctr-ex5-void-c", "ctr-ex5-void");
+
+        mockMvc.perform(post("/api/operation-plans/{id}/start-execution", planId)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("PLAN_VOIDED")));
+    }
+
     private record Approved(String conflictId, String planId) {
     }
 
