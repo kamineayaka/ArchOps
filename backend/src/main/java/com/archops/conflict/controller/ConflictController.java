@@ -101,13 +101,10 @@ public class ConflictController {
         return ApiResponse.ok(conflictCollaborationService.acknowledge(id));
     }
 
-    /** 高级角色已知悉并自任为已接受处理人. */
+    /** 自任不再写入已知悉或处理人. */
     @PostMapping("/{id}/acknowledge-and-self-appoint")
-    public ApiResponse<ConflictCaseResponse> acknowledgeAndSelfAppoint(
-            @PathVariable String id,
-            @AuthenticationPrincipal AuthUserPrincipal principal
-    ) {
-        return ApiResponse.ok(conflictCollaborationService.acknowledgeAndSelfAppoint(id, principal));
+    public ApiResponse<ConflictCaseResponse> acknowledgeAndSelfAppoint(@PathVariable String id) {
+        return ApiResponse.ok(conflictCollaborationService.acknowledgeAndSelfAppoint(id));
     }
 
     /** 归属方（高级角色）指派一般角色为待接受处理人. */

@@ -75,49 +75,11 @@ public class ConflictCollaborationService {
     }
 
     /**
-     * 高级角色已知悉并自任为已接受冲突处理人（Must 路径）.
+     * 自任不再写入已知悉或处理人.
      */
-    @Transactional
-    public ConflictCaseResponse acknowledgeAndSelfAppoint(String conflictId, AuthUserPrincipal actor) {
-        requireRole(actor, PlatformRole.SENIOR, "CONFLICT_SELF_APPOINT_ROLE_DENIED",
-                "Only 高级角色 may acknowledge and self-appoint as handler");
-        ConflictCase row = requireOpen(conflictId);
-        Instant now = Instant.now();
-
-        if (!Boolean.TRUE.equals(row.getAcknowledged())) {
-            conflictCaseMapper.update(null, new LambdaUpdateWrapper<ConflictCase>()
-                    .eq(ConflictCase::getId, row.getId())
-                    .set(ConflictCase::getAcknowledged, true)
-                    .set(ConflictCase::getAcknowledgedAt, now)
-                    .set(ConflictCase::getOwnerUserId, actor.getUserId())
-                    .set(ConflictCase::getHandlerUserId, actor.getUserId())
-                    .set(ConflictCase::getHandlerAcceptance, HandlerAcceptance.ACCEPTED)
-                    .set(ConflictCase::getUpdatedAt, now));
-            conflictEventService.append(conflictId, ConflictEventType.ACKNOWLEDGED, actor.getUserId(), Map.of(
-                    "via", "acknowledge_and_self_appoint"
-            ));
-            conflictEventService.append(conflictId, ConflictEventType.HANDLER_ACCEPTED, actor.getUserId(), Map.of(
-                    "via", "acknowledge_and_self_appoint"
-            ));
-            return conflictCaseAssembler.getById(conflictId);
-        }
-
-        if (!actor.getUserId().equals(row.getOwnerUserId())) {
-            throw new BusinessException("CONFLICT_NOT_OWNER",
-                    "Only the 冲突归属方 may self-appoint as handler");
-        }
-        if (row.getHandlerUserId() != null && row.getHandlerAcceptance() != HandlerAcceptance.NONE) {
-            throw new BusinessException("CONFLICT_HANDLER_EXISTS",
-                    "Conflict already has a handler");
-        }
-        conflictCaseMapper.update(null, new LambdaUpdateWrapper<ConflictCase>()
-                .eq(ConflictCase::getId, row.getId())
-                .set(ConflictCase::getHandlerUserId, actor.getUserId())
-                .set(ConflictCase::getHandlerAcceptance, HandlerAcceptance.ACCEPTED)
-                .set(ConflictCase::getUpdatedAt, now));
-        conflictEventService.append(conflictId, ConflictEventType.HANDLER_ACCEPTED, actor.getUserId(), Map.of(
-                "via", "self_appoint"
-        ));
+    @Transactional(readOnly = true)
+    public ConflictCaseResponse acknowledgeAndSelfAppoint(String conflictId) {
+        requireOpen(conflictId);
         return conflictCaseAssembler.getById(conflictId);
     }
 
