@@ -49,6 +49,23 @@ class AnonymousStartExecutionHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data[?(@.eventType=='PLAN_COMPLETED')].actorUserId", everyItem(nullValue())));
     }
 
+    @Test
+    void startExecutionWithUserHeaderStillOmitsActor() throws Exception {
+        Approved plan = approvedPlanWithoutHandler("ex5h-a", "ex5h-b", "ctr-ex5-002");
+
+        mockMvc.perform(post("/api/operation-plans/{id}/start-execution", plan.planId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("COMPLETED")));
+
+        mockMvc.perform(get("/api/conflicts/{id}/events", plan.conflictId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[?(@.eventType=='PLAN_COMPLETED')].actorUserId", everyItem(nullValue())));
+    }
+
     private record Approved(String conflictId, String planId) {
     }
 
