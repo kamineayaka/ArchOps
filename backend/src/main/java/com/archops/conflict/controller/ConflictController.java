@@ -7,17 +7,14 @@ import com.archops.conflict.dto.ConflictCaseResponse;
 import com.archops.conflict.dto.ConflictDiagnosisResponse;
 import com.archops.conflict.dto.ConflictEventResponse;
 import com.archops.conflict.dto.OpenOperationPlanResponse;
-import com.archops.conflict.dto.TransferHandlerRequest;
 import com.archops.conflict.service.ConflictCaseAssembler;
 import com.archops.conflict.service.ConflictCollaborationService;
 import com.archops.conflict.service.ConflictEventService;
 import com.archops.curated.domain.CuratedRelationType;
-import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -121,12 +118,9 @@ public class ConflictController {
         return ApiResponse.ok(conflictCollaborationService.rejectHandler(id));
     }
 
-    /** 转让不再写入处理人. */
+    /** 转让不再写入处理人，也不再要求接手人. */
     @PostMapping("/{id}/transfer-handler")
-    public ApiResponse<ConflictCaseResponse> transferHandler(
-            @PathVariable String id,
-            @Valid @RequestBody TransferHandlerRequest request
-    ) {
+    public ApiResponse<ConflictCaseResponse> transferHandler(@PathVariable String id) {
         return ApiResponse.ok(conflictCollaborationService.transferHandler(id));
     }
 
