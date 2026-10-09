@@ -184,7 +184,7 @@ class VerticalSliceHttpE2eAcceptanceTest {
         assertThat(calls.get(2).action()).isEqualTo("REFRESH_OBSERVATION");
         assertThat(calls).allMatch(SshCallRecord::success);
 
-        // 观测回到 A → 待确认关闭 → 处理人确认
+        // 观测回到 A → 待确认关闭 → 确认关闭不记操作者
         heartbeatWithContainer(hostA, "agent-" + objectId + "-refresh", objectId);
 
         mockMvc.perform(get("/api/conflicts/{id}", conflictId)

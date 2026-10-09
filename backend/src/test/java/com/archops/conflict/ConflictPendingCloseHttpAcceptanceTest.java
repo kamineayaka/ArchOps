@@ -48,7 +48,7 @@ class ConflictPendingCloseHttpAcceptanceTest {
     private ObservedFactMapper observedFactMapper;
 
     @Test
-    void executeThenRefreshObservationEntersPendingCloseAndHandlerConfirms() throws Exception {
+    void executeThenRefreshObservationEntersPendingCloseAndConfirmCloseOmitsActor() throws Exception {
         Fixture fx = openClaimPlanApproveAndExecute("p9-a", "p9-b", "ctr-p9-ok");
 
         heartbeatWithContainer(fx.hostA(), "agent-" + fx.objectId() + "-refresh", fx.objectId());
