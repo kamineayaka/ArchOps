@@ -500,8 +500,7 @@ class UnboundIdentityRebindTracerHttpAcceptanceTest {
         identityLostOnObservedHost(unclaimed);
         postBranch(unclaimed.conflictId(), SENIOR_ID, "FIX_ACTUAL_TO_CURATED")
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code", is("PLAN_REQUIRES_ACCEPTED_HANDLER")))
-                .andExpect(jsonPath("$.code", not("IDENTITY_LOST_BLOCKS_BRANCH")))
+                .andExpect(jsonPath("$.code", is("IDENTITY_LOST_BLOCKS_BRANCH")))
                 .andExpect(jsonPath("$.data").value(nullValue()));
 
         // 改理想开放草案作废

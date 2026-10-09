@@ -217,7 +217,7 @@ class IdentityLostPipelineGateHttpAcceptanceTest {
     }
 
     @Test
-    void nonHandlerBranchSelectionOnIdentityLostStillRequiresAcceptedHandler() throws Exception {
+    void nonHandlerBranchSelectionOnIdentityLostIsBlocked() throws Exception {
         Fixture fx = openMismatch("u05f");
         identityLostOnObservedHost(fx);
 
@@ -228,8 +228,7 @@ class IdentityLostPipelineGateHttpAcceptanceTest {
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success", is(false)))
-                .andExpect(jsonPath("$.code", is("PLAN_REQUIRES_ACCEPTED_HANDLER")))
-                .andExpect(jsonPath("$.code", not("IDENTITY_LOST_BLOCKS_BRANCH")))
+                .andExpect(jsonPath("$.code", is("IDENTITY_LOST_BLOCKS_BRANCH")))
                 .andExpect(jsonPath("$.data").value(nullValue()));
     }
 

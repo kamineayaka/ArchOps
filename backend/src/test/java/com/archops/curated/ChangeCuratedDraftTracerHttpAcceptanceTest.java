@@ -221,20 +221,20 @@ class ChangeCuratedDraftTracerHttpAcceptanceTest {
 
     @Test
     @Order(3)
-    void nonHandlerAndPendingAcceptCannotSelectChangeCurated() throws Exception {
+    void nonHandlerAndPendingAcceptCanSelectChangeCurated() throws Exception {
         ClaimedConflict claimed = claimedReadyConflict("ccd06-n2s-nh");
         postBranch(claimed.conflictId(), SENIOR_ID, "CHANGE_CURATED_TO_OBSERVED")
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.success", is(false)))
-                .andExpect(jsonPath("$.code", is("PLAN_REQUIRES_ACCEPTED_HANDLER")));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("OPEN")))
+                .andExpect(jsonPath("$.data.origin", is("CHANGE_CURATED")));
 
         String pendingId = openUnclaimedConflict("ccd06-n2s-pe");
         acknowledgeAndAssignPending(pendingId, GENERAL_ID);
         waitUntilDiagnosisReady(pendingId);
         postBranch(pendingId, GENERAL_ID, "CHANGE_CURATED_TO_OBSERVED")
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.success", is(false)))
-                .andExpect(jsonPath("$.code", is("PLAN_REQUIRES_ACCEPTED_HANDLER")));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("OPEN")))
+                .andExpect(jsonPath("$.data.origin", is("CHANGE_CURATED")));
     }
 
     @Test

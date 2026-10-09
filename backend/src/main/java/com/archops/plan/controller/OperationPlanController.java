@@ -19,8 +19,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Operation plan review + shared branch-selection gate (tickets 07 / change-curated 03).
- * Diagnosis GET stays read-only; only the accepted handler may select a branch here.
+ * Operation plan review + shared branch-selection gate.
+ * 诊断选支 is an explicit request and does not require a user identity.
  */
 @RestController
 @RequestMapping("/api")
@@ -39,6 +39,7 @@ public class OperationPlanController {
     }
 
     @PostMapping("/conflicts/{conflictId}/branch-selection")
+    @PreAuthorize("permitAll()")
     public ApiResponse<BranchSelectionResult> selectBranch(
             @PathVariable String conflictId,
             @Valid @RequestBody SelectBranchRequest request,

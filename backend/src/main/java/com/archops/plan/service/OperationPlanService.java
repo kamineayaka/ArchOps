@@ -87,9 +87,8 @@ public class OperationPlanService {
     }
 
     @Transactional
-    public OperationPlanResponse selectBranch(String conflictId, String forkId, AuthUserPrincipal actor) {
+    public OperationPlanResponse selectBranch(String conflictId, String forkId) {
         ConflictCase conflict = requireOpenConflict(conflictId);
-        requireAcceptedHandler(conflict, actor);
 
         if (findActive(conflictId) != null) {
             throw new BusinessException("PLAN_ALREADY_ACTIVE",
@@ -124,7 +123,7 @@ public class OperationPlanService {
         plan.setSkipsDraft(true);
         plan.setStatus(OperationPlanStatus.DRAFT_REVIEW);
         plan.setStepsJson(writeJson(steps));
-        plan.setCreatedBy(actor.getUserId());
+        plan.setCreatedBy(null);
         plan.setCreatedAt(now);
         operationPlanMapper.insert(plan);
         return toResponse(plan);

@@ -102,16 +102,17 @@ class ChangeCuratedDraftHttpAcceptanceTest {
     }
 
     @Test
-    void nonHandlerCannotSelectChangeCurated() throws Exception {
+    void nonHandlerCanSelectChangeCurated() throws Exception {
         Fixture claimed = openConflictWithSiblingAndClaim("ccd-nh-a", "ccd-nh-b", "ctr-ccd-nh-x", "ctr-ccd-nh-y");
         ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, claimed.conflictId(), GENERAL_ID);
         postBranch(claimed.conflictId(), SENIOR_ID, "CHANGE_CURATED_TO_OBSERVED", null)
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code", is("PLAN_REQUIRES_ACCEPTED_HANDLER")));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("OPEN")))
+                .andExpect(jsonPath("$.data.origin", is("CHANGE_CURATED")));
     }
 
     @Test
-    void pendingHandlerCannotSelectChangeCurated() throws Exception {
+    void pendingHandlerCanSelectChangeCurated() throws Exception {
         Fixture pending = openConflictWithSibling("ccd-pe-a", "ccd-pe-b", "ctr-ccd-pe-x", "ctr-ccd-pe-y");
         mockMvc.perform(post("/api/conflicts/{id}/acknowledge", pending.conflictId())
                         .header(TempAuthHeaders.USER_ID, SENIOR_ID)
@@ -127,8 +128,9 @@ class ChangeCuratedDraftHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data.collaboration.handlerAcceptance", is("PENDING_ACCEPT")));
         ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, pending.conflictId(), GENERAL_ID);
         postBranch(pending.conflictId(), GENERAL_ID, "CHANGE_CURATED_TO_OBSERVED", null)
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code", is("PLAN_REQUIRES_ACCEPTED_HANDLER")));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("OPEN")))
+                .andExpect(jsonPath("$.data.origin", is("CHANGE_CURATED")));
     }
 
     @Test

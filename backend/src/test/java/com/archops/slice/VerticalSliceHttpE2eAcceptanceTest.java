@@ -136,15 +136,6 @@ class VerticalSliceHttpE2eAcceptanceTest {
                 .andExpect(jsonPath("$.data.forks[*].id", hasItem("FIX_ACTUAL_TO_CURATED")))
                 .andExpect(jsonPath("$.data.forks[?(@.id=='FIX_ACTUAL_TO_CURATED')].kind", hasItem("FIX_ACTUAL")));
 
-        // Non-handler cannot open plan via branch selection
-        mockMvc.perform(post("/api/conflicts/{id}/branch-selection", conflictId)
-                        .header(TempAuthHeaders.USER_ID, SENIOR_ID)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"forkId\":\"FIX_ACTUAL_TO_CURATED\"}")
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code", is("PLAN_REQUIRES_ACCEPTED_HANDLER")));
-
         // 选「修实际回 A」→ 人审前不可执行
         MvcResult created = mockMvc.perform(post("/api/conflicts/{id}/branch-selection", conflictId)
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)

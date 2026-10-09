@@ -8,7 +8,7 @@
 
 **TDD:** capability。`/implement` 走 [`docs/agents/tdd.md`](../../../docs/agents/tdd.md)：**red → green → refactor**，一圈一条 HTTP 测试。Spec：[`docs/specs/conflict-without-identity.md`](../../../docs/specs/conflict-without-identity.md)。合同：ADR-0046。
 
-- [ ] 两侧不等的 OPEN 冲突、诊断 READY、无人认领：不带 `X-ArchOps-User-Id` 的 `POST /api/conflicts/{id}/branch-selection`（`FIX_ACTUAL_TO_CURATED`）→ 200，操作计划 `DRAFT_REVIEW`、`skipsDraft=true`、`createdBy` 为 null；随后 GET 该计划 `createdBy` 仍为 null
+- [x] 两侧不等的 OPEN 冲突、诊断 READY、无人认领：不带 `X-ArchOps-User-Id` 的 `POST /api/conflicts/{id}/branch-selection`（`FIX_ACTUAL_TO_CURATED`）→ 200，操作计划 `DRAFT_REVIEW`、`skipsDraft=true`、`createdBy` 为 null；随后 GET 该计划 `createdBy` 仍为 null
 - [ ] 同一选支若带了用户身份头，计划 `createdBy` 仍为 null（身份不写成领域事实）
 - [ ] 不带身份头、无处理人，选 `CHANGE_CURATED_TO_OBSERVED` → 开放草案、`createdBy` 为 null、没有活跃操作计划；冲突事件 `DRAFT_CREATED` 的 `actorUserId` 为 null
 - [ ] 身份失联时，无处理人选择修实际或改理想仍是 `IDENTITY_LOST_BLOCKS_BRANCH`，不是处理人门禁
@@ -19,3 +19,17 @@
 **Out of this ticket:** 批准并冻结、逐条确认、确认关闭、执行、删掉已知悉/指派/认领路由、薄 UI、解决断点、编排层、B-live、工作台、未绑定 10、执行引擎票 02。
 
 ## Comments
+
+### Cycle A — 无身份、无处理人选修实际，计划不记操作者
+Red command: `cd backend && ./gradlew test --tests com.archops.plan.AnonymousBranchSelectionHttpAcceptanceTest.fixActualWithoutIdentityOrHandlerOpensReviewPlan`
+
+```text
+AnonymousBranchSelectionHttpAcceptanceTest > fixActualWithoutIdentityOrHandlerOpensReviewPlan() FAILED
+    java.lang.AssertionError: Status expected:<200> but was:<401>
+        at AnonymousBranchSelectionHttpAcceptanceTest.java:43
+BUILD FAILED
+```
+
+Green command: same test, BUILD SUCCESSFUL (exit 0).
+Refactor: `selectBranch` no longer takes an actor; static imports in the test.
+Prior pins that required `PLAN_REQUIRES_ACCEPTED_HANDLER` on 诊断选支 now expect the selection to proceed, or `IDENTITY_LOST_BLOCKS_BRANCH` when the subject is 身份失联. Approve / item confirm / `operation-plans` gate pins stay.

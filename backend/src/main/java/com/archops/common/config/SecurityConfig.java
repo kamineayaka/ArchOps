@@ -6,6 +6,7 @@ import com.archops.user.security.TempAuthHeaderFilter;
 import com.archops.user.service.UserLookupService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -45,6 +46,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/health").permitAll()
                         // Host-agent ingest is a control-plane public seam (no operator identity header).
                         .requestMatchers("/api/agent/**").permitAll()
+                        // ADR-0046: 诊断选支 is an explicit action, not an authenticated user.
+                        .requestMatchers(HttpMethod.POST, "/api/conflicts/*/branch-selection").permitAll()
                         .requestMatchers("/", "/index.html", "/assets/**", "/favicon.ico").permitAll()
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().permitAll())
