@@ -16,14 +16,14 @@ export function getDraftById(conflictId: string, draftId: string): Promise<Curat
 export function acceptDraftItem(conflictId: string, itemId: string): Promise<CuratedDraft> {
   return apiRequest<CuratedDraft>(
     `/api/conflicts/${encodeURIComponent(conflictId)}/curated-drafts/open/items/${encodeURIComponent(itemId)}/accept`,
-    { method: 'POST', body: {} },
+    { method: 'POST', body: {}, omitUserId: true },
   );
 }
 
 export function rejectDraftItem(conflictId: string, itemId: string): Promise<CuratedDraft> {
   return apiRequest<CuratedDraft>(
     `/api/conflicts/${encodeURIComponent(conflictId)}/curated-drafts/open/items/${encodeURIComponent(itemId)}/reject`,
-    { method: 'POST', body: {} },
+    { method: 'POST', body: {}, omitUserId: true },
   );
 }
 

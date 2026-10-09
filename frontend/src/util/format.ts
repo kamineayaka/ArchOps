@@ -124,14 +124,3 @@ export function payloadString(
   return typeof value === 'string' && value.length > 0 ? value : null;
 }
 
-export function isAcceptedHandler(
-  collaboration: { handlerUserId: string | null; handlerAcceptance: string } | null | undefined,
-  userId: string | null,
-): boolean {
-  return (
-    !!collaboration &&
-    !!userId &&
-    collaboration.handlerAcceptance === 'ACCEPTED' &&
-    collaboration.handlerUserId === userId
-  );
-}

@@ -106,7 +106,7 @@ export type ConflictCase = {
   observationHollow: boolean;
   identityLost: boolean;
   diagnosisStatus: string;
-  collaboration: Collaboration;
+  collaboration?: Collaboration | null;
 };
 
 export type ForkSuggestion = {
