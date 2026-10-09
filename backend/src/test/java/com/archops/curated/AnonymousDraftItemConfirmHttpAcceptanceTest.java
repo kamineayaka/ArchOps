@@ -133,6 +133,29 @@ class AnonymousDraftItemConfirmHttpAcceptanceTest {
                         everyItem(nullValue())));
     }
 
+    @Test
+    void unboundAcceptWithoutIdentityRecordsNoActor() throws Exception {
+        String hostId = createHost("adi-ub-a");
+        heartbeatUnknown(hostId, "adi-ub-ag", "adi-ub-rt", "adi-ub-name", "adi-ub-never");
+        String draftId = openUnboundDraft("adi-ub-rt");
+        String createItemId = itemIdByKind(readDraftItems(draftId), "CREATE_CONTAINER_FROM_UNBOUND");
+
+        mockMvc.perform(post("/api/curated-drafts/{draftId}/items/{itemId}/accept", draftId, createItemId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[?(@.id=='" + createItemId + "')].status",
+                        everyItem(is("ACCEPTED"))));
+
+        mockMvc.perform(get("/api/curated-drafts/{draftId}/events", draftId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[?(@.eventType=='DRAFT_ITEM_ACCEPTED')].actorUserId",
+                        everyItem(nullValue())));
+    }
+
     private OpenChangeCurated openChangeCuratedDraft(
             String hostAName,
             String hostBName,
@@ -171,6 +194,75 @@ class AnonymousDraftItemConfirmHttpAcceptanceTest {
         return new OpenChangeCurated(
                 conflictId, hostA, hostB, containerX, containerY,
                 itemId(items, containerX), itemId(items, containerY));
+    }
+
+    private String openUnboundDraft(String runtimeId) throws Exception {
+        MvcResult listed = mockMvc.perform(get("/api/observed/unbound-candidates")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn();
+        String candidateId = null;
+        for (JsonNode node : objectMapper.readTree(listed.getResponse().getContentAsString()).path("data")) {
+            if (runtimeId.equals(node.path("runtimeId").asText())) {
+                candidateId = node.path("id").asText();
+            }
+        }
+        if (candidateId == null) {
+            throw new AssertionError("No unbound candidate for runtime " + runtimeId);
+        }
+        MvcResult created = mockMvc.perform(post("/api/observed/unbound-candidates/{id}/drafts", candidateId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn();
+        return objectMapper.readTree(created.getResponse().getContentAsString()).path("data").path("id").asText();
+    }
+
+    private JsonNode readDraftItems(String draftId) throws Exception {
+        MvcResult draft = mockMvc.perform(get("/api/curated-drafts/{draftId}", draftId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn();
+        return objectMapper.readTree(draft.getResponse().getContentAsString()).path("data").path("items");
+    }
+
+    private static String itemIdByKind(JsonNode items, String kind) {
+        for (JsonNode item : items) {
+            if (kind.equals(item.path("kind").asText())) {
+                return item.path("id").asText();
+            }
+        }
+        throw new AssertionError("No 草案 item of kind " + kind);
+    }
+
+    private void heartbeatUnknown(
+            String hostId,
+            String agentId,
+            String runtimeId,
+            String name,
+            String objectId
+    ) throws Exception {
+        mockMvc.perform(post("/api/agent/heartbeat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "agentId":"%s",
+                                  "hostId":"%s",
+                                  "snapshot":{
+                                    "containers":[{
+                                      "runtimeId":"%s",
+                                      "name":"%s",
+                                      "labels":{"archops.object_id":"%s"}
+                                    }]
+                                  }
+                                }
+                                """.formatted(agentId, hostId, runtimeId, name, objectId))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
     }
 
     private static String itemId(JsonNode items, String subjectId) {

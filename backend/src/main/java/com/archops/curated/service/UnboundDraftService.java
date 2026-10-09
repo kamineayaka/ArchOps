@@ -155,15 +155,15 @@ public class UnboundDraftService {
     }
 
     @Transactional
-    public CuratedDraftResponse acceptUnboundItem(String draftId, String itemId, AuthUserPrincipal actor) {
+    public CuratedDraftResponse acceptUnboundItem(String draftId, String itemId) {
         UnboundItemReview review = beginUnboundItemReview(draftId, itemId);
         if (review.item().getKind() == CuratedDraftItemKind.CREATE_CONTAINER_FROM_UNBOUND
                 || review.item().getKind() == CuratedDraftItemKind.BIND_UNBOUND_TO_EXISTING) {
             requireUnboundCandidateNotConsumed(review.draft());
         }
-        applyUnboundAccept(review.draft(), review.item(), actor.getUserId());
+        applyUnboundAccept(review.draft(), review.item(), null);
         markItem(review.item(), CuratedDraftItemStatus.ACCEPTED);
-        appendDraftEvent(review.draft().getId(), CuratedDraftEventType.DRAFT_ITEM_ACCEPTED, actor.getUserId(),
+        appendDraftEvent(review.draft().getId(), CuratedDraftEventType.DRAFT_ITEM_ACCEPTED, null,
                 unboundItemAuditDetail(review, "草案条目已接受"));
         return curatedDraftService.getByDraftId(review.draft().getId());
     }

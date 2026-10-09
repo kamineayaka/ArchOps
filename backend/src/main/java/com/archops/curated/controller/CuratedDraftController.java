@@ -18,7 +18,7 @@ import java.util.List;
 
 /**
  * 改理想草案 reads / item review, plus 未绑定草案 by-id reads and per-item accept/reject.
- * 改理想逐条确认 is an explicit request and does not require a user identity.
+ * 改理想逐条确认 and 未绑定逐条接受 are explicit requests and do not require a user identity.
  */
 @RestController
 @RequestMapping("/api")
@@ -60,12 +60,12 @@ public class CuratedDraftController {
     }
 
     @PostMapping("/curated-drafts/{draftId}/items/{itemId}/accept")
+    @PreAuthorize("permitAll()")
     public ApiResponse<CuratedDraftResponse> acceptUnboundItem(
             @PathVariable String draftId,
-            @PathVariable String itemId,
-            @AuthenticationPrincipal AuthUserPrincipal principal
+            @PathVariable String itemId
     ) {
-        return ApiResponse.ok(unboundDraftService.acceptUnboundItem(draftId, itemId, principal));
+        return ApiResponse.ok(unboundDraftService.acceptUnboundItem(draftId, itemId));
     }
 
     @PostMapping("/curated-drafts/{draftId}/items/{itemId}/reject")
