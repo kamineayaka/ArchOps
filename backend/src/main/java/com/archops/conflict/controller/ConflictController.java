@@ -7,7 +7,6 @@ import com.archops.conflict.dto.ConflictCaseResponse;
 import com.archops.conflict.dto.ConflictDiagnosisResponse;
 import com.archops.conflict.dto.ConflictEventResponse;
 import com.archops.conflict.dto.OpenOperationPlanResponse;
-import com.archops.conflict.dto.RejectHandlerRequest;
 import com.archops.conflict.dto.TransferHandlerRequest;
 import com.archops.conflict.service.ConflictCaseAssembler;
 import com.archops.conflict.service.ConflictCollaborationService;
@@ -116,12 +115,9 @@ public class ConflictController {
         return ApiResponse.ok(conflictCollaborationService.acceptHandler(id));
     }
 
-    /** 拒绝不再写入处理人. */
+    /** 拒绝不再写入处理人，也不再要求理由. */
     @PostMapping("/{id}/reject-handler")
-    public ApiResponse<ConflictCaseResponse> rejectHandler(
-            @PathVariable String id,
-            @Valid @RequestBody RejectHandlerRequest request
-    ) {
+    public ApiResponse<ConflictCaseResponse> rejectHandler(@PathVariable String id) {
         return ApiResponse.ok(conflictCollaborationService.rejectHandler(id));
     }
 

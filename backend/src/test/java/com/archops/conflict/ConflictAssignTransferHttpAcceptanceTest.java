@@ -81,7 +81,8 @@ class ConflictAssignTransferHttpAcceptanceTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"reason\":\"\"}")
                         .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
 
         mockMvc.perform(post("/api/conflicts/{id}/reject-handler", conflictId)
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)
