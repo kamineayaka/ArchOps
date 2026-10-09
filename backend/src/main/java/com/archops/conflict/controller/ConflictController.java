@@ -122,14 +122,13 @@ public class ConflictController {
         return ApiResponse.ok(conflictCollaborationService.acceptHandler(id));
     }
 
-    /** 待接受处理人拒绝（须理由）. */
+    /** 拒绝不再写入处理人. */
     @PostMapping("/{id}/reject-handler")
     public ApiResponse<ConflictCaseResponse> rejectHandler(
             @PathVariable String id,
-            @Valid @RequestBody RejectHandlerRequest request,
-            @AuthenticationPrincipal AuthUserPrincipal principal
+            @Valid @RequestBody RejectHandlerRequest request
     ) {
-        return ApiResponse.ok(conflictCollaborationService.rejectHandler(id, request.reason(), principal));
+        return ApiResponse.ok(conflictCollaborationService.rejectHandler(id));
     }
 
     /** 当前处理人转让给另一一般角色（拟接手人待接受；归属不变）. */

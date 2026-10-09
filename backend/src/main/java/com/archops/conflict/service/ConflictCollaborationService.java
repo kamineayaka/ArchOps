@@ -102,28 +102,11 @@ public class ConflictCollaborationService {
     }
 
     /**
-     * 待接受处理人拒绝（须理由）→ 无处理人、归属不变、仍已知悉.
+     * 拒绝不再写入处理人.
      */
-    @Transactional
-    public ConflictCaseResponse rejectHandler(String conflictId, String reason, AuthUserPrincipal actor) {
-        ConflictCase row = requireOpen(conflictId);
-        requirePendingHandler(row, actor);
-        String trimmed = reason == null ? "" : reason.trim();
-        if (trimmed.isEmpty()) {
-            throw new BusinessException("HANDLER_REJECT_REASON_REQUIRED",
-                    "拒绝指派必须说明理由");
-        }
-        String ownerUserId = row.getOwnerUserId();
-        Instant now = Instant.now();
-        conflictCaseMapper.update(null, new LambdaUpdateWrapper<ConflictCase>()
-                .eq(ConflictCase::getId, row.getId())
-                .set(ConflictCase::getHandlerUserId, null)
-                .set(ConflictCase::getHandlerAcceptance, HandlerAcceptance.NONE)
-                .set(ConflictCase::getUpdatedAt, now));
-        Map<String, Object> detail = new LinkedHashMap<>();
-        detail.put("reason", trimmed);
-        detail.put("ownerUserId", ownerUserId);
-        conflictEventService.append(conflictId, ConflictEventType.HANDLER_REJECTED, actor.getUserId(), detail);
+    @Transactional(readOnly = true)
+    public ConflictCaseResponse rejectHandler(String conflictId) {
+        requireOpen(conflictId);
         return conflictCaseAssembler.getById(conflictId);
     }
 

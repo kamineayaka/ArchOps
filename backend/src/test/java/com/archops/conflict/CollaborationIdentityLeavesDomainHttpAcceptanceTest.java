@@ -127,6 +127,25 @@ class CollaborationIdentityLeavesDomainHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data[*].eventType", not(hasItem("HANDLER_ACCEPTED"))));
     }
 
+    @Test
+    void rejectDoesNotRecordCollaborationIdentity() throws Exception {
+        String conflictId = openConflict("id6r-a", "id6r-b", "ctr-id6-006");
+
+        mockMvc.perform(post("/api/conflicts/{id}/reject-handler", conflictId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"reason\":\"not mine\"}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
+
+        mockMvc.perform(get("/api/conflicts/{id}/events", conflictId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[*].eventType", not(hasItem("HANDLER_REJECTED"))));
+    }
+
     private String openConflict(String hostAName, String hostBName, String objectId) throws Exception {
         String hostA = createHost(hostAName);
         String hostB = createHost(hostBName);
