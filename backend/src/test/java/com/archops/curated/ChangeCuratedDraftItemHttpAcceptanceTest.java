@@ -24,7 +24,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * Change-curated ticket 04 HTTP acceptance: one behavior per method.
- * Cycle 1: non-handler cannot accept or reject 草案 items; 策展 stays A.
+ * Item accept and reject no longer require an accepted handler.
  */
 @HttpAcceptanceTest
 class ChangeCuratedDraftItemHttpAcceptanceTest {
