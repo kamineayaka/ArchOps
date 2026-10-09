@@ -116,13 +116,10 @@ public class ConflictController {
         return ApiResponse.ok(conflictCollaborationService.assignHandler(id));
     }
 
-    /** 待接受处理人接受指派/转让. */
+    /** 接受不再写入处理人. */
     @PostMapping("/{id}/accept-handler")
-    public ApiResponse<ConflictCaseResponse> acceptHandler(
-            @PathVariable String id,
-            @AuthenticationPrincipal AuthUserPrincipal principal
-    ) {
-        return ApiResponse.ok(conflictCollaborationService.acceptHandler(id, principal));
+    public ApiResponse<ConflictCaseResponse> acceptHandler(@PathVariable String id) {
+        return ApiResponse.ok(conflictCollaborationService.acceptHandler(id));
     }
 
     /** 待接受处理人拒绝（须理由）. */

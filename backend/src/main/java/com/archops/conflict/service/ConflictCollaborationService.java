@@ -93,20 +93,11 @@ public class ConflictCollaborationService {
     }
 
     /**
-     * 待接受处理人接受指派/转让 → 已接受处理人.
+     * 接受不再写入处理人.
      */
-    @Transactional
-    public ConflictCaseResponse acceptHandler(String conflictId, AuthUserPrincipal actor) {
-        ConflictCase row = requireOpen(conflictId);
-        requirePendingHandler(row, actor);
-        Instant now = Instant.now();
-        conflictCaseMapper.update(null, new LambdaUpdateWrapper<ConflictCase>()
-                .eq(ConflictCase::getId, row.getId())
-                .set(ConflictCase::getHandlerAcceptance, HandlerAcceptance.ACCEPTED)
-                .set(ConflictCase::getUpdatedAt, now));
-        conflictEventService.append(conflictId, ConflictEventType.HANDLER_ACCEPTED, actor.getUserId(), Map.of(
-                "via", "accept_assignment"
-        ));
+    @Transactional(readOnly = true)
+    public ConflictCaseResponse acceptHandler(String conflictId) {
+        requireOpen(conflictId);
         return conflictCaseAssembler.getById(conflictId);
     }
 
