@@ -22,6 +22,6 @@ alwaysApply: true
 
 ## 工作方式
 
-- 一次一张 frontier 票（竖切 / 改策展 / 未绑定 / A1 / 控制面执行引擎 01 / 步骤断言 01 均已闭合）。`conflict-without-identity` 票 01–05 done；本提交只合并票 04 与票 05，不开始票 06（ADR-0046）。代码 vs ADR-0044 审计：A1/A2/A3 已闭合；B1/B2 + 单步代发已落地；**B3 步骤断言 + 控制面 `executionLog` = plan-step-assertion 01 TDD-done**；B4/B5/B6 不要自动做。不要发明未绑定 10。不要往 `control-plane-executor` 加票 02。不要做解决断点。
+- 一次一张 frontier 票（竖切 / 改策展 / 未绑定 / A1 / 控制面执行引擎 01 / 步骤断言 01 均已闭合）。`conflict-without-identity` 票 01–06 done；本 PR 只含票 06，基线是 04 与 05 的 git 合并。07 未开始（ADR-0046）。代码 vs ADR-0044 审计：A1/A2/A3 已闭合；B1/B2 + 单步代发已落地；**B3 步骤断言 + 控制面 `executionLog` = plan-step-assertion 01 TDD-done**；B4/B5/B6 不要自动做。不要发明未绑定 10。不要往 `control-plane-executor` 加票 02。不要做解决断点。
 - `/implement` 走 **red → green → refactor**（`docs/agents/tdd.md`）
 - 不复活旧域包；不扩票外范围（自我迭代、可达矩阵、完整 xterm 等）

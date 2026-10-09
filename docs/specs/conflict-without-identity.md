@@ -1,6 +1,6 @@
 # Spec: 冲突主线去掉协作身份
 
-**Status**: spec published；工单 01–05 **done**。本提交只合并工单 04 与 05，不开始工单 06。
+**Status**: spec published；工单 01–06 **done**。本 PR 只含工单 06，基线是 04 与 05 的 git 合并。07 未开始。#119–#123 不并入 main。
 **Basis**: ADR-0046（已接受）；`CONTEXT.md` 中被 ADR-0046 取代的协作身份句。不改冲突成立条件，不改 ADR-0043 / 0044 / 0045。  
 **Testing seams (confirmed)**: **唯一验收主接缝 = 控制面公开 HTTP API**（含 Agent 心跳/快照 ingest）。`/implement` 按 [`docs/agents/tdd.md`](../agents/tdd.md) 走 **red → green → refactor**。薄 UI 只在该票 HTTP 已绿且票面要求时做。
 
