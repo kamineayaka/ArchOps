@@ -14,7 +14,7 @@
 8. `docs/specs/conflict-upgrade-void-plans.md` — 冲突升级作废活跃计划（审计 A1；**01 TDD-done，本刀闭合**）
 9. `docs/specs/control-plane-executor.md` — 控制面执行引擎（B 第一刀；**01 TDD-done，本刀闭合**）
 10. `docs/specs/plan-step-assertion.md` — 步骤断言（B3 剩余；**01 TDD-done，本刀闭合**）。不要写入 `.scratch/control-plane-executor/`。不要自动做 B-live / 编排层 / 工作台三档。不要发明未绑定 10。
-11. `docs/adr/0046-conflict-discovery-and-resolution-without-identity.md` — 冲突主线只有发现与解决；人审不记录操作者。实现刀：`docs/specs/conflict-without-identity.md`（**票 01–02 done**；**frontier = 票 03**；04–07 已写未开始）。
+11. `docs/adr/0046-conflict-discovery-and-resolution-without-identity.md` — 冲突主线只有发现与解决；人审不记录操作者。实现刀：`docs/specs/conflict-without-identity.md`（**票 01、02、05 done**；本分支无下一张可开工票；03 与 04 在各自未合并 PR）。
 12. `docs/dev-handoff.md` — 进度与下一票
 13. `/implement` → [`docs/agents/implement-kickoff.md`](docs/agents/implement-kickoff.md)。不要发明一次性 prompt。历史 `docs/implement-*-prompt.md` 对新票作废。
 14. `docs/agents/tdd.md` — ArchOps TDD overlay（`/implement` 必读）
@@ -45,7 +45,7 @@
 - 策展写入：草案逐条确认，或计划内显式对齐步；AI 不能独自定稿策展
 - 观测写入：心跳/探测直写，不人审；不自动覆盖策展
 - 冲突：两侧可用且不等才成立；空洞 ≠ 冲突；升级合并键 = 对象+关系类型；升级/空洞作废活跃计划
-- 协作：ADR-0046 取代「归属 ≠ 处理人；仅已接受处理人可开/审/执行计划与确认关闭」。人审是显式动作，不记录操作者。诊断选支与批准并冻结已不经处理人；逐条确认、确认关闭、执行的身份门禁留到后续票
+- 协作：ADR-0046 取代「归属 ≠ 处理人；仅已接受处理人可开/审/执行计划与确认关闭」。人审是显式动作，不记录操作者。诊断选支、批准并冻结与执行已不经处理人、不记操作者；逐条确认与确认关闭的身份门禁留到后续票
 - 操作计划：人审后冻结；每步步骤断言；失败即停作废；禁止改步重试；执行期编排层只观察
 - 规范问法：应该 / 实际 / 是否一致；冲突时不得给唯一落点指令而不披露双轨
 - Flyway：**禁止修改**已有 `V*.sql`，只新增下一个
@@ -113,7 +113,7 @@ Single-context: frozen `CONTEXT.md` + `docs/adr/` (ADR-0039 / ADR-0043 / ADR-004
 - 冲突升级作废活跃计划：[`docs/specs/conflict-upgrade-void-plans.md`](docs/specs/conflict-upgrade-void-plans.md) / [`.scratch/conflict-upgrade-void-plans/issues/01-upgrade-voids-active-plans.md`](.scratch/conflict-upgrade-void-plans/issues/01-upgrade-voids-active-plans.md)（审计 A1；**01 TDD-done，本刀闭合**）。
 - 控制面执行引擎：[`docs/specs/control-plane-executor.md`](docs/specs/control-plane-executor.md) / [`.scratch/control-plane-executor/issues/01-executor-single-step-dispatch.md`](.scratch/control-plane-executor/issues/01-executor-single-step-dispatch.md)（审计 B 第一刀；**01 TDD-done，本刀闭合**）。ADR-0045 冻运输。不要自动做 B-live / 编排层 / 工作台三档。不要往该目录加票 02。
 - 步骤断言：[`docs/specs/plan-step-assertion.md`](docs/specs/plan-step-assertion.md) / [`.scratch/plan-step-assertion/issues/01-engine-judges-step-assertion.md`](.scratch/plan-step-assertion/issues/01-engine-judges-step-assertion.md)（审计 B3 剩余；**01 TDD-done，本刀闭合**）。不要写入 `.scratch/control-plane-executor/`。不要自动做 B-live / 编排层 / 工作台。
-- ADR-0046 已合并。实现刀 [`docs/specs/conflict-without-identity.md`](docs/specs/conflict-without-identity.md) / [`.scratch/conflict-without-identity/issues/`](.scratch/conflict-without-identity/issues/)：**票 01–02 done**；下一张是票 03。04–07 已写未开始。不要做解决断点。
+- ADR-0046 已合并。实现刀 [`docs/specs/conflict-without-identity.md`](docs/specs/conflict-without-identity.md) / [`.scratch/conflict-without-identity/issues/`](.scratch/conflict-without-identity/issues/)：**票 01、02、05 done**。本分支无下一张可开工票。03 与 04 在各自未合并 PR，不在本分支。06 仍被 04 挡住；07 已写未开始。不要做解决断点。
 - 01–03 合同审计：[`.scratch/unbound-identity-rebind/audit-01-03-opus.md`](.scratch/unbound-identity-rebind/audit-01-03-opus.md)。票 08 已处置 C-4 / C-2 / S-3；票 04 已处置 C-3 / S-4 / S-2；票 09 已处置 C-1。
 - 代码 vs ADR-0044 只读审计：[`.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md`](.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md)。A1/A2/A3 已闭合；B1/B2 + 单步代发 = 执行引擎 01；**B3 步骤断言 + 控制面 `executionLog` = plan-step-assertion 01 TDD-done**（编排层逐步推送仍后置）；B4/B5/B6 另开。
 - `/implement` 必须走 TDD overlay：[`docs/agents/tdd.md`](docs/agents/tdd.md)
@@ -122,6 +122,6 @@ Single-context: frozen `CONTEXT.md` + `docs/adr/` (ADR-0039 / ADR-0043 / ADR-004
 
 ## 7. 云端提示词建议（用户可贴）
 
-未绑定 **01–09 已闭合**。冲突升级作废活跃计划 **01 TDD-done / 本刀闭合**（审计 A1）。控制面执行引擎 **01 TDD-done / 本刀闭合**。步骤断言 **01 TDD-done / 本刀闭合**。ADR-0046 已合并。票 01–02 done。下一张只做 [`conflict-without-identity` 票 03](.scratch/conflict-without-identity/issues/03-anonymous-draft-item-confirm.md)。04–07 不是那张票。不要发明未绑定 10。不要把 WebClient 加回控制面。不要自动做编排层 / B-live / 工作台。不要往执行引擎目录加票 02。不要做解决断点。
+未绑定 **01–09 已闭合**。冲突升级作废活跃计划 **01 TDD-done / 本刀闭合**（审计 A1）。控制面执行引擎 **01 TDD-done / 本刀闭合**。步骤断言 **01 TDD-done / 本刀闭合**。ADR-0046 已合并。票 01、02、05 done。本分支无下一张可开工票。03 与 04 是各自的未合并 PR。不要从本分支做 06–07。不要发明未绑定 10。不要把 WebClient 加回控制面。不要自动做编排层 / B-live / 工作台。不要往执行引擎目录加票 02。不要做解决断点。
 
 > 读 AGENTS.md、CONTEXT.md、ADR-0044 / 0045。步骤断言票 01 已闭合。不要复活 Vue/JPA/Neo4j/Maven/LangChain。不要把 LLM 加回控制面。不要自动做编排层 / B-live / 工作台。
