@@ -371,7 +371,7 @@ class UnboundIdentityRebindTracerHttpAcceptanceTest {
 
     @Test
     @Order(6)
-    void unauthenticatedCannotWriteUnboundDraft() throws Exception {
+    void unauthenticatedCannotOpenUnboundDraftButCanAcceptItem() throws Exception {
         String hostA = createHost("u06n5-h");
         heartbeatUnknown(hostA, "u06n5-ag", "u06n5-rt", "u06n5-unknown", "u06n5-never");
         JsonNode candidate = unboundByRuntimeId(listUnbound(), "u06n5-rt");
@@ -394,10 +394,9 @@ class UnboundIdentityRebindTracerHttpAcceptanceTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}")
                         .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.success", is(false)))
-                .andExpect(jsonPath("$.code", is("AUTH_REQUIRED")))
-                .andExpect(jsonPath("$.data").value(nullValue()));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[?(@.kind=='CREATE_CONTAINER_FROM_UNBOUND')].status",
+                        hasItem("ACCEPTED")));
     }
 
     @Test
