@@ -142,13 +142,8 @@ class ChangeCuratedDraftTracerHttpAcceptanceTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code", is("PLAN_NOT_FOUND")));
 
-        // 6. 非处理人接受合并键 X → 拒绝；策展仍为 A
-        postItemAction(conflictId, itemX, "accept", SENIOR_ID)
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code", is("PLAN_REQUIRES_ACCEPTED_HANDLER")));
-        getShouldWhere(world.containerX())
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.curatedValue.hostId", is(world.hostA())));
+        // 6. 逐条接受不再检查处理人。匿名接受由 AnonymousDraftItemConfirmHttpAcceptanceTest 覆盖。
+        //    这里不抢先接受 X，后面的拒绝 Y / 接受 X 仍走原顺序。
 
         // 7. 处理人拒绝 Y → REJECTED；Y「应该在哪」仍为 A
         postItemAction(conflictId, itemY, "reject", GENERAL_ID)
@@ -242,10 +237,9 @@ class ChangeCuratedDraftTracerHttpAcceptanceTest {
     void nonHandlerAndPendingAcceptCannotReviewDraftItems() throws Exception {
         OpenDraft nh = openChangeCuratedDraft("ccd06-n2r-nh");
         postItemAction(nh.conflictId(), nh.itemXId(), "accept", SENIOR_ID)
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.success", is(false)))
-                .andExpect(jsonPath("$.code", is("PLAN_REQUIRES_ACCEPTED_HANDLER")))
-                .andExpect(jsonPath("$.data", nullValue()));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[?(@.id=='" + nh.itemXId() + "')].status",
+                        hasItem("ACCEPTED")));
         postItemAction(nh.conflictId(), nh.itemYId(), "reject", SENIOR_ID)
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success", is(false)))
@@ -253,7 +247,7 @@ class ChangeCuratedDraftTracerHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data", nullValue()));
         getShouldWhere(nh.world().containerX())
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.curatedValue.hostId", is(nh.world().hostA())));
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(nh.world().hostB())));
         getShouldWhere(nh.world().containerY())
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.curatedValue.hostId", is(nh.world().hostA())));
@@ -261,10 +255,9 @@ class ChangeCuratedDraftTracerHttpAcceptanceTest {
         OpenDraft pending = openChangeCuratedDraft("ccd06-n2r-pe");
         transferHandlerPending(pending.conflictId(), GENERAL_ID, GENERAL_2_ID);
         postItemAction(pending.conflictId(), pending.itemXId(), "accept", GENERAL_2_ID)
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.success", is(false)))
-                .andExpect(jsonPath("$.code", is("PLAN_REQUIRES_ACCEPTED_HANDLER")))
-                .andExpect(jsonPath("$.data", nullValue()));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[?(@.id=='" + pending.itemXId() + "')].status",
+                        hasItem("ACCEPTED")));
         postItemAction(pending.conflictId(), pending.itemYId(), "reject", GENERAL_2_ID)
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success", is(false)))
@@ -272,7 +265,7 @@ class ChangeCuratedDraftTracerHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data", nullValue()));
         getShouldWhere(pending.world().containerX())
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.curatedValue.hostId", is(pending.world().hostA())));
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(pending.world().hostB())));
         getShouldWhere(pending.world().containerY())
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.curatedValue.hostId", is(pending.world().hostA())));

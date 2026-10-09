@@ -12,6 +12,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
 
+import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
@@ -38,30 +39,27 @@ class ChangeCuratedDraftItemHttpAcceptanceTest {
     private ObjectMapper objectMapper;
 
     @Test
-    void nonHandlerCannotAcceptDraftItem() throws Exception {
+    void nonHandlerAcceptsDraftItemWithoutRecordingActor() throws Exception {
         OpenDraft draft = openChangeCuratedDraft("ccd04-nh-a", "ccd04-nh-b", "ctr-ccd04-nh-x", "ctr-ccd04-nh-y");
 
         postItemAction(draft.fx().conflictId(), draft.itemXId(), "accept", SENIOR_ID)
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.success", is(false)))
-                .andExpect(jsonPath("$.code", is("PLAN_REQUIRES_ACCEPTED_HANDLER")))
-                .andExpect(jsonPath("$.data", nullValue()));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[?(@.id=='" + draft.itemXId() + "')].status",
+                        hasItem("ACCEPTED")));
 
         getShouldWhere(draft.fx().containerX())
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.question", is("应该在哪")))
-                .andExpect(jsonPath("$.data.track", is("CURATED")))
-                .andExpect(jsonPath("$.data.curatedValue.hostId", is(draft.fx().hostA())));
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(draft.fx().hostB())));
         getShouldWhere(draft.fx().containerY())
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.curatedValue.hostId", is(draft.fx().hostA())));
 
-        getOpenDraft(draft.fx().conflictId(), GENERAL_ID)
+        mockMvc.perform(get("/api/conflicts/{id}/events", draft.fx().conflictId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.items[?(@.subjectId=='" + draft.fx().containerX() + "')].status",
-                        hasItem("PENDING")))
-                .andExpect(jsonPath("$.data.items[?(@.subjectId=='" + draft.fx().containerY() + "')].status",
-                        hasItem("PENDING")));
+                .andExpect(jsonPath("$.data[?(@.eventType=='DRAFT_ITEM_ACCEPTED')].actorUserId",
+                        everyItem(nullValue())));
     }
 
     @Test

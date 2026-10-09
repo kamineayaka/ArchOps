@@ -211,14 +211,14 @@ public class CuratedDraftService {
      * as snapshot ingest (equal → 待确认关闭, never auto CLOSED).
      */
     @Transactional
-    public CuratedDraftResponse acceptItem(String conflictId, String itemId, AuthUserPrincipal actor) {
-        OpenItemReview review = beginItemReview(conflictId, itemId, actor);
+    public CuratedDraftResponse acceptItem(String conflictId, String itemId) {
+        OpenItemReview review = loadOpenItem(conflictId, itemId);
         writeAcceptedRunsOn(review.item());
         markItem(review.item(), CuratedDraftItemStatus.ACCEPTED);
         conflictEventService.append(
                 conflictId,
                 ConflictEventType.DRAFT_ITEM_ACCEPTED,
-                actor.getUserId(),
+                null,
                 itemAuditDetail(review, "草案条目已接受并写入策展", true));
         conflictDetectionService.reconcileMergeKey(review.item().getSubjectId(), CuratedRelationType.RUNS_ON);
         return respond(review.draft());
@@ -248,9 +248,13 @@ public class CuratedDraftService {
     }
 
     private OpenItemReview beginItemReview(String conflictId, String itemId, AuthUserPrincipal actor) {
-        CuratedDraft draft = requireReviewableDraft(conflictId);
         AcceptedHandlerPolicy.require(requireConflict(conflictId), actor, "PLAN_REQUIRES_ACCEPTED_HANDLER",
                 "Only the 已接受冲突处理人 may accept or reject 草案 items");
+        return loadOpenItem(conflictId, itemId);
+    }
+
+    private OpenItemReview loadOpenItem(String conflictId, String itemId) {
+        CuratedDraft draft = requireReviewableDraft(conflictId);
         CuratedDraftItem item = requireItemOnDraft(draft.getId(), itemId);
         return new OpenItemReview(draft, item);
     }
