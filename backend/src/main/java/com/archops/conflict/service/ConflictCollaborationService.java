@@ -301,7 +301,7 @@ public class ConflictCollaborationService {
      * Confirm close while tracks remain equal. Race drift fails without closing.
      */
     @Transactional
-    public ConflictCaseResponse confirmClose(String conflictId, AuthUserPrincipal actor) {
+    public ConflictCaseResponse confirmClose(String conflictId) {
         ConflictCase row = conflictCaseMapper.selectById(conflictId);
         if (row == null) {
             throw new BusinessException("CONFLICT_NOT_FOUND", "Conflict not found: " + conflictId);
@@ -310,8 +310,6 @@ public class ConflictCollaborationService {
             throw new BusinessException("CONFLICT_NOT_PENDING_CLOSE",
                     "Only 待确认关闭 conflicts can be confirmed closed");
         }
-        AcceptedHandlerPolicy.require(row, actor, "CONFIRM_CLOSE_REQUIRES_ACCEPTED_HANDLER",
-                "Only the 已接受冲突处理人 may confirm close");
 
         ConflictDetectionService.TrackPair tracks = conflictDetectionService.currentTracks(row);
         CuratedFact curated = tracks.curated();
@@ -340,7 +338,7 @@ public class ConflictCollaborationService {
                             .set(ConflictCase::getPendingCloseAt, null)
                             .set(ConflictCase::getUpdatedAt, now));
                 }
-                conflictEventService.append(conflictId, ConflictEventType.CONFIRM_FAILED, actor.getUserId(), detail);
+                conflictEventService.append(conflictId, ConflictEventType.CONFIRM_FAILED, null, detail);
             });
             throw new BusinessException("CONFLICT_NOT_ALIGNED",
                     "策展与观测已不再相等，请刷新观测后重试；冲突未关闭");
@@ -357,7 +355,7 @@ public class ConflictCollaborationService {
             throw new BusinessException("CONFLICT_NOT_PENDING_CLOSE",
                     "Conflict left 待确认关闭 before confirm completed");
         }
-        conflictEventService.append(conflictId, ConflictEventType.CLOSED, actor.getUserId(), Map.of(
+        conflictEventService.append(conflictId, ConflictEventType.CLOSED, null, Map.of(
                 "curatedTargetId", curated.getTargetId(),
                 "observedTargetId", observed.getTargetId()
         ));

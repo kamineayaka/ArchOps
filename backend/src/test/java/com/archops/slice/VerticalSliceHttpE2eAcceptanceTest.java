@@ -27,6 +27,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.anyOf;
+import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
@@ -196,12 +197,6 @@ class VerticalSliceHttpE2eAcceptanceTest {
                 .andExpect(jsonPath("$.data.observedValue.hostId", is(hostA)));
 
         mockMvc.perform(post("/api/conflicts/{id}/confirm-close", conflictId)
-                        .header(TempAuthHeaders.USER_ID, SENIOR_ID)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code", is("CONFIRM_CLOSE_REQUIRES_ACCEPTED_HANDLER")));
-
-        mockMvc.perform(post("/api/conflicts/{id}/confirm-close", conflictId)
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
@@ -216,7 +211,8 @@ class VerticalSliceHttpE2eAcceptanceTest {
                 .andExpect(jsonPath("$.data[*].eventType", hasItem("HANDLER_ACCEPTED")))
                 .andExpect(jsonPath("$.data[*].eventType", hasItem("PLAN_COMPLETED")))
                 .andExpect(jsonPath("$.data[*].eventType", hasItem("PENDING_CLOSE")))
-                .andExpect(jsonPath("$.data[*].eventType", hasItem("CLOSED")));
+                .andExpect(jsonPath("$.data[*].eventType", hasItem("CLOSED")))
+                .andExpect(jsonPath("$.data[?(@.eventType=='CLOSED')].actorUserId", everyItem(nullValue())));
     }
 
     @Test

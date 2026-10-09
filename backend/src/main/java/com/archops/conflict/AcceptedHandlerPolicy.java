@@ -8,9 +8,8 @@ import com.archops.user.security.AuthUserPrincipal;
 /**
  * Frozen collaboration gate: only the 已接受冲突处理人 may proceed.
  * Predicate is {@code HandlerAcceptance.ACCEPTED} and {@code actor.userId}
- * equals {@code handlerUserId}. Callers supply the HTTP code so plan
- * operations stay {@code PLAN_REQUIRES_ACCEPTED_HANDLER} and confirm-close
- * stays {@code CONFIRM_CLOSE_REQUIRES_ACCEPTED_HANDLER}.
+ * equals {@code handlerUserId}. Callers supply the HTTP code. Confirm-close
+ * no longer uses this gate.
  */
 public final class AcceptedHandlerPolicy {
 

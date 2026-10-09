@@ -177,7 +177,7 @@ class ChangeCuratedDraftItemHttpAcceptanceTest {
     }
 
     @Test
-    void acceptedHandlerConfirmCloseAfterDraftAcceptClosesConflict() throws Exception {
+    void confirmCloseAfterDraftAcceptClosesWithoutRecordingActor() throws Exception {
         OpenDraft draft = rejectSiblingThenAcceptMergeKey(
                 "ccd04-cc-a", "ccd04-cc-b", "ctr-ccd04-cc-x", "ctr-ccd04-cc-y");
         mockMvc.perform(get("/api/conflicts/{id}", draft.fx().conflictId())
@@ -189,15 +189,14 @@ class ChangeCuratedDraftItemHttpAcceptanceTest {
         mockMvc.perform(post("/api/conflicts/{id}/confirm-close", draft.fx().conflictId())
                         .header(TempAuthHeaders.USER_ID, SENIOR_ID)
                         .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code", is("CONFIRM_CLOSE_REQUIRES_ACCEPTED_HANDLER")));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("CLOSED")));
 
-        mockMvc.perform(post("/api/conflicts/{id}/confirm-close", draft.fx().conflictId())
+        mockMvc.perform(get("/api/conflicts/{id}/events", draft.fx().conflictId())
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success", is(true)))
-                .andExpect(jsonPath("$.data.status", is("CLOSED")));
+                .andExpect(jsonPath("$.data[?(@.eventType=='CLOSED')].actorUserId", everyItem(nullValue())));
     }
 
     @Test

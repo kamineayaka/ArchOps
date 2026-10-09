@@ -30,6 +30,7 @@ import java.util.List;
 
 /**
  * Conflict warn / collaboration / pending-close / diagnosis HTTP surface.
+ * 确认关闭 is an explicit request and does not require a user identity.
  */
 @RestController
 @RequestMapping("/api/conflicts")
@@ -166,13 +167,11 @@ public class ConflictController {
     }
 
     /**
-     * 已接受处理人确认关闭：仅当策展=当前可用观测时成立；否则失败并提示刷新。
+     * 确认关闭：仅当策展=当前可用观测时成立；否则失败并提示刷新。不记录操作者。
      */
     @PostMapping("/{id}/confirm-close")
-    public ApiResponse<ConflictCaseResponse> confirmClose(
-            @PathVariable String id,
-            @AuthenticationPrincipal AuthUserPrincipal principal
-    ) {
-        return ApiResponse.ok(conflictCollaborationService.confirmClose(id, principal));
+    @PreAuthorize("permitAll()")
+    public ApiResponse<ConflictCaseResponse> confirmClose(@PathVariable String id) {
+        return ApiResponse.ok(conflictCollaborationService.confirmClose(id));
     }
 }
