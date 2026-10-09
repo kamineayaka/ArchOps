@@ -83,3 +83,5 @@ cd backend && ./gradlew test --tests com.archops.conflict.IdentityLostPipelineGa
 ```
 
 BUILD SUCCESSFUL (reuse of `IDENTITY_LOST_BLOCKS_BRANCH`; null `createdBy` still inserts under the restored foreign key).
+
+票 02 取代本票的批准门禁针：`approveStillRequiresAcceptedHandler` 改为 `approveWithoutAcceptedHandlerFreezesPlan`（`APPROVED`，`reviewedBy` null）。票 01 的 PR 不改。

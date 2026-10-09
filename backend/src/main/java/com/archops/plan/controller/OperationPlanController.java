@@ -7,10 +7,8 @@ import com.archops.plan.dto.SelectBranchRequest;
 import com.archops.plan.dto.StartExecutionResponse;
 import com.archops.plan.service.BranchSelectionService;
 import com.archops.plan.service.OperationPlanService;
-import com.archops.user.security.AuthUserPrincipal;
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -20,7 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * Operation plan review + shared branch-selection gate.
- * 诊断选支 is an explicit request and does not require a user identity.
+ * 诊断选支, 批准并冻结, and 执行 are explicit requests and do not require a user identity.
  */
 @RestController
 @RequestMapping("/api")
@@ -59,18 +57,14 @@ public class OperationPlanController {
     }
 
     @PostMapping("/operation-plans/{planId}/approve")
-    public ApiResponse<OperationPlanResponse> approve(
-            @PathVariable String planId,
-            @AuthenticationPrincipal AuthUserPrincipal principal
-    ) {
-        return ApiResponse.ok(operationPlanService.approve(planId, principal));
+    @PreAuthorize("permitAll()")
+    public ApiResponse<OperationPlanResponse> approve(@PathVariable String planId) {
+        return ApiResponse.ok(operationPlanService.approve(planId));
     }
 
     @PostMapping("/operation-plans/{planId}/start-execution")
-    public ApiResponse<StartExecutionResponse> startExecution(
-            @PathVariable String planId,
-            @AuthenticationPrincipal AuthUserPrincipal principal
-    ) {
-        return ApiResponse.ok(operationPlanService.startExecution(planId, principal));
+    @PreAuthorize("permitAll()")
+    public ApiResponse<StartExecutionResponse> startExecution(@PathVariable String planId) {
+        return ApiResponse.ok(operationPlanService.startExecution(planId));
     }
 }

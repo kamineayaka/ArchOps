@@ -130,7 +130,7 @@ class AnonymousBranchSelectionHttpAcceptanceTest {
     }
 
     @Test
-    void approveStillRequiresAcceptedHandler() throws Exception {
+    void approveWithoutAcceptedHandlerFreezesPlan() throws Exception {
         String conflictId = openConflictWithoutHandler("abs-ap-a", "abs-ap-b", "ctr-abs-006");
         ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, conflictId, GENERAL_ID);
         MvcResult created = selectFixActual(conflictId)
@@ -142,8 +142,9 @@ class AnonymousBranchSelectionHttpAcceptanceTest {
         mockMvc.perform(post("/api/operation-plans/{id}/approve", planId)
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)
                         .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code", is("PLAN_REQUIRES_ACCEPTED_HANDLER")));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("APPROVED")))
+                .andExpect(jsonPath("$.data.reviewedBy", nullValue()));
     }
 
     private org.springframework.test.web.servlet.ResultActions selectFixActual(String conflictId) throws Exception {

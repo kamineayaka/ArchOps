@@ -1,0 +1,188 @@
+package com.archops.plan;
+
+import com.archops.conflict.ConflictDiagnosisWait;
+import com.archops.support.HttpAcceptanceTest;
+import com.archops.user.security.TempAuthHeaders;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+
+import static org.hamcrest.Matchers.everyItem;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.nullValue;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+/**
+ * ADR-0046 ticket 05: start-execution needs no accepted handler and records no operator.
+ */
+@HttpAcceptanceTest
+class AnonymousStartExecutionHttpAcceptanceTest {
+
+    private static final String GENERAL_ID = "user-general-demo";
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @Test
+    void startExecutionWithoutIdentityCompletesAndRecordsNoActor() throws Exception {
+        Approved plan = approvedPlanWithoutHandler("ex5-a", "ex5-b", "ctr-ex5-001");
+
+        mockMvc.perform(post("/api/operation-plans/{id}/start-execution", plan.planId())
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("COMPLETED")));
+
+        mockMvc.perform(get("/api/conflicts/{id}/events", plan.conflictId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[?(@.eventType=='PLAN_COMPLETED')].actorUserId", everyItem(nullValue())));
+    }
+
+    @Test
+    void startExecutionWithUserHeaderStillOmitsActor() throws Exception {
+        Approved plan = approvedPlanWithoutHandler("ex5h-a", "ex5h-b", "ctr-ex5-002");
+
+        mockMvc.perform(post("/api/operation-plans/{id}/start-execution", plan.planId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("COMPLETED")));
+
+        mockMvc.perform(get("/api/conflicts/{id}/events", plan.conflictId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[?(@.eventType=='PLAN_COMPLETED')].actorUserId", everyItem(nullValue())));
+    }
+
+    @Test
+    void voidedPlanStartExecutionStaysPlanVoided() throws Exception {
+        Review review = openReviewPlan("ex5v-a", "ex5v-b", "ctr-ex5-void");
+        String hostC = createHost("ex5v-c");
+        heartbeatWithContainer(hostC, "agent-ctr-ex5-void-c", "ctr-ex5-void");
+
+        mockMvc.perform(post("/api/operation-plans/{id}/start-execution", review.planId())
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("PLAN_VOIDED")));
+    }
+
+    @Test
+    void unapprovedStartExecutionStaysPlanNotApproved() throws Exception {
+        Review review = openReviewPlan("ex5u-a", "ex5u-b", "ctr-ex5-open");
+
+        mockMvc.perform(post("/api/operation-plans/{id}/start-execution", review.planId())
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("PLAN_NOT_APPROVED")));
+    }
+
+    private record Approved(String conflictId, String planId) {
+    }
+
+    private record Review(String conflictId, String planId) {
+    }
+
+    private Approved approvedPlanWithoutHandler(String hostAName, String hostBName, String objectId) throws Exception {
+        Review review = openReviewPlan(hostAName, hostBName, objectId);
+        mockMvc.perform(post("/api/operation-plans/{id}/approve", review.planId())
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("APPROVED")));
+        return new Approved(review.conflictId(), review.planId());
+    }
+
+    private Review openReviewPlan(String hostAName, String hostBName, String objectId) throws Exception {
+        String hostA = createHost(hostAName);
+        String hostB = createHost(hostBName);
+        String containerId = createContainer("app-" + objectId, objectId);
+        confirmRunsOn(containerId, hostA);
+        heartbeatWithContainer(hostB, "agent-" + objectId, objectId);
+        MvcResult conflict = mockMvc.perform(get("/api/conflicts/by-merge-key")
+                        .param("subjectId", containerId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn();
+        String conflictId = objectMapper.readTree(conflict.getResponse().getContentAsString())
+                .path("data").path("id").asText();
+        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, conflictId, GENERAL_ID);
+        MvcResult created = mockMvc.perform(post("/api/conflicts/{id}/branch-selection", conflictId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"forkId\":\"FIX_ACTUAL_TO_CURATED\"}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("DRAFT_REVIEW")))
+                .andReturn();
+        String planId = objectMapper.readTree(created.getResponse().getContentAsString())
+                .path("data").path("id").asText();
+        return new Review(conflictId, planId);
+    }
+
+    private void heartbeatWithContainer(String hostId, String agentId, String objectId) throws Exception {
+        mockMvc.perform(post("/api/agent/heartbeat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "agentId":"%s",
+                                  "hostId":"%s",
+                                  "snapshot":{
+                                    "containers":[{
+                                      "runtimeId":"docker-x",
+                                      "name":"app",
+                                      "labels":{"archops.object_id":"%s"}
+                                    }]
+                                  }
+                                }
+                                """.formatted(agentId, hostId, objectId))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+    }
+
+    private String createHost(String name) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/curated/hosts")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"" + name + "\"}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn();
+        return readDataId(result);
+    }
+
+    private String createContainer(String name, String objectId) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/curated/containers")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"" + name + "\",\"objectId\":\"" + objectId + "\"}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn();
+        return readDataId(result);
+    }
+
+    private void confirmRunsOn(String containerId, String hostId) throws Exception {
+        mockMvc.perform(post("/api/curated/facts/runs-on")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"containerId\":\"" + containerId + "\",\"hostId\":\"" + hostId + "\"}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+    }
+
+    private String readDataId(MvcResult result) throws Exception {
+        JsonNode root = objectMapper.readTree(result.getResponse().getContentAsString());
+        return root.path("data").path("id").asText();
+    }
+}

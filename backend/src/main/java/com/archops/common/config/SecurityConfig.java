@@ -46,13 +46,15 @@ public class SecurityConfig {
                         .requestMatchers("/api/health").permitAll()
                         // Host-agent ingest is a control-plane public seam (no operator identity header).
                         .requestMatchers("/api/agent/**").permitAll()
-                        // ADR-0046: 诊断选支, 草案逐条确认, and 确认关闭 are explicit actions, not an authenticated user.
+                        // ADR-0046: 诊断选支, 批准并冻结, 草案逐条确认, 确认关闭, and 执行 are explicit actions.
                         .requestMatchers(HttpMethod.POST, "/api/conflicts/*/branch-selection").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/conflicts/*/confirm-close").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/conflicts/*/curated-drafts/open/items/*/accept").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/conflicts/*/curated-drafts/open/items/*/reject").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/curated-drafts/*/items/*/accept").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/curated-drafts/*/items/*/reject").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/operation-plans/*/approve").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/operation-plans/*/start-execution").permitAll()
                         .requestMatchers("/", "/index.html", "/assets/**", "/favicon.ico").permitAll()
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().permitAll())

@@ -8,7 +8,6 @@ import com.archops.plan.FrozenPlanStepCatalog;
 import com.archops.plan.dispatch.ExecuteStepCommand;
 import com.archops.plan.dispatch.ExecuteStepResult;
 import com.archops.plan.dispatch.ExecutorDispatchPort;
-import com.archops.conflict.AcceptedHandlerPolicy;
 import com.archops.conflict.diagnosis.ConflictDiagnosisService;
 import com.archops.conflict.diagnosis.DiagnosisRuleEngine;
 import com.archops.conflict.domain.ConflictCase;
@@ -24,7 +23,6 @@ import com.archops.plan.domain.PlanBranchKind;
 import com.archops.plan.dto.OperationPlanResponse;
 import com.archops.plan.dto.StartExecutionResponse;
 import com.archops.plan.mapper.OperationPlanMapper;
-import com.archops.user.security.AuthUserPrincipal;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -149,14 +147,13 @@ public class OperationPlanService {
     }
 
     @Transactional
-    public OperationPlanResponse approve(String planId, AuthUserPrincipal actor) {
+    public OperationPlanResponse approve(String planId) {
         OperationPlan plan = requirePlan(planId);
         if (plan.getStatus() == OperationPlanStatus.VOIDED) {
             throw new BusinessException("PLAN_VOIDED",
                     "Voided plans cannot be retried; generate a new plan through review");
         }
-        ConflictCase conflict = requireOpenConflict(plan.getConflictId());
-        requireAcceptedHandler(conflict, actor);
+        requireOpenConflict(plan.getConflictId());
         if (plan.getStatus() != OperationPlanStatus.DRAFT_REVIEW) {
             throw new BusinessException("PLAN_NOT_IN_REVIEW",
                     "Only DRAFT_REVIEW plans can be approved");
@@ -166,7 +163,7 @@ public class OperationPlanService {
                 .eq(OperationPlan::getId, planId)
                 .eq(OperationPlan::getStatus, OperationPlanStatus.DRAFT_REVIEW)
                 .set(OperationPlan::getStatus, OperationPlanStatus.APPROVED)
-                .set(OperationPlan::getReviewedBy, actor.getUserId())
+                .set(OperationPlan::getReviewedBy, null)
                 .set(OperationPlan::getReviewedAt, now)
                 .set(OperationPlan::getApprovedAt, now));
         return getById(planId);
@@ -174,10 +171,11 @@ public class OperationPlanService {
 
     /**
      * Execute an APPROVED plan one frozen step at a time via 控制面代发.
+     * Does not ask for an accepted handler. Completion records no operator.
      * Re-reads VOIDED between steps so 空洞 / 失联 / 升级 can stop the next dispatch.
      * Failure/block voids the plan immediately; steps are frozen (no in-place rewrite/retry).
      */
-    public StartExecutionResponse startExecution(String planId, AuthUserPrincipal actor) {
+    public StartExecutionResponse startExecution(String planId) {
         OperationPlan gate = requirePlan(planId);
         if (gate.getStatus() == OperationPlanStatus.VOIDED) {
             throw new BusinessException("PLAN_VOIDED",
@@ -191,8 +189,7 @@ public class OperationPlanService {
             throw new BusinessException("PLAN_ALREADY_EXECUTING",
                     "Plan is already executing");
         }
-        ConflictCase conflict = requireOpenConflict(gate.getConflictId());
-        requireAcceptedHandler(conflict, actor);
+        requireOpenConflict(gate.getConflictId());
 
         if (gate.getStatus() != OperationPlanStatus.APPROVED) {
             throw new BusinessException("PLAN_NOT_APPROVED",
@@ -307,7 +304,7 @@ public class OperationPlanService {
                 return stopBecauseAlreadyVoided(planId, log);
             }
 
-            conflictEventService.append(plan.getConflictId(), ConflictEventType.PLAN_COMPLETED, actor.getUserId(), Map.of(
+            conflictEventService.append(plan.getConflictId(), ConflictEventType.PLAN_COMPLETED, null, Map.of(
                     "planId", planId,
                     "completedSteps", log.size(),
                     "hint", "Post-exec observation refresh is via agent heartbeat/snapshot (探测写入观测)"
@@ -443,11 +440,6 @@ public class OperationPlanService {
             throw new BusinessException("CONFLICT_NOT_OPEN", "Conflict is not open: " + conflictId);
         }
         return row;
-    }
-
-    private static void requireAcceptedHandler(ConflictCase conflict, AuthUserPrincipal actor) {
-        AcceptedHandlerPolicy.require(conflict, actor, "PLAN_REQUIRES_ACCEPTED_HANDLER",
-                "Only the 已接受冲突处理人 may select a branch or manage the operation plan");
     }
 
     private OperationPlanResponse toResponse(OperationPlan plan) {
