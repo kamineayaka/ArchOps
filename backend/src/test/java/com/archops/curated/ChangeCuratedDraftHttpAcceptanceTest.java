@@ -118,14 +118,14 @@ class ChangeCuratedDraftHttpAcceptanceTest {
                         .header(TempAuthHeaders.USER_ID, SENIOR_ID)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.collaboration.handlerAcceptance", is("NONE")));
+                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
         mockMvc.perform(post("/api/conflicts/{id}/assign-handler", pending.conflictId())
                         .header(TempAuthHeaders.USER_ID, SENIOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"assigneeUserId\":\"" + GENERAL_ID + "\"}")
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.collaboration.handlerAcceptance", is("PENDING_ACCEPT")));
+                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
         ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, pending.conflictId(), GENERAL_ID);
         postBranch(pending.conflictId(), GENERAL_ID, "CHANGE_CURATED_TO_OBSERVED", null)
                 .andExpect(status().isOk())
@@ -290,7 +290,7 @@ class ChangeCuratedDraftHttpAcceptanceTest {
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.collaboration.handlerAcceptance", is("ACCEPTED")));
+                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
         return fx;
     }
 

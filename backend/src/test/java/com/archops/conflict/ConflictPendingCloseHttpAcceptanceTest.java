@@ -23,6 +23,7 @@ import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -59,7 +60,7 @@ class ConflictPendingCloseHttpAcceptanceTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status", is("PENDING_CLOSE")))
                 .andExpect(jsonPath("$.data.pendingCloseReminderVisible", is(true)))
-                .andExpect(jsonPath("$.data.collaboration.acknowledged", is(true)))
+                .andExpect(jsonPath("$.data.collaboration").doesNotExist())
                 .andExpect(jsonPath("$.data.observedValue.hostId", is(fx.hostA())))
                 .andExpect(jsonPath("$.data.curatedValue.hostId", is(fx.hostA())));
 
@@ -96,7 +97,7 @@ class ConflictPendingCloseHttpAcceptanceTest {
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[*].eventType", hasItem("WARNED")))
-                .andExpect(jsonPath("$.data[*].eventType", hasItem("HANDLER_ACCEPTED")))
+                .andExpect(jsonPath("$.data[*].eventType", not(hasItem("HANDLER_ACCEPTED"))))
                 .andExpect(jsonPath("$.data[*].eventType", hasItem("PLAN_COMPLETED")))
                 .andExpect(jsonPath("$.data[*].eventType", hasItem("PENDING_CLOSE")))
                 .andExpect(jsonPath("$.data[*].eventType", hasItem("CLOSED")))

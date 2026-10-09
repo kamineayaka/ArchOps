@@ -12,14 +12,13 @@ import org.springframework.test.web.servlet.MvcResult;
 
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * Ticket 05 HTTP acceptance: 认领 / 已知悉+自任 / plan-open gate.
+ * Collaboration routes stay callable and no longer return collaboration identity.
  */
 @HttpAcceptanceTest
 class ConflictCollaborationHttpAcceptanceTest {
@@ -40,31 +39,28 @@ class ConflictCollaborationHttpAcceptanceTest {
         mockMvc.perform(post("/api/conflicts/{id}/operation-plans", conflictId)
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)
                         .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code", is("PLAN_REQUIRES_ACCEPTED_HANDLER")));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("OPEN_INTENT_ACCEPTED")))
+                .andExpect(jsonPath("$.data.handlerUserId").doesNotExist());
 
         mockMvc.perform(post("/api/conflicts/{id}/claim", conflictId)
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.collaboration.acknowledged", is(true)))
-                .andExpect(jsonPath("$.data.collaboration.ownerUserId", is(GENERAL_ID)))
-                .andExpect(jsonPath("$.data.collaboration.handlerUserId", is(GENERAL_ID)))
-                .andExpect(jsonPath("$.data.collaboration.handlerAcceptance", is("ACCEPTED")));
+                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
 
         mockMvc.perform(get("/api/conflicts/{id}", conflictId)
                         .header(TempAuthHeaders.USER_ID, SENIOR_ID)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.collaboration.ownerUserId", is(GENERAL_ID)))
-                .andExpect(jsonPath("$.data.collaboration.handlerAcceptance", is("ACCEPTED")));
+                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
 
         mockMvc.perform(post("/api/conflicts/{id}/operation-plans", conflictId)
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status", is("OPEN_INTENT_ACCEPTED")))
-                .andExpect(jsonPath("$.data.handlerUserId", is(GENERAL_ID)));
+                .andExpect(jsonPath("$.data.handlerUserId").doesNotExist());
     }
 
     @Test
@@ -75,54 +71,49 @@ class ConflictCollaborationHttpAcceptanceTest {
                         .header(TempAuthHeaders.USER_ID, SENIOR_ID)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.collaboration.acknowledged", is(true)))
-                .andExpect(jsonPath("$.data.collaboration.ownerUserId", is(SENIOR_ID)))
-                .andExpect(jsonPath("$.data.collaboration.handlerUserId", is(SENIOR_ID)))
-                .andExpect(jsonPath("$.data.collaboration.handlerAcceptance", is("ACCEPTED")));
+                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
 
         mockMvc.perform(post("/api/conflicts/{id}/operation-plans", conflictId)
                         .header(TempAuthHeaders.USER_ID, SENIOR_ID)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.status", is("OPEN_INTENT_ACCEPTED")));
+                .andExpect(jsonPath("$.data.status", is("OPEN_INTENT_ACCEPTED")))
+                .andExpect(jsonPath("$.data.handlerUserId").doesNotExist());
 
         mockMvc.perform(post("/api/conflicts/{id}/operation-plans", conflictId)
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)
                         .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code", is("PLAN_REQUIRES_ACCEPTED_HANDLER")));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.handlerUserId").doesNotExist());
     }
 
     @Test
-    void generalCannotClaimAlreadyOwnedConflict() throws Exception {
+    void claimAfterAcknowledgeOmitsCollaborationIdentity() throws Exception {
         String conflictId = openConflict("own-a", "own-b", "ctr-own-001");
 
         mockMvc.perform(post("/api/conflicts/{id}/acknowledge", conflictId)
                         .header(TempAuthHeaders.USER_ID, SENIOR_ID)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.collaboration.acknowledged", is(true)))
-                .andExpect(jsonPath("$.data.collaboration.ownerUserId", is(SENIOR_ID)))
-                .andExpect(jsonPath("$.data.collaboration.handlerUserId", nullValue()))
-                .andExpect(jsonPath("$.data.collaboration.handlerAcceptance", is("NONE")));
+                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
 
         mockMvc.perform(post("/api/conflicts/{id}/claim", conflictId)
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)
                         .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code", is("CONFLICT_ALREADY_OWNED")));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
 
         mockMvc.perform(post("/api/conflicts/{id}/operation-plans", conflictId)
                         .header(TempAuthHeaders.USER_ID, SENIOR_ID)
                         .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code", is("PLAN_REQUIRES_ACCEPTED_HANDLER")));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.handlerUserId").doesNotExist());
 
         mockMvc.perform(post("/api/conflicts/{id}/acknowledge-and-self-appoint", conflictId)
                         .header(TempAuthHeaders.USER_ID, SENIOR_ID)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.collaboration.handlerAcceptance", is("ACCEPTED")));
+                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
     }
 
     private String openConflict(String hostAName, String hostBName, String objectId) throws Exception {
@@ -137,8 +128,7 @@ class ConflictCollaborationHttpAcceptanceTest {
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.collaboration.acknowledged", is(false)))
-                .andExpect(jsonPath("$.data.collaboration.handlerAcceptance", is("NONE")))
+                .andExpect(jsonPath("$.data.collaboration").doesNotExist())
                 .andReturn();
         return objectMapper.readTree(result.getResponse().getContentAsString()).path("data").path("id").asText();
     }

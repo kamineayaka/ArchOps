@@ -691,7 +691,7 @@ class UnboundIdentityRebindTracerHttpAcceptanceTest {
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.collaboration.handlerAcceptance", is("ACCEPTED")));
+                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
         return new LostPipeline(prefix, conflictId, hostA, hostB, containerId);
     }
 

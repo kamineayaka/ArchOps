@@ -31,6 +31,7 @@ import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.Matchers.startsWith;
@@ -120,13 +121,11 @@ class VerticalSliceHttpE2eAcceptanceTest {
                 .andExpect(jsonPath("$.data.observedValue.hostId", is(hostB)))
                 .andExpect(jsonPath("$.data.curatedValue.hostId", is(hostA)));
 
-        // 认领 → 已接受处理人
         mockMvc.perform(post("/api/conflicts/{id}/claim", conflictId)
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.collaboration.handlerAcceptance", is("ACCEPTED")))
-                .andExpect(jsonPath("$.data.collaboration.handlerUserId", is(GENERAL_ID)));
+                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
 
         ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, conflictId, GENERAL_ID);
         mockMvc.perform(get("/api/conflicts/{id}/diagnosis", conflictId)
@@ -208,7 +207,7 @@ class VerticalSliceHttpE2eAcceptanceTest {
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[*].eventType", hasItem("WARNED")))
-                .andExpect(jsonPath("$.data[*].eventType", hasItem("HANDLER_ACCEPTED")))
+                .andExpect(jsonPath("$.data[*].eventType", not(hasItem("HANDLER_ACCEPTED"))))
                 .andExpect(jsonPath("$.data[*].eventType", hasItem("PLAN_COMPLETED")))
                 .andExpect(jsonPath("$.data[*].eventType", hasItem("PENDING_CLOSE")))
                 .andExpect(jsonPath("$.data[*].eventType", hasItem("CLOSED")))

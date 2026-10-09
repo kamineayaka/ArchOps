@@ -110,7 +110,7 @@ class OperationPlanReviewHttpAcceptanceTest {
                         .header(TempAuthHeaders.USER_ID, SENIOR_ID)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.collaboration.handlerAcceptance", is("NONE")));
+                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
         ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, conflictId, SENIOR_ID);
 
         mockMvc.perform(post("/api/conflicts/{id}/branch-selection", conflictId)
@@ -129,7 +129,7 @@ class OperationPlanReviewHttpAcceptanceTest {
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.collaboration.handlerAcceptance", is("ACCEPTED")));
+                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
         return conflictId;
     }
 

@@ -503,8 +503,7 @@ class ChangeCuratedDraftTracerHttpAcceptanceTest {
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.collaboration.handlerAcceptance", is("ACCEPTED")))
-                .andExpect(jsonPath("$.data.collaboration.handlerUserId", is(GENERAL_ID)));
+                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
     }
 
     private void waitUntilDiagnosisReady(String conflictId) throws Exception {
@@ -535,14 +534,14 @@ class ChangeCuratedDraftTracerHttpAcceptanceTest {
                         .header(TempAuthHeaders.USER_ID, SENIOR_ID)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.collaboration.handlerAcceptance", is("NONE")));
+                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
         mockMvc.perform(post("/api/conflicts/{id}/assign-handler", conflictId)
                         .header(TempAuthHeaders.USER_ID, SENIOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"assigneeUserId\":\"" + assigneeUserId + "\"}")
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.collaboration.handlerAcceptance", is("PENDING_ACCEPT")));
+                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
     }
 
     private OpenDraft openChangeCuratedDraft(String prefix) throws Exception {
@@ -569,8 +568,7 @@ class ChangeCuratedDraftTracerHttpAcceptanceTest {
                         .content("{\"toUserId\":\"" + toUserId + "\"}")
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.collaboration.handlerUserId", is(toUserId)))
-                .andExpect(jsonPath("$.data.collaboration.handlerAcceptance", is("PENDING_ACCEPT")));
+                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
     }
 
     private String snapshotXOnHostC(OpenDraft draft, String hostCName) throws Exception {
