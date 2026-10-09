@@ -111,40 +111,11 @@ public class ConflictCollaborationService {
     }
 
     /**
-     * 当前处理人（待接受或已接受）转让给另一一般角色；归属不变；拟接手人进入待接受.
+     * 转让不再写入处理人.
      */
-    @Transactional
-    public ConflictCaseResponse transferHandler(String conflictId, String toUserId, AuthUserPrincipal actor) {
-        ConflictCase row = requireOpen(conflictId);
-        if (row.getHandlerUserId() == null
-                || (row.getHandlerAcceptance() != HandlerAcceptance.PENDING_ACCEPT
-                && row.getHandlerAcceptance() != HandlerAcceptance.ACCEPTED)) {
-            throw new BusinessException("CONFLICT_NOT_HANDLER",
-                    "Only the current 冲突处理人 may transfer the handler role");
-        }
-        if (!actor.getUserId().equals(row.getHandlerUserId())) {
-            throw new BusinessException("CONFLICT_NOT_HANDLER",
-                    "Only the current 冲突处理人 may transfer the handler role");
-        }
-        PlatformUser recipient = requireGeneralUser(toUserId, "CONFLICT_TRANSFER_TARGET_INVALID");
-        if (recipient.getId().equals(actor.getUserId())) {
-            throw new BusinessException("CONFLICT_TRANSFER_TARGET_INVALID",
-                    "Cannot transfer handler role to yourself");
-        }
-        String previousHandlerId = row.getHandlerUserId();
-        String previousAcceptance = row.getHandlerAcceptance().name();
-        Instant now = Instant.now();
-        conflictCaseMapper.update(null, new LambdaUpdateWrapper<ConflictCase>()
-                .eq(ConflictCase::getId, row.getId())
-                .set(ConflictCase::getHandlerUserId, recipient.getId())
-                .set(ConflictCase::getHandlerAcceptance, HandlerAcceptance.PENDING_ACCEPT)
-                .set(ConflictCase::getUpdatedAt, now));
-        Map<String, Object> detail = new LinkedHashMap<>();
-        detail.put("fromUserId", previousHandlerId);
-        detail.put("toUserId", recipient.getId());
-        detail.put("fromAcceptance", previousAcceptance);
-        detail.put("ownerUserId", row.getOwnerUserId());
-        conflictEventService.append(conflictId, ConflictEventType.HANDLER_TRANSFER_OFFERED, actor.getUserId(), detail);
+    @Transactional(readOnly = true)
+    public ConflictCaseResponse transferHandler(String conflictId) {
+        requireOpen(conflictId);
         return conflictCaseAssembler.getById(conflictId);
     }
 
