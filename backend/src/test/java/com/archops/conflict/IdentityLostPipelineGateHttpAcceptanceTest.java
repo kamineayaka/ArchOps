@@ -217,7 +217,7 @@ class IdentityLostPipelineGateHttpAcceptanceTest {
     }
 
     @Test
-    void nonHandlerBranchSelectionOnIdentityLostIsBlocked() throws Exception {
+    void identityLostBlocksFixActualSelectionWithoutAcceptedHandler() throws Exception {
         Fixture fx = openMismatch("u05f");
         identityLostOnObservedHost(fx);
 
@@ -225,6 +225,21 @@ class IdentityLostPipelineGateHttpAcceptanceTest {
                         .header(TempAuthHeaders.USER_ID, SENIOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"forkId\":\"FIX_ACTUAL_TO_CURATED\"}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.code", is("IDENTITY_LOST_BLOCKS_BRANCH")))
+                .andExpect(jsonPath("$.data").value(nullValue()));
+    }
+
+    @Test
+    void identityLostBlocksChangeCuratedSelectionWithoutUserHeader() throws Exception {
+        Fixture fx = openMismatch("u05k");
+        identityLostOnObservedHost(fx);
+
+        mockMvc.perform(post("/api/conflicts/{id}/branch-selection", fx.conflictId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"forkId\":\"CHANGE_CURATED_TO_OBSERVED\"}")
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success", is(false)))

@@ -4,7 +4,7 @@
 
 **Blocked by:** None — can start immediately
 
-**Status:** ready-for-agent
+**Status:** done
 
 **TDD:** capability。`/implement` 走 [`docs/agents/tdd.md`](../../../docs/agents/tdd.md)：**red → green → refactor**，一圈一条 HTTP 测试。Spec：[`docs/specs/conflict-without-identity.md`](../../../docs/specs/conflict-without-identity.md)。合同：ADR-0046。
 
@@ -68,4 +68,18 @@ BUILD SUCCESSFUL. `PLAN_ALREADY_ACTIVE` / `DIAGNOSIS_NOT_READY` / `PLAN_REQUIRES
 cd backend && ./gradlew test
 ```
 
-BUILD SUCCESSFUL：237 tests, 0 failures.
+BUILD SUCCESSFUL：237 tests, 0 failures. After the identity-lost pin and V23: 238 tests, 0 failures.
+
+### Code review (Standards + Spec, vs origin/main)
+
+**Standards:** Cycles A and C have witnessed red (401, then 500 NPE). Cycles B and D are first-run green reuse of the null `createdBy` write and of gates that already existed; production from other tickets was not deleted to manufacture red. Ticket status is `done` after this review. `AGENTS.md` §3 now points the old handler sentence at ADR-0046.
+
+**Spec:** Selection behavior matches the ticket. `V21`/`V22` had also dropped the user foreign keys; `V23` puts them back so null is allowed and later paths can still store a real user id. 改理想 under 身份失联 with no user header is pinned by `identityLostBlocksChangeCuratedSelectionWithoutUserHeader` (first-run green: the fork check already rejected both ids).
+
+### Identity-lost pin (review follow-up)
+
+```text
+cd backend && ./gradlew test --tests com.archops.conflict.IdentityLostPipelineGateHttpAcceptanceTest.identityLostBlocksChangeCuratedSelectionWithoutUserHeader --tests com.archops.plan.AnonymousBranchSelectionHttpAcceptanceTest
+```
+
+BUILD SUCCESSFUL (reuse of `IDENTITY_LOST_BLOCKS_BRANCH`; null `createdBy` still inserts under the restored foreign key).

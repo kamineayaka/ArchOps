@@ -4,7 +4,7 @@
 
 **Blocked by:** 01 — 诊断选支不经身份、不记操作者
 
-**Status:** blocked
+**Status:** ready-for-agent
 
 **TDD:** capability。主接缝为控制面 HTTP API。Spec：[`docs/specs/conflict-without-identity.md`](../../../docs/specs/conflict-without-identity.md)。合同：ADR-0046。本票未开始。
 
