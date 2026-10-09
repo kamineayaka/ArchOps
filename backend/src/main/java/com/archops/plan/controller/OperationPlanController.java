@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * Operation plan review + shared branch-selection gate.
- * 诊断选支 is an explicit request and does not require a user identity.
+ * 诊断选支 and 批准并冻结 are explicit requests and do not require a user identity.
  */
 @RestController
 @RequestMapping("/api")
@@ -59,11 +59,9 @@ public class OperationPlanController {
     }
 
     @PostMapping("/operation-plans/{planId}/approve")
-    public ApiResponse<OperationPlanResponse> approve(
-            @PathVariable String planId,
-            @AuthenticationPrincipal AuthUserPrincipal principal
-    ) {
-        return ApiResponse.ok(operationPlanService.approve(planId, principal));
+    @PreAuthorize("permitAll()")
+    public ApiResponse<OperationPlanResponse> approve(@PathVariable String planId) {
+        return ApiResponse.ok(operationPlanService.approve(planId));
     }
 
     @PostMapping("/operation-plans/{planId}/start-execution")

@@ -149,14 +149,13 @@ public class OperationPlanService {
     }
 
     @Transactional
-    public OperationPlanResponse approve(String planId, AuthUserPrincipal actor) {
+    public OperationPlanResponse approve(String planId) {
         OperationPlan plan = requirePlan(planId);
         if (plan.getStatus() == OperationPlanStatus.VOIDED) {
             throw new BusinessException("PLAN_VOIDED",
                     "Voided plans cannot be retried; generate a new plan through review");
         }
-        ConflictCase conflict = requireOpenConflict(plan.getConflictId());
-        requireAcceptedHandler(conflict, actor);
+        requireOpenConflict(plan.getConflictId());
         if (plan.getStatus() != OperationPlanStatus.DRAFT_REVIEW) {
             throw new BusinessException("PLAN_NOT_IN_REVIEW",
                     "Only DRAFT_REVIEW plans can be approved");
@@ -166,7 +165,7 @@ public class OperationPlanService {
                 .eq(OperationPlan::getId, planId)
                 .eq(OperationPlan::getStatus, OperationPlanStatus.DRAFT_REVIEW)
                 .set(OperationPlan::getStatus, OperationPlanStatus.APPROVED)
-                .set(OperationPlan::getReviewedBy, actor.getUserId())
+                .set(OperationPlan::getReviewedBy, null)
                 .set(OperationPlan::getReviewedAt, now)
                 .set(OperationPlan::getApprovedAt, now));
         return getById(planId);
