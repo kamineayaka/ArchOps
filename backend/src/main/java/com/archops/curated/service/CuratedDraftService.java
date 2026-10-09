@@ -2,7 +2,6 @@ package com.archops.curated.service;
 
 import com.archops.common.exception.BusinessException;
 import com.archops.common.json.PersistentJson;
-import com.archops.conflict.AcceptedHandlerPolicy;
 import com.archops.conflict.domain.ConflictCase;
 import com.archops.conflict.domain.ConflictEventType;
 import com.archops.conflict.dto.ConflictDiagnosisResponse;
@@ -26,7 +25,6 @@ import com.archops.curated.mapper.CuratedDraftItemMapper;
 import com.archops.curated.mapper.CuratedDraftMapper;
 import com.archops.curated.mapper.CuratedFactMapper;
 import com.archops.curated.mapper.CuratedObjectMapper;
-import com.archops.user.security.AuthUserPrincipal;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -225,13 +223,13 @@ public class CuratedDraftService {
     }
 
     @Transactional
-    public CuratedDraftResponse rejectItem(String conflictId, String itemId, AuthUserPrincipal actor) {
-        OpenItemReview review = beginItemReview(conflictId, itemId, actor);
+    public CuratedDraftResponse rejectItem(String conflictId, String itemId) {
+        OpenItemReview review = loadOpenItem(conflictId, itemId);
         markItem(review.item(), CuratedDraftItemStatus.REJECTED);
         conflictEventService.append(
                 conflictId,
                 ConflictEventType.DRAFT_ITEM_REJECTED,
-                actor.getUserId(),
+                null,
                 itemAuditDetail(review, "草案条目已拒绝", false));
         return respond(review.draft());
     }
@@ -245,12 +243,6 @@ public class CuratedDraftService {
                 readPayloadMap(row.getDetailJson()),
                 row.getCreatedAt()
         );
-    }
-
-    private OpenItemReview beginItemReview(String conflictId, String itemId, AuthUserPrincipal actor) {
-        AcceptedHandlerPolicy.require(requireConflict(conflictId), actor, "PLAN_REQUIRES_ACCEPTED_HANDLER",
-                "Only the 已接受冲突处理人 may accept or reject 草案 items");
-        return loadOpenItem(conflictId, itemId);
     }
 
     private OpenItemReview loadOpenItem(String conflictId, String itemId) {
@@ -314,14 +306,6 @@ public class CuratedDraftService {
                 .eq(CuratedDraft::getConflictId, conflictId)
                 .orderByDesc(CuratedDraft::getCreatedAt)
                 .last("LIMIT 1"));
-    }
-
-    private ConflictCase requireConflict(String conflictId) {
-        ConflictCase conflict = conflictCaseMapper.selectById(conflictId);
-        if (conflict == null) {
-            throw new BusinessException("CONFLICT_NOT_FOUND", "Conflict not found: " + conflictId);
-        }
-        return conflict;
     }
 
     private CuratedDraftItem requireItemOnDraft(String draftId, String itemId) {

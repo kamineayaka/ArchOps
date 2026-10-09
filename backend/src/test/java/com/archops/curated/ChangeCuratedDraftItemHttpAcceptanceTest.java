@@ -63,22 +63,24 @@ class ChangeCuratedDraftItemHttpAcceptanceTest {
     }
 
     @Test
-    void nonHandlerCannotRejectDraftItem() throws Exception {
+    void nonHandlerRejectsDraftItemWithoutRecordingActor() throws Exception {
         OpenDraft draft = openChangeCuratedDraft("ccd04-nhr-a", "ccd04-nhr-b", "ctr-ccd04-nhr-x", "ctr-ccd04-nhr-y");
 
         postItemAction(draft.fx().conflictId(), draft.itemYId(), "reject", SENIOR_ID)
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.success", is(false)))
-                .andExpect(jsonPath("$.code", is("PLAN_REQUIRES_ACCEPTED_HANDLER")))
-                .andExpect(jsonPath("$.data", nullValue()));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[?(@.id=='" + draft.itemYId() + "')].status",
+                        hasItem("REJECTED")));
 
         getShouldWhere(draft.fx().containerY())
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.curatedValue.hostId", is(draft.fx().hostA())));
-        getOpenDraft(draft.fx().conflictId(), GENERAL_ID)
+
+        mockMvc.perform(get("/api/conflicts/{id}/events", draft.fx().conflictId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.items[?(@.id=='" + draft.itemYId() + "')].status",
-                        hasItem("PENDING")));
+                .andExpect(jsonPath("$.data[?(@.eventType=='DRAFT_ITEM_REJECTED')].actorUserId",
+                        everyItem(nullValue())));
     }
 
     @Test

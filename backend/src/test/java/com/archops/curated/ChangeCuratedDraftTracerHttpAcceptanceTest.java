@@ -234,17 +234,16 @@ class ChangeCuratedDraftTracerHttpAcceptanceTest {
 
     @Test
     @Order(4)
-    void nonHandlerAndPendingAcceptCannotReviewDraftItems() throws Exception {
+    void nonHandlerAndPendingAcceptCanReviewDraftItems() throws Exception {
         OpenDraft nh = openChangeCuratedDraft("ccd06-n2r-nh");
         postItemAction(nh.conflictId(), nh.itemXId(), "accept", SENIOR_ID)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.items[?(@.id=='" + nh.itemXId() + "')].status",
                         hasItem("ACCEPTED")));
         postItemAction(nh.conflictId(), nh.itemYId(), "reject", SENIOR_ID)
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.success", is(false)))
-                .andExpect(jsonPath("$.code", is("PLAN_REQUIRES_ACCEPTED_HANDLER")))
-                .andExpect(jsonPath("$.data", nullValue()));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[?(@.id=='" + nh.itemYId() + "')].status",
+                        hasItem("REJECTED")));
         getShouldWhere(nh.world().containerX())
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.curatedValue.hostId", is(nh.world().hostB())));
@@ -259,10 +258,9 @@ class ChangeCuratedDraftTracerHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data.items[?(@.id=='" + pending.itemXId() + "')].status",
                         hasItem("ACCEPTED")));
         postItemAction(pending.conflictId(), pending.itemYId(), "reject", GENERAL_2_ID)
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.success", is(false)))
-                .andExpect(jsonPath("$.code", is("PLAN_REQUIRES_ACCEPTED_HANDLER")))
-                .andExpect(jsonPath("$.data", nullValue()));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[?(@.id=='" + pending.itemYId() + "')].status",
+                        hasItem("REJECTED")));
         getShouldWhere(pending.world().containerX())
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.curatedValue.hostId", is(pending.world().hostB())));

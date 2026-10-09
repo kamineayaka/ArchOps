@@ -71,6 +71,36 @@ class AnonymousDraftItemConfirmHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data.status", not("CLOSED")));
     }
 
+    @Test
+    void rejectRunsOnWithoutIdentityLeavesCuratedAndRecordsNoActor() throws Exception {
+        OpenChangeCurated world = openChangeCuratedDraft(
+                "adi-rj-a", "adi-rj-b", "ctr-adi-002", "ctr-adi-002-y");
+
+        mockMvc.perform(post(
+                        "/api/conflicts/{conflictId}/curated-drafts/open/items/{itemId}/reject",
+                        world.conflictId(), world.itemYId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[?(@.id=='" + world.itemYId() + "')].status",
+                        everyItem(is("REJECTED"))));
+
+        mockMvc.perform(get("/api/curated/asks/should-where")
+                        .param("containerId", world.containerY())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(world.hostA())));
+
+        mockMvc.perform(get("/api/conflicts/{id}/events", world.conflictId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[?(@.eventType=='DRAFT_ITEM_REJECTED')].actorUserId",
+                        everyItem(nullValue())));
+    }
+
     private OpenChangeCurated openChangeCuratedDraft(
             String hostAName,
             String hostBName,
@@ -106,7 +136,9 @@ class AnonymousDraftItemConfirmHttpAcceptanceTest {
                 .andReturn();
         JsonNode items = objectMapper.readTree(draft.getResponse().getContentAsString())
                 .path("data").path("items");
-        return new OpenChangeCurated(conflictId, hostA, hostB, containerX, containerY, itemId(items, containerX));
+        return new OpenChangeCurated(
+                conflictId, hostA, hostB, containerX, containerY,
+                itemId(items, containerX), itemId(items, containerY));
     }
 
     private static String itemId(JsonNode items, String subjectId) {
@@ -180,7 +212,8 @@ class AnonymousDraftItemConfirmHttpAcceptanceTest {
             String hostB,
             String containerX,
             String containerY,
-            String itemXId
+            String itemXId,
+            String itemYId
     ) {
     }
 }
