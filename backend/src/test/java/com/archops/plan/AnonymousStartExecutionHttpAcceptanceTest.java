@@ -68,33 +68,11 @@ class AnonymousStartExecutionHttpAcceptanceTest {
 
     @Test
     void voidedPlanStartExecutionStaysPlanVoided() throws Exception {
-        String hostA = createHost("ex5v-a");
-        String hostB = createHost("ex5v-b");
+        Review review = openReviewPlan("ex5v-a", "ex5v-b", "ctr-ex5-void");
         String hostC = createHost("ex5v-c");
-        String containerId = createContainer("app-ctr-ex5-void", "ctr-ex5-void");
-        confirmRunsOn(containerId, hostA);
-        heartbeatWithContainer(hostB, "agent-ctr-ex5-void", "ctr-ex5-void");
-        MvcResult conflict = mockMvc.perform(get("/api/conflicts/by-merge-key")
-                        .param("subjectId", containerId)
-                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andReturn();
-        String conflictId = objectMapper.readTree(conflict.getResponse().getContentAsString())
-                .path("data").path("id").asText();
-        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, conflictId, GENERAL_ID);
-        MvcResult created = mockMvc.perform(post("/api/conflicts/{id}/branch-selection", conflictId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"forkId\":\"FIX_ACTUAL_TO_CURATED\"}")
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andReturn();
-        String planId = objectMapper.readTree(created.getResponse().getContentAsString())
-                .path("data").path("id").asText();
-
         heartbeatWithContainer(hostC, "agent-ctr-ex5-void-c", "ctr-ex5-void");
 
-        mockMvc.perform(post("/api/operation-plans/{id}/start-execution", planId)
+        mockMvc.perform(post("/api/operation-plans/{id}/start-execution", review.planId())
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code", is("PLAN_VOIDED")));
@@ -102,31 +80,9 @@ class AnonymousStartExecutionHttpAcceptanceTest {
 
     @Test
     void unapprovedStartExecutionStaysPlanNotApproved() throws Exception {
-        String hostA = createHost("ex5u-a");
-        String hostB = createHost("ex5u-b");
-        String containerId = createContainer("app-ctr-ex5-open", "ctr-ex5-open");
-        confirmRunsOn(containerId, hostA);
-        heartbeatWithContainer(hostB, "agent-ctr-ex5-open", "ctr-ex5-open");
-        MvcResult conflict = mockMvc.perform(get("/api/conflicts/by-merge-key")
-                        .param("subjectId", containerId)
-                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andReturn();
-        String conflictId = objectMapper.readTree(conflict.getResponse().getContentAsString())
-                .path("data").path("id").asText();
-        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, conflictId, GENERAL_ID);
-        MvcResult created = mockMvc.perform(post("/api/conflicts/{id}/branch-selection", conflictId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"forkId\":\"FIX_ACTUAL_TO_CURATED\"}")
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.status", is("DRAFT_REVIEW")))
-                .andReturn();
-        String planId = objectMapper.readTree(created.getResponse().getContentAsString())
-                .path("data").path("id").asText();
+        Review review = openReviewPlan("ex5u-a", "ex5u-b", "ctr-ex5-open");
 
-        mockMvc.perform(post("/api/operation-plans/{id}/start-execution", planId)
+        mockMvc.perform(post("/api/operation-plans/{id}/start-execution", review.planId())
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code", is("PLAN_NOT_APPROVED")));
@@ -135,7 +91,19 @@ class AnonymousStartExecutionHttpAcceptanceTest {
     private record Approved(String conflictId, String planId) {
     }
 
+    private record Review(String conflictId, String planId) {
+    }
+
     private Approved approvedPlanWithoutHandler(String hostAName, String hostBName, String objectId) throws Exception {
+        Review review = openReviewPlan(hostAName, hostBName, objectId);
+        mockMvc.perform(post("/api/operation-plans/{id}/approve", review.planId())
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("APPROVED")));
+        return new Approved(review.conflictId(), review.planId());
+    }
+
+    private Review openReviewPlan(String hostAName, String hostBName, String objectId) throws Exception {
         String hostA = createHost(hostAName);
         String hostB = createHost(hostBName);
         String containerId = createContainer("app-" + objectId, objectId);
@@ -159,11 +127,7 @@ class AnonymousStartExecutionHttpAcceptanceTest {
                 .andReturn();
         String planId = objectMapper.readTree(created.getResponse().getContentAsString())
                 .path("data").path("id").asText();
-        mockMvc.perform(post("/api/operation-plans/{id}/approve", planId)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.status", is("APPROVED")));
-        return new Approved(conflictId, planId);
+        return new Review(conflictId, planId);
     }
 
     private void heartbeatWithContainer(String hostId, String agentId, String objectId) throws Exception {
