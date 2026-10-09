@@ -1,20 +1,14 @@
 package com.archops.conflict.service;
 
 import com.archops.common.exception.BusinessException;
-import com.archops.conflict.AcceptedHandlerPolicy;
 import com.archops.conflict.domain.ConflictCase;
 import com.archops.conflict.domain.ConflictEventType;
 import com.archops.conflict.domain.ConflictStatus;
-import com.archops.conflict.domain.HandlerAcceptance;
 import com.archops.conflict.dto.ConflictCaseResponse;
 import com.archops.conflict.dto.OpenOperationPlanResponse;
 import com.archops.conflict.mapper.ConflictCaseMapper;
 import com.archops.curated.domain.CuratedFact;
 import com.archops.observed.domain.ObservedFact;
-import com.archops.user.domain.PlatformRole;
-import com.archops.user.domain.PlatformUser;
-import com.archops.user.security.AuthUserPrincipal;
-import com.archops.user.service.UserLookupService;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -36,7 +30,6 @@ public class ConflictCollaborationService {
     private final ConflictDetectionService conflictDetectionService;
     private final ConflictCaseAssembler conflictCaseAssembler;
     private final ConflictEventService conflictEventService;
-    private final UserLookupService userLookupService;
     private final TransactionTemplate requiresNewTx;
 
     public ConflictCollaborationService(
@@ -44,14 +37,12 @@ public class ConflictCollaborationService {
             ConflictDetectionService conflictDetectionService,
             ConflictCaseAssembler conflictCaseAssembler,
             ConflictEventService conflictEventService,
-            UserLookupService userLookupService,
             PlatformTransactionManager transactionManager
     ) {
         this.conflictCaseMapper = conflictCaseMapper;
         this.conflictDetectionService = conflictDetectionService;
         this.conflictCaseAssembler = conflictCaseAssembler;
         this.conflictEventService = conflictEventService;
-        this.userLookupService = userLookupService;
         this.requiresNewTx = new TransactionTemplate(transactionManager);
         this.requiresNewTx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
@@ -120,19 +111,15 @@ public class ConflictCollaborationService {
     }
 
     /**
-     * Gate for opening an operation plan (full plan machine is ticket 07).
-     * Only the 已接受冲突处理人 may pass. 待接受 cannot open plans.
+     * 开计划不再以处理人门禁决定，响应不带处理人 id.
      */
     @Transactional(readOnly = true)
-    public OpenOperationPlanResponse openOperationPlan(String conflictId, AuthUserPrincipal actor) {
-        ConflictCase row = requireOpen(conflictId);
-        AcceptedHandlerPolicy.require(row, actor, "PLAN_REQUIRES_ACCEPTED_HANDLER",
-                "Only the 已接受冲突处理人 may open an operation plan for this conflict");
+    public OpenOperationPlanResponse openOperationPlan(String conflictId) {
+        requireOpen(conflictId);
         return new OpenOperationPlanResponse(
                 conflictId,
                 "OPEN_INTENT_ACCEPTED",
-                actor.getUserId(),
-                "Accepted handler may proceed to plan generation (ticket 07)"
+                "Operation plan intent accepted"
         );
     }
 
@@ -210,33 +197,5 @@ public class ConflictCollaborationService {
             throw new BusinessException("CONFLICT_NOT_OPEN", "Conflict is not open: " + conflictId);
         }
         return row;
-    }
-
-    private static void requirePendingHandler(ConflictCase row, AuthUserPrincipal actor) {
-        if (row.getHandlerAcceptance() != HandlerAcceptance.PENDING_ACCEPT
-                || row.getHandlerUserId() == null) {
-            throw new BusinessException("CONFLICT_NOT_PENDING_HANDLER",
-                    "No 待接受冲突处理人 on this conflict");
-        }
-        if (!actor.getUserId().equals(row.getHandlerUserId())) {
-            throw new BusinessException("CONFLICT_NOT_PENDING_HANDLER",
-                    "Only the 待接受冲突处理人 may accept or reject this assignment");
-        }
-    }
-
-    private PlatformUser requireGeneralUser(String userId, String invalidCode) {
-        PlatformUser user = userLookupService.findById(userId)
-                .orElseThrow(() -> new BusinessException(invalidCode, "User not found: " + userId));
-        if (user.getRole() != PlatformRole.GENERAL) {
-            throw new BusinessException(invalidCode,
-                    "Conflict handler must be a 一般角色 user");
-        }
-        return user;
-    }
-
-    private static void requireRole(AuthUserPrincipal actor, PlatformRole expected, String code, String message) {
-        if (actor.getRole() != expected) {
-            throw new BusinessException(code, message);
-        }
     }
 }

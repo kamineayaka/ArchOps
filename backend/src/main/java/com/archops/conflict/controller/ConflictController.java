@@ -14,10 +14,8 @@ import com.archops.conflict.service.ConflictCaseAssembler;
 import com.archops.conflict.service.ConflictCollaborationService;
 import com.archops.conflict.service.ConflictEventService;
 import com.archops.curated.domain.CuratedRelationType;
-import com.archops.user.security.AuthUserPrincipal;
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -140,15 +138,10 @@ public class ConflictController {
         return ApiResponse.ok(conflictCollaborationService.transferHandler(id));
     }
 
-    /**
-     * Attempt to open an operation plan for this conflict (gate only; plan body is ticket 07).
-     */
+    /** 开计划不再以处理人门禁决定，响应不带处理人 id. */
     @PostMapping("/{id}/operation-plans")
-    public ApiResponse<OpenOperationPlanResponse> openOperationPlan(
-            @PathVariable String id,
-            @AuthenticationPrincipal AuthUserPrincipal principal
-    ) {
-        return ApiResponse.ok(conflictCollaborationService.openOperationPlan(id, principal));
+    public ApiResponse<OpenOperationPlanResponse> openOperationPlan(@PathVariable String id) {
+        return ApiResponse.ok(conflictCollaborationService.openOperationPlan(id));
     }
 
     /**

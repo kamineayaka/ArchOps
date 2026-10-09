@@ -165,6 +165,17 @@ class CollaborationIdentityLeavesDomainHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data[*].eventType", not(hasItem("HANDLER_TRANSFER_OFFERED"))));
     }
 
+    @Test
+    void openPlanDoesNotUseHandlerGateOrReturnHandlerId() throws Exception {
+        String conflictId = openConflict("id6p-a", "id6p-b", "ctr-id6-008");
+
+        mockMvc.perform(post("/api/conflicts/{id}/operation-plans", conflictId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.handlerUserId").doesNotExist());
+    }
+
     private String openConflict(String hostAName, String hostBName, String objectId) throws Exception {
         String hostA = createHost(hostAName);
         String hostB = createHost(hostBName);
