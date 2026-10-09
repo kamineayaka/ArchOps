@@ -100,6 +100,38 @@ class AnonymousStartExecutionHttpAcceptanceTest {
                 .andExpect(jsonPath("$.code", is("PLAN_VOIDED")));
     }
 
+    @Test
+    void unapprovedStartExecutionStaysPlanNotApproved() throws Exception {
+        String hostA = createHost("ex5u-a");
+        String hostB = createHost("ex5u-b");
+        String containerId = createContainer("app-ctr-ex5-open", "ctr-ex5-open");
+        confirmRunsOn(containerId, hostA);
+        heartbeatWithContainer(hostB, "agent-ctr-ex5-open", "ctr-ex5-open");
+        MvcResult conflict = mockMvc.perform(get("/api/conflicts/by-merge-key")
+                        .param("subjectId", containerId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn();
+        String conflictId = objectMapper.readTree(conflict.getResponse().getContentAsString())
+                .path("data").path("id").asText();
+        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, conflictId, GENERAL_ID);
+        MvcResult created = mockMvc.perform(post("/api/conflicts/{id}/branch-selection", conflictId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"forkId\":\"FIX_ACTUAL_TO_CURATED\"}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("DRAFT_REVIEW")))
+                .andReturn();
+        String planId = objectMapper.readTree(created.getResponse().getContentAsString())
+                .path("data").path("id").asText();
+
+        mockMvc.perform(post("/api/operation-plans/{id}/start-execution", planId)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("PLAN_NOT_APPROVED")));
+    }
+
     private record Approved(String conflictId, String planId) {
     }
 
