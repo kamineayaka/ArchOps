@@ -89,13 +89,10 @@ public class ConflictController {
         return ApiResponse.ok(conflictCaseAssembler.getActiveByMergeKey(subjectId, relationType));
     }
 
-    /** 一般角色认领未已知悉冲突 → 已接受处理人（含归属）. */
+    /** 认领不再写入已知悉、归属或处理人. */
     @PostMapping("/{id}/claim")
-    public ApiResponse<ConflictCaseResponse> claim(
-            @PathVariable String id,
-            @AuthenticationPrincipal AuthUserPrincipal principal
-    ) {
-        return ApiResponse.ok(conflictCollaborationService.claim(id, principal));
+    public ApiResponse<ConflictCaseResponse> claim(@PathVariable String id) {
+        return ApiResponse.ok(conflictCollaborationService.claim(id));
     }
 
     /** 高级角色已知悉 → 冲突归属（可不设处理人）. */

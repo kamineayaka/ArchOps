@@ -57,32 +57,11 @@ public class ConflictCollaborationService {
     }
 
     /**
-     * 一般角色认领：尚未已知悉 → 已知悉 + 冲突归属 + 已接受处理人.
+     * 认领不再写入已知悉、归属或处理人.
      */
-    @Transactional
-    public ConflictCaseResponse claim(String conflictId, AuthUserPrincipal actor) {
-        requireRole(actor, PlatformRole.GENERAL, "CONFLICT_CLAIM_ROLE_DENIED",
-                "Only 一般角色 may claim an unacknowledged conflict");
-        ConflictCase row = requireOpen(conflictId);
-        if (Boolean.TRUE.equals(row.getAcknowledged()) || row.getOwnerUserId() != null) {
-            throw new BusinessException("CONFLICT_ALREADY_OWNED",
-                    "Cannot claim a conflict that already has 冲突归属");
-        }
-        Instant now = Instant.now();
-        conflictCaseMapper.update(null, new LambdaUpdateWrapper<ConflictCase>()
-                .eq(ConflictCase::getId, row.getId())
-                .set(ConflictCase::getAcknowledged, true)
-                .set(ConflictCase::getAcknowledgedAt, now)
-                .set(ConflictCase::getOwnerUserId, actor.getUserId())
-                .set(ConflictCase::getHandlerUserId, actor.getUserId())
-                .set(ConflictCase::getHandlerAcceptance, HandlerAcceptance.ACCEPTED)
-                .set(ConflictCase::getUpdatedAt, now));
-        conflictEventService.append(conflictId, ConflictEventType.ACKNOWLEDGED, actor.getUserId(), Map.of(
-                "via", "claim"
-        ));
-        conflictEventService.append(conflictId, ConflictEventType.HANDLER_ACCEPTED, actor.getUserId(), Map.of(
-                "via", "claim"
-        ));
+    @Transactional(readOnly = true)
+    public ConflictCaseResponse claim(String conflictId) {
+        requireOpen(conflictId);
         return conflictCaseAssembler.getById(conflictId);
     }
 

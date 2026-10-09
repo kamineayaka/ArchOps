@@ -4,6 +4,7 @@ import com.archops.conflict.domain.HandlerAcceptance;
 import com.archops.curated.domain.CuratedRelationType;
 import com.archops.curated.dto.CuratedObjectResponse;
 import com.archops.observed.domain.ObservedAvailability;
+import com.fasterxml.jackson.annotation.JsonInclude;
 
 import java.time.Instant;
 import java.util.List;
@@ -39,6 +40,7 @@ public record ConflictCaseResponse(
          * NOT_STARTED | PENDING | READY | FAILED — diagnosis is async and never blocks warning.
          */
         String diagnosisStatus,
+        @JsonInclude(JsonInclude.Include.NON_NULL)
         Collaboration collaboration
 ) {
     public enum ConflictStatusView {
