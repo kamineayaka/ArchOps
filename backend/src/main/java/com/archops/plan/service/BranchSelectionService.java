@@ -11,7 +11,6 @@ import com.archops.conflict.dto.ConflictDiagnosisResponse;
 import com.archops.conflict.mapper.ConflictCaseMapper;
 import com.archops.curated.service.CuratedDraftService;
 import com.archops.observed.mapper.IdentityLostMarkMapper;
-import com.archops.user.security.AuthUserPrincipal;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,7 +43,7 @@ public class BranchSelectionService {
     }
 
     @Transactional
-    public BranchSelectionResult select(String conflictId, String forkId, String expectedDiagnosisId, AuthUserPrincipal actor) {
+    public BranchSelectionResult select(String conflictId, String forkId, String expectedDiagnosisId) {
         ConflictCase conflict = requireOpenConflict(conflictId);
         rejectUniqueSiteForkWhenIdentityLost(conflict, forkId);
 
@@ -70,7 +69,7 @@ public class BranchSelectionService {
                 throw new BusinessException("PLAN_ALREADY_ACTIVE",
                         "Conflict already has an active operation plan");
             }
-            return curatedDraftService.createForChangeCurated(conflict, diagnosis, fork, actor);
+            return curatedDraftService.createForChangeCurated(conflict, diagnosis, fork);
         }
         if (isFixActual(fork)) {
             if (curatedDraftService.hasOpen(conflictId)) {

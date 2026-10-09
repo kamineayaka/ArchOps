@@ -42,11 +42,10 @@ public class OperationPlanController {
     @PreAuthorize("permitAll()")
     public ApiResponse<BranchSelectionResult> selectBranch(
             @PathVariable String conflictId,
-            @Valid @RequestBody SelectBranchRequest request,
-            @AuthenticationPrincipal AuthUserPrincipal principal
+            @Valid @RequestBody SelectBranchRequest request
     ) {
         return ApiResponse.ok(branchSelectionService.select(
-                conflictId, request.forkId(), request.diagnosisId(), principal));
+                conflictId, request.forkId(), request.diagnosisId()));
     }
 
     @GetMapping("/conflicts/{conflictId}/operation-plans/active")

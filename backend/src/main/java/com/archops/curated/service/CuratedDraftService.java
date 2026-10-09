@@ -118,8 +118,7 @@ public class CuratedDraftService {
     public CuratedDraftResponse createForChangeCurated(
             ConflictCase conflict,
             ConflictDiagnosisResponse diagnosis,
-            ConflictDiagnosisResponse.ForkSuggestion fork,
-            AuthUserPrincipal actor
+            ConflictDiagnosisResponse.ForkSuggestion fork
     ) {
         if (findOpen(conflict.getId()) != null) {
             throw new BusinessException("DRAFT_ALREADY_OPEN",
@@ -140,7 +139,7 @@ public class CuratedDraftService {
         draft.setSelectedForkId(fork.id());
         draft.setOrigin(CuratedDraftOrigin.CHANGE_CURATED);
         draft.setStatus(CuratedDraftStatus.OPEN);
-        draft.setCreatedBy(actor.getUserId());
+        draft.setCreatedBy(null);
         draft.setCreatedAt(now);
         try {
             curatedDraftMapper.insert(draft);
@@ -155,7 +154,7 @@ public class CuratedDraftService {
             curatedDraftItemMapper.insert(item);
         }
 
-        conflictEventService.append(conflict.getId(), ConflictEventType.DRAFT_CREATED, actor.getUserId(), Map.of(
+        conflictEventService.append(conflict.getId(), ConflictEventType.DRAFT_CREATED, null, Map.of(
                 "draftId", draft.getId(),
                 "itemCount", items.size(),
                 "hint", "草案已创建"
