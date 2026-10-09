@@ -66,27 +66,11 @@ public class ConflictCollaborationService {
     }
 
     /**
-     * 高级角色已知悉（取得冲突归属），暂不设处理人.
+     * 已知悉不再写入归属或处理人.
      */
-    @Transactional
-    public ConflictCaseResponse acknowledge(String conflictId, AuthUserPrincipal actor) {
-        requireRole(actor, PlatformRole.SENIOR, "CONFLICT_ACK_ROLE_DENIED",
-                "Only 高级角色 may acknowledge without claiming as handler");
-        ConflictCase row = requireOpen(conflictId);
-        if (Boolean.TRUE.equals(row.getAcknowledged()) || row.getOwnerUserId() != null) {
-            throw new BusinessException("CONFLICT_ALREADY_OWNED",
-                    "Conflict is already 已知悉 with 冲突归属");
-        }
-        Instant now = Instant.now();
-        conflictCaseMapper.update(null, new LambdaUpdateWrapper<ConflictCase>()
-                .eq(ConflictCase::getId, row.getId())
-                .set(ConflictCase::getAcknowledged, true)
-                .set(ConflictCase::getAcknowledgedAt, now)
-                .set(ConflictCase::getOwnerUserId, actor.getUserId())
-                .set(ConflictCase::getUpdatedAt, now));
-        conflictEventService.append(conflictId, ConflictEventType.ACKNOWLEDGED, actor.getUserId(), Map.of(
-                "via", "acknowledge"
-        ));
+    @Transactional(readOnly = true)
+    public ConflictCaseResponse acknowledge(String conflictId) {
+        requireOpen(conflictId);
         return conflictCaseAssembler.getById(conflictId);
     }
 

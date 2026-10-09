@@ -24,6 +24,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class CollaborationIdentityLeavesDomainHttpAcceptanceTest {
 
     private static final String GENERAL_ID = "user-general-demo";
+    private static final String SENIOR_ID = "user-senior-demo";
 
     @Autowired
     private MockMvc mockMvc;
@@ -53,6 +54,23 @@ class CollaborationIdentityLeavesDomainHttpAcceptanceTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[*].eventType", not(hasItem("ACKNOWLEDGED"))))
                 .andExpect(jsonPath("$.data[*].eventType", not(hasItem("HANDLER_ACCEPTED"))));
+    }
+
+    @Test
+    void acknowledgeDoesNotRecordCollaborationIdentity() throws Exception {
+        String conflictId = openConflict("id6k-a", "id6k-b", "ctr-id6-002");
+
+        mockMvc.perform(post("/api/conflicts/{id}/acknowledge", conflictId)
+                        .header(TempAuthHeaders.USER_ID, SENIOR_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
+
+        mockMvc.perform(get("/api/conflicts/{id}/events", conflictId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[*].eventType", not(hasItem("ACKNOWLEDGED"))));
     }
 
     private String openConflict(String hostAName, String hostBName, String objectId) throws Exception {

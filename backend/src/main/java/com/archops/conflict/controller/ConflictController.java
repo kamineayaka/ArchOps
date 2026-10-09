@@ -95,13 +95,10 @@ public class ConflictController {
         return ApiResponse.ok(conflictCollaborationService.claim(id));
     }
 
-    /** 高级角色已知悉 → 冲突归属（可不设处理人）. */
+    /** 已知悉不再写入归属或处理人. */
     @PostMapping("/{id}/acknowledge")
-    public ApiResponse<ConflictCaseResponse> acknowledge(
-            @PathVariable String id,
-            @AuthenticationPrincipal AuthUserPrincipal principal
-    ) {
-        return ApiResponse.ok(conflictCollaborationService.acknowledge(id, principal));
+    public ApiResponse<ConflictCaseResponse> acknowledge(@PathVariable String id) {
+        return ApiResponse.ok(conflictCollaborationService.acknowledge(id));
     }
 
     /** 高级角色已知悉并自任为已接受处理人. */
