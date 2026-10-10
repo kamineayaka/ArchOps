@@ -67,6 +67,7 @@ public class ConflictController {
     }
 
     @GetMapping("/{id}/diagnosis")
+    @PreAuthorize("permitAll()")
     public ApiResponse<ConflictDiagnosisResponse> diagnosis(@PathVariable String id) {
         conflictCaseAssembler.getById(id);
         ConflictDiagnosisResponse latest = conflictDiagnosisService.latestForConflict(id);

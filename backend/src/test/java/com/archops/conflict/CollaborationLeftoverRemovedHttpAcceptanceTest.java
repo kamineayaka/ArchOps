@@ -138,6 +138,17 @@ class CollaborationLeftoverRemovedHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data.identityLost").value(false));
     }
 
+    @Test
+    void diagnosisReadWithoutUser() throws Exception {
+        String conflictId = openConflict("rm-dx-a", "rm-dx-b", "ctr-rm-dx");
+        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, conflictId, GENERAL_ID);
+
+        mockMvc.perform(get("/api/conflicts/{id}/diagnosis", conflictId)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("READY"));
+    }
+
     private String openConflict(String hostAName, String hostBName, String objectId) throws Exception {
         String hostA = createHost(hostAName);
         String hostB = createHost(hostBName);
