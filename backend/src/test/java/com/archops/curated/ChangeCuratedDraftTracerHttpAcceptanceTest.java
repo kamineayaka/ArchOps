@@ -223,7 +223,6 @@ class ChangeCuratedDraftTracerHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data.origin", is("CHANGE_CURATED")));
 
         String pendingId = openUnclaimedConflict("ccd06-n2s-pe");
-        acknowledgeAndAssignPending(pendingId, GENERAL_ID);
         waitUntilDiagnosisReady(pendingId);
         postBranch(pendingId, GENERAL_ID, "CHANGE_CURATED_TO_OBSERVED")
                 .andExpect(status().isOk())
@@ -517,16 +516,6 @@ class ChangeCuratedDraftTracerHttpAcceptanceTest {
         return readDataId(getByMergeKey(world.containerX())
                 .andExpect(status().isOk())
                 .andReturn());
-    }
-
-    private void acknowledgeAndAssignPending(String conflictId, String assigneeUserId) throws Exception {
-        mockMvc.perform(post("/api/conflicts/{id}/assign-handler", conflictId)
-                        .header(TempAuthHeaders.USER_ID, SENIOR_ID)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"assigneeUserId\":\"" + assigneeUserId + "\"}")
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
     }
 
     private OpenDraft openChangeCuratedDraft(String prefix) throws Exception {

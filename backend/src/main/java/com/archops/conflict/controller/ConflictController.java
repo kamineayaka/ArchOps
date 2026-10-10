@@ -82,12 +82,6 @@ public class ConflictController {
         return ApiResponse.ok(conflictCaseAssembler.getActiveByMergeKey(subjectId, relationType));
     }
 
-    /** 指派不再写入处理人，也不再要求指派对象. */
-    @PostMapping("/{id}/assign-handler")
-    public ApiResponse<ConflictCaseResponse> assignHandler(@PathVariable String id) {
-        return ApiResponse.ok(conflictCollaborationService.assignHandler(id));
-    }
-
     /** 接受不再写入处理人. */
     @PostMapping("/{id}/accept-handler")
     public ApiResponse<ConflictCaseResponse> acceptHandler(@PathVariable String id) {
