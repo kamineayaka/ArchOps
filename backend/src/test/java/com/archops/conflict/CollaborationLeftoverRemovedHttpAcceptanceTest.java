@@ -254,6 +254,19 @@ class CollaborationLeftoverRemovedHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data.createdBy").value(nullValue()));
     }
 
+    @Test
+    void shouldWhereReadWithoutUser() throws Exception {
+        String hostId = createHost("rm-sw-a");
+        String containerId = createContainer("app-ctr-rm-sw", "ctr-rm-sw");
+        confirmRunsOn(containerId, hostId);
+
+        mockMvc.perform(get("/api/curated/asks/should-where")
+                        .param("containerId", containerId)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.curatedValue.hostId").value(hostId));
+    }
+
     private String openConflict(String hostAName, String hostBName, String objectId) throws Exception {
         String hostA = createHost(hostAName);
         String hostB = createHost(hostBName);
