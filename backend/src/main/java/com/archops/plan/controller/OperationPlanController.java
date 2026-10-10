@@ -53,6 +53,7 @@ public class OperationPlanController {
     }
 
     @GetMapping("/operation-plans/{planId}")
+    @PreAuthorize("permitAll()")
     public ApiResponse<OperationPlanResponse> getPlan(@PathVariable String planId) {
         return ApiResponse.ok(operationPlanService.getById(planId));
     }
