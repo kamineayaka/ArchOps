@@ -55,6 +55,7 @@ public class ConflictController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("permitAll()")
     public ApiResponse<ConflictCaseResponse> get(@PathVariable String id) {
         return ApiResponse.ok(conflictCaseAssembler.getById(id));
     }
