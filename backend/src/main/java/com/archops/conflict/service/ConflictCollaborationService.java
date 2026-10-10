@@ -48,15 +48,6 @@ public class ConflictCollaborationService {
     }
 
     /**
-     * 转让不再写入处理人.
-     */
-    @Transactional(readOnly = true)
-    public ConflictCaseResponse transferHandler(String conflictId) {
-        requireOpen(conflictId);
-        return conflictCaseAssembler.getById(conflictId);
-    }
-
-    /**
      * 开计划不再以处理人门禁决定，响应不带处理人 id.
      */
     @Transactional(readOnly = true)

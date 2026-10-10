@@ -250,7 +250,6 @@ class ChangeCuratedDraftTracerHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data.curatedValue.hostId", is(nh.world().hostA())));
 
         OpenDraft pending = openChangeCuratedDraft("ccd06-n2r-pe");
-        transferHandlerPending(pending.conflictId(), GENERAL_ID, GENERAL_2_ID);
         postItemAction(pending.conflictId(), pending.itemXId(), "accept", GENERAL_2_ID)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.items[?(@.id=='" + pending.itemXId() + "')].status",
@@ -533,16 +532,6 @@ class ChangeCuratedDraftTracerHttpAcceptanceTest {
                 data.path("id").asText(),
                 itemId(items, fx.world().containerX()),
                 itemId(items, fx.world().containerY()));
-    }
-
-    private void transferHandlerPending(String conflictId, String fromUserId, String toUserId) throws Exception {
-        mockMvc.perform(post("/api/conflicts/{id}/transfer-handler", conflictId)
-                        .header(TempAuthHeaders.USER_ID, fromUserId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"toUserId\":\"" + toUserId + "\"}")
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
     }
 
     private String snapshotXOnHostC(OpenDraft draft, String hostCName) throws Exception {

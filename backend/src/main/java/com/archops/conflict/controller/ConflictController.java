@@ -82,12 +82,6 @@ public class ConflictController {
         return ApiResponse.ok(conflictCaseAssembler.getActiveByMergeKey(subjectId, relationType));
     }
 
-    /** 转让不再写入处理人，也不再要求接手人. */
-    @PostMapping("/{id}/transfer-handler")
-    public ApiResponse<ConflictCaseResponse> transferHandler(@PathVariable String id) {
-        return ApiResponse.ok(conflictCollaborationService.transferHandler(id));
-    }
-
     /** 开计划不再以处理人门禁决定，响应不带处理人 id. */
     @PostMapping("/{id}/operation-plans")
     public ApiResponse<OpenOperationPlanResponse> openOperationPlan(@PathVariable String id) {
