@@ -4,14 +4,14 @@
 
 **Blocked by:** None. Baseline is origin/main at the merge of PR #125 (`97bc9fe`) with ADR-0046.
 
-**Status:** ready-for-agent
+**Status:** done
 
 **TDD:** capability。主接缝为控制面 HTTP API。合同：ADR-0046（不重开）。发现与解决语义不改。
 
 - [x] `POST` 认领、已知悉、已知悉并自任、指派、接受、拒绝、转让对已存在的冲突返回 404，不写领域事实
 - [x] 冲突 GET 列表与详情不返回 collaboration / owner / handler
 - [x] 冲突列表、详情，以及诊断选支、批准并冻结、改策展逐条确认、确认关闭、启动执行，不发送用户头即成功，且不记录操作者
-- [ ] 冲突页没有演示身份，列表与详情刷新不依赖所选用户；解决动作仍在
+- [x] 冲突页没有演示身份，列表与详情刷新不依赖所选用户；解决动作仍在
 - [x] 发现不变：两侧可用且不等仍是冲突；空洞不是冲突；未绑定不挂在冲突上；身份失联仍是标志
 
 **Out of this ticket:** 编排层、B-live、工作台、未绑定 10、执行引擎票 02、ABSENT 分叉、占位 SSH、观测回写、用户微服务、Spring Cloud。领域外的登录若未绑定或策展写入仍要用，留着。
@@ -149,3 +149,6 @@ Commit: `984993e` Keep merge-key reads behind the user header.
 ### Code review
 Standards: no hard violations. Judgement: `ConflictCollaborationService` and a few older test names still say collaboration/claim after those writes left. Duplicated 404 assertions across the new test and `CollaborationIdentityLeavesDomainHttpAcceptanceTest`. Left as names of the old suite, not new product.
 Spec: the seven routes, anonymous reads, and null actors match the ticket. The 404 mapping also changes other missing routes from 500 to `NOT_FOUND` (the unbound whole-draft accept repair above). by-merge-key is cycle P, not an anonymous read.
+
+### UI check
+Vite `:5173` against bootRun `:8080`. Conflict list and detail have no 演示身份; 刷新 keeps the row; detail shows 诊断 / 选支 and 确认关闭. `/unbound` still shows 演示身份. `POST /api/conflicts/{id}/claim` without a user is `404 NOT_FOUND`. `GET /api/conflicts` without a user is `200` and omits collaboration / owner / handler. Full suite after cycle P: `./gradlew test --offline` BUILD SUCCESSFUL, 276 tests, 0 failed.
