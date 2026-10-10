@@ -371,7 +371,7 @@ class UnboundIdentityRebindTracerHttpAcceptanceTest {
 
     @Test
     @Order(6)
-    void unauthenticatedCannotWriteUnboundDraft() throws Exception {
+    void unauthenticatedCannotOpenUnboundDraftButCanAcceptItem() throws Exception {
         String hostA = createHost("u06n5-h");
         heartbeatUnknown(hostA, "u06n5-ag", "u06n5-rt", "u06n5-unknown", "u06n5-never");
         JsonNode candidate = unboundByRuntimeId(listUnbound(), "u06n5-rt");
@@ -394,10 +394,9 @@ class UnboundIdentityRebindTracerHttpAcceptanceTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}")
                         .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.success", is(false)))
-                .andExpect(jsonPath("$.code", is("AUTH_REQUIRED")))
-                .andExpect(jsonPath("$.data").value(nullValue()));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[?(@.kind=='CREATE_CONTAINER_FROM_UNBOUND')].status",
+                        hasItem("ACCEPTED")));
     }
 
     @Test
@@ -500,8 +499,7 @@ class UnboundIdentityRebindTracerHttpAcceptanceTest {
         identityLostOnObservedHost(unclaimed);
         postBranch(unclaimed.conflictId(), SENIOR_ID, "FIX_ACTUAL_TO_CURATED")
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code", is("PLAN_REQUIRES_ACCEPTED_HANDLER")))
-                .andExpect(jsonPath("$.code", not("IDENTITY_LOST_BLOCKS_BRANCH")))
+                .andExpect(jsonPath("$.code", is("IDENTITY_LOST_BLOCKS_BRANCH")))
                 .andExpect(jsonPath("$.data").value(nullValue()));
 
         // 改理想开放草案作废
@@ -693,7 +691,7 @@ class UnboundIdentityRebindTracerHttpAcceptanceTest {
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.collaboration.handlerAcceptance", is("ACCEPTED")));
+                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
         return new LostPipeline(prefix, conflictId, hostA, hostB, containerId);
     }
 

@@ -155,24 +155,24 @@ public class UnboundDraftService {
     }
 
     @Transactional
-    public CuratedDraftResponse acceptUnboundItem(String draftId, String itemId, AuthUserPrincipal actor) {
+    public CuratedDraftResponse acceptUnboundItem(String draftId, String itemId) {
         UnboundItemReview review = beginUnboundItemReview(draftId, itemId);
         if (review.item().getKind() == CuratedDraftItemKind.CREATE_CONTAINER_FROM_UNBOUND
                 || review.item().getKind() == CuratedDraftItemKind.BIND_UNBOUND_TO_EXISTING) {
             requireUnboundCandidateNotConsumed(review.draft());
         }
-        applyUnboundAccept(review.draft(), review.item(), actor.getUserId());
+        applyUnboundAccept(review.draft(), review.item());
         markItem(review.item(), CuratedDraftItemStatus.ACCEPTED);
-        appendDraftEvent(review.draft().getId(), CuratedDraftEventType.DRAFT_ITEM_ACCEPTED, actor.getUserId(),
+        appendDraftEvent(review.draft().getId(), CuratedDraftEventType.DRAFT_ITEM_ACCEPTED, null,
                 unboundItemAuditDetail(review, "草案条目已接受"));
         return curatedDraftService.getByDraftId(review.draft().getId());
     }
 
     @Transactional
-    public CuratedDraftResponse rejectUnboundItem(String draftId, String itemId, AuthUserPrincipal actor) {
+    public CuratedDraftResponse rejectUnboundItem(String draftId, String itemId) {
         UnboundItemReview review = beginUnboundItemReview(draftId, itemId);
         markItem(review.item(), CuratedDraftItemStatus.REJECTED);
-        appendDraftEvent(review.draft().getId(), CuratedDraftEventType.DRAFT_ITEM_REJECTED, actor.getUserId(),
+        appendDraftEvent(review.draft().getId(), CuratedDraftEventType.DRAFT_ITEM_REJECTED, null,
                 unboundItemAuditDetail(review, "草案条目已拒绝"));
         return curatedDraftService.getByDraftId(review.draft().getId());
     }
@@ -258,13 +258,13 @@ public class UnboundDraftService {
         }
     }
 
-    private void applyUnboundAccept(CuratedDraft draft, CuratedDraftItem item, String actorUserId) {
+    private void applyUnboundAccept(CuratedDraft draft, CuratedDraftItem item) {
         if (item.getKind() == CuratedDraftItemKind.CREATE_CONTAINER_FROM_UNBOUND) {
-            writeAcceptedCreateContainer(draft, item, actorUserId);
+            writeAcceptedCreateContainer(draft, item);
             return;
         }
         if (item.getKind() == CuratedDraftItemKind.CURATED_RUNS_ON_INSERT) {
-            writeAcceptedFirstRunsOn(item, actorUserId);
+            writeAcceptedFirstRunsOn(item);
             return;
         }
         if (item.getKind() == CuratedDraftItemKind.BIND_UNBOUND_TO_EXISTING) {
@@ -275,11 +275,11 @@ public class UnboundDraftService {
                 "未绑定草案本票不审该条目 kind: " + item.getKind());
     }
 
-    private void writeAcceptedFirstRunsOn(CuratedDraftItem item, String actorUserId) {
+    private void writeAcceptedFirstRunsOn(CuratedDraftItem item) {
         CuratedDraftItem create = requireCreateAcceptedBeforeRunsOn(item);
         item.setSubjectId(create.getSubjectId());
         curatedTruthService.confirmRunsOn(
-                new ConfirmRunsOnRequest(create.getSubjectId(), item.getToHostId()), actorUserId);
+                new ConfirmRunsOnRequest(create.getSubjectId(), item.getToHostId()), null);
     }
 
     private CuratedDraftItem requireCreateAcceptedBeforeRunsOn(CuratedDraftItem runsOnItem) {
@@ -303,7 +303,7 @@ public class UnboundDraftService {
                 .orElse(null);
     }
 
-    private void writeAcceptedCreateContainer(CuratedDraft draft, CuratedDraftItem item, String actorUserId) {
+    private void writeAcceptedCreateContainer(CuratedDraft draft, CuratedDraftItem item) {
         Map<String, Object> payload = readPayloadMap(item.getPayloadJson());
         String name = stringPayload(payload, "proposedName");
         String objectId = stringPayload(payload, "immutableObjectId");
@@ -312,7 +312,7 @@ public class UnboundDraftService {
                     "MISSING_LABEL 新建没有可写的现场不可变 object id");
         }
         CuratedObjectResponse created = curatedTruthService.createContainer(
-                new CreateContainerRequest(name, objectId), actorUserId);
+                new CreateContainerRequest(name, objectId), null);
         item.setSubjectId(created.id());
         rememberBind(draft, created.id());
     }

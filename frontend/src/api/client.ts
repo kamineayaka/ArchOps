@@ -18,13 +18,15 @@ type RequestOptions = {
   body?: unknown;
   /** Override demo user for a single call (rare). */
   userId?: string;
+  /** Resolution actions do not send a user identity. */
+  omitUserId?: boolean;
 };
 
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const headers: Record<string, string> = {
     Accept: 'application/json',
   };
-  const userId = options.userId ?? currentUserId;
+  const userId = options.omitUserId ? null : (options.userId ?? currentUserId);
   if (userId) {
     headers[USER_ID_HEADER] = userId;
   }

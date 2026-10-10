@@ -2,7 +2,6 @@ package com.archops.plan.service;
 
 import com.archops.common.api.BranchSelectionResult;
 import com.archops.common.exception.BusinessException;
-import com.archops.conflict.AcceptedHandlerPolicy;
 import com.archops.conflict.diagnosis.ConflictDiagnosisService;
 import com.archops.conflict.diagnosis.DiagnosisRuleEngine;
 import com.archops.conflict.domain.ConflictCase;
@@ -12,12 +11,12 @@ import com.archops.conflict.dto.ConflictDiagnosisResponse;
 import com.archops.conflict.mapper.ConflictCaseMapper;
 import com.archops.curated.service.CuratedDraftService;
 import com.archops.observed.mapper.IdentityLostMarkMapper;
-import com.archops.user.security.AuthUserPrincipal;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Single select-branch gate: 已接受处理人 + 当前未过时诊断 + 每冲突一条活跃处理路径.
+ * Select-branch gate: explicit request + current non-stale diagnosis + one active path.
+ * No user identity and no accepted-handler check (ADR-0046).
  * FIX_ACTUAL still creates an 操作计划; CHANGE_CURATED creates a 草案 and no plan.
  */
 @Service
@@ -44,11 +43,8 @@ public class BranchSelectionService {
     }
 
     @Transactional
-    public BranchSelectionResult select(String conflictId, String forkId, String expectedDiagnosisId, AuthUserPrincipal actor) {
+    public BranchSelectionResult select(String conflictId, String forkId, String expectedDiagnosisId) {
         ConflictCase conflict = requireOpenConflict(conflictId);
-        AcceptedHandlerPolicy.require(conflict, actor, "PLAN_REQUIRES_ACCEPTED_HANDLER",
-                "Only the 已接受冲突处理人 may select a branch or manage the operation plan");
-        // 身份失联闸门 must not cover PLAN_REQUIRES_ACCEPTED_HANDLER.
         rejectUniqueSiteForkWhenIdentityLost(conflict, forkId);
 
         ConflictDiagnosisResponse diagnosis = conflictDiagnosisService.latestForConflict(conflictId);
@@ -73,14 +69,14 @@ public class BranchSelectionService {
                 throw new BusinessException("PLAN_ALREADY_ACTIVE",
                         "Conflict already has an active operation plan");
             }
-            return curatedDraftService.createForChangeCurated(conflict, diagnosis, fork, actor);
+            return curatedDraftService.createForChangeCurated(conflict, diagnosis, fork);
         }
         if (isFixActual(fork)) {
             if (curatedDraftService.hasOpen(conflictId)) {
                 throw new BusinessException("OPEN_DRAFT_BLOCKS_FIX_ACTUAL",
                         "Open 改理想草案 blocks 修实际 branch selection");
             }
-            return operationPlanService.selectBranch(conflictId, forkId, actor);
+            return operationPlanService.selectBranch(conflictId, forkId);
         }
         throw new BusinessException("FORK_NOT_SUPPORTED",
                 "Unsupported diagnosis fork for branch selection: " + fork.id());

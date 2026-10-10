@@ -29,6 +29,9 @@ alwaysApply: true
 | `.scratch/control-plane-executor/issues/` | 工单 01 **done**（不要自动做 B-live / 编排层 / 工作台；不要加票 02） |
 | `docs/specs/plan-step-assertion.md` | 步骤断言 Spec（B3 剩余；**01 TDD-done，本刀闭合**） |
 | `.scratch/plan-step-assertion/issues/` | 工单 01 **done**（不要写入 `control-plane-executor`） |
+| `docs/adr/0046-conflict-discovery-and-resolution-without-identity.md` | 冲突主线只有发现与解决 |
+| `docs/specs/conflict-without-identity.md` | 身份退出冲突领域（**票 01–07 done**；本 PR 只含票 07，基线是票 06 分支。#119–#124 不并入 main） |
+| `.scratch/conflict-without-identity/issues/` | 01–07 done；不要再开下一张票 |
 
 ## 模块边界
 

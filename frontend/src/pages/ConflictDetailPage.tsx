@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Button,
@@ -14,26 +14,23 @@ import {
   message,
 } from 'antd';
 import { Link, useParams } from 'react-router-dom';
-import {
-  acknowledgeAndSelfAppoint,
-  acknowledgeConflict,
-  claimConflict,
-  confirmCloseConflict,
-  getConflict,
-  getDiagnosis,
-} from '../api/conflicts';
+import { confirmCloseConflict, getConflict, getDiagnosis } from '../api/conflicts';
 import { approvePlan, getActivePlan, getPlan, selectBranch, startExecution } from '../api/plans';
 import { getOpenDraft, getDraftById, acceptDraftItem, rejectDraftItem } from '../api/drafts';
 import { getShouldWhere } from '../api/curated';
-import type { ConflictCase, ConflictDiagnosis, CuratedDraft, OperationPlan } from '../api/types';
+import type {
+  ConflictCase,
+  ConflictDiagnosis,
+  CuratedDraft,
+  OperationPlan,
+  StartExecutionResult,
+} from '../api/types';
 import { ApiError } from '../api/types';
-import { useDemoUser } from '../auth/DemoUserContext';
 import {
   formatExpected,
   formatObservedActual,
   formatStructuredOutput,
   formatTrack,
-  isAcceptedHandler,
   isActiveOperationPlan,
 } from '../util/format';
 
@@ -84,7 +81,6 @@ function recalledPlanId(conflictId: string): string | null {
 
 export default function ConflictDetailPage() {
   const { id = '' } = useParams<{ id: string }>();
-  const { userId, user } = useDemoUser();
 
   const [conflict, setConflict] = useState<ConflictCase | null>(null);
   const [diagnosis, setDiagnosis] = useState<ConflictDiagnosis | null>(null);
@@ -98,6 +94,41 @@ export default function ConflictDetailPage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const conflictRef = useRef<ConflictCase | null>(null);
+
+  const applyResolutionResult = (result: unknown) => {
+    if (!result || typeof result !== 'object') {
+      return;
+    }
+    const row = result as Record<string, unknown>;
+    if (Array.isArray(row.items) && typeof row.status === 'string') {
+      setDraft(result as CuratedDraft);
+      return;
+    }
+    if (Array.isArray(row.steps) && typeof row.status === 'string') {
+      setPlan(result as OperationPlan);
+      return;
+    }
+    if (typeof row.status === 'string' && row.mergeKey && typeof row.mergeKey === 'object') {
+      const next = result as ConflictCase;
+      conflictRef.current = next;
+      setConflict(next);
+      return;
+    }
+    if (typeof row.planId === 'string' && typeof row.status === 'string' && 'executionLog' in row) {
+      const started = result as StartExecutionResult;
+      setPlan((current) =>
+        current && current.id === started.planId
+          ? {
+              ...current,
+              status: started.status,
+              voidReason: started.voidReason,
+              executionLog: started.executionLog,
+            }
+          : current,
+      );
+    }
+  };
 
   const load = useCallback(async () => {
     if (!id) {
@@ -107,6 +138,7 @@ export default function ConflictDetailPage() {
     setError(null);
     try {
       const c = await getConflict(id);
+      conflictRef.current = c;
       setConflict(c);
 
       try {
@@ -205,13 +237,19 @@ export default function ConflictDetailPage() {
         setDraftError(err instanceof ApiError ? err.message : String(err));
       }
     } catch (err) {
+      const keepLoaded =
+        conflictRef.current != null && err instanceof ApiError && err.code === 'AUTH_REQUIRED';
+      if (keepLoaded) {
+        return;
+      }
+      conflictRef.current = null;
       setConflict(null);
       const msg = err instanceof ApiError ? `${err.code}: ${err.message}` : String(err);
       setError(msg);
     } finally {
       setLoading(false);
     }
-  }, [id, userId]);
+  }, [id]);
 
   useEffect(() => {
     void load();
@@ -220,8 +258,9 @@ export default function ConflictDetailPage() {
   const runAction = async (label: string, action: () => Promise<unknown>) => {
     setBusy(true);
     try {
-      await action();
+      const result = await action();
       message.success(label);
+      applyResolutionResult(result);
       await load();
     } catch (err) {
       const msg = err instanceof ApiError ? `${err.code}: ${err.message}` : String(err);
@@ -244,18 +283,16 @@ export default function ConflictDetailPage() {
     );
   }
 
-  const collab = conflict.collaboration;
-  const accepted = isAcceptedHandler(collab, userId);
   const openDraft = draft?.status === 'OPEN';
   const voidedDraft = draft?.status === 'VOIDED';
   const planActive = isActiveOperationPlan(plan);
   const executionLog = plan?.executionLog ?? null;
-  const isSenior = user?.role === 'SENIOR';
-  const isGeneral = user?.role === 'GENERAL';
-  const canCollab =
+  const canSelectBranch =
     conflict.status === 'OPEN' &&
-    !collab.acknowledged &&
-    collab.handlerAcceptance !== 'ACCEPTED';
+    !conflict.identityLost &&
+    diagnosis?.status === 'READY' &&
+    !planActive &&
+    !openDraft;
 
   return (
     <Space direction="vertical" size="large" style={{ width: '100%' }}>
@@ -291,51 +328,7 @@ export default function ConflictDetailPage() {
         </Descriptions>
       </Card>
 
-      <Card size="small" title="协作">
-        <Descriptions column={1} size="small" style={{ marginBottom: 12 }}>
-          <Descriptions.Item label="已知悉">{collab.acknowledged ? '是' : '否'}</Descriptions.Item>
-          <Descriptions.Item label="归属">{collab.ownerUserId ?? '—'}</Descriptions.Item>
-          <Descriptions.Item label="处理人">
-            {collab.handlerUserId ?? '—'}（{collab.handlerAcceptance}）
-          </Descriptions.Item>
-        </Descriptions>
-        <Space wrap>
-          {canCollab && isGeneral && (
-            <Button
-              type="primary"
-              loading={busy}
-              onClick={() => void runAction('已认领', () => claimConflict(conflict.id))}
-            >
-              认领
-            </Button>
-          )}
-          {canCollab && isSenior && (
-            <>
-              <Button
-                loading={busy}
-                onClick={() => void runAction('已已知悉', () => acknowledgeConflict(conflict.id))}
-              >
-                已知悉
-              </Button>
-              <Button
-                type="primary"
-                loading={busy}
-                onClick={() =>
-                  void runAction('已知悉并自任', () => acknowledgeAndSelfAppoint(conflict.id))
-                }
-              >
-                已知悉并自任处理人
-              </Button>
-            </>
-          )}
-          {!canCollab && !accepted && (
-            <Text type="secondary">当前身份不是已接受处理人，无法开计划或确认关闭。</Text>
-          )}
-          {accepted && <Tag color="green">你是已接受处理人</Tag>}
-        </Space>
-      </Card>
-
-      <Card size="small" title="诊断 / 分叉">
+      <Card size="small" title="诊断 / 选支">
         {diagnosisError && !diagnosis && (
           <Alert type="info" showIcon message={diagnosisError} style={{ marginBottom: 12 }} />
         )}
@@ -369,7 +362,7 @@ export default function ConflictDetailPage() {
             <Divider style={{ margin: '12px 0' }} />
             <Button
               type="primary"
-              disabled={!accepted || diagnosis.status !== 'READY' || planActive || openDraft}
+              disabled={!canSelectBranch}
               loading={busy}
               onClick={() =>
                 void runAction(
@@ -386,9 +379,7 @@ export default function ConflictDetailPage() {
                 )
               }
             >
-              {selectedForkId === CHANGE_CURATED_FORK
-                ? '选择改理想并生成草案'
-                : '选择分叉并生成操作计划'}
+              {selectedForkId === CHANGE_CURATED_FORK ? '选支：生成改理想草案' : '选支：生成操作计划'}
             </Button>
             {planActive && (
               <Paragraph type="secondary" style={{ marginTop: 8, marginBottom: 0 }}>
@@ -407,7 +398,7 @@ export default function ConflictDetailPage() {
       <Card size="small" title="改理想草案">
         {draftError && <Alert type="warning" showIcon message={draftError} style={{ marginBottom: 12 }} />}
         {!draft && !draftError && (
-          <Text type="secondary">尚无开放草案。已接受处理人可选择「改理想」生成待确认条目（确认前不是策展真相）。</Text>
+          <Text type="secondary">尚无开放草案。选支「改理想」后在此逐条确认（确认前不是策展真相）。</Text>
         )}
         {draft && (
           <>
@@ -427,7 +418,7 @@ export default function ConflictDetailPage() {
               renderItem={(item) => (
                 <List.Item
                   actions={
-                    accepted && openDraft && item.status === 'PENDING'
+                    openDraft && item.status === 'PENDING'
                       ? [
                           <Button
                             key="accept"
@@ -494,7 +485,7 @@ export default function ConflictDetailPage() {
       <Card size="small" title="操作计划">
         {planError && <Alert type="warning" showIcon message={planError} style={{ marginBottom: 12 }} />}
         {!plan && !planError && (
-          <Text type="secondary">尚无活跃操作计划。成为已接受处理人后选择「修实际回策展宿主」生成。</Text>
+          <Text type="secondary">尚无活跃操作计划。选支「修实际回策展宿主」后在此批准并冻结、再启动执行。</Text>
         )}
         {plan && (
           <>
@@ -570,14 +561,14 @@ export default function ConflictDetailPage() {
             <Space wrap style={{ marginTop: 12 }}>
               <Button
                 type="primary"
-                disabled={!accepted || plan.status !== 'DRAFT_REVIEW'}
+                disabled={plan.status !== 'DRAFT_REVIEW'}
                 loading={busy}
-                onClick={() => void runAction('计划已批准', () => approvePlan(plan.id))}
+                onClick={() => void runAction('计划已批准并冻结', () => approvePlan(plan.id))}
               >
-                批准计划
+                批准并冻结
               </Button>
               <Button
-                disabled={!accepted || plan.status !== 'APPROVED'}
+                disabled={plan.status !== 'APPROVED'}
                 loading={busy}
                 onClick={() =>
                   void runAction('已启动受控执行', async () => {
@@ -587,7 +578,7 @@ export default function ConflictDetailPage() {
                   })
                 }
               >
-                启动受控执行
+                启动执行
               </Button>
             </Space>
             <Paragraph type="secondary" style={{ marginTop: 8, marginBottom: 0 }}>
@@ -603,13 +594,12 @@ export default function ConflictDetailPage() {
             <Alert
               type="info"
               showIcon
-              message="策展与当前可用观测已对齐，等待已接受处理人确认关闭。"
+              message="策展与当前可用观测已对齐，可以确认关闭。"
               style={{ marginBottom: 12 }}
             />
             <Button
               type="primary"
               danger
-              disabled={!accepted}
               loading={busy}
               onClick={() => void runAction('冲突已关闭', () => confirmCloseConflict(conflict.id))}
             >

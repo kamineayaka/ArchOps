@@ -10,22 +10,20 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
-import static org.hamcrest.Matchers.hasItem;
-import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.hasItem;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * Assign, accept, reject, and transfer stay callable and write no handler identity.
+ * ADR-0046 ticket 06: collaboration identity leaves the conflict domain.
  */
 @HttpAcceptanceTest
-class ConflictAssignTransferHttpAcceptanceTest {
+class CollaborationIdentityLeavesDomainHttpAcceptanceTest {
 
     private static final String GENERAL_ID = "user-general-demo";
-    private static final String GENERAL_2_ID = "user-general-2-demo";
     private static final String SENIOR_ID = "user-senior-demo";
 
     @Autowired
@@ -35,8 +33,32 @@ class ConflictAssignTransferHttpAcceptanceTest {
     private ObjectMapper objectMapper;
 
     @Test
-    void assignAcceptAndOpenPlanOmitCollaborationIdentity() throws Exception {
-        String conflictId = openConflict("asg-a", "asg-b", "ctr-asg-001");
+    void claimDoesNotRecordCollaborationIdentity() throws Exception {
+        String conflictId = openConflict("id6-a", "id6-b", "ctr-id6-001");
+
+        mockMvc.perform(post("/api/conflicts/{id}/claim", conflictId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
+
+        mockMvc.perform(get("/api/conflicts/{id}", conflictId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
+
+        mockMvc.perform(get("/api/conflicts/{id}/events", conflictId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[*].eventType", not(hasItem("ACKNOWLEDGED"))))
+                .andExpect(jsonPath("$.data[*].eventType", not(hasItem("HANDLER_ACCEPTED"))));
+    }
+
+    @Test
+    void acknowledgeDoesNotRecordCollaborationIdentity() throws Exception {
+        String conflictId = openConflict("id6k-a", "id6k-b", "ctr-id6-002");
 
         mockMvc.perform(post("/api/conflicts/{id}/acknowledge", conflictId)
                         .header(TempAuthHeaders.USER_ID, SENIOR_ID)
@@ -44,13 +66,53 @@ class ConflictAssignTransferHttpAcceptanceTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.collaboration").doesNotExist());
 
-        mockMvc.perform(post("/api/conflicts/{id}/assign-handler", conflictId)
+        mockMvc.perform(get("/api/conflicts/{id}/events", conflictId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[*].eventType", not(hasItem("ACKNOWLEDGED"))));
+    }
+
+    @Test
+    void selfAppointDoesNotRecordCollaborationIdentity() throws Exception {
+        String conflictId = openConflict("id6s-a", "id6s-b", "ctr-id6-003");
+
+        mockMvc.perform(post("/api/conflicts/{id}/acknowledge-and-self-appoint", conflictId)
                         .header(TempAuthHeaders.USER_ID, SENIOR_ID)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"assigneeUserId\":\"" + GENERAL_ID + "\"}")
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.collaboration").doesNotExist());
+
+        mockMvc.perform(get("/api/conflicts/{id}/events", conflictId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[*].eventType", not(hasItem("HANDLER_ACCEPTED"))))
+                .andExpect(jsonPath("$.data[*].eventType", not(hasItem("ACKNOWLEDGED"))));
+    }
+
+    @Test
+    void assignDoesNotRecordCollaborationIdentity() throws Exception {
+        String conflictId = openConflict("id6g-a", "id6g-b", "ctr-id6-004");
+
+        mockMvc.perform(post("/api/conflicts/{id}/assign-handler", conflictId)
+                        .header(TempAuthHeaders.USER_ID, SENIOR_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"assigneeUserId\":\"user-general-2-demo\"}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
+
+        mockMvc.perform(get("/api/conflicts/{id}/events", conflictId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[*].eventType", not(hasItem("HANDLER_ASSIGNED"))));
+    }
+
+    @Test
+    void acceptDoesNotRecordCollaborationIdentity() throws Exception {
+        String conflictId = openConflict("id6c-a", "id6c-b", "ctr-id6-005");
 
         mockMvc.perform(post("/api/conflicts/{id}/accept-handler", conflictId)
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)
@@ -58,97 +120,93 @@ class ConflictAssignTransferHttpAcceptanceTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.collaboration").doesNotExist());
 
-        mockMvc.perform(post("/api/conflicts/{id}/operation-plans", conflictId)
+        mockMvc.perform(get("/api/conflicts/{id}/events", conflictId)
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.handlerUserId").doesNotExist());
-
-        mockMvc.perform(get("/api/conflicts/{id}/events", conflictId)
-                        .header(TempAuthHeaders.USER_ID, SENIOR_ID)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data[*].eventType", not(hasItem("HANDLER_ASSIGNED"))))
                 .andExpect(jsonPath("$.data[*].eventType", not(hasItem("HANDLER_ACCEPTED"))));
     }
 
     @Test
-    void rejectOmitsCollaborationIdentity() throws Exception {
-        String conflictId = openConflict("rej-a", "rej-b", "ctr-rej-001");
+    void rejectDoesNotRecordCollaborationIdentity() throws Exception {
+        String conflictId = openConflict("id6r-a", "id6r-b", "ctr-id6-006");
 
         mockMvc.perform(post("/api/conflicts/{id}/reject-handler", conflictId)
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"reason\":\"\"}")
+                        .content("{\"reason\":\"not mine\"}")
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.collaboration").doesNotExist());
-
-        mockMvc.perform(post("/api/conflicts/{id}/reject-handler", conflictId)
-                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"reason\":\"当前值班冲突，无法接手\"}")
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
-
-        mockMvc.perform(post("/api/conflicts/{id}/operation-plans", conflictId)
-                        .header(TempAuthHeaders.USER_ID, SENIOR_ID)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.handlerUserId").doesNotExist());
 
         mockMvc.perform(get("/api/conflicts/{id}/events", conflictId)
-                        .header(TempAuthHeaders.USER_ID, SENIOR_ID)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[*].eventType", not(hasItem("HANDLER_REJECTED"))));
     }
 
     @Test
-    void transferOmitsCollaborationIdentity() throws Exception {
-        String conflictId = openConflict("tr-a", "tr-b", "ctr-tr-001");
+    void transferDoesNotRecordCollaborationIdentity() throws Exception {
+        String conflictId = openConflict("id6t-a", "id6t-b", "ctr-id6-007");
 
         mockMvc.perform(post("/api/conflicts/{id}/transfer-handler", conflictId)
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"toUserId\":\"" + GENERAL_2_ID + "\"}")
+                        .content("{\"toUserId\":\"user-general-2-demo\"}")
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.collaboration").doesNotExist());
 
-        mockMvc.perform(post("/api/conflicts/{id}/operation-plans", conflictId)
-                        .header(TempAuthHeaders.USER_ID, GENERAL_2_ID)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.handlerUserId").doesNotExist());
-
         mockMvc.perform(get("/api/conflicts/{id}/events", conflictId)
-                        .header(TempAuthHeaders.USER_ID, SENIOR_ID)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[*].eventType", not(hasItem("HANDLER_TRANSFER_OFFERED"))));
     }
 
     @Test
-    void assignByNonOwnerOrToSeniorOmitsCollaborationIdentity() throws Exception {
-        String conflictId = openConflict("bad-a", "bad-b", "ctr-bad-001");
+    void assignWithoutIdentityBodyDoesNotRecordCollaborationIdentity() throws Exception {
+        String conflictId = openConflict("id6n-a", "id6n-b", "ctr-id6-009");
 
         mockMvc.perform(post("/api/conflicts/{id}/assign-handler", conflictId)
                         .header(TempAuthHeaders.USER_ID, SENIOR_ID)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"assigneeUserId\":\"" + SENIOR_ID + "\"}")
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.collaboration").doesNotExist());
+    }
 
-        mockMvc.perform(post("/api/conflicts/{id}/assign-handler", conflictId)
+    @Test
+    void rejectWithoutIdentityBodyDoesNotRecordCollaborationIdentity() throws Exception {
+        String conflictId = openConflict("id6j-a", "id6j-b", "ctr-id6-010");
+
+        mockMvc.perform(post("/api/conflicts/{id}/reject-handler", conflictId)
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"assigneeUserId\":\"" + GENERAL_2_ID + "\"}")
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.collaboration").doesNotExist());
+    }
+
+    @Test
+    void transferWithoutIdentityBodyDoesNotRecordCollaborationIdentity() throws Exception {
+        String conflictId = openConflict("id6u-a", "id6u-b", "ctr-id6-011");
+
+        mockMvc.perform(post("/api/conflicts/{id}/transfer-handler", conflictId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
+    }
+
+    @Test
+    void openPlanDoesNotUseHandlerGateOrReturnHandlerId() throws Exception {
+        String conflictId = openConflict("id6p-a", "id6p-b", "ctr-id6-008");
+
+        mockMvc.perform(post("/api/conflicts/{id}/operation-plans", conflictId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.handlerUserId").doesNotExist());
     }
 
     private String openConflict(String hostAName, String hostBName, String objectId) throws Exception {
@@ -157,7 +215,6 @@ class ConflictAssignTransferHttpAcceptanceTest {
         String containerId = createContainer("app-" + objectId, objectId);
         confirmRunsOn(containerId, hostA);
         heartbeatWithContainer(hostB, "agent-" + objectId, objectId);
-
         MvcResult result = mockMvc.perform(get("/api/conflicts/by-merge-key")
                         .param("subjectId", containerId)
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)
@@ -184,8 +241,7 @@ class ConflictAssignTransferHttpAcceptanceTest {
                                 }
                                 """.formatted(agentId, hostId, objectId))
                         .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.matched", hasSize(1)));
+                .andExpect(status().isOk());
     }
 
     private String createHost(String name) throws Exception {

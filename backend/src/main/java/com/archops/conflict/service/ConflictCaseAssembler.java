@@ -5,7 +5,6 @@ import com.archops.common.json.PersistentJson;
 import com.archops.conflict.diagnosis.ConflictDiagnosisService;
 import com.archops.conflict.domain.ConflictCase;
 import com.archops.conflict.domain.ConflictStatus;
-import com.archops.conflict.domain.HandlerAcceptance;
 import com.archops.conflict.dto.ConflictCaseResponse;
 import com.archops.conflict.mapper.ConflictCaseMapper;
 import com.archops.curated.domain.CuratedObject;
@@ -135,15 +134,7 @@ public class ConflictCaseAssembler {
                 hollow,
                 identityLost,
                 conflictDiagnosisService.statusLabelForConflict(row.getId()),
-                new ConflictCaseResponse.Collaboration(
-                        Boolean.TRUE.equals(row.getAcknowledged()),
-                        row.getAcknowledgedAt(),
-                        row.getOwnerUserId(),
-                        row.getHandlerUserId(),
-                        row.getHandlerAcceptance() == null
-                                ? HandlerAcceptance.NONE
-                                : row.getHandlerAcceptance()
-                )
+                null
         );
     }
 

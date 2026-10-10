@@ -27,9 +27,11 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.anyOf;
+import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.Matchers.startsWith;
@@ -119,13 +121,11 @@ class VerticalSliceHttpE2eAcceptanceTest {
                 .andExpect(jsonPath("$.data.observedValue.hostId", is(hostB)))
                 .andExpect(jsonPath("$.data.curatedValue.hostId", is(hostA)));
 
-        // 认领 → 已接受处理人
         mockMvc.perform(post("/api/conflicts/{id}/claim", conflictId)
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.collaboration.handlerAcceptance", is("ACCEPTED")))
-                .andExpect(jsonPath("$.data.collaboration.handlerUserId", is(GENERAL_ID)));
+                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
 
         ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, conflictId, GENERAL_ID);
         mockMvc.perform(get("/api/conflicts/{id}/diagnosis", conflictId)
@@ -135,15 +135,6 @@ class VerticalSliceHttpE2eAcceptanceTest {
                 .andExpect(jsonPath("$.data.status", is("READY")))
                 .andExpect(jsonPath("$.data.forks[*].id", hasItem("FIX_ACTUAL_TO_CURATED")))
                 .andExpect(jsonPath("$.data.forks[?(@.id=='FIX_ACTUAL_TO_CURATED')].kind", hasItem("FIX_ACTUAL")));
-
-        // Non-handler cannot open plan via branch selection
-        mockMvc.perform(post("/api/conflicts/{id}/branch-selection", conflictId)
-                        .header(TempAuthHeaders.USER_ID, SENIOR_ID)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"forkId\":\"FIX_ACTUAL_TO_CURATED\"}")
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code", is("PLAN_REQUIRES_ACCEPTED_HANDLER")));
 
         // 选「修实际回 A」→ 人审前不可执行
         MvcResult created = mockMvc.perform(post("/api/conflicts/{id}/branch-selection", conflictId)
@@ -192,7 +183,7 @@ class VerticalSliceHttpE2eAcceptanceTest {
         assertThat(calls.get(2).action()).isEqualTo("REFRESH_OBSERVATION");
         assertThat(calls).allMatch(SshCallRecord::success);
 
-        // 观测回到 A → 待确认关闭 → 处理人确认
+        // 观测回到 A → 待确认关闭 → 确认关闭不记操作者
         heartbeatWithContainer(hostA, "agent-" + objectId + "-refresh", objectId);
 
         mockMvc.perform(get("/api/conflicts/{id}", conflictId)
@@ -203,12 +194,6 @@ class VerticalSliceHttpE2eAcceptanceTest {
                 .andExpect(jsonPath("$.data.pendingCloseReminderVisible", is(true)))
                 .andExpect(jsonPath("$.data.curatedValue.hostId", is(hostA)))
                 .andExpect(jsonPath("$.data.observedValue.hostId", is(hostA)));
-
-        mockMvc.perform(post("/api/conflicts/{id}/confirm-close", conflictId)
-                        .header(TempAuthHeaders.USER_ID, SENIOR_ID)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code", is("CONFIRM_CLOSE_REQUIRES_ACCEPTED_HANDLER")));
 
         mockMvc.perform(post("/api/conflicts/{id}/confirm-close", conflictId)
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)
@@ -222,10 +207,11 @@ class VerticalSliceHttpE2eAcceptanceTest {
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[*].eventType", hasItem("WARNED")))
-                .andExpect(jsonPath("$.data[*].eventType", hasItem("HANDLER_ACCEPTED")))
+                .andExpect(jsonPath("$.data[*].eventType", not(hasItem("HANDLER_ACCEPTED"))))
                 .andExpect(jsonPath("$.data[*].eventType", hasItem("PLAN_COMPLETED")))
                 .andExpect(jsonPath("$.data[*].eventType", hasItem("PENDING_CLOSE")))
-                .andExpect(jsonPath("$.data[*].eventType", hasItem("CLOSED")));
+                .andExpect(jsonPath("$.data[*].eventType", hasItem("CLOSED")))
+                .andExpect(jsonPath("$.data[?(@.eventType=='CLOSED')].actorUserId", everyItem(nullValue())));
     }
 
     @Test

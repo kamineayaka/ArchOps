@@ -2,7 +2,6 @@ package com.archops.curated.service;
 
 import com.archops.common.exception.BusinessException;
 import com.archops.common.json.PersistentJson;
-import com.archops.conflict.AcceptedHandlerPolicy;
 import com.archops.conflict.domain.ConflictCase;
 import com.archops.conflict.domain.ConflictEventType;
 import com.archops.conflict.dto.ConflictDiagnosisResponse;
@@ -26,7 +25,6 @@ import com.archops.curated.mapper.CuratedDraftItemMapper;
 import com.archops.curated.mapper.CuratedDraftMapper;
 import com.archops.curated.mapper.CuratedFactMapper;
 import com.archops.curated.mapper.CuratedObjectMapper;
-import com.archops.user.security.AuthUserPrincipal;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -118,8 +116,7 @@ public class CuratedDraftService {
     public CuratedDraftResponse createForChangeCurated(
             ConflictCase conflict,
             ConflictDiagnosisResponse diagnosis,
-            ConflictDiagnosisResponse.ForkSuggestion fork,
-            AuthUserPrincipal actor
+            ConflictDiagnosisResponse.ForkSuggestion fork
     ) {
         if (findOpen(conflict.getId()) != null) {
             throw new BusinessException("DRAFT_ALREADY_OPEN",
@@ -140,7 +137,7 @@ public class CuratedDraftService {
         draft.setSelectedForkId(fork.id());
         draft.setOrigin(CuratedDraftOrigin.CHANGE_CURATED);
         draft.setStatus(CuratedDraftStatus.OPEN);
-        draft.setCreatedBy(actor.getUserId());
+        draft.setCreatedBy(null);
         draft.setCreatedAt(now);
         try {
             curatedDraftMapper.insert(draft);
@@ -155,7 +152,7 @@ public class CuratedDraftService {
             curatedDraftItemMapper.insert(item);
         }
 
-        conflictEventService.append(conflict.getId(), ConflictEventType.DRAFT_CREATED, actor.getUserId(), Map.of(
+        conflictEventService.append(conflict.getId(), ConflictEventType.DRAFT_CREATED, null, Map.of(
                 "draftId", draft.getId(),
                 "itemCount", items.size(),
                 "hint", "草案已创建"
@@ -212,27 +209,27 @@ public class CuratedDraftService {
      * as snapshot ingest (equal → 待确认关闭, never auto CLOSED).
      */
     @Transactional
-    public CuratedDraftResponse acceptItem(String conflictId, String itemId, AuthUserPrincipal actor) {
-        OpenItemReview review = beginItemReview(conflictId, itemId, actor);
+    public CuratedDraftResponse acceptItem(String conflictId, String itemId) {
+        OpenItemReview review = loadOpenItem(conflictId, itemId);
         writeAcceptedRunsOn(review.item());
         markItem(review.item(), CuratedDraftItemStatus.ACCEPTED);
         conflictEventService.append(
                 conflictId,
                 ConflictEventType.DRAFT_ITEM_ACCEPTED,
-                actor.getUserId(),
+                null,
                 itemAuditDetail(review, "草案条目已接受并写入策展", true));
         conflictDetectionService.reconcileMergeKey(review.item().getSubjectId(), CuratedRelationType.RUNS_ON);
         return respond(review.draft());
     }
 
     @Transactional
-    public CuratedDraftResponse rejectItem(String conflictId, String itemId, AuthUserPrincipal actor) {
-        OpenItemReview review = beginItemReview(conflictId, itemId, actor);
+    public CuratedDraftResponse rejectItem(String conflictId, String itemId) {
+        OpenItemReview review = loadOpenItem(conflictId, itemId);
         markItem(review.item(), CuratedDraftItemStatus.REJECTED);
         conflictEventService.append(
                 conflictId,
                 ConflictEventType.DRAFT_ITEM_REJECTED,
-                actor.getUserId(),
+                null,
                 itemAuditDetail(review, "草案条目已拒绝", false));
         return respond(review.draft());
     }
@@ -248,10 +245,8 @@ public class CuratedDraftService {
         );
     }
 
-    private OpenItemReview beginItemReview(String conflictId, String itemId, AuthUserPrincipal actor) {
+    private OpenItemReview loadOpenItem(String conflictId, String itemId) {
         CuratedDraft draft = requireReviewableDraft(conflictId);
-        AcceptedHandlerPolicy.require(requireConflict(conflictId), actor, "PLAN_REQUIRES_ACCEPTED_HANDLER",
-                "Only the 已接受冲突处理人 may accept or reject 草案 items");
         CuratedDraftItem item = requireItemOnDraft(draft.getId(), itemId);
         return new OpenItemReview(draft, item);
     }
@@ -311,14 +306,6 @@ public class CuratedDraftService {
                 .eq(CuratedDraft::getConflictId, conflictId)
                 .orderByDesc(CuratedDraft::getCreatedAt)
                 .last("LIMIT 1"));
-    }
-
-    private ConflictCase requireConflict(String conflictId) {
-        ConflictCase conflict = conflictCaseMapper.selectById(conflictId);
-        if (conflict == null) {
-            throw new BusinessException("CONFLICT_NOT_FOUND", "Conflict not found: " + conflictId);
-        }
-        return conflict;
     }
 
     private CuratedDraftItem requireItemOnDraft(String draftId, String itemId) {

@@ -12,6 +12,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
 
+import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
@@ -23,7 +24,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * Change-curated ticket 04 HTTP acceptance: one behavior per method.
- * Cycle 1: non-handler cannot accept or reject 草案 items; 策展 stays A.
+ * Item accept and reject no longer require an accepted handler.
  */
 @HttpAcceptanceTest
 class ChangeCuratedDraftItemHttpAcceptanceTest {
@@ -38,49 +39,48 @@ class ChangeCuratedDraftItemHttpAcceptanceTest {
     private ObjectMapper objectMapper;
 
     @Test
-    void nonHandlerCannotAcceptDraftItem() throws Exception {
+    void nonHandlerAcceptsDraftItemWithoutRecordingActor() throws Exception {
         OpenDraft draft = openChangeCuratedDraft("ccd04-nh-a", "ccd04-nh-b", "ctr-ccd04-nh-x", "ctr-ccd04-nh-y");
 
         postItemAction(draft.fx().conflictId(), draft.itemXId(), "accept", SENIOR_ID)
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.success", is(false)))
-                .andExpect(jsonPath("$.code", is("PLAN_REQUIRES_ACCEPTED_HANDLER")))
-                .andExpect(jsonPath("$.data", nullValue()));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[?(@.id=='" + draft.itemXId() + "')].status",
+                        hasItem("ACCEPTED")));
 
         getShouldWhere(draft.fx().containerX())
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.question", is("应该在哪")))
-                .andExpect(jsonPath("$.data.track", is("CURATED")))
-                .andExpect(jsonPath("$.data.curatedValue.hostId", is(draft.fx().hostA())));
+                .andExpect(jsonPath("$.data.curatedValue.hostId", is(draft.fx().hostB())));
         getShouldWhere(draft.fx().containerY())
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.curatedValue.hostId", is(draft.fx().hostA())));
 
-        getOpenDraft(draft.fx().conflictId(), GENERAL_ID)
+        mockMvc.perform(get("/api/conflicts/{id}/events", draft.fx().conflictId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.items[?(@.subjectId=='" + draft.fx().containerX() + "')].status",
-                        hasItem("PENDING")))
-                .andExpect(jsonPath("$.data.items[?(@.subjectId=='" + draft.fx().containerY() + "')].status",
-                        hasItem("PENDING")));
+                .andExpect(jsonPath("$.data[?(@.eventType=='DRAFT_ITEM_ACCEPTED')].actorUserId",
+                        everyItem(nullValue())));
     }
 
     @Test
-    void nonHandlerCannotRejectDraftItem() throws Exception {
+    void nonHandlerRejectsDraftItemWithoutRecordingActor() throws Exception {
         OpenDraft draft = openChangeCuratedDraft("ccd04-nhr-a", "ccd04-nhr-b", "ctr-ccd04-nhr-x", "ctr-ccd04-nhr-y");
 
         postItemAction(draft.fx().conflictId(), draft.itemYId(), "reject", SENIOR_ID)
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.success", is(false)))
-                .andExpect(jsonPath("$.code", is("PLAN_REQUIRES_ACCEPTED_HANDLER")))
-                .andExpect(jsonPath("$.data", nullValue()));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[?(@.id=='" + draft.itemYId() + "')].status",
+                        hasItem("REJECTED")));
 
         getShouldWhere(draft.fx().containerY())
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.curatedValue.hostId", is(draft.fx().hostA())));
-        getOpenDraft(draft.fx().conflictId(), GENERAL_ID)
+
+        mockMvc.perform(get("/api/conflicts/{id}/events", draft.fx().conflictId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.items[?(@.id=='" + draft.itemYId() + "')].status",
-                        hasItem("PENDING")));
+                .andExpect(jsonPath("$.data[?(@.eventType=='DRAFT_ITEM_REJECTED')].actorUserId",
+                        everyItem(nullValue())));
     }
 
     @Test
@@ -177,7 +177,7 @@ class ChangeCuratedDraftItemHttpAcceptanceTest {
     }
 
     @Test
-    void acceptedHandlerConfirmCloseAfterDraftAcceptClosesConflict() throws Exception {
+    void confirmCloseAfterDraftAcceptClosesWithoutRecordingActor() throws Exception {
         OpenDraft draft = rejectSiblingThenAcceptMergeKey(
                 "ccd04-cc-a", "ccd04-cc-b", "ctr-ccd04-cc-x", "ctr-ccd04-cc-y");
         mockMvc.perform(get("/api/conflicts/{id}", draft.fx().conflictId())
@@ -189,15 +189,14 @@ class ChangeCuratedDraftItemHttpAcceptanceTest {
         mockMvc.perform(post("/api/conflicts/{id}/confirm-close", draft.fx().conflictId())
                         .header(TempAuthHeaders.USER_ID, SENIOR_ID)
                         .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code", is("CONFIRM_CLOSE_REQUIRES_ACCEPTED_HANDLER")));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("CLOSED")));
 
-        mockMvc.perform(post("/api/conflicts/{id}/confirm-close", draft.fx().conflictId())
+        mockMvc.perform(get("/api/conflicts/{id}/events", draft.fx().conflictId())
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.success", is(true)))
-                .andExpect(jsonPath("$.data.status", is("CLOSED")));
+                .andExpect(jsonPath("$.data[?(@.eventType=='CLOSED')].actorUserId", everyItem(nullValue())));
     }
 
     @Test
@@ -327,7 +326,7 @@ class ChangeCuratedDraftItemHttpAcceptanceTest {
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.collaboration.handlerAcceptance", is("ACCEPTED")));
+                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
         return fx;
     }
 

@@ -4,7 +4,7 @@ import type { CuratedDraft, OperationPlan, StartExecutionResult } from './types'
 export function selectBranch(conflictId: string, forkId: string): Promise<OperationPlan | CuratedDraft> {
   return apiRequest<OperationPlan | CuratedDraft>(
     `/api/conflicts/${encodeURIComponent(conflictId)}/branch-selection`,
-    { method: 'POST', body: { forkId } },
+    { method: 'POST', body: { forkId }, omitUserId: true },
   );
 }
 
@@ -23,13 +23,13 @@ export function getPlan(planId: string): Promise<OperationPlan> {
 export function approvePlan(planId: string): Promise<OperationPlan> {
   return apiRequest<OperationPlan>(
     `/api/operation-plans/${encodeURIComponent(planId)}/approve`,
-    { method: 'POST' },
+    { method: 'POST', omitUserId: true },
   );
 }
 
 export function startExecution(planId: string): Promise<StartExecutionResult> {
   return apiRequest<StartExecutionResult>(
     `/api/operation-plans/${encodeURIComponent(planId)}/start-execution`,
-    { method: 'POST' },
+    { method: 'POST', omitUserId: true },
   );
 }

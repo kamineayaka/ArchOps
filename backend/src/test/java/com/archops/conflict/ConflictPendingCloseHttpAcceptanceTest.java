@@ -19,8 +19,11 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -46,7 +49,7 @@ class ConflictPendingCloseHttpAcceptanceTest {
     private ObservedFactMapper observedFactMapper;
 
     @Test
-    void executeThenRefreshObservationEntersPendingCloseAndHandlerConfirms() throws Exception {
+    void executeThenRefreshObservationEntersPendingCloseAndConfirmCloseOmitsActor() throws Exception {
         Fixture fx = openClaimPlanApproveAndExecute("p9-a", "p9-b", "ctr-p9-ok");
 
         heartbeatWithContainer(fx.hostA(), "agent-" + fx.objectId() + "-refresh", fx.objectId());
@@ -57,7 +60,7 @@ class ConflictPendingCloseHttpAcceptanceTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status", is("PENDING_CLOSE")))
                 .andExpect(jsonPath("$.data.pendingCloseReminderVisible", is(true)))
-                .andExpect(jsonPath("$.data.collaboration.acknowledged", is(true)))
+                .andExpect(jsonPath("$.data.collaboration").doesNotExist())
                 .andExpect(jsonPath("$.data.observedValue.hostId", is(fx.hostA())))
                 .andExpect(jsonPath("$.data.curatedValue.hostId", is(fx.hostA())));
 
@@ -68,12 +71,6 @@ class ConflictPendingCloseHttpAcceptanceTest {
                 .andReturn();
         assertThat(activeIds(list)).contains(fx.conflictId());
         assertThat(statusOf(list, fx.conflictId())).isEqualTo("PENDING_CLOSE");
-
-        mockMvc.perform(post("/api/conflicts/{id}/confirm-close", fx.conflictId())
-                        .header(TempAuthHeaders.USER_ID, SENIOR_ID)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code", is("CONFIRM_CLOSE_REQUIRES_ACCEPTED_HANDLER")));
 
         mockMvc.perform(post("/api/conflicts/{id}/confirm-close", fx.conflictId())
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)
@@ -100,10 +97,11 @@ class ConflictPendingCloseHttpAcceptanceTest {
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[*].eventType", hasItem("WARNED")))
-                .andExpect(jsonPath("$.data[*].eventType", hasItem("HANDLER_ACCEPTED")))
+                .andExpect(jsonPath("$.data[*].eventType", not(hasItem("HANDLER_ACCEPTED"))))
                 .andExpect(jsonPath("$.data[*].eventType", hasItem("PLAN_COMPLETED")))
                 .andExpect(jsonPath("$.data[*].eventType", hasItem("PENDING_CLOSE")))
-                .andExpect(jsonPath("$.data[*].eventType", hasItem("CLOSED")));
+                .andExpect(jsonPath("$.data[*].eventType", hasItem("CLOSED")))
+                .andExpect(jsonPath("$.data[?(@.eventType=='CLOSED')].actorUserId", everyItem(nullValue())));
     }
 
     @Test

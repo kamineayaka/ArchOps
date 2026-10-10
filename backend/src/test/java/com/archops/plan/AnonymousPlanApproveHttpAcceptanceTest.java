@@ -11,8 +11,6 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
-import static org.hamcrest.Matchers.hasItem;
-import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -21,13 +19,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * Ticket 07 HTTP acceptance: FIX_ACTUAL branch → plan review → approve; no exec before approve.
+ * ADR-0046 ticket 02: 批准并冻结 needs no user identity and records no operator.
  */
 @HttpAcceptanceTest
-class OperationPlanReviewHttpAcceptanceTest {
+class AnonymousPlanApproveHttpAcceptanceTest {
 
     private static final String GENERAL_ID = "user-general-demo";
-    private static final String SENIOR_ID = "user-senior-demo";
 
     @Autowired
     private MockMvc mockMvc;
@@ -36,49 +33,27 @@ class OperationPlanReviewHttpAcceptanceTest {
     private ObjectMapper objectMapper;
 
     @Test
-    void acceptedHandlerSelectsFixActualGeneratesPlanAndApproves() throws Exception {
-        String conflictId = openConflictAndClaim("p7-a", "p7-b", "ctr-p7-001");
-        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, conflictId, GENERAL_ID);
+    void approveWithoutIdentityOrHandlerFreezesPlan() throws Exception {
+        String planId = openReviewPlan("ap2-a", "ap2-b", "ctr-ap2-001");
 
-        mockMvc.perform(get("/api/conflicts/{id}/diagnosis", conflictId)
-                        .header(TempAuthHeaders.USER_ID, SENIOR_ID)
+        mockMvc.perform(post("/api/operation-plans/{id}/approve", planId)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.forks[*].id", hasItem("FIX_ACTUAL_TO_CURATED")));
+                .andExpect(jsonPath("$.data.status", is("APPROVED")))
+                .andExpect(jsonPath("$.data.executionIntent", is(true)))
+                .andExpect(jsonPath("$.data.reviewedBy", nullValue()));
 
-        MvcResult created = mockMvc.perform(post("/api/conflicts/{id}/branch-selection", conflictId)
+        mockMvc.perform(get("/api/operation-plans/{id}", planId)
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"forkId\":\"FIX_ACTUAL_TO_CURATED\"}")
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.status", is("DRAFT_REVIEW")))
-                .andExpect(jsonPath("$.data.skipsDraft", is(true)))
-                .andExpect(jsonPath("$.data.branchKind", is("FIX_ACTUAL")))
-                .andExpect(jsonPath("$.data.selectedForkId", is("FIX_ACTUAL_TO_CURATED")))
-                .andExpect(jsonPath("$.data.executionIntent", is(false)))
-                .andExpect(jsonPath("$.data.steps", hasSize(3)))
-                .andExpect(jsonPath("$.data.steps[0].seq", is(1)))
-                .andExpect(jsonPath("$.data.steps[1].action", is("MIGRATE_CONTAINER")))
-                .andReturn();
-        String planId = objectMapper.readTree(created.getResponse().getContentAsString())
-                .path("data").path("id").asText();
+                .andExpect(jsonPath("$.data.status", is("APPROVED")))
+                .andExpect(jsonPath("$.data.reviewedBy", nullValue()));
+    }
 
-        // Cannot start execution before approval.
-        mockMvc.perform(post("/api/operation-plans/{id}/start-execution", planId)
-                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code", is("PLAN_NOT_APPROVED")));
-
-        // Second selection rejected while active plan exists.
-        mockMvc.perform(post("/api/conflicts/{id}/branch-selection", conflictId)
-                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"forkId\":\"FIX_ACTUAL_TO_CURATED\"}")
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code", is("PLAN_ALREADY_ACTIVE")));
+    @Test
+    void approveWithUserHeaderStillOmitsReviewedBy() throws Exception {
+        String planId = openReviewPlan("ap2h-a", "ap2h-b", "ctr-ap2-002");
 
         mockMvc.perform(post("/api/operation-plans/{id}/approve", planId)
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)
@@ -87,53 +62,80 @@ class OperationPlanReviewHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data.status", is("APPROVED")))
                 .andExpect(jsonPath("$.data.executionIntent", is(true)))
                 .andExpect(jsonPath("$.data.reviewedBy", nullValue()));
+    }
+
+    @Test
+    void unapprovedStartExecutionStaysPlanNotApproved() throws Exception {
+        String conflictId = openConflictWithoutHandler("ap2s-a", "ap2s-b", "ctr-ap2-003");
+        mockMvc.perform(post("/api/conflicts/{id}/claim", conflictId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, conflictId, GENERAL_ID);
+        MvcResult created = mockMvc.perform(post("/api/conflicts/{id}/branch-selection", conflictId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"forkId\":\"FIX_ACTUAL_TO_CURATED\"}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn();
+        String planId = objectMapper.readTree(created.getResponse().getContentAsString())
+                .path("data").path("id").asText();
 
         mockMvc.perform(post("/api/operation-plans/{id}/start-execution", planId)
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)
                         .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.status", is("COMPLETED")))
-                .andExpect(jsonPath("$.data.completedSteps", is(3)));
-
-        mockMvc.perform(get("/api/operation-plans/{id}", planId)
-                        .header(TempAuthHeaders.USER_ID, SENIOR_ID)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.id", is(planId)))
-                .andExpect(jsonPath("$.data.status", is("COMPLETED")));
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("PLAN_NOT_APPROVED")));
     }
 
     @Test
-    void selectFixActualWithoutAcceptedHandlerOpensReviewPlan() throws Exception {
-        String conflictId = openConflictOnly("p7c-a", "p7c-b", "ctr-p7-owner");
-        mockMvc.perform(post("/api/conflicts/{id}/acknowledge", conflictId)
-                        .header(TempAuthHeaders.USER_ID, SENIOR_ID)
+    void voidedPlanApproveStaysPlanVoided() throws Exception {
+        String hostA = createHost("ap2v-a");
+        String hostB = createHost("ap2v-b");
+        String hostC = createHost("ap2v-c");
+        String containerId = createContainer("app-ctr-ap2-void", "ctr-ap2-void");
+        confirmRunsOn(containerId, hostA);
+        heartbeatWithContainer(hostB, "agent-ctr-ap2-void", "ctr-ap2-void");
+        MvcResult conflict = mockMvc.perform(get("/api/conflicts/by-merge-key")
+                        .param("subjectId", containerId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
-        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, conflictId, SENIOR_ID);
+                .andReturn();
+        String conflictId = objectMapper.readTree(conflict.getResponse().getContentAsString())
+                .path("data").path("id").asText();
+        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, conflictId, GENERAL_ID);
+        MvcResult created = mockMvc.perform(post("/api/conflicts/{id}/branch-selection", conflictId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"forkId\":\"FIX_ACTUAL_TO_CURATED\"}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn();
+        String planId = objectMapper.readTree(created.getResponse().getContentAsString())
+                .path("data").path("id").asText();
 
-        mockMvc.perform(post("/api/conflicts/{id}/branch-selection", conflictId)
-                        .header(TempAuthHeaders.USER_ID, SENIOR_ID)
+        heartbeatWithContainer(hostC, "agent-ctr-ap2-void-c", "ctr-ap2-void");
+
+        mockMvc.perform(post("/api/operation-plans/{id}/approve", planId)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("PLAN_VOIDED")));
+    }
+
+    private String openReviewPlan(String hostAName, String hostBName, String objectId) throws Exception {
+        String conflictId = openConflictWithoutHandler(hostAName, hostBName, objectId);
+        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, conflictId, GENERAL_ID);
+        MvcResult created = mockMvc.perform(post("/api/conflicts/{id}/branch-selection", conflictId)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"forkId\":\"FIX_ACTUAL_TO_CURATED\"}")
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status", is("DRAFT_REVIEW")))
-                .andExpect(jsonPath("$.data.createdBy", nullValue()));
+                .andReturn();
+        return objectMapper.readTree(created.getResponse().getContentAsString()).path("data").path("id").asText();
     }
 
-    private String openConflictAndClaim(String hostAName, String hostBName, String objectId) throws Exception {
-        String conflictId = openConflictOnly(hostAName, hostBName, objectId);
-        mockMvc.perform(post("/api/conflicts/{id}/claim", conflictId)
-                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
-        return conflictId;
-    }
-
-    private String openConflictOnly(String hostAName, String hostBName, String objectId) throws Exception {
+    private String openConflictWithoutHandler(String hostAName, String hostBName, String objectId) throws Exception {
         String hostA = createHost(hostAName);
         String hostB = createHost(hostBName);
         String containerId = createContainer("app-" + objectId, objectId);

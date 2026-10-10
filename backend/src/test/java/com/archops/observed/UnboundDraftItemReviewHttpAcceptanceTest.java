@@ -17,6 +17,7 @@ import java.util.List;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
@@ -492,7 +493,7 @@ class UnboundDraftItemReviewHttpAcceptanceTest {
     }
 
     @Test
-    void unauthenticatedItemAcceptIsRejected() throws Exception {
+    void unauthenticatedItemAcceptRecordsNoActor() throws Exception {
         String hostId = createHost("u03j-h");
         heartbeatUnknown(hostId, "u03j-ag", "u03j-rt-unknown", "u03j-unknown", "u03j-never");
         OpenUnboundDraft draft = openDraftFromRuntime("u03j-rt-unknown");
@@ -503,10 +504,9 @@ class UnboundDraftItemReviewHttpAcceptanceTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}")
                         .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.success", is(false)))
-                .andExpect(jsonPath("$.code", is("AUTH_REQUIRED")))
-                .andExpect(jsonPath("$.data").value(nullValue()));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[?(@.kind=='CREATE_CONTAINER_FROM_UNBOUND')].status",
+                        hasItem("ACCEPTED")));
     }
 
     @Test
@@ -578,9 +578,9 @@ class UnboundDraftItemReviewHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data[?(@.eventType=='DRAFT_ITEM_REJECTED')].detail.hint",
                         hasItem(containsString("草案条目已拒绝"))))
                 .andExpect(jsonPath("$.data[?(@.eventType=='DRAFT_ITEM_ACCEPTED')].actorUserId",
-                        hasItem(GENERAL_ID)))
+                        everyItem(nullValue())))
                 .andExpect(jsonPath("$.data[?(@.eventType=='DRAFT_ITEM_REJECTED')].actorUserId",
-                        hasItem(GENERAL_ID)))
+                        everyItem(nullValue())))
                 .andExpect(jsonPath("$.data[?(@.eventType=='DRAFT_ITEM_ACCEPTED')].detail.draftId",
                         hasItem(draft.draftId())))
                 .andExpect(jsonPath("$.data[?(@.eventType=='DRAFT_ITEM_ACCEPTED')].detail.itemId",

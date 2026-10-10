@@ -217,7 +217,7 @@ class IdentityLostPipelineGateHttpAcceptanceTest {
     }
 
     @Test
-    void nonHandlerBranchSelectionOnIdentityLostStillRequiresAcceptedHandler() throws Exception {
+    void identityLostBlocksFixActualSelectionWithoutAcceptedHandler() throws Exception {
         Fixture fx = openMismatch("u05f");
         identityLostOnObservedHost(fx);
 
@@ -228,8 +228,22 @@ class IdentityLostPipelineGateHttpAcceptanceTest {
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success", is(false)))
-                .andExpect(jsonPath("$.code", is("PLAN_REQUIRES_ACCEPTED_HANDLER")))
-                .andExpect(jsonPath("$.code", not("IDENTITY_LOST_BLOCKS_BRANCH")))
+                .andExpect(jsonPath("$.code", is("IDENTITY_LOST_BLOCKS_BRANCH")))
+                .andExpect(jsonPath("$.data").value(nullValue()));
+    }
+
+    @Test
+    void identityLostBlocksChangeCuratedSelectionWithoutUserHeader() throws Exception {
+        Fixture fx = openMismatch("u05k");
+        identityLostOnObservedHost(fx);
+
+        mockMvc.perform(post("/api/conflicts/{id}/branch-selection", fx.conflictId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"forkId\":\"CHANGE_CURATED_TO_OBSERVED\"}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success", is(false)))
+                .andExpect(jsonPath("$.code", is("IDENTITY_LOST_BLOCKS_BRANCH")))
                 .andExpect(jsonPath("$.data").value(nullValue()));
     }
 
@@ -378,7 +392,7 @@ class IdentityLostPipelineGateHttpAcceptanceTest {
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.collaboration.handlerAcceptance", is("ACCEPTED")));
+                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
     }
 
     private void identityLostOnObservedHost(Fixture fx) throws Exception {

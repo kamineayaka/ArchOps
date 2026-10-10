@@ -7,7 +7,7 @@
 ## 必读
 
 1. `CONTEXT.md`
-2. `docs/adr/0039` … `0045`（栈 **0043**，进程切分 **0044**，控制面→执行引擎运输 **0045**）
+2. `docs/adr/0039` … `0046`（栈 **0043**，进程切分 **0044**，控制面→执行引擎运输 **0045**，身份退出冲突 **0046**）
 3. `docs/mvp-vertical-slice.md`（竖切范围对照）
 4. `docs/specs/vertical-slice-mvp.md`（竖切 Spec；01–13 已闭合）
 5. `docs/specs/change-curated-draft.md`（改策展/草案逐条确认 Spec；**已闭合**）
@@ -15,9 +15,11 @@
 7. `docs/specs/conflict-upgrade-void-plans.md`（冲突升级作废活跃计划；审计 A1；**01 TDD-done，本刀闭合**）
 8. `docs/specs/control-plane-executor.md`（控制面执行引擎；审计 B 第一刀；**01 TDD-done，本刀闭合**）
 9. `docs/specs/plan-step-assertion.md`（步骤断言；审计 B3 剩余；**01 TDD-done，本刀闭合**）
-10. `docs/agents/tdd.md`（`/implement` 的 TDD overlay：red → green → refactor）
-11. `docs/scaffold-bootstrap-prompt.md`（脚手架专用；已完成后可作审计对照）
-12. `.cursor/rules/project-map.mdc`
+10. `docs/adr/0046-conflict-discovery-and-resolution-without-identity.md`（冲突主线只有发现与解决；人审不记录操作者）
+11. `docs/specs/conflict-without-identity.md`（身份退出冲突领域；**票 01–07 done**；本 PR 只含票 07，基线是票 06 分支。#119–#124 不并入 main）
+12. `docs/agents/tdd.md`（`/implement` 的 TDD overlay：red → green → refactor）
+13. `docs/scaffold-bootstrap-prompt.md`（脚手架专用；已完成后可作审计对照）
+14. `.cursor/rules/project-map.mdc`
 
 ## 当前状态
 
@@ -51,6 +53,8 @@
 | 冲突升级作废活跃计划 | **01 TDD-done / 本刀闭合** → [`docs/specs/conflict-upgrade-void-plans.md`](specs/conflict-upgrade-void-plans.md) / [`.scratch/conflict-upgrade-void-plans/issues/`](../.scratch/conflict-upgrade-void-plans/issues/)（审计 A1；不要写入未绑定目录） |
 | 控制面执行引擎（0044 B 第一刀） | **01 TDD-done / 本刀闭合** → [`docs/specs/control-plane-executor.md`](specs/control-plane-executor.md) / [`.scratch/control-plane-executor/issues/01-executor-single-step-dispatch.md`](../.scratch/control-plane-executor/issues/01-executor-single-step-dispatch.md)（ADR-0045。不要写入 unbound / A1 目录；不要加票 02） |
 | 步骤断言（0044 B3 剩余） | **01 TDD-done / 本刀闭合** → [`docs/specs/plan-step-assertion.md`](specs/plan-step-assertion.md) / [`.scratch/plan-step-assertion/issues/01-engine-judges-step-assertion.md`](../.scratch/plan-step-assertion/issues/01-engine-judges-step-assertion.md)（不要写成执行引擎票 02） |
+| ADR-0046 | **已合并** → [`docs/adr/0046-conflict-discovery-and-resolution-without-identity.md`](adr/0046-conflict-discovery-and-resolution-without-identity.md) |
+| 冲突去掉协作身份 | **票 01–07 done**。本 PR 只含票 07，基线是票 06 分支。#119–#124 不并入 main。不要再开下一张票。→ [`docs/specs/conflict-without-identity.md`](specs/conflict-without-identity.md) / [`.scratch/conflict-without-identity/issues/`](../.scratch/conflict-without-identity/issues/) |
 | Matt 工作流 skills / tracker | **已入库**（`.cursor/skills/` + `.agents/skills/` + `docs/agents/`；TDD overlay [`docs/agents/tdd.md`](agents/tdd.md)；Cloud 不依赖本机 `~/.agents`） |
 | 国内镜像默认 | **已合并**（PR #53：Gradle 腾讯云 / Maven 阿里云 / npm npmmirror / Docker DaoCloud） |
 | kamiserver 人工验收 | **通过**（2026-08：Compose postgres+redis healthy 且宿主机端口已映射 → `./gradlew bootRun` → `GET /api/health`；竖切演示闭环已在该 VM 走通） |
@@ -94,7 +98,14 @@
 35. ~~步骤断言 `/to-spec`~~：已发布 [`docs/specs/plan-step-assertion.md`](specs/plan-step-assertion.md)。  
 36. ~~步骤断言 `/to-tickets`~~：已发布票 01 → [`.scratch/plan-step-assertion/issues/01-engine-judges-step-assertion.md`](../.scratch/plan-step-assertion/issues/01-engine-judges-step-assertion.md)。  
 37. ~~`/implement` `/tdd` 步骤断言票 01~~：已完成（规则模板冻结 `expected`；同一 ExecuteStep 加料；引擎 JSON 对象包含匹配；`STEP_ASSERTION_FAILED` → VOIDED；`executionLog.structuredOutput`；旧计划无 `expected` 仍只看出码）。witnessed red → green → refactor；`PlanStepAssertionHttpAcceptanceTest`。**本刀闭合。**  
-38. **下一对话不要默认 `/implement`**。不要发明未绑定 10。不要自动做编排层 / B-live / 工作台。不要往 `control-plane-executor` 加票 02。不要改 CONTEXT / ADR-0044 / 0045 正文。人排期下一刀（B4/B5/B6）。  
+38. ~~ADR-0046~~：已合并。冲突主线只有发现与解决；四类人审不记录操作者。
+39. ~~`/implement` `/tdd` 冲突去掉协作身份票 01~~：已完成（诊断选支不带用户身份、不记操作者；修实际出待审计划，改理想出草案；身份失联仍挡住这两支）。witnessed red → green → refactor；`AnonymousBranchSelectionHttpAcceptanceTest`。**本 PR 只含票 01。**
+40. ~~`/implement` `/tdd` 冲突去掉协作身份票 02~~：已完成（批准并冻结不带用户身份、不记操作者；未批准仍 `PLAN_NOT_APPROVED`；已作废仍 `PLAN_VOIDED`）。witnessed red → green → refactor；`AnonymousPlanApproveHttpAcceptanceTest`。
+41. ~~`/implement` `/tdd` 冲突去掉协作身份票 03~~：已完成（改理想与未绑定草案逐条接受/拒绝不带用户身份、不记操作者；相等进入待确认关闭，不自动关闭）。witnessed red → green → refactor；`AnonymousDraftItemConfirmHttpAcceptanceTest`。
+42. ~~`/implement` `/tdd` 冲突去掉协作身份票 04~~：已完成（待确认关闭且两侧相等时，确认关闭不带用户身份、不记操作者；不等为 `CONFLICT_NOT_ALIGNED`；非待确认关闭仍拒绝）。witnessed red → green → refactor；`AnonymousConfirmCloseHttpAcceptanceTest`。
+43. ~~`/implement` `/tdd` 冲突去掉协作身份票 05~~：已完成（已批准计划可以开工，不询问处理人、不记操作者；`VOIDED` 仍 `PLAN_VOIDED`；`DRAFT_REVIEW` 仍 `PLAN_NOT_APPROVED`）。witnessed red → green → refactor；`AnonymousStartExecutionHttpAcceptanceTest`。
+44. ~~票 06~~：已完成。基线是 04 与 05 的 git 合并。#119–#123 不并入 main。
+45. **票 07 done。** 本 PR 只含票 07，基线是票 06 分支。#119–#124 不并入 main。不要再开下一张票。不要发明未绑定 10。不要自动做编排层 / B-live / 工作台。不要往 `control-plane-executor` 加票 02。不要改 ADR-0046 / 0044 / 0045 正文。不要做解决断点。
 
 ### 工单阻塞简图
 
@@ -148,7 +159,15 @@
 01 步骤断言成真：引擎判定 + executionLog 详细结果（TDD-done）
 ```
 
-（一次只做一张。）
+冲突去掉协作身份（ADR-0046；**票 01–07 done**。本 PR 只含票 07，基线是票 06 分支。#119–#124 不并入 main）：
+
+```
+01 诊断选支不经身份、不记操作者（done）
+   ├→ 02 批准并冻结不经身份、不记操作者（done） → 05 执行不再询问处理人（done） ─┐
+   └→ 03 逐条确认不经身份、不记操作者（done） → 04 确认关闭不经身份、不记操作者（done） ─┴→ 06 协作身份退出领域（done） → 07 薄 UI（done）
+```
+
+（一次只做一张。本 PR 只含票 07。#119–#124 不并入 main。不要再开下一张票。）
 
 ## 本地启动摘要
 
