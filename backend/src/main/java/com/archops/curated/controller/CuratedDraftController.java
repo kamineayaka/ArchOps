@@ -45,6 +45,7 @@ public class CuratedDraftController {
     }
 
     @GetMapping("/conflicts/{conflictId}/curated-drafts/open")
+    @PreAuthorize("permitAll()")
     public ApiResponse<CuratedDraftResponse> openDraft(@PathVariable String conflictId) {
         return ApiResponse.ok(curatedDraftService.getOpen(conflictId));
     }

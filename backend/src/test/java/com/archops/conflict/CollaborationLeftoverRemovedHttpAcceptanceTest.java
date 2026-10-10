@@ -187,6 +187,37 @@ class CollaborationLeftoverRemovedHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data.reviewedBy").value(nullValue()));
     }
 
+    @Test
+    void openDraftReadWithoutUserOmitsActor() throws Exception {
+        String hostA = createHost("rm-dr-a");
+        String hostB = createHost("rm-dr-b");
+        String containerX = createContainer("app-ctr-rm-dr-x", "ctr-rm-dr-x");
+        String containerY = createContainer("app-ctr-rm-dr-y", "ctr-rm-dr-y");
+        confirmRunsOn(containerX, hostA);
+        confirmRunsOn(containerY, hostA);
+        heartbeatWithContainer(hostB, "agent-ctr-rm-dr-x", "ctr-rm-dr-x");
+        MvcResult conflict = mockMvc.perform(get("/api/conflicts/by-merge-key")
+                        .param("subjectId", containerX)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn();
+        String conflictId = objectMapper.readTree(conflict.getResponse().getContentAsString())
+                .path("data").path("id").asText();
+        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, conflictId, GENERAL_ID);
+        mockMvc.perform(post("/api/conflicts/{id}/branch-selection", conflictId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"forkId\":\"CHANGE_CURATED_TO_OBSERVED\"}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/conflicts/{id}/curated-drafts/open", conflictId)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("OPEN"))
+                .andExpect(jsonPath("$.data.createdBy").value(nullValue()));
+    }
+
     private String openConflict(String hostAName, String hostBName, String objectId) throws Exception {
         String hostA = createHost(hostAName);
         String hostB = createHost(hostBName);
