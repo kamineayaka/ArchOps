@@ -48,15 +48,6 @@ public class ConflictCollaborationService {
     }
 
     /**
-     * 接受不再写入处理人.
-     */
-    @Transactional(readOnly = true)
-    public ConflictCaseResponse acceptHandler(String conflictId) {
-        requireOpen(conflictId);
-        return conflictCaseAssembler.getById(conflictId);
-    }
-
-    /**
      * 拒绝不再写入处理人.
      */
     @Transactional(readOnly = true)

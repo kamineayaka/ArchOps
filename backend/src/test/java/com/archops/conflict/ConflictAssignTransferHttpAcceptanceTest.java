@@ -45,10 +45,8 @@ class ConflictAssignTransferHttpAcceptanceTest {
                 .andExpect(status().isNotFound());
 
         mockMvc.perform(post("/api/conflicts/{id}/accept-handler", conflictId)
-                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
                         .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
+                .andExpect(status().isNotFound());
 
         mockMvc.perform(post("/api/conflicts/{id}/operation-plans", conflictId)
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)
