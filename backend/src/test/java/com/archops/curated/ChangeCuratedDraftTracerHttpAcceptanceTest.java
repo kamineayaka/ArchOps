@@ -91,7 +91,6 @@ class ChangeCuratedDraftTracerHttpAcceptanceTest {
         String conflictId = readDataId(warn);
 
         // 3. 一般角色认领 → 已接受处理人
-        claimAsAcceptedHandler(conflictId);
 
         // 4. 诊断 READY：分叉同时含 FIX_ACTUAL 与 CHANGE_CURATED
         waitUntilDiagnosisReady(conflictId);
@@ -498,14 +497,6 @@ class ChangeCuratedDraftTracerHttpAcceptanceTest {
         heartbeatWithContainer(hostId, agentId, world.objectX());
     }
 
-    private void claimAsAcceptedHandler(String conflictId) throws Exception {
-        mockMvc.perform(post("/api/conflicts/{id}/claim", conflictId)
-                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
-    }
-
     private void waitUntilDiagnosisReady(String conflictId) throws Exception {
         ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, conflictId, GENERAL_ID);
     }
@@ -516,7 +507,6 @@ class ChangeCuratedDraftTracerHttpAcceptanceTest {
         String conflictId = readDataId(getByMergeKey(world.containerX())
                 .andExpect(status().isOk())
                 .andReturn());
-        claimAsAcceptedHandler(conflictId);
         waitUntilDiagnosisReady(conflictId);
         return new ClaimedConflict(world, conflictId);
     }

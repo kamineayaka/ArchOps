@@ -37,10 +37,8 @@ class CollaborationIdentityLeavesDomainHttpAcceptanceTest {
         String conflictId = openConflict("id6-a", "id6-b", "ctr-id6-001");
 
         mockMvc.perform(post("/api/conflicts/{id}/claim", conflictId)
-                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
                         .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
+                .andExpect(status().isNotFound());
 
         mockMvc.perform(get("/api/conflicts/{id}", conflictId)
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)

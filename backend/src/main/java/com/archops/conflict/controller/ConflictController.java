@@ -82,12 +82,6 @@ public class ConflictController {
         return ApiResponse.ok(conflictCaseAssembler.getActiveByMergeKey(subjectId, relationType));
     }
 
-    /** 认领不再写入已知悉、归属或处理人. */
-    @PostMapping("/{id}/claim")
-    public ApiResponse<ConflictCaseResponse> claim(@PathVariable String id) {
-        return ApiResponse.ok(conflictCollaborationService.claim(id));
-    }
-
     /** 已知悉不再写入归属或处理人. */
     @PostMapping("/{id}/acknowledge")
     public ApiResponse<ConflictCaseResponse> acknowledge(@PathVariable String id) {

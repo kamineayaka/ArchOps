@@ -67,10 +67,6 @@ class AnonymousPlanApproveHttpAcceptanceTest {
     @Test
     void unapprovedStartExecutionStaysPlanNotApproved() throws Exception {
         String conflictId = openConflictWithoutHandler("ap2s-a", "ap2s-b", "ctr-ap2-003");
-        mockMvc.perform(post("/api/conflicts/{id}/claim", conflictId)
-                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk());
         ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, conflictId, GENERAL_ID);
         MvcResult created = mockMvc.perform(post("/api/conflicts/{id}/branch-selection", conflictId)
                         .contentType(MediaType.APPLICATION_JSON)

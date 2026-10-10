@@ -121,12 +121,6 @@ class VerticalSliceHttpE2eAcceptanceTest {
                 .andExpect(jsonPath("$.data.observedValue.hostId", is(hostB)))
                 .andExpect(jsonPath("$.data.curatedValue.hostId", is(hostA)));
 
-        mockMvc.perform(post("/api/conflicts/{id}/claim", conflictId)
-                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
-
         ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, conflictId, GENERAL_ID);
         mockMvc.perform(get("/api/conflicts/{id}/diagnosis", conflictId)
                         .header(TempAuthHeaders.USER_ID, SENIOR_ID)
@@ -225,11 +219,6 @@ class VerticalSliceHttpE2eAcceptanceTest {
         heartbeatWithContainer(hostB, "agent-" + objectId, objectId);
 
         String conflictId = conflictIdBySubject(containerId);
-        mockMvc.perform(post("/api/conflicts/{id}/claim", conflictId)
-                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk());
-
         ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, conflictId, GENERAL_ID);
         MvcResult created = mockMvc.perform(post("/api/conflicts/{id}/branch-selection", conflictId)
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)

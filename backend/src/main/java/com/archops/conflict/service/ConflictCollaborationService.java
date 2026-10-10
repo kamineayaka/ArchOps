@@ -48,15 +48,6 @@ public class ConflictCollaborationService {
     }
 
     /**
-     * 认领不再写入已知悉、归属或处理人.
-     */
-    @Transactional(readOnly = true)
-    public ConflictCaseResponse claim(String conflictId) {
-        requireOpen(conflictId);
-        return conflictCaseAssembler.getById(conflictId);
-    }
-
-    /**
      * 已知悉不再写入归属或处理人.
      */
     @Transactional(readOnly = true)

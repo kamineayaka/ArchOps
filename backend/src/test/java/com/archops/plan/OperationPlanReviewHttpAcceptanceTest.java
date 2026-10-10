@@ -125,11 +125,6 @@ class OperationPlanReviewHttpAcceptanceTest {
 
     private String openConflictAndClaim(String hostAName, String hostBName, String objectId) throws Exception {
         String conflictId = openConflictOnly(hostAName, hostBName, objectId);
-        mockMvc.perform(post("/api/conflicts/{id}/claim", conflictId)
-                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
         return conflictId;
     }
 

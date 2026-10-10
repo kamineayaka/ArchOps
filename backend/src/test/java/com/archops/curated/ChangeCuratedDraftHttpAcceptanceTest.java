@@ -286,11 +286,6 @@ class ChangeCuratedDraftHttpAcceptanceTest {
             String hostAName, String hostBName, String objectX, String objectY
     ) throws Exception {
         Fixture fx = openConflictWithSibling(hostAName, hostBName, objectX, objectY);
-        mockMvc.perform(post("/api/conflicts/{id}/claim", fx.conflictId())
-                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
         return fx;
     }
 

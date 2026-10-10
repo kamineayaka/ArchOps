@@ -47,6 +47,8 @@ public class SecurityConfig {
                         // Host-agent ingest is a control-plane public seam (no operator identity header).
                         .requestMatchers("/api/agent/**").permitAll()
                         // ADR-0046: 诊断选支, 批准并冻结, 草案逐条确认, 确认关闭, and 执行 are explicit actions.
+                        // Removed collaboration writes are not authenticated leftovers; no handler means 404.
+                        .requestMatchers(HttpMethod.POST, "/api/conflicts/*/claim").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/conflicts/*/branch-selection").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/conflicts/*/confirm-close").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/conflicts/*/curated-drafts/open/items/*/accept").permitAll()
