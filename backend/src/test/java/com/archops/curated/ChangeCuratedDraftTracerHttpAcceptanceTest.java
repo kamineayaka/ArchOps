@@ -91,7 +91,6 @@ class ChangeCuratedDraftTracerHttpAcceptanceTest {
         String conflictId = readDataId(warn);
 
         // 3. 一般角色认领 → 已接受处理人
-        claimAsAcceptedHandler(conflictId);
 
         // 4. 诊断 READY：分叉同时含 FIX_ACTUAL 与 CHANGE_CURATED
         waitUntilDiagnosisReady(conflictId);
@@ -224,7 +223,6 @@ class ChangeCuratedDraftTracerHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data.origin", is("CHANGE_CURATED")));
 
         String pendingId = openUnclaimedConflict("ccd06-n2s-pe");
-        acknowledgeAndAssignPending(pendingId, GENERAL_ID);
         waitUntilDiagnosisReady(pendingId);
         postBranch(pendingId, GENERAL_ID, "CHANGE_CURATED_TO_OBSERVED")
                 .andExpect(status().isOk())
@@ -252,7 +250,6 @@ class ChangeCuratedDraftTracerHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data.curatedValue.hostId", is(nh.world().hostA())));
 
         OpenDraft pending = openChangeCuratedDraft("ccd06-n2r-pe");
-        transferHandlerPending(pending.conflictId(), GENERAL_ID, GENERAL_2_ID);
         postItemAction(pending.conflictId(), pending.itemXId(), "accept", GENERAL_2_ID)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.items[?(@.id=='" + pending.itemXId() + "')].status",
@@ -498,14 +495,6 @@ class ChangeCuratedDraftTracerHttpAcceptanceTest {
         heartbeatWithContainer(hostId, agentId, world.objectX());
     }
 
-    private void claimAsAcceptedHandler(String conflictId) throws Exception {
-        mockMvc.perform(post("/api/conflicts/{id}/claim", conflictId)
-                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
-    }
-
     private void waitUntilDiagnosisReady(String conflictId) throws Exception {
         ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, conflictId, GENERAL_ID);
     }
@@ -516,7 +505,6 @@ class ChangeCuratedDraftTracerHttpAcceptanceTest {
         String conflictId = readDataId(getByMergeKey(world.containerX())
                 .andExpect(status().isOk())
                 .andReturn());
-        claimAsAcceptedHandler(conflictId);
         waitUntilDiagnosisReady(conflictId);
         return new ClaimedConflict(world, conflictId);
     }
@@ -527,21 +515,6 @@ class ChangeCuratedDraftTracerHttpAcceptanceTest {
         return readDataId(getByMergeKey(world.containerX())
                 .andExpect(status().isOk())
                 .andReturn());
-    }
-
-    private void acknowledgeAndAssignPending(String conflictId, String assigneeUserId) throws Exception {
-        mockMvc.perform(post("/api/conflicts/{id}/acknowledge", conflictId)
-                        .header(TempAuthHeaders.USER_ID, SENIOR_ID)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
-        mockMvc.perform(post("/api/conflicts/{id}/assign-handler", conflictId)
-                        .header(TempAuthHeaders.USER_ID, SENIOR_ID)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"assigneeUserId\":\"" + assigneeUserId + "\"}")
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
     }
 
     private OpenDraft openChangeCuratedDraft(String prefix) throws Exception {
@@ -559,16 +532,6 @@ class ChangeCuratedDraftTracerHttpAcceptanceTest {
                 data.path("id").asText(),
                 itemId(items, fx.world().containerX()),
                 itemId(items, fx.world().containerY()));
-    }
-
-    private void transferHandlerPending(String conflictId, String fromUserId, String toUserId) throws Exception {
-        mockMvc.perform(post("/api/conflicts/{id}/transfer-handler", conflictId)
-                        .header(TempAuthHeaders.USER_ID, fromUserId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"toUserId\":\"" + toUserId + "\"}")
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
     }
 
     private String snapshotXOnHostC(OpenDraft draft, String hostCName) throws Exception {

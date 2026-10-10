@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 /**
- * Conflict warn / collaboration / pending-close / diagnosis HTTP surface.
+ * Conflict warn / pending-close / diagnosis HTTP surface.
  * 确认关闭 is an explicit request and does not require a user identity.
  */
 @RestController
@@ -47,13 +47,15 @@ public class ConflictController {
         this.conflictCaseAssembler = conflictCaseAssembler;
     }
 
-    /** Active conflicts: OPEN + PENDING_CLOSE (CLOSED excluded). */
+    /** Active conflicts: OPEN + PENDING_CLOSE (CLOSED excluded). No user header. */
     @GetMapping
+    @PreAuthorize("permitAll()")
     public ApiResponse<List<ConflictCaseResponse>> listActive() {
         return ApiResponse.ok(conflictCaseAssembler.listActive());
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("permitAll()")
     public ApiResponse<ConflictCaseResponse> get(@PathVariable String id) {
         return ApiResponse.ok(conflictCaseAssembler.getById(id));
     }
@@ -65,6 +67,7 @@ public class ConflictController {
     }
 
     @GetMapping("/{id}/diagnosis")
+    @PreAuthorize("permitAll()")
     public ApiResponse<ConflictDiagnosisResponse> diagnosis(@PathVariable String id) {
         conflictCaseAssembler.getById(id);
         ConflictDiagnosisResponse latest = conflictDiagnosisService.latestForConflict(id);
@@ -80,48 +83,6 @@ public class ConflictController {
             @RequestParam(defaultValue = "RUNS_ON") CuratedRelationType relationType
     ) {
         return ApiResponse.ok(conflictCaseAssembler.getActiveByMergeKey(subjectId, relationType));
-    }
-
-    /** 认领不再写入已知悉、归属或处理人. */
-    @PostMapping("/{id}/claim")
-    public ApiResponse<ConflictCaseResponse> claim(@PathVariable String id) {
-        return ApiResponse.ok(conflictCollaborationService.claim(id));
-    }
-
-    /** 已知悉不再写入归属或处理人. */
-    @PostMapping("/{id}/acknowledge")
-    public ApiResponse<ConflictCaseResponse> acknowledge(@PathVariable String id) {
-        return ApiResponse.ok(conflictCollaborationService.acknowledge(id));
-    }
-
-    /** 自任不再写入已知悉或处理人. */
-    @PostMapping("/{id}/acknowledge-and-self-appoint")
-    public ApiResponse<ConflictCaseResponse> acknowledgeAndSelfAppoint(@PathVariable String id) {
-        return ApiResponse.ok(conflictCollaborationService.acknowledgeAndSelfAppoint(id));
-    }
-
-    /** 指派不再写入处理人，也不再要求指派对象. */
-    @PostMapping("/{id}/assign-handler")
-    public ApiResponse<ConflictCaseResponse> assignHandler(@PathVariable String id) {
-        return ApiResponse.ok(conflictCollaborationService.assignHandler(id));
-    }
-
-    /** 接受不再写入处理人. */
-    @PostMapping("/{id}/accept-handler")
-    public ApiResponse<ConflictCaseResponse> acceptHandler(@PathVariable String id) {
-        return ApiResponse.ok(conflictCollaborationService.acceptHandler(id));
-    }
-
-    /** 拒绝不再写入处理人，也不再要求理由. */
-    @PostMapping("/{id}/reject-handler")
-    public ApiResponse<ConflictCaseResponse> rejectHandler(@PathVariable String id) {
-        return ApiResponse.ok(conflictCollaborationService.rejectHandler(id));
-    }
-
-    /** 转让不再写入处理人，也不再要求接手人. */
-    @PostMapping("/{id}/transfer-handler")
-    public ApiResponse<ConflictCaseResponse> transferHandler(@PathVariable String id) {
-        return ApiResponse.ok(conflictCollaborationService.transferHandler(id));
     }
 
     /** 开计划不再以处理人门禁决定，响应不带处理人 id. */

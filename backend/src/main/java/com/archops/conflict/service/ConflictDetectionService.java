@@ -5,7 +5,6 @@ import com.archops.conflict.diagnosis.ConflictDiagnosisService;
 import com.archops.conflict.domain.ConflictCase;
 import com.archops.conflict.domain.ConflictEventType;
 import com.archops.conflict.domain.ConflictStatus;
-import com.archops.conflict.domain.HandlerAcceptance;
 import com.archops.conflict.mapper.ConflictCaseMapper;
 import com.archops.curated.domain.CuratedFact;
 import com.archops.curated.domain.CuratedRelationType;
@@ -392,11 +391,6 @@ public class ConflictDetectionService {
         created.setObservedLineageJson(writeLineage(List.of(lineageStep(observed, now))));
         created.setFirstWarnedAt(now);
         created.setUpdatedAt(now);
-        created.setAcknowledged(false);
-        created.setAcknowledgedAt(null);
-        created.setOwnerUserId(null);
-        created.setHandlerUserId(null);
-        created.setHandlerAcceptance(HandlerAcceptance.NONE);
         conflictCaseMapper.insert(created);
         conflictEventService.append(created.getId(), ConflictEventType.WARNED, null, Map.of(
                 "curatedTargetId", curated.getTargetId(),

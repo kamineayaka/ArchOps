@@ -133,8 +133,7 @@ public class ConflictCaseAssembler {
                 row.getStatus() == ConflictStatus.PENDING_CLOSE,
                 hollow,
                 identityLost,
-                conflictDiagnosisService.statusLabelForConflict(row.getId()),
-                null
+                conflictDiagnosisService.statusLabelForConflict(row.getId())
         );
     }
 

@@ -687,11 +687,6 @@ class UnboundIdentityRebindTracerHttpAcceptanceTest {
                 .andReturn();
         String conflictId = objectMapper.readTree(open.getResponse().getContentAsString())
                 .path("data").path("id").asText();
-        mockMvc.perform(post("/api/conflicts/{id}/claim", conflictId)
-                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
         return new LostPipeline(prefix, conflictId, hostA, hostB, containerId);
     }
 

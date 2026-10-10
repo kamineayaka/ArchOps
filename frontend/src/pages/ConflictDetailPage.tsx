@@ -237,11 +237,6 @@ export default function ConflictDetailPage() {
         setDraftError(err instanceof ApiError ? err.message : String(err));
       }
     } catch (err) {
-      const keepLoaded =
-        conflictRef.current != null && err instanceof ApiError && err.code === 'AUTH_REQUIRED';
-      if (keepLoaded) {
-        return;
-      }
       conflictRef.current = null;
       setConflict(null);
       const msg = err instanceof ApiError ? `${err.code}: ${err.message}` : String(err);

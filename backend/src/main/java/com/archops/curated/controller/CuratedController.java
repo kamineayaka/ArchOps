@@ -76,6 +76,7 @@ public class CuratedController {
      * 规范问法：「应该在哪」— curated track only (ideal host for the container).
      */
     @GetMapping("/asks/should-where")
+    @PreAuthorize("permitAll()")
     public ApiResponse<ShouldWhereResponse> shouldWhere(@RequestParam String containerId) {
         return ApiResponse.ok(curatedTruthService.shouldWhere(containerId));
     }

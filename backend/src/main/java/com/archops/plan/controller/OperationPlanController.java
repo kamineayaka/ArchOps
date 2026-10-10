@@ -47,11 +47,13 @@ public class OperationPlanController {
     }
 
     @GetMapping("/conflicts/{conflictId}/operation-plans/active")
+    @PreAuthorize("permitAll()")
     public ApiResponse<OperationPlanResponse> activePlan(@PathVariable String conflictId) {
         return ApiResponse.ok(operationPlanService.getActive(conflictId));
     }
 
     @GetMapping("/operation-plans/{planId}")
+    @PreAuthorize("permitAll()")
     public ApiResponse<OperationPlanResponse> getPlan(@PathVariable String planId) {
         return ApiResponse.ok(operationPlanService.getById(planId));
     }
