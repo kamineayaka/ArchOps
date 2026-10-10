@@ -593,8 +593,8 @@ class UnboundDraftItemReviewHttpAcceptanceTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}")
                         .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isInternalServerError())
-                .andExpect(jsonPath("$.success", is(false)));
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code", is("NOT_FOUND")));
 
         mockMvc.perform(get("/api/conflicts/{conflictId}/operation-plans/active", "u03l-none")
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)
