@@ -218,6 +218,42 @@ class CollaborationLeftoverRemovedHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data.createdBy").value(nullValue()));
     }
 
+    @Test
+    void draftByIdReadWithoutUserOmitsActor() throws Exception {
+        String hostA = createHost("rm-di-a");
+        String hostB = createHost("rm-di-b");
+        String containerX = createContainer("app-ctr-rm-di-x", "ctr-rm-di-x");
+        confirmRunsOn(containerX, hostA);
+        confirmRunsOn(createContainer("app-ctr-rm-di-y", "ctr-rm-di-y"), hostA);
+        heartbeatWithContainer(hostB, "agent-ctr-rm-di-x", "ctr-rm-di-x");
+        MvcResult conflict = mockMvc.perform(get("/api/conflicts/by-merge-key")
+                        .param("subjectId", containerX)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn();
+        String conflictId = objectMapper.readTree(conflict.getResponse().getContentAsString())
+                .path("data").path("id").asText();
+        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, conflictId, GENERAL_ID);
+        mockMvc.perform(post("/api/conflicts/{id}/branch-selection", conflictId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"forkId\":\"CHANGE_CURATED_TO_OBSERVED\"}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+        MvcResult open = mockMvc.perform(get("/api/conflicts/{id}/curated-drafts/open", conflictId)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn();
+        String draftId = objectMapper.readTree(open.getResponse().getContentAsString())
+                .path("data").path("id").asText();
+
+        mockMvc.perform(get("/api/conflicts/{id}/curated-drafts/{draftId}", conflictId, draftId)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.id").value(draftId))
+                .andExpect(jsonPath("$.data.createdBy").value(nullValue()));
+    }
+
     private String openConflict(String hostAName, String hostBName, String objectId) throws Exception {
         String hostA = createHost(hostAName);
         String hostB = createHost(hostBName);
