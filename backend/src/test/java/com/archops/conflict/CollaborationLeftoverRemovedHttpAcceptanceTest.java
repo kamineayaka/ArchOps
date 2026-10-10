@@ -45,6 +45,21 @@ class CollaborationLeftoverRemovedHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data.collaboration").doesNotExist());
     }
 
+    @Test
+    void acknowledgeOnOpenConflictIsNotFoundWithoutUser() throws Exception {
+        String conflictId = openConflict("rm-ack-a", "rm-ack-b", "ctr-rm-ack");
+
+        mockMvc.perform(post("/api/conflicts/{id}/acknowledge", conflictId)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(get("/api/conflicts/{id}", conflictId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("OPEN"));
+    }
+
     private String openConflict(String hostAName, String hostBName, String objectId) throws Exception {
         String hostA = createHost(hostAName);
         String hostB = createHost(hostBName);

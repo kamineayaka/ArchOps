@@ -38,12 +38,6 @@ class ConflictAssignTransferHttpAcceptanceTest {
     void assignAcceptAndOpenPlanOmitCollaborationIdentity() throws Exception {
         String conflictId = openConflict("asg-a", "asg-b", "ctr-asg-001");
 
-        mockMvc.perform(post("/api/conflicts/{id}/acknowledge", conflictId)
-                        .header(TempAuthHeaders.USER_ID, SENIOR_ID)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
-
         mockMvc.perform(post("/api/conflicts/{id}/assign-handler", conflictId)
                         .header(TempAuthHeaders.USER_ID, SENIOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)

@@ -85,12 +85,6 @@ class ConflictCollaborationHttpAcceptanceTest {
     void claimAfterAcknowledgeOmitsCollaborationIdentity() throws Exception {
         String conflictId = openConflict("own-a", "own-b", "ctr-own-001");
 
-        mockMvc.perform(post("/api/conflicts/{id}/acknowledge", conflictId)
-                        .header(TempAuthHeaders.USER_ID, SENIOR_ID)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
-
         mockMvc.perform(post("/api/conflicts/{id}/operation-plans", conflictId)
                         .header(TempAuthHeaders.USER_ID, SENIOR_ID)
                         .accept(MediaType.APPLICATION_JSON))

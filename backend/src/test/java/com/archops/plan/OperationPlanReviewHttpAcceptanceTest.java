@@ -106,11 +106,6 @@ class OperationPlanReviewHttpAcceptanceTest {
     @Test
     void selectFixActualWithoutAcceptedHandlerOpensReviewPlan() throws Exception {
         String conflictId = openConflictOnly("p7c-a", "p7c-b", "ctr-p7-owner");
-        mockMvc.perform(post("/api/conflicts/{id}/acknowledge", conflictId)
-                        .header(TempAuthHeaders.USER_ID, SENIOR_ID)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
         ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, conflictId, SENIOR_ID);
 
         mockMvc.perform(post("/api/conflicts/{id}/branch-selection", conflictId)
