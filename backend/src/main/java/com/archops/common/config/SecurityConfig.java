@@ -50,6 +50,7 @@ public class SecurityConfig {
                         // Removed collaboration writes are not authenticated leftovers; no handler means 404.
                         .requestMatchers(HttpMethod.POST, "/api/conflicts/*/claim").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/conflicts/*/acknowledge").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/conflicts/*/acknowledge-and-self-appoint").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/conflicts/*/branch-selection").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/conflicts/*/confirm-close").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/conflicts/*/curated-drafts/open/items/*/accept").permitAll()

@@ -23,4 +23,11 @@ Red command: `cd backend && ./gradlew test --tests com.archops.conflict.Collabor
 `Status expected:<404> but was:<401>` at `CollaborationLeftoverRemovedHttpAcceptanceTest.java:38`.
 Green command: same test, exit 0. Removed `POST /api/conflicts/{id}/claim` and its service method. Unmapped API paths return 404 (`NOT_FOUND`) instead of an internal error, and the old path is not an auth gate.
 Refactor: dropped empty claim helpers left in older HTTP tests.
-Commit: (filled after commit)
+Commit: `df85dcd` Remove the claim route so a conflict cannot be claimed.
+
+### Cycle B — acknowledge route is gone
+Red command: `cd backend && ./gradlew test --tests com.archops.conflict.CollaborationLeftoverRemovedHttpAcceptanceTest.acknowledgeOnOpenConflictIsNotFoundWithoutUser --offline`
+`Status expected:<404> but was:<401>` at line 54.
+Green command: same test, exit 0.
+Refactor: no structural change.
+Commit: (cycle B)

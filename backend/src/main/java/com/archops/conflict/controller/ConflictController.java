@@ -82,12 +82,6 @@ public class ConflictController {
         return ApiResponse.ok(conflictCaseAssembler.getActiveByMergeKey(subjectId, relationType));
     }
 
-    /** 自任不再写入已知悉或处理人. */
-    @PostMapping("/{id}/acknowledge-and-self-appoint")
-    public ApiResponse<ConflictCaseResponse> acknowledgeAndSelfAppoint(@PathVariable String id) {
-        return ApiResponse.ok(conflictCollaborationService.acknowledgeAndSelfAppoint(id));
-    }
-
     /** 指派不再写入处理人，也不再要求指派对象. */
     @PostMapping("/{id}/assign-handler")
     public ApiResponse<ConflictCaseResponse> assignHandler(@PathVariable String id) {

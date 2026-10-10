@@ -61,12 +61,6 @@ class ConflictCollaborationHttpAcceptanceTest {
     void seniorCanAcknowledgeAndSelfAppoint() throws Exception {
         String conflictId = openConflict("sen-a", "sen-b", "ctr-sen-001");
 
-        mockMvc.perform(post("/api/conflicts/{id}/acknowledge-and-self-appoint", conflictId)
-                        .header(TempAuthHeaders.USER_ID, SENIOR_ID)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
-
         mockMvc.perform(post("/api/conflicts/{id}/operation-plans", conflictId)
                         .header(TempAuthHeaders.USER_ID, SENIOR_ID)
                         .accept(MediaType.APPLICATION_JSON))
@@ -90,12 +84,6 @@ class ConflictCollaborationHttpAcceptanceTest {
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.handlerUserId").doesNotExist());
-
-        mockMvc.perform(post("/api/conflicts/{id}/acknowledge-and-self-appoint", conflictId)
-                        .header(TempAuthHeaders.USER_ID, SENIOR_ID)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
     }
 
     private String openConflict(String hostAName, String hostBName, String objectId) throws Exception {

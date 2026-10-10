@@ -60,6 +60,15 @@ class CollaborationLeftoverRemovedHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data.status").value("OPEN"));
     }
 
+    @Test
+    void selfAppointOnOpenConflictIsNotFoundWithoutUser() throws Exception {
+        String conflictId = openConflict("rm-self-a", "rm-self-b", "ctr-rm-self");
+
+        mockMvc.perform(post("/api/conflicts/{id}/acknowledge-and-self-appoint", conflictId)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotFound());
+    }
+
     private String openConflict(String hostAName, String hostBName, String objectId) throws Exception {
         String hostA = createHost(hostAName);
         String hostB = createHost(hostBName);
