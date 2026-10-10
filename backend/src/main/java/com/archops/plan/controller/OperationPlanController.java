@@ -47,6 +47,7 @@ public class OperationPlanController {
     }
 
     @GetMapping("/conflicts/{conflictId}/operation-plans/active")
+    @PreAuthorize("permitAll()")
     public ApiResponse<OperationPlanResponse> activePlan(@PathVariable String conflictId) {
         return ApiResponse.ok(operationPlanService.getActive(conflictId));
     }

@@ -58,6 +58,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/conflicts").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/conflicts/*").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/conflicts/*/diagnosis").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/conflicts/*/operation-plans/active").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/conflicts/*/branch-selection").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/conflicts/*/confirm-close").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/conflicts/*/curated-drafts/open/items/*/accept").permitAll()

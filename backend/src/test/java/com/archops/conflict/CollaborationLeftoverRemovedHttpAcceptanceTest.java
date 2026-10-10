@@ -10,6 +10,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -147,6 +148,23 @@ class CollaborationLeftoverRemovedHttpAcceptanceTest {
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status").value("READY"));
+    }
+
+    @Test
+    void activePlanReadWithoutUser() throws Exception {
+        String conflictId = openConflict("rm-pl-a", "rm-pl-b", "ctr-rm-pl");
+        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, conflictId, GENERAL_ID);
+        mockMvc.perform(post("/api/conflicts/{id}/branch-selection", conflictId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"forkId\":\"FIX_ACTUAL_TO_CURATED\"}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/conflicts/{id}/operation-plans/active", conflictId)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("DRAFT_REVIEW"))
+                .andExpect(jsonPath("$.data.createdBy").value(nullValue()));
     }
 
     private String openConflict(String hostAName, String hostBName, String objectId) throws Exception {
