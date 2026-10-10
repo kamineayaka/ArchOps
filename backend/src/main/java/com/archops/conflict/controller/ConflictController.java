@@ -47,8 +47,9 @@ public class ConflictController {
         this.conflictCaseAssembler = conflictCaseAssembler;
     }
 
-    /** Active conflicts: OPEN + PENDING_CLOSE (CLOSED excluded). */
+    /** Active conflicts: OPEN + PENDING_CLOSE (CLOSED excluded). No user header. */
     @GetMapping
+    @PreAuthorize("permitAll()")
     public ApiResponse<List<ConflictCaseResponse>> listActive() {
         return ApiResponse.ok(conflictCaseAssembler.listActive());
     }

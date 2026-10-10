@@ -111,6 +111,19 @@ class CollaborationLeftoverRemovedHttpAcceptanceTest {
                 .andExpect(status().isNotFound());
     }
 
+    @Test
+    void listActiveConflictsWithoutUserOmitsCollaboration() throws Exception {
+        openConflict("rm-list-a", "rm-list-b", "ctr-rm-list");
+
+        mockMvc.perform(get("/api/conflicts")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].collaboration").doesNotExist())
+                .andExpect(jsonPath("$.data[0].ownerUserId").doesNotExist())
+                .andExpect(jsonPath("$.data[0].handlerUserId").doesNotExist())
+                .andExpect(jsonPath("$.data[0].status").value("OPEN"));
+    }
+
     private String openConflict(String hostAName, String hostBName, String objectId) throws Exception {
         String hostA = createHost(hostAName);
         String hostB = createHost(hostBName);
