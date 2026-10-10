@@ -89,6 +89,17 @@ class CollaborationLeftoverRemovedHttpAcceptanceTest {
                 .andExpect(status().isNotFound());
     }
 
+    @Test
+    void rejectOnOpenConflictIsNotFoundWithoutUser() throws Exception {
+        String conflictId = openConflict("rm-rej-a", "rm-rej-b", "ctr-rm-rej");
+
+        mockMvc.perform(post("/api/conflicts/{id}/reject-handler", conflictId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"reason\":\"not mine\"}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotFound());
+    }
+
     private String openConflict(String hostAName, String hostBName, String objectId) throws Exception {
         String hostA = createHost(hostAName);
         String hostB = createHost(hostBName);

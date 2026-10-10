@@ -82,12 +82,6 @@ public class ConflictController {
         return ApiResponse.ok(conflictCaseAssembler.getActiveByMergeKey(subjectId, relationType));
     }
 
-    /** 拒绝不再写入处理人，也不再要求理由. */
-    @PostMapping("/{id}/reject-handler")
-    public ApiResponse<ConflictCaseResponse> rejectHandler(@PathVariable String id) {
-        return ApiResponse.ok(conflictCollaborationService.rejectHandler(id));
-    }
-
     /** 转让不再写入处理人，也不再要求接手人. */
     @PostMapping("/{id}/transfer-handler")
     public ApiResponse<ConflictCaseResponse> transferHandler(@PathVariable String id) {

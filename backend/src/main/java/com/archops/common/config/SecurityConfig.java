@@ -53,6 +53,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/conflicts/*/acknowledge-and-self-appoint").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/conflicts/*/assign-handler").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/conflicts/*/accept-handler").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/conflicts/*/reject-handler").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/conflicts/*/branch-selection").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/conflicts/*/confirm-close").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/conflicts/*/curated-drafts/open/items/*/accept").permitAll()

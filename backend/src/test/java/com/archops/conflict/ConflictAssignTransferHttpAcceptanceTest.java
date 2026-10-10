@@ -67,20 +67,10 @@ class ConflictAssignTransferHttpAcceptanceTest {
         String conflictId = openConflict("rej-a", "rej-b", "ctr-rej-001");
 
         mockMvc.perform(post("/api/conflicts/{id}/reject-handler", conflictId)
-                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"reason\":\"\"}")
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
-
-        mockMvc.perform(post("/api/conflicts/{id}/reject-handler", conflictId)
-                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"reason\":\"当前值班冲突，无法接手\"}")
                         .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
+                .andExpect(status().isNotFound());
 
         mockMvc.perform(post("/api/conflicts/{id}/operation-plans", conflictId)
                         .header(TempAuthHeaders.USER_ID, SENIOR_ID)

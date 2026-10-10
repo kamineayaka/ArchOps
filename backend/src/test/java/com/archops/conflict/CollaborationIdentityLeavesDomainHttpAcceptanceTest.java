@@ -122,12 +122,10 @@ class CollaborationIdentityLeavesDomainHttpAcceptanceTest {
         String conflictId = openConflict("id6r-a", "id6r-b", "ctr-id6-006");
 
         mockMvc.perform(post("/api/conflicts/{id}/reject-handler", conflictId)
-                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"reason\":\"not mine\"}")
                         .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
+                .andExpect(status().isNotFound());
 
         mockMvc.perform(get("/api/conflicts/{id}/events", conflictId)
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)
@@ -169,10 +167,8 @@ class CollaborationIdentityLeavesDomainHttpAcceptanceTest {
         String conflictId = openConflict("id6j-a", "id6j-b", "ctr-id6-010");
 
         mockMvc.perform(post("/api/conflicts/{id}/reject-handler", conflictId)
-                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
                         .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
+                .andExpect(status().isNotFound());
     }
 
     @Test
