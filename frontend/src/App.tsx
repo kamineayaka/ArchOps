@@ -1,5 +1,5 @@
 import { Layout, Select, Space, Typography } from 'antd';
-import { Link, Navigate, Route, Routes } from 'react-router-dom';
+import { Link, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { DEMO_USERS, UNAUTHENTICATED_VALUE, useDemoUser } from './auth/DemoUserContext';
 import ConflictDetailPage from './pages/ConflictDetailPage';
 import ConflictListPage from './pages/ConflictListPage';
@@ -10,6 +10,8 @@ const { Title, Text } = Typography;
 
 export default function App() {
   const { userId, user, loading, setUserId } = useDemoUser();
+  const { pathname } = useLocation();
+  const conflictPage = pathname === '/' || pathname.startsWith('/conflicts/');
 
   return (
     <Layout style={{ minHeight: '100vh', background: '#f0f2f5' }}>
@@ -37,26 +39,28 @@ export default function App() {
             未绑定 / 身份失联
           </Link>
         </Space>
-        <Space>
-          <Text style={{ color: '#c5d6c8' }}>演示身份</Text>
-          <Select
-            value={userId ?? UNAUTHENTICATED_VALUE}
-            onChange={(value) => setUserId(value === UNAUTHENTICATED_VALUE ? null : value)}
-            style={{ width: 220 }}
-            options={[
-              ...DEMO_USERS.map((u) => ({ value: u.id, label: u.label })),
-              { value: UNAUTHENTICATED_VALUE, label: '未认证' },
-            ]}
-          />
-          {!loading && user && (
-            <Text style={{ color: '#9bb59f' }}>
-              {user.displayName} · {user.roleLabel}
-            </Text>
-          )}
-          {!loading && !userId && (
-            <Text style={{ color: '#9bb59f' }}>未带头 · AUTH_REQUIRED</Text>
-          )}
-        </Space>
+        {!conflictPage && (
+          <Space>
+            <Text style={{ color: '#c5d6c8' }}>演示身份</Text>
+            <Select
+              value={userId ?? UNAUTHENTICATED_VALUE}
+              onChange={(value) => setUserId(value === UNAUTHENTICATED_VALUE ? null : value)}
+              style={{ width: 220 }}
+              options={[
+                ...DEMO_USERS.map((u) => ({ value: u.id, label: u.label })),
+                { value: UNAUTHENTICATED_VALUE, label: '未认证' },
+              ]}
+            />
+            {!loading && user && (
+              <Text style={{ color: '#9bb59f' }}>
+                {user.displayName} · {user.roleLabel}
+              </Text>
+            )}
+            {!loading && !userId && (
+              <Text style={{ color: '#9bb59f' }}>未带头 · AUTH_REQUIRED</Text>
+            )}
+          </Space>
+        )}
       </Header>
       <Content style={{ padding: 24, maxWidth: 1080, margin: '0 auto', width: '100%' }}>
         <Routes>

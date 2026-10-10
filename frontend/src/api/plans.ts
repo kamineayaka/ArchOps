@@ -11,12 +11,14 @@ export function selectBranch(conflictId: string, forkId: string): Promise<Operat
 export function getActivePlan(conflictId: string): Promise<OperationPlan> {
   return apiRequest<OperationPlan>(
     `/api/conflicts/${encodeURIComponent(conflictId)}/operation-plans/active`,
+    { omitUserId: true },
   );
 }
 
 export function getPlan(planId: string): Promise<OperationPlan> {
   return apiRequest<OperationPlan>(
     `/api/operation-plans/${encodeURIComponent(planId)}`,
+    { omitUserId: true },
   );
 }
 
