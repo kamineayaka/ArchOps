@@ -56,6 +56,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/conflicts/*/reject-handler").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/conflicts/*/transfer-handler").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/conflicts").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/conflicts/by-merge-key").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/conflicts/*").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/conflicts/*/diagnosis").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/conflicts/*/operation-plans/active").permitAll()

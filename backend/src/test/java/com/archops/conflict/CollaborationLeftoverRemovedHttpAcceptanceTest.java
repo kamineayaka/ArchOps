@@ -255,6 +255,15 @@ class CollaborationLeftoverRemovedHttpAcceptanceTest {
     }
 
     @Test
+    void byMergeKeyWithoutUserStaysUnauthorized() throws Exception {
+        mockMvc.perform(get("/api/conflicts/by-merge-key")
+                        .param("subjectId", "ctr-rm-merge-key")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTH_REQUIRED"));
+    }
+
+    @Test
     void shouldWhereReadWithoutUser() throws Exception {
         String hostId = createHost("rm-sw-a");
         String containerId = createContainer("app-ctr-rm-sw", "ctr-rm-sw");
