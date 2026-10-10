@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 /**
- * Conflict warn / collaboration / pending-close / diagnosis HTTP surface.
+ * Conflict warn / pending-close / diagnosis HTTP surface.
  * 确认关闭 is an explicit request and does not require a user identity.
  */
 @RestController

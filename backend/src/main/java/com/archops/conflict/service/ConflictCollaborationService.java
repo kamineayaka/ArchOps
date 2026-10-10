@@ -21,7 +21,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Conflict collaboration: claim / ack / assign / accept / reject / transfer / confirm-close.
+ * Conflict resolution writes that remain: open-plan intent and confirm-close.
  */
 @Service
 public class ConflictCollaborationService {
