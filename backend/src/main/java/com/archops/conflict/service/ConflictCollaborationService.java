@@ -21,7 +21,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Conflict collaboration: claim / ack / assign / accept / reject / transfer / confirm-close.
+ * Conflict resolution writes that remain: open-plan intent and confirm-close.
  */
 @Service
 public class ConflictCollaborationService {
@@ -45,69 +45,6 @@ public class ConflictCollaborationService {
         this.conflictEventService = conflictEventService;
         this.requiresNewTx = new TransactionTemplate(transactionManager);
         this.requiresNewTx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
-    }
-
-    /**
-     * 认领不再写入已知悉、归属或处理人.
-     */
-    @Transactional(readOnly = true)
-    public ConflictCaseResponse claim(String conflictId) {
-        requireOpen(conflictId);
-        return conflictCaseAssembler.getById(conflictId);
-    }
-
-    /**
-     * 已知悉不再写入归属或处理人.
-     */
-    @Transactional(readOnly = true)
-    public ConflictCaseResponse acknowledge(String conflictId) {
-        requireOpen(conflictId);
-        return conflictCaseAssembler.getById(conflictId);
-    }
-
-    /**
-     * 自任不再写入已知悉或处理人.
-     */
-    @Transactional(readOnly = true)
-    public ConflictCaseResponse acknowledgeAndSelfAppoint(String conflictId) {
-        requireOpen(conflictId);
-        return conflictCaseAssembler.getById(conflictId);
-    }
-
-    /**
-     * 指派不再写入处理人.
-     */
-    @Transactional(readOnly = true)
-    public ConflictCaseResponse assignHandler(String conflictId) {
-        requireOpen(conflictId);
-        return conflictCaseAssembler.getById(conflictId);
-    }
-
-    /**
-     * 接受不再写入处理人.
-     */
-    @Transactional(readOnly = true)
-    public ConflictCaseResponse acceptHandler(String conflictId) {
-        requireOpen(conflictId);
-        return conflictCaseAssembler.getById(conflictId);
-    }
-
-    /**
-     * 拒绝不再写入处理人.
-     */
-    @Transactional(readOnly = true)
-    public ConflictCaseResponse rejectHandler(String conflictId) {
-        requireOpen(conflictId);
-        return conflictCaseAssembler.getById(conflictId);
-    }
-
-    /**
-     * 转让不再写入处理人.
-     */
-    @Transactional(readOnly = true)
-    public ConflictCaseResponse transferHandler(String conflictId) {
-        requireOpen(conflictId);
-        return conflictCaseAssembler.getById(conflictId);
     }
 
     /**

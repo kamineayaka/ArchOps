@@ -183,7 +183,6 @@ class IdentityLostPipelineGateHttpAcceptanceTest {
     @Test
     void acceptedHandlerFixActualOnIdentityLostIsBlocked() throws Exception {
         Fixture fx = openMismatch("u05d");
-        claimAsGeneral(fx.conflictId());
         ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, fx.conflictId(), GENERAL_ID);
         identityLostOnObservedHost(fx);
 
@@ -201,7 +200,6 @@ class IdentityLostPipelineGateHttpAcceptanceTest {
     @Test
     void acceptedHandlerChangeCuratedOnIdentityLostIsBlocked() throws Exception {
         Fixture fx = openMismatch("u05e");
-        claimAsGeneral(fx.conflictId());
         ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, fx.conflictId(), GENERAL_ID);
         identityLostOnObservedHost(fx);
 
@@ -250,7 +248,6 @@ class IdentityLostPipelineGateHttpAcceptanceTest {
     @Test
     void identityLostVoidsActivePlanAndApproveIsPlanVoided() throws Exception {
         Fixture fx = openMismatch("u05g");
-        claimAsGeneral(fx.conflictId());
         ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, fx.conflictId(), GENERAL_ID);
 
         MvcResult created = mockMvc.perform(post("/api/conflicts/{id}/branch-selection", fx.conflictId())
@@ -286,7 +283,6 @@ class IdentityLostPipelineGateHttpAcceptanceTest {
         Fixture fx = openMismatch("u05h");
         String sibling = createContainer("u05h-y", "u05h-oid-y");
         confirmRunsOn(sibling, fx.hostA());
-        claimAsGeneral(fx.conflictId());
         ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, fx.conflictId(), GENERAL_ID);
 
         MvcResult created = mockMvc.perform(post("/api/conflicts/{id}/branch-selection", fx.conflictId())
@@ -385,14 +381,6 @@ class IdentityLostPipelineGateHttpAcceptanceTest {
         String conflictId = objectMapper.readTree(open.getResponse().getContentAsString())
                 .path("data").path("id").asText();
         return new Fixture(conflictId, hostA, hostB, containerId, prefix);
-    }
-
-    private void claimAsGeneral(String conflictId) throws Exception {
-        mockMvc.perform(post("/api/conflicts/{id}/claim", conflictId)
-                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
     }
 
     private void identityLostOnObservedHost(Fixture fx) throws Exception {

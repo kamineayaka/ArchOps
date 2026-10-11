@@ -12,5 +12,6 @@ export type ShouldWhere = {
 export function getShouldWhere(containerId: string): Promise<ShouldWhere> {
   return apiRequest<ShouldWhere>(
     `/api/curated/asks/should-where?containerId=${encodeURIComponent(containerId)}`,
+    { omitUserId: true },
   );
 }

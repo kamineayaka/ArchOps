@@ -1,10 +1,8 @@
 package com.archops.conflict.dto;
 
-import com.archops.conflict.domain.HandlerAcceptance;
 import com.archops.curated.domain.CuratedRelationType;
 import com.archops.curated.dto.CuratedObjectResponse;
 import com.archops.observed.domain.ObservedAvailability;
-import com.fasterxml.jackson.annotation.JsonInclude;
 
 import java.time.Instant;
 import java.util.List;
@@ -23,7 +21,7 @@ public record ConflictCaseResponse(
         Instant closedAt,
         Instant suspendedAt,
         /**
-         * True when status is PENDING_CLOSE — reminder stays visible even if 已知悉.
+         * True when status is PENDING_CLOSE — the reminder stays until confirm-close.
          */
         boolean pendingCloseReminderVisible,
         /**
@@ -39,9 +37,7 @@ public record ConflictCaseResponse(
         /**
          * NOT_STARTED | PENDING | READY | FAILED — diagnosis is async and never blocks warning.
          */
-        String diagnosisStatus,
-        @JsonInclude(JsonInclude.Include.NON_NULL)
-        Collaboration collaboration
+        String diagnosisStatus
 ) {
     public enum ConflictStatusView {
         OPEN,
@@ -91,15 +87,4 @@ public record ConflictCaseResponse(
     ) {
     }
 
-    /**
-     * 已知悉 / 冲突归属 / 冲突处理人 collaboration snapshot.
-     */
-    public record Collaboration(
-            boolean acknowledged,
-            Instant acknowledgedAt,
-            String ownerUserId,
-            String handlerUserId,
-            HandlerAcceptance handlerAcceptance
-    ) {
-    }
 }

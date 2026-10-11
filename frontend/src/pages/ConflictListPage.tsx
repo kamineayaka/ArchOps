@@ -5,7 +5,6 @@ import { Link } from 'react-router-dom';
 import { listActiveConflicts } from '../api/conflicts';
 import type { ConflictCase } from '../api/types';
 import { ApiError } from '../api/types';
-import { useDemoUser } from '../auth/DemoUserContext';
 import { formatObservedActual, formatTrack } from '../util/format';
 
 const { Title, Paragraph, Text } = Typography;
@@ -18,7 +17,6 @@ const STATUS_COLOR: Record<string, string> = {
 };
 
 export default function ConflictListPage() {
-  const { userId } = useDemoUser();
   const [rows, setRows] = useState<ConflictCase[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +35,7 @@ export default function ConflictListPage() {
     } finally {
       setLoading(false);
     }
-  }, [userId]);
+  }, []);
 
   useEffect(() => {
     void load();

@@ -17,8 +17,6 @@ export type CurrentUser = {
 
 export type ConflictStatus = 'OPEN' | 'PENDING_CLOSE' | 'CLOSED' | 'SUSPENDED';
 
-export type HandlerAcceptance = 'NONE' | 'PENDING_ACCEPT' | 'ACCEPTED';
-
 export type TrackValue = {
   /** PRESENT | ABSENT | HOLLOW | IDENTITY_LOST (ask / 冲突 GET 投影，非 observed_fact) */
   availability: string;
@@ -72,14 +70,6 @@ export type CuratedObject = {
   [key: string]: unknown;
 };
 
-export type Collaboration = {
-  acknowledged: boolean;
-  acknowledgedAt: string | null;
-  ownerUserId: string | null;
-  handlerUserId: string | null;
-  handlerAcceptance: HandlerAcceptance;
-};
-
 export type ConflictCase = {
   id: string;
   status: ConflictStatus;
@@ -106,7 +96,6 @@ export type ConflictCase = {
   observationHollow: boolean;
   identityLost: boolean;
   diagnosisStatus: string;
-  collaboration?: Collaboration | null;
 };
 
 export type ForkSuggestion = {

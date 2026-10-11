@@ -327,10 +327,6 @@ class ControlledSshExecHttpAcceptanceTest {
                 .andReturn();
         String conflictId = objectMapper.readTree(result.getResponse().getContentAsString())
                 .path("data").path("id").asText();
-        mockMvc.perform(post("/api/conflicts/{id}/claim", conflictId)
-                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk());
         return conflictId;
     }
 

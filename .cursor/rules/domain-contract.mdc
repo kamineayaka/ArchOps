@@ -11,7 +11,7 @@ alwaysApply: true
 
 - 策展 = 理想；观测 = 实际；冲突 = 偏差（非对错）
 - 空洞 ≠ 冲突；升级/空洞作废活跃计划
-- 诊断选支、批准并冻结、草案逐条确认、确认关闭与执行不经处理人、不记操作者；协作身份写入留到票 06；计划冻结、失败作废
+- 诊断选支、批准并冻结、草案逐条确认、确认关闭与执行不经处理人、不记操作者；认领/已知悉/自任/指派/接受/拒绝/转让已从冲突链删除；计划冻结、失败作废
 - 改语义须新 ADR，禁止实现中偷改合同
 
 ## 栈（ADR-0043 + ADR-0044）
@@ -22,6 +22,6 @@ alwaysApply: true
 
 ## 工作方式
 
-- 一次一张 frontier 票（竖切 / 改策展 / 未绑定 / A1 / 控制面执行引擎 01 / 步骤断言 01 均已闭合）。`conflict-without-identity` 票 01–07 done；本 PR 只含票 07，基线是票 06 分支。#119–#124 不并入 main。不要再开下一张票（ADR-0046）。代码 vs ADR-0044 审计：A1/A2/A3 已闭合；B1/B2 + 单步代发已落地；**B3 步骤断言 + 控制面 `executionLog` = plan-step-assertion 01 TDD-done**；B4/B5/B6 不要自动做。不要发明未绑定 10。不要往 `control-plane-executor` 加票 02。不要做解决断点。
+- 一次一张 frontier 票（竖切 / 改策展 / 未绑定 / A1 / 控制面执行引擎 01 / 步骤断言 01 / 协作残留删除 01 均已闭合）。`conflict-without-identity` 票 01–07 done。协作残留删除 01 TDD-done。不要再开下一张票（ADR-0046）。代码 vs ADR-0044 审计：A1/A2/A3 已闭合；B1/B2 + 单步代发已落地；**B3 步骤断言 + 控制面 `executionLog` = plan-step-assertion 01 TDD-done**；B4/B5/B6 不要自动做。不要发明未绑定 10。不要往 `control-plane-executor` 加票 02。不要做解决断点。
 - `/implement` 走 **red → green → refactor**（`docs/agents/tdd.md`）
 - 不复活旧域包；不扩票外范围（自我迭代、可达矩阵、完整 xterm 等）

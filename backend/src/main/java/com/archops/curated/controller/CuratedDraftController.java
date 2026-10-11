@@ -45,11 +45,13 @@ public class CuratedDraftController {
     }
 
     @GetMapping("/conflicts/{conflictId}/curated-drafts/open")
+    @PreAuthorize("permitAll()")
     public ApiResponse<CuratedDraftResponse> openDraft(@PathVariable String conflictId) {
         return ApiResponse.ok(curatedDraftService.getOpen(conflictId));
     }
 
     @GetMapping("/conflicts/{conflictId}/curated-drafts/{draftId}")
+    @PreAuthorize("permitAll()")
     public ApiResponse<CuratedDraftResponse> draftById(
             @PathVariable String conflictId,
             @PathVariable String draftId

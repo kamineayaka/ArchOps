@@ -1,2 +1,2 @@
-/** Conflict warning, upgrade, and collaboration module. */
+/** Conflict warning and upgrade module. */
 package com.archops.conflict;

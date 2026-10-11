@@ -114,18 +114,6 @@ class ChangeCuratedDraftHttpAcceptanceTest {
     @Test
     void pendingHandlerCanSelectChangeCurated() throws Exception {
         Fixture pending = openConflictWithSibling("ccd-pe-a", "ccd-pe-b", "ctr-ccd-pe-x", "ctr-ccd-pe-y");
-        mockMvc.perform(post("/api/conflicts/{id}/acknowledge", pending.conflictId())
-                        .header(TempAuthHeaders.USER_ID, SENIOR_ID)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
-        mockMvc.perform(post("/api/conflicts/{id}/assign-handler", pending.conflictId())
-                        .header(TempAuthHeaders.USER_ID, SENIOR_ID)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"assigneeUserId\":\"" + GENERAL_ID + "\"}")
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
         ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, pending.conflictId(), GENERAL_ID);
         postBranch(pending.conflictId(), GENERAL_ID, "CHANGE_CURATED_TO_OBSERVED", null)
                 .andExpect(status().isOk())
@@ -286,11 +274,6 @@ class ChangeCuratedDraftHttpAcceptanceTest {
             String hostAName, String hostBName, String objectX, String objectY
     ) throws Exception {
         Fixture fx = openConflictWithSibling(hostAName, hostBName, objectX, objectY);
-        mockMvc.perform(post("/api/conflicts/{id}/claim", fx.conflictId())
-                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.collaboration").doesNotExist());
         return fx;
     }
 

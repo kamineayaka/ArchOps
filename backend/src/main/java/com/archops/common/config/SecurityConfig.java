@@ -47,6 +47,23 @@ public class SecurityConfig {
                         // Host-agent ingest is a control-plane public seam (no operator identity header).
                         .requestMatchers("/api/agent/**").permitAll()
                         // ADR-0046: 诊断选支, 批准并冻结, 草案逐条确认, 确认关闭, and 执行 are explicit actions.
+                        // Removed collaboration writes are not authenticated leftovers; no handler means 404.
+                        .requestMatchers(HttpMethod.POST, "/api/conflicts/*/claim").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/conflicts/*/acknowledge").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/conflicts/*/acknowledge-and-self-appoint").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/conflicts/*/assign-handler").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/conflicts/*/accept-handler").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/conflicts/*/reject-handler").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/conflicts/*/transfer-handler").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/conflicts").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/conflicts/by-merge-key").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/conflicts/*").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/conflicts/*/diagnosis").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/conflicts/*/operation-plans/active").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/operation-plans/*").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/conflicts/*/curated-drafts/open").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/conflicts/*/curated-drafts/*").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/curated/asks/should-where").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/conflicts/*/branch-selection").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/conflicts/*/confirm-close").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/conflicts/*/curated-drafts/open/items/*/accept").permitAll()
