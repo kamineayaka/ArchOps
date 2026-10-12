@@ -4,9 +4,9 @@ Canonical `/implement` kickoff: paste and follow. Fill the four placeholders (fr
 
 | Placeholder | Fill with |
 |---|---|
-| `{{SPEC_PATH}}` | Canonical spec, e.g. `docs/specs/plan-step-assertion.md` |
-| `{{TICKET_PATH}}` | Frontier issue file, e.g. `.scratch/plan-step-assertion/issues/01-engine-judges-step-assertion.md` |
-| `{{SLUG}}` | Branch slug, e.g. `tdd-implement-plan-step-assertion-01` |
+| `{{SPEC_PATH}}` | Canonical spec for this one ticket. Do not default to closed `docs/specs/plan-step-assertion.md` |
+| `{{TICKET_PATH}}` | That ticket's issue file. Do not default to closed plan-step-assertion 01. If handoff has no unblocked frontier, stop; do not invent the next ticket |
+| `{{SLUG}}` | Branch slug for that ticket |
 | `{{EXTRA_CONSTRAINTS}}` | Ticket-only Must / Out of / one-sentence deliverable. Write `none` if empty. |
 
 Completion: every `{{…}}` is a concrete value (`none` if extra constraints are empty).
@@ -30,6 +30,10 @@ Load and obey (paths only — read the files, do not wait to be pasted their bod
 - docs/adr/0043-tech-stack.md
 - docs/adr/0044-control-plane-hub-executor-and-ai-orchestrator.md
 - docs/adr/0045-control-plane-executor-grpc.md
+- docs/adr/0046-conflict-discovery-and-resolution-without-identity.md
+- docs/adr/0047-conflict-evidence-not-cause-kind.md
+- docs/adr/0048-probe-task-control-plane-judges.md
+- docs/adr/0049-kubernetes-three-processes-and-orchestrator-grpc.md
 - docs/agents/tdd.md
 - docs/agents/domain.md
 - docs/agents/issue-tracker.md
@@ -139,7 +143,7 @@ Completion: Status is `done` or still `ready-for-agent` with honest Comments; dr
 
 Stay inside this ticket’s Acceptance.
 
-- Implement published ADRs 0039–0045 as written. Leave `CONTEXT.md`, ADR-0044 body, and ADR-0045 body untouched. Do not open ADR-0046 unless the human (or {{EXTRA_CONSTRAINTS}}) explicitly asked.
+- ADR-0039 through ADR-0049 are current. Do not dodge ADR-0046. ADR-0047 (not a cause catalog), ADR-0048 (probe tasks pulled on heartbeat; the control plane judges), and ADR-0049 (three Kubernetes Deployments; orchestrator↔control plane is gRPC; control plane→executor stays gRPC; model HTTPS stays on the orchestrator) are in force. Leave ADR bodies untouched unless a new ADR is the task.
 - One tracker file: {{TICKET_PATH}}. Do not invent unbound ticket 10. Do not add `control-plane-executor` ticket 02. Do not write this knife into a closed feature’s `.scratch/` directory.
 - AI 编排层, B-live, and 连接工作台 only if this ticket’s Acceptance names them. Default: observe-only execution, no orchestrator process, no workbench.
 - Stack: Gradle + MyBatis-Plus + React/Ant + PG SSOT + Redis as queue/lock/cache. Control plane does not hold model keys. Flyway: add the next version only.
@@ -172,12 +176,7 @@ Distilled from these repo files (searched; none invented):
 - `.cursor/skills/tdd/tests.md` (behavior at public interfaces)
 - `.cursor/skills/code-review/SKILL.md` (ticket-end gate ≠ refactor)
 - `.cursor/rules/domain-contract.mdc`, `.cursor/rules/project-map.mdc`, `.cursor/rules/backend-java.mdc`, `.cursor/rules/frontend-react.mdc`
-- `docs/cloud-agent-ticket-prompt.md`
-- `docs/implement-change-curated-draft-01-prompt.md` … `06-prompt.md`
-- `docs/implement-unbound-identity-rebind-01-prompt.md` … `07-prompt.md`, `09-prompt.md`
-- `docs/implement-conflict-upgrade-void-plans-01-prompt.md`
-- `docs/implement-control-plane-executor-01-prompt.md` (no empty skeleton; no CONTEXT / 0044 body edits)
-- `docs/grill-next-knife-prompt.md`, `docs/grill-adr-0044-slice-prompt.md` (reject empty-skeleton slice A), `docs/grill-step-assertion-prompt.md` (no ADR-0046 by default; no executor ticket 02; no orchestrator / B-live / workbench)
-- `docs/specs/vertical-slice-mvp.md`, `change-curated-draft.md`, `unbound-identity-rebind.md`, `conflict-upgrade-void-plans.md`, `control-plane-executor.md`, `plan-step-assertion.md` (`Testing seams (confirmed)`; Out of Scope: unbound 10, executor 02, orchestrator / B-live / workbench, CONTEXT / 0044 / 0045 bodies)
+- `docs/archive/` — one-off implement, grill, to-spec, and to-tickets prompts. Not current authority. Do not load them for a new ticket. Do not treat “skip ADR-0046” notes in those prompts as current.
+- `docs/specs/vertical-slice-mvp.md`, `change-curated-draft.md`, `unbound-identity-rebind.md`, `conflict-upgrade-void-plans.md`, `control-plane-executor.md`, `plan-step-assertion.md`, `conflict-without-identity.md` (`Testing seams (confirmed)`; Out of Scope: unbound 10, executor 02, orchestrator / B-live / workbench)
 - `docs/dev-handoff.md` (frontier pointer)
 - Ticket `## Comments` / `TDD:` lines under `.scratch/change-curated-draft/issues/`, `.scratch/unbound-identity-rebind/issues/`, `.scratch/conflict-upgrade-void-plans/issues/`, `.scratch/control-plane-executor/issues/`, `.scratch/plan-step-assertion/issues/01-engine-judges-step-assertion.md` (witnessed red, Comments template traces, “不要先交空字段骨架”)

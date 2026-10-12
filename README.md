@@ -14,8 +14,8 @@
 | `backend/` | Java 21 / Spring Boot 3 / Gradle / MyBatis-Plus / Flyway |
 | `frontend/` | React + TypeScript + Vite + Ant Design |
 | `agent/` | Python 心跳 stub（交付主推 systemd，见 `agent/README.md`） |
-| `deploy/` | Compose：`archops:latest` + Postgres 16 + Redis |
-| `docs/` | 合同、ADR、竖切、脚手架 prompt |
+| `deploy/` | 本地开发 Compose（Postgres、Redis、控制面、执行引擎）。交付目标是三个 Kubernetes Deployment：控制面、执行引擎、AI 编排层（ADR-0049） |
+| `docs/` | 合同、ADR、Spec。一次性 prompt 在 `docs/archive/` |
 | `Dockerfile` | 多阶段构建 → 镜像 tag `archops:latest` |
 
 ## 本地开发
@@ -71,9 +71,11 @@ npm run dev
 python agent/heartbeat.py --interval 0
 ```
 
-当前无 ingest API，预期日志里出现 HTTP 404，属脚手架预期。
+控制面已有 ingest：`POST /api/agent/heartbeat`（见 `docs/contracts/agent-heartbeat-snapshot.md`）。心跳响应带回该 Agent 的探测任务列表；控制面判决交回结果（ADR-0048）。
 
-## 镜像构建与整栈
+## 镜像构建与本地 Compose
+
+交付目标是三个 Kubernetes Deployment（控制面、执行引擎、AI 编排层，ADR-0049）。下面的 `docker compose up` 只起本地开发用的 Postgres、Redis、控制面和执行引擎，不是交付目标。Host Agent 留在主机上。
 
 ```bash
 bash deploy/scripts/build-images.sh
@@ -108,13 +110,12 @@ POSTGRES_IMAGE=postgres:16 REDIS_IMAGE=redis:7-alpine \
 
 > `.cursor/Dockerfile`（Cloud Agent 底镜像）仍用 Ubuntu / NodeSource / Docker 官方 apt，因为那是美国区环境构建，不是应用依赖。Windows 本机 Docker Desktop 路径多为 `%LOCALAPPDATA%\Programs\DockerDesktop\`。
 
-## 明确不做（脚手架）
+## 明确不做
 
-策展 / 观测 / 冲突 / 计划 / 协作 API、AI 出站业务、SSH 工作台、Neo4j、Maven、JPA 地基、Vue、LangChain。竖切见 `docs/mvp-vertical-slice.md`，另开对话实现。
+Neo4j 当 v1 必选、Maven、JPA 当地基、Vue、LangChain 主干。竖切 Spec 见 `docs/specs/vertical-slice-mvp.md`（01–13 已闭合）。
 
 ## 合同与接手
 
 - 术语：`CONTEXT.md`
-- 栈真相：`docs/adr/0043-tech-stack.md`
+- 栈与交付：`docs/adr/0043-tech-stack.md`、ADR-0049
 - 接手：`docs/dev-handoff.md`
-- 脚手架 prompt：`docs/scaffold-bootstrap-prompt.md`

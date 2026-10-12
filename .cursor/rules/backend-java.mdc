@@ -24,13 +24,13 @@ alwaysApply: false
 
 - `/api/...` + 统一响应体
 - 业务错误用 `BusinessException`（或等价）
-- 临时身份：`X-ArchOps-User-Id` → 后续 JWT；会话可落 Redis
+- 冲突链不按身份授权，不记录操作者（ADR-0046）。不要把 `X-ArchOps-User-Id` 或后续 JWT 写成冲突门禁的下一步。会话可落 Redis
 
 ## 其他
 
 - Flyway 只增不改历史
 - Redis：队列/锁/会话/缓存；不作真相 SSOT
 - SSH：MINA SSHD 在执行引擎（ADR-0044）；控制面→引擎单步代发 = gRPC（ADR-0045）；过渡期控制面 in-process 适配器不得扩大生产直连；计划互斥用分布式锁
-- AI：出站在 AI 编排层（ADR-0044）；控制面规则诊断兜底；无 LangChain 主干
+- AI：出站在 AI 编排层（ADR-0044）；规则引擎不是原因目录（ADR-0047）；无模型不得挡住警告和人审后的执行；无 LangChain 主干
 - 图库 Later；v1 邻域用 SQL/CTE
 - `/implement` 的 HTTP 验收循环见 `docs/agents/tdd.md`（本文件只管分层）

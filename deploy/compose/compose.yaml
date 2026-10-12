@@ -25,11 +25,11 @@ services:
       timeout: 3s
       retries: 10
 
-  # Control plane: API + embedded React static (image: archops:latest).
-  # Design premise (ADR-0043): ≥2 replicas behind LB.
-  # Local Compose (non-Swarm): scale with
+  # Local Compose is a dev convenience: Postgres, Redis, control plane, executor.
+  # Delivery target (ADR-0049): three Kubernetes Deployments — 控制面, 执行引擎, AI 编排层.
+  # Host Agent stays on the host. This file does not start the orchestrator.
+  # Control plane may run ≥2 replicas (ADR-0043). Local scale:
   #   docker compose -f deploy/compose/compose.yaml up --scale archops=2
-  # Swarm/K8s replicas wiring is Later.
   archops:
     image: ${ARCHOPS_IMAGE:-archops:latest}
     depends_on:
@@ -59,7 +59,8 @@ services:
     ports:
       - "${ARCHOPS_PORT:-8080}:8080"
 
-  # 执行引擎 (ADR-0044 / ADR-0045). Same image, different jar. No AI 编排层 in this knife.
+  # 执行引擎 (ADR-0044 / ADR-0045). Same image, different jar.
+  # Dev Compose only. The orchestrator Deployment is ADR-0049; it is not in this file.
   executor:
     image: ${ARCHOPS_IMAGE:-archops:latest}
     depends_on:

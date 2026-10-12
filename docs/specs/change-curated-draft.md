@@ -1,3 +1,7 @@
+---
+status: "已闭合。用户故事里的已接受处理人由 ADR-0046 取代；「规则引擎给出改理想分叉」当选支来源由 ADR-0047 取代。逐条确认后才写策展仍有效。"
+---
+
 # Spec: 改策展 / 改理想（草案逐条确认）
 
 **Status**: done（01–06 TDD-done；本刀闭合。tracker = `docs/agents/issue-tracker.md`）  

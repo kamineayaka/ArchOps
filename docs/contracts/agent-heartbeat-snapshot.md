@@ -89,7 +89,11 @@ When a container label hits curated object X in the same ingest request:
 
 `data` includes `freshness.lastHeartbeatAt` / `lastSnapshotAt`, plus `matched`, `absent`, `unbound`, `identityLost` summaries for the request. Completion is subsequent operator GETs, not the shape of those summary arrays.
 
-## Related operator reads (authenticated)
+ADR-0048: the same heartbeat response carries this agent's probe task list. The agent pulls tasks on heartbeat and does not judge. The control plane judges each returned result. Comparison stays on the control plane.
+
+## Related operator reads
+
+These ask reads are not a login gate (ADR-0046). Do not require an operator identity to read them.
 
 | API | Meaning |
 |---|---|

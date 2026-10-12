@@ -14,12 +14,12 @@ description: >-
 ## 流程清单
 
 ```
-- [ ] 1. 定模块包：com.archops.<module>（curated / observed / conflict / plan / user / agent / common）
+- [ ] 1. 定模块包：com.archops.<module>（curated / observed / conflict / plan / user / agent / common）。`user` 不是冲突链的身份门禁（ADR-0046）
 - [ ] 2. DTO：request/response 用 record；勿把 DO 当响应
 - [ ] 3. Domain + MyBatis-Plus Mapper（若新表）
 - [ ] 4. Flyway：只新增 V{N+1}__*.sql，禁止改历史脚本
 - [ ] 5. Service：构造器注入、事务边界、BusinessException
-- [ ] 6. Controller：/api/...、ApiResponse、鉴权、@Valid
+- [ ] 6. Controller：/api/...、ApiResponse、@Valid。冲突链不按身份鉴权，不发送用户身份（ADR-0046）。不要给每个 Controller 都加身份鉴权
 - [ ] 7. （可选）frontend/src/api/<name>.ts 只用 api/client.ts
 - [ ] 8. （可选）薄页接线：pages + App.tsx 路由；Ant Design
 ```

@@ -1,5 +1,5 @@
 ---
-status: accepted; 服务拆分、SSH 进程位置、AI 出站落点由 ADR-0044 修订
+status: "accepted; 服务拆分、SSH 进程位置、AI 出站落点由 ADR-0044 修订。交付行与「K8s / Operator Later」由 ADR-0049 取代（Operator 仍 Later）。「认证可先临时头，后 JWT」由 ADR-0046 取代。编排层调模型的 HTTPS 白名单仍有效。"
 ---
 
 # 技术选型（完整选型会冻结）

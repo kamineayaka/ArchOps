@@ -26,7 +26,7 @@ description: >-
 - 详情页：`pages/ConflictDetailPage.tsx`
 - API：`api/conflicts.ts`、`api/client.ts`、`api/types.ts`
 - 根路由：`App.tsx`
-- 演示身份：`auth/DemoUserContext.tsx`（`X-ArchOps-User-Id`）
+- 冲突页不发送用户身份（ADR-0046）。不要把 `auth/DemoUserContext.tsx` 或 `X-ArchOps-User-Id` 当现行样板
 
 ## 页面骨架
 

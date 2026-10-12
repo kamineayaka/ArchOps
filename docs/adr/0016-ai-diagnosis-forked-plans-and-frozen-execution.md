@@ -1,5 +1,5 @@
 ---
-status: superseded by ADR-0038
+status: "superseded by ADR-0038。绑定假设的分叉计划由 ADR-0047 取代；仅处理人选支由 ADR-0046 取代。受阻即停仍有效。"
 ---
 
 # AI 诊断须分叉计划；操作计划受阻即停且不可改写
