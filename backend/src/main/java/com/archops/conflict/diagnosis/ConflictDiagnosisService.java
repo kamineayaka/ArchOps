@@ -188,7 +188,7 @@ public class ConflictDiagnosisService {
             );
         }
         if (identityLostMarkMapper.selectById(conflict.getSubjectId()) != null) {
-            return DiagnosisRuleEngine.diagnoseIdentityLost();
+            return DiagnosisRuleEngine.noResolutionActionWhileIdentityLost();
         }
         return DiagnosisRuleEngine.diagnoseRunsOnMismatch(
                 conflict.getCuratedTargetId(),

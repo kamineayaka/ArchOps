@@ -138,6 +138,51 @@ class ResolutionActionHttpAcceptanceTest {
         assertFalse(body.contains("无法归类"));
     }
 
+    @Test
+    void identityLostIsAFlagNotADiagnosisKind() throws Exception {
+        String hostA = createHost("a47c-ha");
+        String hostB = createHost("a47c-hb");
+        String containerId = createContainer("a47c-app", "a47c-oid");
+        confirmRunsOn(containerId, hostA);
+        heartbeatLabeled(hostB, "a47c-agent", "a47c-oid");
+
+        MvcResult open = mockMvc.perform(get("/api/conflicts/by-merge-key")
+                        .param("subjectId", containerId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("OPEN")))
+                .andReturn();
+        String conflictId = objectMapper.readTree(open.getResponse().getContentAsString())
+                .path("data").path("id").asText();
+        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, conflictId, GENERAL_ID);
+
+        heartbeatUnlabeled(hostB, "a47c-agent-lost", "a47c-rt-miss");
+        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, conflictId, GENERAL_ID);
+
+        mockMvc.perform(get("/api/conflicts/{id}", conflictId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.identityLost", is(true)))
+                .andExpect(jsonPath("$.data.observationHollow", is(false)));
+
+        MvcResult diagnosis = mockMvc.perform(get("/api/conflicts/{id}/diagnosis", conflictId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("READY")))
+                .andReturn();
+        String body = diagnosis.getResponse().getContentAsString();
+        JsonNode forks = objectMapper.readTree(body).path("data").path("forks");
+        assertEquals(0, forks.size());
+        assertFalse(body.contains("EXPLAIN_IDENTITY_LOST"));
+        assertFalse(body.contains("FIX_ACTUAL_TO_CURATED"));
+        assertFalse(body.contains("CHANGE_CURATED_TO_OBSERVED"));
+        assertFalse(body.contains("RESTORE_HEARTBEAT_CHANNEL"));
+        assertFalse(body.contains("无法归类"));
+    }
+
     private static JsonNode fork(JsonNode forks, String id) {
         for (JsonNode fork : forks) {
             if (id.equals(fork.path("id").asText())) {
@@ -163,6 +208,27 @@ class ResolutionActionHttpAcceptanceTest {
                                   }
                                 }
                                 """.formatted(agentId, hostId, objectId))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+    }
+
+    private void heartbeatUnlabeled(String hostId, String agentId, String runtimeId) throws Exception {
+        mockMvc.perform(post("/api/agent/heartbeat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "agentId":"%s",
+                                  "hostId":"%s",
+                                  "snapshot":{
+                                    "containers":[{
+                                      "runtimeId":"%s",
+                                      "name":"a47c-miss",
+                                      "labels":{}
+                                    }],
+                                    "absentObjectIds":[]
+                                  }
+                                }
+                                """.formatted(agentId, hostId, runtimeId))
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk());
     }
