@@ -3,6 +3,7 @@ import { Link, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { DEMO_USERS, UNAUTHENTICATED_VALUE, useDemoUser } from './auth/DemoUserContext';
 import ConflictDetailPage from './pages/ConflictDetailPage';
 import ConflictListPage from './pages/ConflictListPage';
+import ProbeTasksPage from './pages/ProbeTasksPage';
 import UnboundCandidatesPage from './pages/UnboundCandidatesPage';
 
 const { Header, Content } = Layout;
@@ -12,6 +13,7 @@ export default function App() {
   const { userId, user, loading, setUserId } = useDemoUser();
   const { pathname } = useLocation();
   const conflictPage = pathname === '/' || pathname.startsWith('/conflicts/');
+  const probePage = pathname.startsWith('/probe-tasks');
 
   return (
     <Layout style={{ minHeight: '100vh', background: '#f0f2f5' }}>
@@ -38,8 +40,11 @@ export default function App() {
           <Link to="/unbound" style={{ color: '#c5d6c8' }}>
             未绑定 / 身份失联
           </Link>
+          <Link to="/probe-tasks" style={{ color: '#c5d6c8' }}>
+            探测任务
+          </Link>
         </Space>
-        {!conflictPage && (
+        {!conflictPage && !probePage && (
           <Space>
             <Text style={{ color: '#c5d6c8' }}>演示身份</Text>
             <Select
@@ -68,6 +73,7 @@ export default function App() {
           <Route path="/conflicts/:id" element={<ConflictDetailPage />} />
           <Route path="/unbound" element={<UnboundCandidatesPage />} />
           <Route path="/unbound/drafts/:draftId" element={<UnboundCandidatesPage />} />
+          <Route path="/probe-tasks" element={<ProbeTasksPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Content>

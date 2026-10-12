@@ -24,6 +24,7 @@ Already published:
 | conflict-without-identity | `docs/specs/conflict-without-identity.md` | `.scratch/conflict-without-identity/issues/`（**01–07 done**。合同 ADR-0046。不要再开下一张票。不要发明未绑定 10，不要加执行引擎票 02） |
 | delete-collaboration-leftovers | ADR-0046（不重开） | `.scratch/delete-collaboration-leftovers/issues/`（**01 TDD-done，本刀闭合**。认领/已知悉/自任/指派/接受/拒绝/转让已从冲突链删除。不要再开下一张票） |
 | probe-task-control-plane-judges | `docs/specs/probe-task-control-plane-judges.md` | `.scratch/probe-task-control-plane-judges/issues/`（**01 TDD-done，本刀闭合**。ADR-0048。不要自动做 ADR-0049 / 编排层 / Kubernetes） |
+| probe-task-thin-ui | `docs/specs/probe-task-thin-ui.md` | `.scratch/probe-task-thin-ui/issues/`（**01 done，本刀闭合**。不重开 ADR-0048 票 01） |
 
 ## When a skill says "publish to the issue tracker"
 

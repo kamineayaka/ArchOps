@@ -28,6 +28,7 @@ import com.archops.curated.mapper.CuratedObjectMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -122,6 +123,9 @@ public class CuratedDraftService {
             throw new BusinessException("DRAFT_ALREADY_OPEN",
                     "Conflict already has an open 草案");
         }
+        if (conflict.getRelationType() == CuratedRelationType.PROBE) {
+            return createProbeCuratedDraft(conflict, diagnosis, fork);
+        }
         String fromHostId = conflict.getCuratedTargetId();
         String toHostId = conflict.getObservedTargetId();
         if (fromHostId == null || fromHostId.isBlank() || toHostId == null || toHostId.isBlank()) {
@@ -130,6 +134,69 @@ public class CuratedDraftService {
         }
 
         Instant now = Instant.now();
+        CuratedDraft draft = insertOpenChangeCuratedDraft(conflict, diagnosis, fork, now);
+
+        List<CuratedDraftItem> items = buildRunsOnItems(
+                draft.getId(), conflict.getSubjectId(), fromHostId, toHostId, now);
+        for (CuratedDraftItem item : items) {
+            curatedDraftItemMapper.insert(item);
+        }
+
+        appendDraftCreated(conflict.getId(), draft.getId(), items.size());
+        return toResponse(draft, items);
+    }
+
+    /**
+     * Probe 改理想 opens one pending item. The task's curated value stays unchanged.
+     */
+    private CuratedDraftResponse createProbeCuratedDraft(
+            ConflictCase conflict,
+            ConflictDiagnosisResponse diagnosis,
+            ConflictDiagnosisResponse.ForkSuggestion fork
+    ) {
+        Instant now = Instant.now();
+        CuratedDraft draft = insertOpenChangeCuratedDraft(conflict, diagnosis, fork, now);
+        CuratedDraftItem item = new CuratedDraftItem();
+        item.setId("ditem-" + UUID.randomUUID());
+        item.setDraftId(draft.getId());
+        item.setSeq(1);
+        item.setKind(CuratedDraftItemKind.PROBE_CURATED_VALUE);
+        item.setStatus(CuratedDraftItemStatus.PENDING);
+        item.setSubjectId(conflict.getSubjectId());
+        item.setPayloadJson(probeDraftPayload(conflict));
+        item.setCreatedAt(now);
+        curatedDraftItemMapper.insert(item);
+        appendDraftCreated(conflict.getId(), draft.getId(), 1);
+        return toResponse(draft, List.of(item));
+    }
+
+    private void appendDraftCreated(String conflictId, String draftId, int itemCount) {
+        conflictEventService.append(conflictId, ConflictEventType.DRAFT_CREATED, null, Map.of(
+                "draftId", draftId,
+                "itemCount", itemCount,
+                "hint", "草案已创建"
+        ));
+    }
+
+    private String probeDraftPayload(ConflictCase conflict) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("relationType", CuratedRelationType.PROBE.name());
+        payload.put("curatedExpected", readJson(conflict.getCuratedValueJson()));
+        payload.put("observedValue", readJson(conflict.getObservedValueJson()));
+        return persistentJson.write(payload);
+    }
+
+    private JsonNode readJson(String json) {
+        return persistentJson.read(json, new TypeReference<JsonNode>() {
+        }, null);
+    }
+
+    private CuratedDraft insertOpenChangeCuratedDraft(
+            ConflictCase conflict,
+            ConflictDiagnosisResponse diagnosis,
+            ConflictDiagnosisResponse.ForkSuggestion fork,
+            Instant now
+    ) {
         CuratedDraft draft = new CuratedDraft();
         draft.setId("draft-" + UUID.randomUUID());
         draft.setConflictId(conflict.getId());
@@ -145,19 +212,7 @@ public class CuratedDraftService {
             throw new BusinessException("DRAFT_ALREADY_OPEN",
                     "Conflict already has an open 草案");
         }
-
-        List<CuratedDraftItem> items = buildRunsOnItems(
-                draft.getId(), conflict.getSubjectId(), fromHostId, toHostId, now);
-        for (CuratedDraftItem item : items) {
-            curatedDraftItemMapper.insert(item);
-        }
-
-        conflictEventService.append(conflict.getId(), ConflictEventType.DRAFT_CREATED, null, Map.of(
-                "draftId", draft.getId(),
-                "itemCount", items.size(),
-                "hint", "草案已创建"
-        ));
-        return toResponse(draft, items);
+        return draft;
     }
 
     @Transactional(readOnly = true)

@@ -15,7 +15,7 @@ Claude / Cloud 编码助手请把本仓库的 **`AGENTS.md` 当作最高执行�
 9. [docs/specs/plan-step-assertion.md](./docs/specs/plan-step-assertion.md) — 步骤断言（B3 剩余；**01 TDD-done，本刀闭合**）
 10. [docs/adr/0046-conflict-discovery-and-resolution-without-identity.md](./docs/adr/0046-conflict-discovery-and-resolution-without-identity.md) — 冲突主线只有发现与解决
 11. [docs/adr/0047-conflict-evidence-not-cause-kind.md](./docs/adr/0047-conflict-evidence-not-cause-kind.md) — 冲突不分类原因；规则引擎不是原因目录
-12. [docs/adr/0048-probe-task-control-plane-judges.md](./docs/adr/0048-probe-task-control-plane-judges.md) — 探测任务由 Host Agent 在心跳上拉取；控制面判决。实现刀：[docs/specs/probe-task-control-plane-judges.md](./docs/specs/probe-task-control-plane-judges.md)（**01 TDD-done，本刀闭合**）。不要自动做 ADR-0049。
+12. [docs/adr/0048-probe-task-control-plane-judges.md](./docs/adr/0048-probe-task-control-plane-judges.md) — 探测任务由 Host Agent 在心跳上拉取；控制面判决。实现刀：[docs/specs/probe-task-control-plane-judges.md](./docs/specs/probe-task-control-plane-judges.md)（**01 TDD-done，本刀闭合**）。薄 UI：[docs/specs/probe-task-thin-ui.md](./docs/specs/probe-task-thin-ui.md)（**01 done，本刀闭合**）。不要自动做 ADR-0049。不要重开 ADR-0048 票 01。
 13. [docs/adr/0049-kubernetes-three-processes-and-orchestrator-grpc.md](./docs/adr/0049-kubernetes-three-processes-and-orchestrator-grpc.md) — 三个 Kubernetes Deployment；编排层↔控制面 gRPC
 14. [docs/specs/conflict-without-identity.md](./docs/specs/conflict-without-identity.md) — 身份退出冲突领域（**票 01–07 done**）。协作残留删除：[.scratch/delete-collaboration-leftovers/issues/01-remove-collaboration-leftovers.md](./.scratch/delete-collaboration-leftovers/issues/01-remove-collaboration-leftovers.md)（**TDD-done，本刀闭合**）。不要再开下一张票。不要改 ADR-0046。
 15. [docs/dev-handoff.md](./docs/dev-handoff.md) — 进度与下一票
