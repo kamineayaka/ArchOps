@@ -13,7 +13,7 @@
 - [x] 读不出（`command error`）交回 `readable=false`，该任务 `judgment=HOLLOW`，不是冲突
 - [x] 命令超时则不交回；`intervalSeconds=0` 时 `scan-overdue` 将该任务列入 `hollowedTaskIds`，`judgment=HOLLOW`，`evidence` 为空
 - [ ] 同一主机两条任务独立：一条超时只使自己 HOLLOW，另一条相等的仍是 NORMAL
-- [ ] 心跳没有任务时不提交 `probeResults`（第二次心跳也不附带快照）
+- [x] 心跳没有任务时不提交 `probeResults`（第二次心跳也不附带快照）
 - [ ] 零 Agent 的主机仍可保存任务且为 HOLLOW；一台主机至多一个探测 Agent。这两条沿用 ADR-0048 票 01，不重写
 
 **Out of this ticket:** 持久化「恢复观测通道」、Agent 停机掏空全部快照观测、ADR-0049、Kubernetes、编排层 gRPC、AI 建议正文、原因种类、「无法归类」、协作、处理人、操作者、任务推送、控制面 SSH、MINA、真实主机。不重开 ADR-0048 票 01。不重开薄 UI 票 01。
@@ -58,4 +58,11 @@ Red command: `cd agent && python3 -m unittest test_probe_cycle.NoTasksTests.test
 `TypeError: pull_and_report() got an unexpected keyword argument 'poster'`
 Green command: same unittest, exit 0. One heartbeat, no `probeResults`. Gradle hook `emptyPullDoesNotSubmitProbeResults` exit 0. Equal HTTP path still exit 0.
 Refactor: `poster` is optional so the HTTP client stays the default. No further structural change.
-Commit: (this slice) Skip a result post when the heartbeat returns no probe tasks.
+Commit: `451061b` Skip a result post when the heartbeat returns no probe tasks.
+
+### Cycle G — the result heartbeat does not repeat the snapshot
+Red command: `cd agent && python3 -m unittest test_probe_cycle.SnapshotReportTests.test_result_post_omits_snapshot`
+`TypeError: pull_and_report() got an unexpected keyword argument 'snapshot'`
+Green command: same unittest, exit 0. First post carries `snapshot` and no `probeResults`; second post carries `probeResults` and no `snapshot`.
+Refactor: Gradle hooks share `runPythonUnittest`. Both hooks re-run, exit 0.
+Commit: (this slice) Keep the probe result heartbeat from repeating the snapshot.

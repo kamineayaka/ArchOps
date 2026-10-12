@@ -269,18 +269,23 @@ class ProbeAgentRunHttpAcceptanceTest {
 
     @Test
     void emptyPullDoesNotSubmitProbeResults() throws Exception {
-        Process process = new ProcessBuilder(
-                "python3",
-                "-m",
-                "unittest",
-                "test_probe_cycle.NoTasksTests.test_no_tasks_posts_one_heartbeat_without_probe_results")
+        runPythonUnittest("test_probe_cycle.NoTasksTests.test_no_tasks_posts_one_heartbeat_without_probe_results");
+    }
+
+    @Test
+    void resultReportOmitsSnapshot() throws Exception {
+        runPythonUnittest("test_probe_cycle.SnapshotReportTests.test_result_post_omits_snapshot");
+    }
+
+    private void runPythonUnittest(String testName) throws Exception {
+        Process process = new ProcessBuilder("python3", "-m", "unittest", testName)
                 .directory(Path.of("..", "agent").toAbsolutePath().normalize().toFile())
                 .start();
         boolean finished = process.waitFor(30, TimeUnit.SECONDS);
         String stdout = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
         String stderr = new String(process.getErrorStream().readAllBytes(), StandardCharsets.UTF_8);
         if (!finished || process.exitValue() != 0) {
-            fail("empty-pull unittest exit " + (finished ? process.exitValue() : "timeout")
+            fail(testName + " exit " + (finished ? process.exitValue() : "timeout")
                     + " stdout=" + stdout + " stderr=" + stderr);
         }
     }
