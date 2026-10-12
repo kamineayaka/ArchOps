@@ -93,6 +93,7 @@ public class ObservedTruthService {
         if (request.snapshot() != null) {
             processSnapshot(request, host, now, matched, absent, unbound, identityLost);
         }
+        probeTaskService.acceptResults(host.getId(), request.probeResults());
 
         HostAgent agent = hostAgentMapper.selectById(agentId);
         return new AgentHeartbeatResponse(

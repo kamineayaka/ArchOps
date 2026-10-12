@@ -95,6 +95,32 @@ class ProbeTaskJudgmentHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data.probeTasks[0].curatedExpected.up", is(true)));
     }
 
+    @Test
+    void readableEqualCuratedValueIsNormalWithoutConflict() throws Exception {
+        String hostId = createHost("probe-c-host");
+        String taskId = createTask(hostId, 60);
+
+        mockMvc.perform(post("/api/agent/heartbeat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(heartbeatJson("agent-probe-c", hostId, readableResult(taskId, true, "ignored")))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+
+        MvcResult got = mockMvc.perform(get("/api/probe-tasks/{id}", taskId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.judgment", is("NORMAL")))
+                .andExpect(jsonPath("$.data.observationHollow", is(false)))
+                .andExpect(jsonPath("$.data.observedValue.up", is(true)))
+                .andExpect(jsonPath("$.data.conflictId", nullValue()))
+                .andReturn();
+        String responseBody = got.getResponse().getContentAsString();
+        assertFalse(responseBody.contains("无法归类"));
+        assertFalse(responseBody.contains("RULES_WITH_LLM"));
+        assertFalse(responseBody.contains("aiSuggestion"));
+    }
+
     private String createHost(String name) throws Exception {
         MvcResult result = mockMvc.perform(post("/api/curated/hosts")
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)
@@ -130,5 +156,14 @@ class ProbeTaskJudgmentHttpAcceptanceTest {
             request.set("probeResults", probeResults);
         }
         return objectMapper.writeValueAsString(request);
+    }
+
+    private JsonNode readableResult(String taskId, boolean up, String evidence) {
+        ObjectNode result = objectMapper.createObjectNode();
+        result.put("taskId", taskId);
+        result.put("readable", true);
+        result.putObject("value").put("up", up);
+        result.put("evidence", evidence);
+        return objectMapper.createArrayNode().add(result);
     }
 }

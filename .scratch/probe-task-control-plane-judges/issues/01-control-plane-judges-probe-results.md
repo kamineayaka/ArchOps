@@ -33,4 +33,11 @@ Red command: `cd backend && ./gradlew test --tests com.archops.observed.ProbeTas
 `AssertionError` at line 91 caused by `PathNotFoundException` (`probeTasks` missing).
 Green command: same test, exit 0.
 Refactor: heartbeat helper takes `JsonNode`; contract names `probeTasks`.
-Commit: (cycle B)
+Commit: `5d0af4c` Return probe tasks on the host agent heartbeat.
+
+### Cycle C — readable value equal to curated is normal, no conflict, no AI
+Red command: `cd backend && ./gradlew test --tests com.archops.observed.ProbeTaskJudgmentHttpAcceptanceTest.readableEqualCuratedValueIsNormalWithoutConflict --offline`
+`AssertionError: JSON path "$.data.judgment" Expected: is "NORMAL" but: was "HOLLOW"`
+Green command: same test, exit 0.
+Refactor: one `toResponse` path for hollow and judged rows.
+Commit: (cycle C)
