@@ -1,14 +1,14 @@
 # 新对话接手指南
 
-领域合同（ADR-0039）与技术栈（ADR-0043）已冻结；运行时拓扑 **ADR-0044**（控制面枢纽 / 执行引擎 / AI 编排层）；控制面→执行引擎运输 **ADR-0045**（gRPC）。  
+领域合同（ADR-0039）与技术栈（ADR-0043）已冻结；运行时拓扑 **ADR-0044**（控制面枢纽 / 执行引擎 / AI 编排层）；控制面→执行引擎运输 **ADR-0045**（gRPC）；冲突身份 **ADR-0046**；原因不分类 **ADR-0047**；探测任务 **ADR-0048**；三进程 Kubernetes 与编排层↔控制面 gRPC **ADR-0049**。  
 **Cloud / 任意 Agent 必读根目录 [`AGENTS.md`](../AGENTS.md)**（及 [`CLAUDE.md`](../CLAUDE.md)）。  
 **脚手架已按 ADR-0043 重建**：`backend/`、`frontend/`、`agent/`、`deploy/`、根 `Dockerfile` 为可启动最小骨架；竖切按工单推进。
 
 ## 必读
 
 1. `CONTEXT.md`
-2. `docs/adr/0039` … `0046`（栈 **0043**，进程切分 **0044**，控制面→执行引擎运输 **0045**，身份退出冲突 **0046**）
-3. `docs/mvp-vertical-slice.md`（竖切范围对照）
+2. `docs/adr/0039` … `0049`（栈 **0043**，进程切分 **0044**，控制面→执行引擎 gRPC **0045**，身份退出冲突 **0046**，原因不分类 **0047**，探测任务 **0048**，三进程 Kubernetes 与编排层↔控制面 gRPC **0049**）
+3. 竖切范围以 `docs/specs/vertical-slice-mvp.md` 为准（01–13 已闭合）。`docs/mvp-vertical-slice.md` 已删除，与该 Spec 重复
 4. `docs/specs/vertical-slice-mvp.md`（竖切 Spec；01–13 已闭合）
 5. `docs/specs/change-curated-draft.md`（改策展/草案逐条确认 Spec；**已闭合**）
 6. `docs/specs/unbound-identity-rebind.md`（未绑定 / 身份失联重绑 Spec；**01–09 已闭合**）
@@ -19,7 +19,7 @@
 11. `docs/specs/conflict-without-identity.md`（身份退出冲突领域；**票 01–07 done**）
 11b. `.scratch/delete-collaboration-leftovers/issues/01-remove-collaboration-leftovers.md`（协作残留删除；**TDD-done，本刀闭合**。不要再开下一张票。不要改 ADR-0046）
 12. `docs/agents/tdd.md`（`/implement` 的 TDD overlay：red → green → refactor）
-13. `docs/scaffold-bootstrap-prompt.md`（脚手架专用；已完成后可作审计对照）
+13. 一次性脚手架与实现 prompt 在 `docs/archive/`，不是必读
 14. `.cursor/rules/project-map.mdc`
 
 ## 当前状态
@@ -31,18 +31,18 @@
 | Python agent 心跳+快照 stub + systemd 说明 | 有（契约见 `docs/contracts/agent-heartbeat-snapshot.md`） |
 | Compose + `archops:latest` 多阶段镜像 | 有 |
 | SSH 受控执行 | **已完成**（票 08） |
-| 临时身份头 + 高级/一般角色门禁 | **已完成**（票 01） |
+| 临时身份头 + 高级/一般角色门禁 | 竖切票 01 曾落地；**不是现行行为**（ADR-0046：冲突链不按身份授权，不记操作者） |
 | 策展主机 / 容器 / `运行于` / 「应该在哪」 | **已完成**（票 02） |
 | Agent 心跳+快照 → 观测 / 「实际在哪」 | **已完成**（票 03） |
 | 冲突警告与合并键升级 | **已完成**（票 04） |
-| 已知悉 + 认领/自任 → 已接受处理人 | **已完成**（票 05） |
-| 异步诊断（规则）+ 可选 LLM + 敏感读拒绝 | **已完成**（票 06）。ADR-0044：控制面去掉进程内 LLM 出站，规则兜底保留；编排层出站另拆 |
+| 已知悉 + 认领/自任 → 已接受处理人 | 竖切票 05 曾落地；**已删除**，不是现行行为（ADR-0046；协作残留删除 01） |
+| 异步诊断（规则）+ 可选 LLM + 敏感读拒绝 | 竖切票 06 曾落地。控制面已去掉进程内 LLM 出站。规则引擎**不是**原因目录（ADR-0047）。无模型不得挡住警告和人审后的执行 |
 | 修实际选支 + 操作计划人审 | **已完成**（票 07） |
-| 观测对齐 → 待确认关闭 → 处理人确认 | **已完成**（票 09） |
+| 观测对齐 → 待确认关闭 → 确认关闭 | 竖切票 09 曾落地。确认关闭**不经处理人**、不记操作者（ADR-0046） |
 | 心跳超时 → 空洞挂起并作废计划 | **已完成**（票 10） |
 | 最小演示 UI | **已完成**（票 12） |
 | HTTP 主接缝 E2E 验收（含负面） | **已完成**（票 13：`com.archops.slice.VerticalSliceHttpE2eAcceptanceTest`） |
-| 指派 / 接受 / 拒绝 / 转让处理人 | **已完成**（票 11 Should：`ConflictAssignTransferHttpAcceptanceTest`） |
+| 指派 / 接受 / 拒绝 / 转让处理人 | 竖切票 11 曾落地；**已删除**，不是现行行为（ADR-0046；协作残留删除 01） |
 | 竖切 Spec | 已发布 → [`docs/specs/vertical-slice-mvp.md`](specs/vertical-slice-mvp.md) |
 | 竖切工单 | 已本地发布 → [`.scratch/vertical-slice-mvp/issues/`](../.scratch/vertical-slice-mvp/issues/)（01–13 均 done；Flyway 至 V12） |
 | 改策展草案 Spec | **已发布** → [`docs/specs/change-curated-draft.md`](specs/change-curated-draft.md) |
@@ -162,7 +162,7 @@
 01 步骤断言成真：引擎判定 + executionLog 详细结果（TDD-done）
 ```
 
-冲突去掉协作身份（ADR-0046；**票 01–07 done**。本 PR 只含票 07，基线是票 06 分支。#119–#124 不并入 main）：
+冲突去掉协作身份（ADR-0046；**票 01–07 done**。#119–#123 与 #125 已在 main；#124 已关闭未合并）：
 
 ```
 01 诊断选支不经身份、不记操作者（done）
@@ -184,4 +184,4 @@
 
 ## 栈摘要
 
-见 ADR-0043 + **ADR-0044** + **ADR-0045**：Gradle / MyBatis-Plus / React+Ant / PG+Redis 多副本 / Python systemd Host Agent / 控制面 `archops:latest` + 执行引擎 + AI 编排层。生产 MINA SSHD 在执行引擎（Compose `ARCHOPS_SSH_MODE=mina`）；控制面代发 `dispatch`（gRPC）；遗留 HTTP 测试仍可用控制面 `fake`（0044 决议 7）。控制面进程内 WebClient 出站已按 ADR-0044 删除。
+见 ADR-0043 + **ADR-0044** + **ADR-0045** + **ADR-0049**：Gradle / MyBatis-Plus / React+Ant / PG+Redis 多副本 / Python systemd Host Agent。交付目标是三个 Kubernetes Deployment（控制面、执行引擎、AI 编排层）。Host Agent 留在主机。编排层↔控制面是 gRPC；控制面→执行引擎仍是 gRPC；模型 HTTPS 仍在编排层。本地 Compose 只起开发用的 Postgres、Redis、控制面和执行引擎。生产 MINA SSHD 在执行引擎（Compose `ARCHOPS_SSH_MODE=mina`）；控制面代发 `dispatch`（gRPC）；遗留 HTTP 测试仍可用控制面 `fake`（0044 决议 7）。控制面进程内 WebClient 出站已按 ADR-0044 删除。

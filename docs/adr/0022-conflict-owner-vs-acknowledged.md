@@ -1,5 +1,5 @@
 ---
-status: superseded by ADR-0023
+status: "superseded by ADR-0023。已知悉/负责人全文由 ADR-0046 取代。"
 ---
 
 # 冲突协作：已知悉全局；仅负责人可开计划并确认关闭

@@ -1,5 +1,5 @@
 ---
-status: accepted; 出站落点与密钥持有者由 ADR-0044 修订
+status: "accepted; 出站落点与密钥持有者由 ADR-0044 修订。「规则分叉兜底」当原因分类才能选支，由 ADR-0047 取代。编排层↔控制面不是同一种 WebClient，由 ADR-0049 改为 gRPC。模型 HTTPS 白名单、控制面不持密钥仍有效。"
 ---
 
 # AI 出站：受控调用外部 OpenAI 兼容 API

@@ -5,7 +5,7 @@ alwaysApply: true
 
 # 领域合同与防漂移
 
-编码前默认已读 `AGENTS.md`、`CONTEXT.md`、ADR-0039、ADR-0043、ADR-0044、ADR-0045。
+编码前默认已读 `AGENTS.md`、`CONTEXT.md`、ADR-0039、ADR-0043、ADR-0044、ADR-0045、ADR-0046、ADR-0047、ADR-0048、ADR-0049。
 
 ## 语义
 
@@ -17,7 +17,10 @@ alwaysApply: true
 ## 栈（ADR-0043 + ADR-0044）
 
 - Gradle + MyBatis-Plus + React/Ant + PG + Redis 多副本
-- 控制面枢纽；执行引擎与 AI 编排层独立进程（ADR-0044）；控制面→引擎单步代发 = gRPC（ADR-0045）；控制面不持模型密钥
+- 控制面枢纽；执行引擎与 AI 编排层独立进程（ADR-0044）；控制面→引擎单步代发 = gRPC（ADR-0045）；编排层↔控制面 = gRPC，模型 HTTPS 仍在编排层（ADR-0049）；控制面不持模型密钥
+- 三进程各自一个 Kubernetes Deployment（控制面、执行引擎、编排层）。Host Agent 留在主机。不用 Eureka。不在内部 gRPC 前放网关（ADR-0049）。Compose 只是本地开发便利
+- 规则引擎不是原因目录（ADR-0047）。无模型不得挡住警告和人审后的执行
+- 探测任务由 Host Agent 在心跳上拉取；控制面判决；Agent 不判决（ADR-0048）
 - 禁止：Maven、JPA 当地基、Vue 现行前端、v1 必选 Neo4j、LangChain 主干、Redis 当真相
 
 ## 工作方式

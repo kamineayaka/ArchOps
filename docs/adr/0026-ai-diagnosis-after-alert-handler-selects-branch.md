@@ -1,5 +1,5 @@
 ---
-status: superseded by ADR-0038
+status: "superseded by ADR-0038。「仅处理人选支并审计划」由 ADR-0046 取代。先警告后诊断、诊断只读仍有效。"
 ---
 
 # 先警告后诊断；诊断全员可见；仅处理人选支并审计划

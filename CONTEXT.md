@@ -6,7 +6,7 @@
 
 **Agent 入口**：编码助手（含 Cursor Cloud Agent）必须先读根目录 `AGENTS.md` / `CLAUDE.md`，再读本文件、ADR-0043 与 ADR-0044。
 
-**实现接手**：脚手架已按 ADR-0043 重建。竖切 `.scratch/vertical-slice-mvp/issues/` 已闭合；改策展 `.scratch/change-curated-draft/issues/` 01–06 已闭合。下一刀 `.scratch/unbound-identity-rebind/issues/`（**frontier = 09**；Spec `docs/specs/unbound-identity-rebind.md`）；不复用已删旧域。ADR-0044 拆分实现另开工单，不写入未绑定票。
+**实现接手**：脚手架已按 ADR-0043 重建。竖切 `.scratch/vertical-slice-mvp/issues/` 已闭合；改策展 `.scratch/change-curated-draft/issues/` 01–06 已闭合。未绑定 `.scratch/unbound-identity-rebind/issues/` **01–09 已闭合**（Spec `docs/specs/unbound-identity-rebind.md`）。不复用已删旧域。没有下一张 frontier 票。
 
 **技术栈**：ADR-0043，并由 ADR-0044 修订进程切分。Java 21 / Spring Boot 3 / Gradle / MyBatis-Plus；React + Ant Design（同镜像静态）；PostgreSQL（v1 图也落 PG；图库 Later）；Redis（队列/锁/会话/缓存，多副本）；Python Host Agent（systemd）；执行引擎（MINA SSHD）；编排层与控制面走 gRPC；控制面、执行引擎、AI 编排层在 Kubernetes 上各自独立部署（ADR-0049）。
 

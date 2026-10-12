@@ -33,6 +33,8 @@ Environment overrides: `ARCHOPS_CONTROL_PLANE`, `ARCHOPS_AGENT_ID`, `ARCHOPS_HOS
 
 Stdlib only (no pip deps). Endpoint: `POST /api/agent/heartbeat`.
 
+The heartbeat response carries this agent's probe task list (ADR-0048). The agent pulls tasks on heartbeat and does not judge. The control plane judges each returned result.
+
 ## systemd (delivery main path)
 
 1. Install script to e.g. `/opt/archops-agent/heartbeat.py` (Python 3.12+ on PATH).
@@ -62,4 +64,4 @@ WantedBy=multi-user.target
 
 3. `systemctl daemon-reload && systemctl enable --now archops-agent`
 
-Agent is **not** part of the default control-plane Compose stack.
+Agent is **not** part of the default control-plane Compose stack. It stays on the host (ADR-0048 / ADR-0049). Compose is a dev convenience, not the delivery target.

@@ -12,11 +12,10 @@
 
 仅最新发布线接受安全修复。
 
-## 部署加固清单
+## 部署与凭证
 
-- 首次启动后立即修改默认 `admin` 密码。
-- 通过环境变量设置足够强度的 `JWT_SECRET`（至少 256 bit）。
-- 在 Docker Compose 前放置 TLS 反向代理。
-- 将 `CORS_ALLOWED_ORIGINS` 限制为真实前端来源。
-- SSH 凭证加密存储；定期轮换 `CREDENTIALS_MASTER_KEY`。
-- 按计划启用审计日志哈希链完整性校验。
+- 凭证加密键是环境变量 `ARCHOPS_CREDENTIALS_ENCRYPTION_KEY_BASE64`（AES 密钥，Base64，16/24/32 字节）。空白拒绝启动。不要使用 `CREDENTIALS_MASTER_KEY`。
+- 领域登录不在 ADR-0046 里。冲突链不按用户身份授权，也不记录操作者。没有默认 `admin` 密码。不要把 `JWT_SECRET` 或 `X-ArchOps-User-Id` 当成冲突门禁的下一步。
+- 交付目标是三个 Kubernetes Deployment（控制面、执行引擎、AI 编排层，ADR-0049）。Compose 只是本地开发便利。不要把「在 Compose 前放 TLS」写成现行交付。
+- 模型 HTTPS 与密钥在编排层。控制面不持模型密钥。
+- 没有 `CORS_ALLOWED_ORIGINS` 这一现行开关，也没有审计日志哈希链这一现行要求。

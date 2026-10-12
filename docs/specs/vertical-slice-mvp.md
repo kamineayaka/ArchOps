@@ -1,3 +1,7 @@
+---
+status: "已闭合。正文里的已知悉、认领、已接受处理人由 ADR-0046 取代；规则兜底后选支由 ADR-0047 取代。"
+---
+
 # Spec: ArchOps 竖切 MVP（一条冲突闭环）
 
 **Status**: done（01–13 已闭合；tracker = `docs/agents/issue-tracker.md`）  

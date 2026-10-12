@@ -1,5 +1,5 @@
 ---
-status: superseded by ADR-0024
+status: "superseded by ADR-0024。处理人/指派/拒绝全文由 ADR-0046 取代。"
 ---
 
 # 冲突处理人唯一；可指派可拒绝可自助强制接手

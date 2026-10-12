@@ -6,7 +6,7 @@ alwaysApply: true
 # ArchOps 项目地图
 
 运维关系真相控制平面。  
-**Agent 入口**：根目录 `AGENTS.md`（及 `CLAUDE.md`）。领域：`CONTEXT.md` / ADR-0039。技术栈：ADR-0043。进程切分：ADR-0044。内部代发：ADR-0045。
+**Agent 入口**：根目录 `AGENTS.md`（及 `CLAUDE.md`）。领域：`CONTEXT.md` / ADR-0039。技术栈：ADR-0043。进程切分：ADR-0044。控制面→执行引擎：ADR-0045。冲突身份：ADR-0046。原因不分类：ADR-0047。探测任务：ADR-0048。三进程 Kubernetes 与编排层↔控制面 gRPC：ADR-0049。
 
 ## 技术栈（ADR-0043）
 
@@ -15,7 +15,7 @@ alwaysApply: true
 | `backend/` | Java 21、Spring Boot 3、Gradle、MyBatis-Plus、Flyway、PostgreSQL、Redis |
 | `frontend/` | React + TypeScript + Ant Design（嵌入 `archops:latest`） |
 | `agent/` | Python 3.12+；systemd 交付 |
-| `deploy/` | `archops:latest` + 执行引擎 + AI 编排层 + postgres + redis（ADR-0044；本刀只加执行引擎，编排层另开） |
+| `deploy/` | 本地开发 Compose（Postgres、Redis、控制面、执行引擎）。交付目标是三个 Kubernetes Deployment：控制面、执行引擎、AI 编排层（ADR-0049）。Host Agent 留在主机 |
 | `docs/` | 合同、ADR、Spec、prompts、`docs/agents/`（Matt tracker + TDD overlay） |
 | `.cursor/skills/` | Cloud Agent 技能（Matt 工程链 + ArchOps `add-*`） |
 | `.scratch/vertical-slice-mvp/issues/` | 竖切工单（01–13 已闭合） |
@@ -30,7 +30,10 @@ alwaysApply: true
 | `docs/specs/plan-step-assertion.md` | 步骤断言 Spec（B3 剩余；**01 TDD-done，本刀闭合**） |
 | `.scratch/plan-step-assertion/issues/` | 工单 01 **done**（不要写入 `control-plane-executor`） |
 | `docs/adr/0046-conflict-discovery-and-resolution-without-identity.md` | 冲突主线只有发现与解决 |
-| `docs/specs/conflict-without-identity.md` | 身份退出冲突领域（**票 01–07 done**；本 PR 只含票 07，基线是票 06 分支。#119–#124 不并入 main） |
+| `docs/adr/0047-conflict-evidence-not-cause-kind.md` | 冲突不分类原因；规则引擎不是原因目录 |
+| `docs/adr/0048-probe-task-control-plane-judges.md` | 探测任务由 Agent 在心跳上拉取；控制面判决 |
+| `docs/adr/0049-kubernetes-three-processes-and-orchestrator-grpc.md` | 三个 Kubernetes Deployment；编排层↔控制面 gRPC |
+| `docs/specs/conflict-without-identity.md` | 身份退出冲突领域（**票 01–07 done**。#119–#123 与 #125 已在 main；#124 已关闭未合并） |
 | `.scratch/conflict-without-identity/issues/` | 01–07 done；不要再开下一张票 |
 | `.scratch/delete-collaboration-leftovers/issues/` | 协作残留删除 **01 TDD-done，本刀闭合**。不要再开下一张票。不要改 ADR-0046 |
 

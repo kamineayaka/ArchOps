@@ -22,7 +22,7 @@ ADR-0043：Python 3.12+ host agent（systemd 交付）+ 控制面 ingest。**不
 - [ ] 1. 确认票面要改的是 payload 契约、Python stub，还是 Java ingest
 - [ ] 2. 契约变更：先改 docs/contracts/，再改代码
 - [ ] 3. Python：agent/heartbeat.py（stdlib only，无 pip 依赖）
-- [ ] 4. Java：com.archops.agent ingest → observed 直写（不人审、不覆盖策展）
+- [ ] 4. Java：心跳响应带回该 Agent 的探测任务列表；交回结果由控制面判决后再写观测（不人审、不覆盖策展）
 - [ ] 5. 不要把 Agent 塞进默认 Compose；交付仍是 systemd
 ```
 
@@ -37,7 +37,7 @@ ADR-0043：Python 3.12+ host agent（systemd 交付）+ 控制面 ingest。**不
 
 ## 硬性检查
 
-- 观测心跳/探测直写；不自动覆盖策展
+- 心跳响应带回探测任务列表；Agent 在心跳上拉取，不判决（ADR-0048）。控制面判决交回结果。观测写入不人审、不覆盖策展
 - 禁止旁路 SSH；禁止 LangChain 诊断编排主干
 - 凭证不进日志/响应
 - AI 出站在 AI 编排层（ADR-0044 / ADR-0041），不是 Host Agent tool；控制面不持模型密钥

@@ -1,13 +1,13 @@
 # AGENTS.md — ArchOps Cloud / Coding Agent 合同
 
-本文件是 **Cursor Cloud Agent、本地 Agent、以及其他 AI 编码助手** 的强制入口。改代码前必须遵守。与 `CONTEXT.md` / ADR 冲突时：**领域语义以 CONTEXT + 有效 ADR 为准；技术实现以 ADR-0043 为准，进程切分以 ADR-0044 为准，控制面→执行引擎运输以 ADR-0045 为准；本文件只做执行纪律与防漂移。**
+本文件是 **Cursor Cloud Agent、本地 Agent、以及其他 AI 编码助手** 的强制入口。改代码前必须遵守。与 `CONTEXT.md` / ADR 冲突时：**领域语义以 CONTEXT + 有效 ADR 为准；技术实现以 ADR-0043 为准，进程切分以 ADR-0044 为准，控制面→执行引擎运输以 ADR-0045 为准，冲突身份以 ADR-0046 为准，原因不分类以 ADR-0047 为准，探测任务以 ADR-0048 为准，三进程 Kubernetes 交付与编排层↔控制面运输以 ADR-0049 为准；本文件只做执行纪律与防漂移。**
 
 ## 0. 先读什么（按顺序）
 
 1. 本文件 `AGENTS.md`
 2. `CONTEXT.md` — 领域术语（禁止发明同义新词）
 3. `docs/adr/0039-domain-contract-frozen.md` — 合同已冻结
-4. `docs/adr/0043-tech-stack.md` — **技术栈**；进程切分见 **ADR-0044**；内部代发运输见 **ADR-0045**
+4. `docs/adr/0043-tech-stack.md` — **技术栈**；进程切分见 **ADR-0044**；控制面→执行引擎运输见 **ADR-0045**；三进程 Kubernetes 与编排层↔控制面 gRPC 见 **ADR-0049**
 5. `docs/specs/vertical-slice-mvp.md` — 竖切 Spec（01–13 已闭合）
 6. `docs/specs/change-curated-draft.md` — 改策展/草案逐条确认 Spec（**01–06 TDD-done，本刀闭合**）
 7. `docs/specs/unbound-identity-rebind.md` — 未绑定 / 身份失联重绑 Spec（**01–09 已闭合**）
@@ -15,11 +15,14 @@
 9. `docs/specs/control-plane-executor.md` — 控制面执行引擎（B 第一刀；**01 TDD-done，本刀闭合**）
 10. `docs/specs/plan-step-assertion.md` — 步骤断言（B3 剩余；**01 TDD-done，本刀闭合**）。不要写入 `.scratch/control-plane-executor/`。不要自动做 B-live / 编排层 / 工作台三档。不要发明未绑定 10。
 11. `docs/adr/0046-conflict-discovery-and-resolution-without-identity.md` — 冲突主线只有发现与解决；人审不记录操作者。实现刀：`docs/specs/conflict-without-identity.md`（**票 01–07 done**）。协作残留删除：`.scratch/delete-collaboration-leftovers/issues/01-remove-collaboration-leftovers.md`（**TDD-done，本刀闭合**）。不要再开下一张票。不要改 ADR-0046。
-12. `docs/dev-handoff.md` — 进度与下一票
-13. `/implement` → [`docs/agents/implement-kickoff.md`](docs/agents/implement-kickoff.md)。不要发明一次性 prompt。历史 `docs/implement-*-prompt.md` 对新票作废。
-14. `docs/agents/tdd.md` — ArchOps TDD overlay（`/implement` 必读）
-15. `.cursor/rules/project-map.mdc`、`backend-java.mdc`、`frontend-react.mdc`
-16. `docs/agents/` — Matt 工作流 tracker / triage / domain 布局（Cloud 已 vendoring `.cursor/skills/`）
+12. `docs/adr/0047-conflict-evidence-not-cause-kind.md` — 冲突不分类原因；规则引擎不是原因目录。选支是解决动作。
+13. `docs/adr/0048-probe-task-control-plane-judges.md` — 探测任务由 Host Agent 在心跳上拉取；控制面判决；Agent 不判决。
+14. `docs/adr/0049-kubernetes-three-processes-and-orchestrator-grpc.md` — 控制面、执行引擎、AI 编排层各自一个 Kubernetes Deployment。编排层↔控制面是 gRPC。控制面→执行引擎仍是 gRPC。模型 HTTPS 仍在编排层。不用 Eureka。不在内部 gRPC 前放网关。Host Agent 留在主机。
+15. `docs/dev-handoff.md` — 进度与下一票
+16. `/implement` → [`docs/agents/implement-kickoff.md`](docs/agents/implement-kickoff.md)。不要发明一次性 prompt。历史一次性 prompt 在 `docs/archive/`，对新票作废。
+17. `docs/agents/tdd.md` — ArchOps TDD overlay（`/implement` 必读）
+18. `.cursor/rules/project-map.mdc`、`backend-java.mdc`、`frontend-react.mdc`
+19. `docs/agents/` — Matt 工作流 tracker / triage / domain 布局（Cloud 已 vendoring `.cursor/skills/`）
 
 **不要**把 git 历史里的旧 ArchOps（Neo4j 必选、Maven、Vue/Naive、JPA 域模型、architecture proposal、旧 Agent 工具）当作现行实现样板。
 
@@ -37,8 +40,8 @@
 | 缓存/队列 | **Redis**（队列、锁、会话、缓存）；控制面按**多副本**设计 | Redis 当关系真相 SSOT |
 | Agent | Python 3.12+；交付主推 **systemd** | 把 Agent 塞进控制面默认 Compose |
 | SSH | 执行引擎内 Apache **MINA SSHD** + Redis 锁（控制面代发前加锁）；ADR-0044 | 旁路直连；工作台续跑失败计划；控制面生产直连 SSH |
-| AI | **AI 编排层** WebClient + ADR-0041/0044 白名单；诊断取证经控制面代发 | LangChain 类诊断编排主干；控制面持模型密钥；编排层直连执行引擎 |
-| 交付 | `archops:latest`（API+前端静态）+ 执行引擎 + AI 编排层 + postgres + redis | 第三条 SSH 通道；把 Host Agent 塞进控制面默认 Compose |
+| AI | **编排层 ↔ 控制面** gRPC（ADR-0049）；模型 HTTPS 白名单仍在编排层（ADR-0041/0044）；诊断取证经控制面代发 | LangChain 类诊断编排主干；控制面持模型密钥；编排层直连执行引擎；把这一跳写成 WebClient |
+| 交付 | 控制面、执行引擎、AI 编排层三个 Kubernetes Deployment（ADR-0049）。Host Agent 留在主机。Compose 只是本地开发便利 | 第三条 SSH 通道；把 Host Agent 放进集群替换主机 Agent；Eureka；内部 gRPC 前面的网关 |
 
 ## 3. 领域硬纪律（不可用代码改语义）
 
@@ -68,7 +71,7 @@
 2. Spec / 票 / ADR 冲突时：**ADR 与 CONTEXT > Spec > 票**；票过宽则缩到验收标准。
 3. 不要「顺便」引入：Neo4j、Vue、Maven、JPA 全域、LangChain、完整 xterm、网络可达矩阵、自我迭代、多租户。
 4. 不要从旧提交恢复已删除的 `ai/` `asset/` `graph/` 等旧域包当业务基础。
-5. `/implement` 使用 [`docs/agents/implement-kickoff.md`](docs/agents/implement-kickoff.md)；不要发明一次性 prompt。历史 `docs/implement-*-prompt.md` 对新票作废。`/implement` 驱动 `/tdd`：**red → green → refactor**，一圈一条测试。先在确认接缝上跑出 **witnessed red**，再写该圈生产代码。ArchOps overlay：[`docs/agents/tdd.md`](docs/agents/tdd.md)。Skill：`.cursor/skills/tdd/SKILL.md`（桌面：`.agents/skills/tdd/SKILL.md`）。与 skill 冲突时以本文件与 overlay 为准。
+5. `/implement` 使用 [`docs/agents/implement-kickoff.md`](docs/agents/implement-kickoff.md)；不要发明一次性 prompt。历史一次性 prompt 在 `docs/archive/`，对新票作废。`/implement` 驱动 `/tdd`：**red → green → refactor**，一圈一条测试。先在确认接缝上跑出 **witnessed red**，再写该圈生产代码。ArchOps overlay：[`docs/agents/tdd.md`](docs/agents/tdd.md)。Skill：`.cursor/skills/tdd/SKILL.md`（桌面：`.agents/skills/tdd/SKILL.md`）。与 skill 冲突时以本文件与 overlay 为准。
 6. 测试主接缝：控制面 HTTP API（含 Agent ingest）；SSH 可用 fake；前端最小冒烟，且排在该票 HTTP 循环变绿之后。
 7. 提交信息聚焦 why；每个绿灯切片可提交；不要提交 `.env`、密钥、`node_modules`、`build/`。
 
@@ -101,7 +104,7 @@ Canonical roles on each ticket `Status:` line (`ready-for-agent`, `done`, …). 
 
 ### Domain docs
 
-Single-context: frozen `CONTEXT.md` + `docs/adr/` (ADR-0039 / ADR-0043 / ADR-0044 / ADR-0045). Skills must not silently rewrite the contract. See `docs/agents/domain.md`.
+Single-context: frozen `CONTEXT.md` + `docs/adr/` (ADR-0039 / ADR-0043 / ADR-0044 / ADR-0045 / ADR-0046 / ADR-0047 / ADR-0048 / ADR-0049). Skills must not silently rewrite the contract. See `docs/agents/domain.md`.
 
 `/to-spec` `/to-tickets` `/implement` `/grill-with-docs` `/tdd` `/code-review` read those files. `/implement` still follows §5: **one unblocked frontier ticket**, HTTP API acceptance seam, **red → green → refactor**. See [`docs/agents/tdd.md`](docs/agents/tdd.md).
 
@@ -122,6 +125,6 @@ Single-context: frozen `CONTEXT.md` + `docs/adr/` (ADR-0039 / ADR-0043 / ADR-004
 
 ## 7. 云端提示词建议（用户可贴）
 
-未绑定 **01–09 已闭合**。冲突升级作废活跃计划 **01 TDD-done / 本刀闭合**（审计 A1）。控制面执行引擎 **01 TDD-done / 本刀闭合**。步骤断言 **01 TDD-done / 本刀闭合**。ADR-0046 已合并。冲突去掉协作身份票 01–07 done。协作残留删除 **TDD-done / 本刀闭合**。不要再开下一张票。不要发明未绑定 10。不要把 WebClient 加回控制面。不要自动做编排层 / B-live / 工作台。不要往执行引擎目录加票 02。不要做解决断点。不要改 ADR-0046。
+未绑定 **01–09 已闭合**。冲突升级作废活跃计划 **01 TDD-done / 本刀闭合**（审计 A1）。控制面执行引擎 **01 TDD-done / 本刀闭合**。步骤断言 **01 TDD-done / 本刀闭合**。ADR-0046、ADR-0047、ADR-0048、ADR-0049 已合并。冲突去掉协作身份票 01–07 done。协作残留删除 **TDD-done / 本刀闭合**。没有下一张 frontier 票。不要再开下一张票。不要发明未绑定 10。不要把 WebClient 加回控制面。编排层↔控制面是 gRPC；模型 HTTPS 仍在编排层。不要自动做编排层 / B-live / 工作台。不要往执行引擎目录加票 02。不要做解决断点。不要改 ADR-0046。
 
-> 读 AGENTS.md、CONTEXT.md、ADR-0044 / 0045。步骤断言票 01 已闭合。不要复活 Vue/JPA/Neo4j/Maven/LangChain。不要把 LLM 加回控制面。不要自动做编排层 / B-live / 工作台。
+> 读 AGENTS.md、CONTEXT.md、ADR-0046 / 0047 / 0048 / 0049（以及 0044 / 0045）。步骤断言票 01 已闭合。不要复活 Vue/JPA/Neo4j/Maven/LangChain。不要把 LLM 加回控制面。不要把编排层↔控制面写成 WebClient。不要自动做编排层 / B-live / 工作台。
