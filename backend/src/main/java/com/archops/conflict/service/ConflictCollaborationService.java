@@ -8,6 +8,7 @@ import com.archops.conflict.dto.ConflictCaseResponse;
 import com.archops.conflict.dto.OpenOperationPlanResponse;
 import com.archops.conflict.mapper.ConflictCaseMapper;
 import com.archops.curated.domain.CuratedFact;
+import com.archops.curated.domain.CuratedRelationType;
 import com.archops.observed.domain.ObservedFact;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import org.springframework.stereotype.Service;
@@ -73,6 +74,9 @@ public class ConflictCollaborationService {
             throw new BusinessException("CONFLICT_NOT_PENDING_CLOSE",
                     "Only 待确认关闭 conflicts can be confirmed closed");
         }
+        if (row.getRelationType() == CuratedRelationType.PROBE) {
+            return confirmCloseProbe(row);
+        }
 
         ConflictDetectionService.TrackPair tracks = conflictDetectionService.currentTracks(row);
         CuratedFact curated = tracks.curated();
@@ -123,6 +127,31 @@ public class ConflictCollaborationService {
                 "observedTargetId", observed.getTargetId()
         ));
         return conflictCaseAssembler.getById(conflictId);
+    }
+
+    private ConflictCaseResponse confirmCloseProbe(ConflictCase row) {
+        if (!conflictDetectionService.probeValuesEqual(row)) {
+            conflictEventService.append(row.getId(), ConflictEventType.CONFIRM_FAILED, null, Map.of(
+                    "probeTaskId", row.getProbeTaskId() == null ? "" : row.getProbeTaskId()
+            ));
+            throw new BusinessException("CONFLICT_NOT_ALIGNED",
+                    "策展与观测已不再相等，请刷新观测后重试；冲突未关闭");
+        }
+        Instant now = Instant.now();
+        int updated = conflictCaseMapper.update(null, new LambdaUpdateWrapper<ConflictCase>()
+                .eq(ConflictCase::getId, row.getId())
+                .eq(ConflictCase::getStatus, ConflictStatus.PENDING_CLOSE)
+                .set(ConflictCase::getStatus, ConflictStatus.CLOSED)
+                .set(ConflictCase::getClosedAt, now)
+                .set(ConflictCase::getUpdatedAt, now));
+        if (updated != 1) {
+            throw new BusinessException("CONFLICT_NOT_PENDING_CLOSE",
+                    "Conflict left 待确认关闭 before confirm completed");
+        }
+        conflictEventService.append(row.getId(), ConflictEventType.CLOSED, null, Map.of(
+                "probeTaskId", row.getProbeTaskId() == null ? "" : row.getProbeTaskId()
+        ));
+        return conflictCaseAssembler.getById(row.getId());
     }
 
     private ConflictCase requireOpen(String conflictId) {

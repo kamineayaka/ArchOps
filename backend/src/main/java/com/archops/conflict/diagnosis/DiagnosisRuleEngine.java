@@ -47,6 +47,29 @@ public final class DiagnosisRuleEngine {
         );
     }
 
+    /**
+     * Readable probe value ≠ curated value. Actions stay the ADR-0047 pair.
+     * Evidence rides on the case; this method does not classify a cause.
+     */
+    public static RuleResult diagnoseProbeValueMismatch() {
+        ConflictDiagnosisResponse.ForkSuggestion fixActual = new ConflictDiagnosisResponse.ForkSuggestion(
+                FIX_ACTUAL_TO_CURATED,
+                "修实际",
+                "观测结构化值与策展值不等",
+                "修实际使现场回到策展值。原始证据附在案件上，不是原因种类。"
+        );
+        ConflictDiagnosisResponse.ForkSuggestion changeCurated = new ConflictDiagnosisResponse.ForkSuggestion(
+                CHANGE_CURATED_TO_OBSERVED,
+                "改理想",
+                "承认当前可读的观测结构化值",
+                "改理想须经草案逐条确认。本次判决不能定稿策展。"
+        );
+        return new RuleResult(
+                "探测结果可读，且与策展结构化值不等。",
+                List.of(fixActual, changeCurated)
+        );
+    }
+
     public static RuleResult diagnoseRunsOnMismatch(
             String curatedHostId,
             String curatedHostName,

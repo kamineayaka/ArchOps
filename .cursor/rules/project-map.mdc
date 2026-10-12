@@ -32,6 +32,8 @@ alwaysApply: true
 | `docs/adr/0046-conflict-discovery-and-resolution-without-identity.md` | 冲突主线只有发现与解决 |
 | `docs/adr/0047-conflict-evidence-not-cause-kind.md` | 冲突不分类原因；规则引擎不是原因目录 |
 | `docs/adr/0048-probe-task-control-plane-judges.md` | 探测任务由 Agent 在心跳上拉取；控制面判决 |
+| `docs/specs/probe-task-control-plane-judges.md` | 探测任务判决 Spec（ADR-0048；**01 TDD-done，本刀闭合**。不要自动做 ADR-0049） |
+| `.scratch/probe-task-control-plane-judges/issues/` | 工单 01 **done** |
 | `docs/adr/0049-kubernetes-three-processes-and-orchestrator-grpc.md` | 三个 Kubernetes Deployment；编排层↔控制面 gRPC |
 | `docs/specs/conflict-without-identity.md` | 身份退出冲突领域（**票 01–07 done**。#119–#123 与 #125 已在 main；#124 已关闭未合并） |
 | `.scratch/conflict-without-identity/issues/` | 01–07 done；不要再开下一张票 |

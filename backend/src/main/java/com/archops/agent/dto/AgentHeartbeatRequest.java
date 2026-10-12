@@ -1,5 +1,6 @@
 package com.archops.agent.dto;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 
@@ -15,7 +16,8 @@ public record AgentHeartbeatRequest(
         /** Curated physical host id this agent runs on. */
         @NotBlank String hostId,
         String sentAt,
-        @Valid SnapshotPayload snapshot
+        @Valid SnapshotPayload snapshot,
+        List<@Valid ProbeResult> probeResults
 ) {
     public record SnapshotPayload(
             List<@Valid SnapshotContainer> containers,
@@ -33,6 +35,17 @@ public record AgentHeartbeatRequest(
             String runtimeId,
             String name,
             Map<String, String> labels
+    ) {
+    }
+
+    /**
+     * Result the agent returns for the control plane to judge. The agent does not send a verdict.
+     */
+    public record ProbeResult(
+            @NotBlank String taskId,
+            boolean readable,
+            JsonNode value,
+            String evidence
     ) {
     }
 }

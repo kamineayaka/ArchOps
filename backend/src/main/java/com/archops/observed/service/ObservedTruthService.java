@@ -52,6 +52,7 @@ public class ObservedTruthService {
     private final ConflictDetectionService conflictDetectionService;
     private final ObservationFreshnessService observationFreshnessService;
     private final UnboundObservationService unboundObservationService;
+    private final ProbeTaskService probeTaskService;
 
     public ObservedTruthService(
             HostAgentMapper hostAgentMapper,
@@ -61,7 +62,8 @@ public class ObservedTruthService {
             CuratedFactMapper curatedFactMapper,
             ConflictDetectionService conflictDetectionService,
             @Lazy ObservationFreshnessService observationFreshnessService,
-            UnboundObservationService unboundObservationService
+            UnboundObservationService unboundObservationService,
+            ProbeTaskService probeTaskService
     ) {
         this.hostAgentMapper = hostAgentMapper;
         this.observedFactMapper = observedFactMapper;
@@ -71,6 +73,7 @@ public class ObservedTruthService {
         this.conflictDetectionService = conflictDetectionService;
         this.observationFreshnessService = observationFreshnessService;
         this.unboundObservationService = unboundObservationService;
+        this.probeTaskService = probeTaskService;
     }
 
     @Transactional
@@ -90,6 +93,7 @@ public class ObservedTruthService {
         if (request.snapshot() != null) {
             processSnapshot(request, host, now, matched, absent, unbound, identityLost);
         }
+        probeTaskService.acceptResults(host.getId(), agentId, request.probeResults());
 
         HostAgent agent = hostAgentMapper.selectById(agentId);
         return new AgentHeartbeatResponse(
@@ -100,7 +104,8 @@ public class ObservedTruthService {
                 matched,
                 absent,
                 unbound,
-                identityLost
+                identityLost,
+                probeTaskService.assignmentsForHost(host.getId(), agentId)
         );
     }
 
