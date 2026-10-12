@@ -1,10 +1,10 @@
 ---
-status: "票 01。薄 UI。不重开 ADR-0048 票 01。不含 ADR-0049。"
+status: "票 01 done。薄 UI。不重开 ADR-0048 票 01。不含 ADR-0049。"
 ---
 
 # Spec: 探测任务判决的薄 UI
 
-**Status**: 工单 01。  
+**Status**: 工单 01 **done**。  
 **Basis**: [`docs/adr/0048-probe-task-control-plane-judges.md`](../adr/0048-probe-task-control-plane-judges.md)。判决 HTTP 已在 [`docs/specs/probe-task-control-plane-judges.md`](probe-task-control-plane-judges.md) 票 01 变绿。本刀不重开那张票，不改 ADR 正文。  
 **Testing seams (confirmed)**: 页面完成定义与冲突去掉协作身份票 07、未绑定票 07 相同：`cd frontend && npm run build`，再加上 Vite 上按人的路径点一遍。Playwright 不是完成定义，也不是 CI 门槛。判决 HTTP（相等 / 不等 / 读不出 / 逾期）不重测。探测冲突上的解决动作若还不能打开草案或待审计划，只在控制面 HTTP 上补那一个行为，仍不重测判决。
 

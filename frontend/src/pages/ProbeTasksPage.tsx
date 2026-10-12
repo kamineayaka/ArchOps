@@ -236,7 +236,7 @@ export default function ProbeTasksPage() {
 
   const requestRestoreChannel = (taskId: string) => {
     setRestored((current) => ({ ...current, [taskId]: true }));
-    message.success('已请求恢复观测通道');
+    message.success('这条任务只恢复观测通道');
   };
 
   return (
@@ -354,7 +354,7 @@ export default function ProbeTasksPage() {
                 </Button>
                 {restored[task.id] ? (
                   <Paragraph style={{ marginTop: 8, marginBottom: 0 }}>
-                    已请求恢复观测通道。控制面不执行该命令；下一次心跳交回后重新判决。
+                    这条任务只恢复观测通道。控制面不执行该命令，也不打开计划或草案。通道靠 Host Agent 的下一次心跳恢复，再由控制面判决。
                   </Paragraph>
                 ) : (
                   <Paragraph type="secondary" style={{ marginTop: 8, marginBottom: 0 }}>
