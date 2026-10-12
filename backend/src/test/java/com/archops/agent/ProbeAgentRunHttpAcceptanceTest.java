@@ -287,6 +287,22 @@ class ProbeAgentRunHttpAcceptanceTest {
     }
 
     @Test
+    void secondHeartbeatProcessDoesNotSubmitResults() throws Exception {
+        String hostId = createHost("probe-run-i-host");
+        String taskId = createTask(hostId, "printf '{\"up\":true}'", 60);
+
+        runHeartbeatProcess("agent-probe-run-i-a", hostId);
+        runHeartbeatProcess("agent-probe-run-i-b", hostId);
+
+        mockMvc.perform(get("/api/probe-tasks/{id}", taskId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.judgment", is("NORMAL")))
+                .andExpect(jsonPath("$.data.conflictId", nullValue()));
+    }
+
+    @Test
     void emptyPullDoesNotSubmitProbeResults() throws Exception {
         runPythonUnittest("test_probe_cycle.NoTasksTests.test_no_tasks_posts_one_heartbeat_without_probe_results");
     }

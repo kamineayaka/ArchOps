@@ -14,7 +14,7 @@
 - [x] 命令超时则不交回；`intervalSeconds=0` 时 `scan-overdue` 将该任务列入 `hollowedTaskIds`，`judgment=HOLLOW`，`evidence` 为空
 - [ ] 同一主机两条任务独立：一条超时只使自己 HOLLOW，另一条相等的仍是 NORMAL
 - [x] 心跳没有任务时不提交 `probeResults`（第二次心跳也不附带快照）
-- [ ] 零 Agent 的主机仍可保存任务且为 HOLLOW；一台主机至多一个探测 Agent。这两条沿用 ADR-0048 票 01，不重写
+- [x] 零 Agent 的主机仍可保存任务且为 HOLLOW；一台主机至多一个探测 Agent。这两条沿用 ADR-0048 票 01，不重写
 
 **Out of this ticket:** 持久化「恢复观测通道」、Agent 停机掏空全部快照观测、ADR-0049、Kubernetes、编排层 gRPC、AI 建议正文、原因种类、「无法归类」、协作、处理人、操作者、任务推送、控制面 SSH、MINA、真实主机。不重开 ADR-0048 票 01。不重开薄 UI 票 01。
 
@@ -72,4 +72,11 @@ Red command: `cd backend && ./gradlew test --tests com.archops.agent.ProbeAgentR
 `AssertionError: JSON path "$.data.judgment" Expected: is "NORMAL" but: was "HOLLOW"`
 Green command: same test, exit 0. `evidence` is `{"up":true}`, `conflictId` null.
 Refactor: `heartbeat.py` delegates to `pull_and_report` with `subprocess_runner`. Contract and README say an older process that ignores `probeTasks` can still heartbeat.
-Commit: (this slice) Run pulled probe commands from the host agent heartbeat.
+Commit: `0e96a3b` Run pulled probe commands from the host agent heartbeat.
+
+### Cycle I — a second heartbeat process does not submit results; a host with no agent stays hollow
+Red command: `cd backend && ./gradlew test --tests com.archops.agent.ProbeAgentRunHttpAcceptanceTest.secondHeartbeatProcessDoesNotSubmitResults --offline`
+reuse/regression: first run exit 0. Empty `probeTasks` already skips `probeResults` (`emptyPullDoesNotSubmitProbeResults`). The control plane already refuses a second probe agent in `ProbeTaskJudgmentHttpAcceptanceTest.secondProbeAgentDoesNotReceiveTasksOrSubmitResults`.
+Zero-agent host: `cd backend && ./gradlew test --tests com.archops.observed.ProbeTaskJudgmentHttpAcceptanceTest.storesProbeTaskOnHostWithNoAgentAsHollowNotConflict --tests com.archops.observed.ProbeTaskJudgmentHttpAcceptanceTest.secondProbeAgentDoesNotReceiveTasksOrSubmitResults --offline` exit 0. reuse/regression of ADR-0048 ticket 01. No new production.
+Refactor: no structural change.
+Commit: (this slice) Keep a second heartbeat process from posting probe results.
