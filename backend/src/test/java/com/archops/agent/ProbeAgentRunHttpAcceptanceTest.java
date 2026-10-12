@@ -22,6 +22,7 @@ import java.nio.file.Path;
 import java.util.concurrent.TimeUnit;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
@@ -190,6 +191,36 @@ class ProbeAgentRunHttpAcceptanceTest {
                 .andReturn();
         assertFalse(got.getResponse().getContentAsString().contains("\"kind\""));
         assertFalse(got.getResponse().getContentAsString().contains("无法归类"));
+    }
+
+    @Test
+    void timedOutCommandOmitsTheReportAndStaysHollow() throws Exception {
+        String hostId = createHost("probe-run-d-host");
+        String taskId = createTask(hostId, COMMAND, 0);
+
+        JsonNode posted = runAgent(
+                "agent-probe-run-d",
+                hostId,
+                outcome(COMMAND, "", "", 0, true));
+
+        assertEquals(0, posted.path("probeResults").size());
+        assertFalse(posted.toString().contains(taskId));
+
+        mockMvc.perform(post("/api/probe-tasks/scan-overdue")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.hollowedTaskIds", hasItem(taskId)));
+
+        mockMvc.perform(get("/api/probe-tasks/{id}", taskId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.judgment", is("HOLLOW")))
+                .andExpect(jsonPath("$.data.observationHollow", is(true)))
+                .andExpect(jsonPath("$.data.conflictId", nullValue()))
+                .andExpect(jsonPath("$.data.evidence", nullValue()))
+                .andExpect(jsonPath("$.data.observedValue", nullValue()));
     }
 
     private JsonNode runAgent(String agentId, String hostId, ObjectNode outcomes) throws Exception {

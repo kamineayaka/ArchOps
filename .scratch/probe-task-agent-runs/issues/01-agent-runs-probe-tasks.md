@@ -11,7 +11,7 @@
 - [x] Agent 拉取任务并用注入 runner 执行；stdout `{"up": true}` 交回后 `judgment=NORMAL`，无冲突，不进 AI
 - [x] stdout `{"up": false}` 交回后冲突附该原文；诊断只有 `FIX_ACTUAL_TO_CURATED` 与 `CHANGE_CURATED_TO_OBSERVED`，没有 `kind`，没有「无法归类」
 - [x] 读不出（`command error`）交回 `readable=false`，该任务 `judgment=HOLLOW`，不是冲突
-- [ ] 命令超时则不交回；`intervalSeconds=0` 时 `scan-overdue` 将该任务列入 `hollowedTaskIds`，`judgment=HOLLOW`，`evidence` 为空
+- [x] 命令超时则不交回；`intervalSeconds=0` 时 `scan-overdue` 将该任务列入 `hollowedTaskIds`，`judgment=HOLLOW`，`evidence` 为空
 - [ ] 同一主机两条任务独立：一条超时只使自己 HOLLOW，另一条相等的仍是 NORMAL
 - [ ] 心跳没有任务时不提交 `probeResults`（第二次心跳也不附带快照）
 - [ ] 零 Agent 的主机仍可保存任务且为 HOLLOW；一台主机至多一个探测 Agent。这两条沿用 ADR-0048 票 01，不重写
@@ -38,4 +38,11 @@ Red command: `cd backend && ./gradlew test --tests com.archops.agent.ProbeAgentR
 `AssertionFailedError: agent exit 1` with `json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)` from `json.loads(outcome.stdout)`.
 Green command: same test, exit 0. `readable=false`, evidence `command error`, `judgment=HOLLOW`, `conflictId` null.
 Refactor: `structured_value` and `raw_evidence` split a readable JSON post from a failed command. Class re-run, exit 0.
-Commit: (this slice) Post an unreadable probe command as observation hollow.
+Commit: `4f3c31e` Post an unreadable probe command as observation hollow.
+
+### Cycle D — a timed-out command omits the report and stays hollow
+Red command: `cd backend && ./gradlew test --tests com.archops.agent.ProbeAgentRunHttpAcceptanceTest.timedOutCommandOmitsTheReportAndStaysHollow --offline`
+`AssertionFailedError: expected: <0> but was: <1>` (`probeResults` still contained the timed-out task).
+Green command: same test, exit 0. `probeResults` empty; `hollowedTaskIds` contains the task; `judgment=HOLLOW`; `evidence` null; `conflictId` null.
+Refactor: `result_for_task` returns nothing on timeout. Same test re-run, exit 0.
+Commit: (this slice) Omit a timed-out probe command so only that task can go hollow.

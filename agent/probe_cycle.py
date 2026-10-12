@@ -31,26 +31,29 @@ class CommandOutcome:
 def results_for_tasks(tasks: list[dict], runner) -> list[dict]:
     results = []
     for task in tasks:
-        outcome: CommandOutcome = runner(task)
-        value = structured_value(outcome)
-        if value is None:
-            results.append(
-                {
-                    "taskId": task["id"],
-                    "readable": False,
-                    "evidence": raw_evidence(outcome),
-                }
-            )
-            continue
-        results.append(
-            {
-                "taskId": task["id"],
-                "readable": True,
-                "value": value,
-                "evidence": outcome.stdout,
-            }
-        )
+        result = result_for_task(task, runner(task))
+        if result is not None:
+            results.append(result)
     return results
+
+
+def result_for_task(task: dict, outcome: CommandOutcome) -> dict | None:
+    """A timed-out command is a missed report: omit it so the control plane can hollow that task."""
+    if outcome.timed_out:
+        return None
+    value = structured_value(outcome)
+    if value is None:
+        return {
+            "taskId": task["id"],
+            "readable": False,
+            "evidence": raw_evidence(outcome),
+        }
+    return {
+        "taskId": task["id"],
+        "readable": True,
+        "value": value,
+        "evidence": outcome.stdout,
+    }
 
 
 def structured_value(outcome: CommandOutcome):
