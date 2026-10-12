@@ -25,6 +25,10 @@ public class ConflictCase {
     private Instant pendingCloseAt;
     private Instant closedAt;
     private Instant suspendedAt;
+    private String probeTaskId;
+    private String evidence;
+    private String curatedValueJson;
+    private String observedValueJson;
 
     public String getId() {
         return id;
@@ -128,5 +132,37 @@ public class ConflictCase {
 
     public void setSuspendedAt(Instant suspendedAt) {
         this.suspendedAt = suspendedAt;
+    }
+
+    public String getProbeTaskId() {
+        return probeTaskId;
+    }
+
+    public void setProbeTaskId(String probeTaskId) {
+        this.probeTaskId = probeTaskId;
+    }
+
+    public String getEvidence() {
+        return evidence;
+    }
+
+    public void setEvidence(String evidence) {
+        this.evidence = evidence;
+    }
+
+    public String getCuratedValueJson() {
+        return curatedValueJson;
+    }
+
+    public void setCuratedValueJson(String curatedValueJson) {
+        this.curatedValueJson = curatedValueJson;
+    }
+
+    public String getObservedValueJson() {
+        return observedValueJson;
+    }
+
+    public void setObservedValueJson(String observedValueJson) {
+        this.observedValueJson = observedValueJson;
     }
 }

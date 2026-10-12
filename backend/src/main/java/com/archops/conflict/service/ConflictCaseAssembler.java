@@ -15,6 +15,7 @@ import com.archops.observed.domain.ObservedAvailability;
 import com.archops.observed.mapper.IdentityLostMarkMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -133,7 +134,11 @@ public class ConflictCaseAssembler {
                 row.getStatus() == ConflictStatus.PENDING_CLOSE,
                 hollow,
                 identityLost,
-                conflictDiagnosisService.statusLabelForConflict(row.getId())
+                conflictDiagnosisService.statusLabelForConflict(row.getId()),
+                row.getEvidence(),
+                readJson(row.getCuratedValueJson()),
+                readJson(row.getObservedValueJson()),
+                row.getProbeTaskId()
         );
     }
 
@@ -172,6 +177,14 @@ public class ConflictCaseAssembler {
 
     static ConflictCaseResponse.MergeKey mergeKey(String subjectId, CuratedRelationType relationType) {
         return new ConflictCaseResponse.MergeKey(subjectId, relationType, relationType.labelZh());
+    }
+
+    private JsonNode readJson(String json) {
+        if (json == null || json.isBlank()) {
+            return null;
+        }
+        return persistentJson.read(json, new TypeReference<JsonNode>() {
+        }, null);
     }
 
     private List<LineageRecord> readLineage(String json) {

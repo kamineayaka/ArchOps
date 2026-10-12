@@ -4,6 +4,7 @@ import com.archops.agent.dto.AgentHeartbeatRequest;
 import com.archops.agent.dto.AgentHeartbeatResponse;
 import com.archops.common.exception.BusinessException;
 import com.archops.common.json.PersistentJson;
+import com.archops.conflict.service.ConflictDetectionService;
 import com.archops.curated.domain.CuratedObject;
 import com.archops.curated.domain.CuratedObjectKind;
 import com.archops.curated.mapper.CuratedObjectMapper;
@@ -33,6 +34,7 @@ public class ProbeTaskService {
 
     static final String JUDGMENT_HOLLOW = "HOLLOW";
     static final String JUDGMENT_NORMAL = "NORMAL";
+    static final String JUDGMENT_CONFLICT = "CONFLICT";
 
     private static final TypeReference<JsonNode> JSON_NODE = new TypeReference<>() {
     };
@@ -40,17 +42,20 @@ public class ProbeTaskService {
     private final ProbeTaskMapper probeTaskMapper;
     private final ProbeJudgmentMapper probeJudgmentMapper;
     private final CuratedObjectMapper curatedObjectMapper;
+    private final ConflictDetectionService conflictDetectionService;
     private final PersistentJson persistentJson;
 
     public ProbeTaskService(
             ProbeTaskMapper probeTaskMapper,
             ProbeJudgmentMapper probeJudgmentMapper,
             CuratedObjectMapper curatedObjectMapper,
+            ConflictDetectionService conflictDetectionService,
             PersistentJson persistentJson
     ) {
         this.probeTaskMapper = probeTaskMapper;
         this.probeJudgmentMapper = probeJudgmentMapper;
         this.curatedObjectMapper = curatedObjectMapper;
+        this.conflictDetectionService = conflictDetectionService;
         this.persistentJson = persistentJson;
     }
 
@@ -79,12 +84,27 @@ public class ProbeTaskService {
         }
         Instant now = Instant.now();
         for (AgentHeartbeatRequest.ProbeResult result : results) {
-            ProbeTask task = requireTaskOnHost(result.taskId(), hostId);
-            JsonNode value = result.value();
-            boolean hasValue = value != null && !value.isNull() && !value.isMissingNode();
-            if (result.readable() && hasValue && readExpected(task).equals(value)) {
-                saveJudgment(task.getId(), JUDGMENT_NORMAL, persistentJson.write(value), result.evidence(), null, now);
-            }
+            judgeOne(requireTaskOnHost(result.taskId(), hostId), result, now);
+        }
+    }
+
+    private void judgeOne(ProbeTask task, AgentHeartbeatRequest.ProbeResult result, Instant now) {
+        JsonNode value = result.value();
+        boolean hasValue = value != null && !value.isNull() && !value.isMissingNode();
+        if (result.readable() && hasValue && readExpected(task).equals(value)) {
+            saveJudgment(task.getId(), JUDGMENT_NORMAL, persistentJson.write(value), result.evidence(), null, now);
+            return;
+        }
+        if (result.readable() && hasValue) {
+            String observedJson = persistentJson.write(value);
+            String conflictId = conflictDetectionService.openOrUpdateProbeConflict(
+                    task.getHostId(),
+                    task.getId(),
+                    task.getExpectedJson(),
+                    observedJson,
+                    result.evidence()
+            );
+            saveJudgment(task.getId(), JUDGMENT_CONFLICT, observedJson, result.evidence(), conflictId, now);
         }
     }
 

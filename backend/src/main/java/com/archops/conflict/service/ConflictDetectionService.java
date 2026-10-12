@@ -163,6 +163,56 @@ public class ConflictDetectionService {
     }
 
     /**
+     * Readable probe value ≠ curated value. One open conflict per probe task, with raw evidence.
+     * Does not classify a cause and does not call a model.
+     */
+    @Transactional
+    public String openOrUpdateProbeConflict(
+            String hostId,
+            String probeTaskId,
+            String curatedJson,
+            String observedJson,
+            String evidence
+    ) {
+        Instant now = Instant.now();
+        ConflictCase existing = conflictCaseMapper.selectOne(new LambdaQueryWrapper<ConflictCase>()
+                .eq(ConflictCase::getProbeTaskId, probeTaskId)
+                .in(ConflictCase::getStatus, ACTIVE));
+        if (existing != null) {
+            conflictCaseMapper.update(null, new LambdaUpdateWrapper<ConflictCase>()
+                    .eq(ConflictCase::getId, existing.getId())
+                    .set(ConflictCase::getEvidence, evidence)
+                    .set(ConflictCase::getCuratedValueJson, curatedJson)
+                    .set(ConflictCase::getObservedValueJson, observedJson)
+                    .set(ConflictCase::getUpdatedAt, now));
+            conflictDiagnosisService.scheduleAsyncDiagnosis(existing.getId());
+            return existing.getId();
+        }
+
+        ConflictCase created = new ConflictCase();
+        created.setId(newId("cnf"));
+        created.setSubjectId(hostId);
+        created.setRelationType(CuratedRelationType.PROBE);
+        created.setStatus(ConflictStatus.OPEN);
+        created.setCuratedTargetId(hostId);
+        created.setObservedAvailability(ObservedAvailability.PRESENT);
+        created.setObservedTargetId(hostId);
+        created.setObservedLineageJson("[]");
+        created.setFirstWarnedAt(now);
+        created.setUpdatedAt(now);
+        created.setProbeTaskId(probeTaskId);
+        created.setEvidence(evidence);
+        created.setCuratedValueJson(curatedJson);
+        created.setObservedValueJson(observedJson);
+        conflictCaseMapper.insert(created);
+        conflictEventService.append(created.getId(), ConflictEventType.WARNED, null, Map.of(
+                "probeTaskId", probeTaskId
+        ));
+        conflictDiagnosisService.scheduleAsyncDiagnosis(created.getId());
+        return created.getId();
+    }
+
+    /**
      * Heartbeat timeout / fact retirement: suspend active conflict (not close),
      * void plans, and void any OPEN 改理想草案.
      */

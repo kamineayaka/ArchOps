@@ -3,6 +3,7 @@ package com.archops.conflict.dto;
 import com.archops.curated.domain.CuratedRelationType;
 import com.archops.curated.dto.CuratedObjectResponse;
 import com.archops.observed.domain.ObservedAvailability;
+import com.fasterxml.jackson.databind.JsonNode;
 
 import java.time.Instant;
 import java.util.List;
@@ -37,7 +38,12 @@ public record ConflictCaseResponse(
         /**
          * NOT_STARTED | PENDING | READY | FAILED — diagnosis is async and never blocks warning.
          */
-        String diagnosisStatus
+        String diagnosisStatus,
+        /** Raw probe evidence. Null on 运行于 conflicts. */
+        String evidence,
+        JsonNode curatedStructured,
+        JsonNode observedStructured,
+        String probeTaskId
 ) {
     public enum ConflictStatusView {
         OPEN,

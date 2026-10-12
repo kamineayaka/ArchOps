@@ -1,5 +1,6 @@
 package com.archops.observed;
 
+import com.archops.conflict.ConflictDiagnosisWait;
 import com.archops.support.HttpAcceptanceTest;
 import com.archops.user.security.TempAuthHeaders;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -11,7 +12,10 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -119,6 +123,61 @@ class ProbeTaskJudgmentHttpAcceptanceTest {
         assertFalse(responseBody.contains("无法归类"));
         assertFalse(responseBody.contains("RULES_WITH_LLM"));
         assertFalse(responseBody.contains("aiSuggestion"));
+    }
+
+    @Test
+    void readableUnequalOpensConflictWithEvidenceAndResolutionActions() throws Exception {
+        String hostId = createHost("probe-d-host");
+        String taskId = createTask(hostId, 60);
+
+        mockMvc.perform(post("/api/agent/heartbeat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(heartbeatJson("agent-probe-d", hostId, readableResult(taskId, false, "stdout=down")))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+
+        MvcResult task = mockMvc.perform(get("/api/probe-tasks/{id}", taskId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.judgment", is("CONFLICT")))
+                .andExpect(jsonPath("$.data.observationHollow", is(false)))
+                .andExpect(jsonPath("$.data.observedValue.up", is(false)))
+                .andExpect(jsonPath("$.data.evidence", is("stdout=down")))
+                .andExpect(jsonPath("$.data.conflictId", notNullValue()))
+                .andReturn();
+        String conflictId = objectMapper.readTree(task.getResponse().getContentAsString())
+                .path("data").path("conflictId").asText();
+
+        mockMvc.perform(get("/api/conflicts/{id}", conflictId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("OPEN")))
+                .andExpect(jsonPath("$.data.observationHollow", is(false)))
+                .andExpect(jsonPath("$.data.probeTaskId", is(taskId)))
+                .andExpect(jsonPath("$.data.evidence", is("stdout=down")))
+                .andExpect(jsonPath("$.data.curatedStructured.up", is(true)))
+                .andExpect(jsonPath("$.data.observedStructured.up", is(false)));
+
+        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, conflictId, GENERAL_ID);
+        MvcResult diagnosis = mockMvc.perform(get("/api/conflicts/{id}/diagnosis", conflictId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.source", is("RULES")))
+                .andExpect(jsonPath("$.data.forks", hasSize(2)))
+                .andExpect(jsonPath("$.data.forks[*].id", containsInAnyOrder(
+                        "FIX_ACTUAL_TO_CURATED", "CHANGE_CURATED_TO_OBSERVED")))
+                .andExpect(jsonPath("$.data.forks[?(@.id=='FIX_ACTUAL_TO_CURATED')].label",
+                        org.hamcrest.Matchers.hasItem("修实际")))
+                .andExpect(jsonPath("$.data.forks[?(@.id=='CHANGE_CURATED_TO_OBSERVED')].label",
+                        org.hamcrest.Matchers.hasItem("改理想")))
+                .andReturn();
+        String diagnosisBody = diagnosis.getResponse().getContentAsString();
+        assertFalse(diagnosisBody.contains("\"kind\""));
+        assertFalse(diagnosisBody.contains("无法归类"));
+        assertFalse(diagnosisBody.contains("RULES_WITH_LLM"));
     }
 
     private String createHost(String name) throws Exception {

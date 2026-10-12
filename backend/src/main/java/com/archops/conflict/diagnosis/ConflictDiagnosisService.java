@@ -10,6 +10,7 @@ import com.archops.conflict.dto.ConflictDiagnosisResponse;
 import com.archops.conflict.mapper.ConflictCaseMapper;
 import com.archops.conflict.mapper.ConflictDiagnosisMapper;
 import com.archops.curated.domain.CuratedObject;
+import com.archops.curated.domain.CuratedRelationType;
 import com.archops.curated.mapper.CuratedObjectMapper;
 import com.archops.observed.domain.ObservedAvailability;
 import com.archops.observed.mapper.IdentityLostMarkMapper;
@@ -186,6 +187,9 @@ public class ConflictDiagnosisService {
                     conflict.getCuratedTargetId(),
                     curatedHost != null ? curatedHost.getName() : null
             );
+        }
+        if (conflict.getRelationType() == CuratedRelationType.PROBE) {
+            return DiagnosisRuleEngine.diagnoseProbeValueMismatch();
         }
         if (identityLostMarkMapper.selectById(conflict.getSubjectId()) != null) {
             return DiagnosisRuleEngine.noResolutionActionWhileIdentityLost();
