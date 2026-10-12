@@ -4,12 +4,12 @@
 
 **Blocked by:** None. Baseline is origin/main at or after `ec73bed`, which contains ADR-0047.
 
-**Status:** ready-for-agent
+**Status:** done
 
 **TDD:** capability。主接缝为控制面 HTTP API。合同：ADR-0047。Spec：[`docs/specs/conflict-evidence-not-cause-kind.md`](../../../docs/specs/conflict-evidence-not-cause-kind.md)。
 
 - [x] 两侧可读且不等：诊断列出 `FIX_ACTUAL_TO_CURATED` 与 `CHANGE_CURATED_TO_OBSERVED`，文案含修实际与改理想；响应没有原因种类 `kind`，也没有「无法归类」
-- [ ] 请求改理想仍打开逐条草案，且在条目接受前不写策展；请求修实际仍打开待审操作计划
+- [x] 请求改理想仍打开逐条草案，且在条目接受前不写策展；请求修实际仍打开待审操作计划
 - [x] 观测空洞：诊断只有恢复观测通道（`RESTORE_HEARTBEAT_CHANNEL`，文案「恢复观测通道」），不提供凭过期实际的修现场
 - [x] 身份失联仍是冲突标志；诊断没有 `EXPLAIN_IDENTITY_LOST`，也不把修实际 / 改理想当成唯一落点
 - [x] 不新增原因枚举，不新增「无法归类」
@@ -37,4 +37,15 @@ Red command: `cd backend && ./gradlew test --tests com.archops.conflict.Resoluti
 `AssertionFailedError` at line 178: expected fork count `0` but was `1` (`EXPLAIN_IDENTITY_LOST`).
 Green command: same test, exit 0. Conflict GET still has `identityLost=true` and `observationHollow=false`. Diagnosis lists no resolution action and no cause kind.
 Refactor: renamed `diagnoseIdentityLost` to `noResolutionActionWhileIdentityLost`.
-Commit: pending.
+Commit: `0524b1a` Keep 身份失联 as a flag instead of a diagnosis kind.
+
+### Regression — 改理想草案与修实际待审计划
+`./gradlew test --offline` exit 0. 279 tests, 0 failures.
+reuse/regression: `ChangeCuratedDraftHttpAcceptanceTest.selectChangeCuratedDoesNotWriteCuratedShouldWhere`, `ChangeCuratedDraftHttpAcceptanceTest.fixActualStillSkipsDraftAndCreatesOperationPlan`, `AnonymousBranchSelectionHttpAcceptanceTest.fixActualWithoutIdentityOrHandlerOpensReviewPlan`.
+
+### Code review
+Standards: no hard violations. Removed diagnosis assertions that still filtered on the deleted `kind` field. Plan `branchKind=FIX_ACTUAL` stays the existing 修实际 pipeline tag; this ticket does not add a cause enum and does not rename that field.
+Spec: the three track cases match the ticket. ABSENT execution was not added.
+
+### Suite
+`cd backend && ./gradlew test --offline` exit 0 (279 tests, 0 failures).

@@ -136,7 +136,6 @@ class ConflictDiagnosisHttpAcceptanceTest {
         getDiagnosis(fx.conflictId(), GENERAL_ID)
                 .andExpect(jsonPath("$.data.status", is("READY")))
                 .andExpect(jsonPath("$.data.forks[*].id", hasItem("RESTORE_HEARTBEAT_CHANNEL")))
-                .andExpect(jsonPath("$.data.forks[?(@.kind=='CHANGE_CURATED')]").isEmpty())
                 .andExpect(jsonPath("$.data.forks[?(@.id=='CHANGE_CURATED_TO_OBSERVED')]").isEmpty());
     }
 
@@ -149,7 +148,6 @@ class ConflictDiagnosisHttpAcceptanceTest {
         getDiagnosis(fx.conflictId(), GENERAL_ID)
                 .andExpect(jsonPath("$.data.status", is("READY")))
                 .andExpect(jsonPath("$.data.forks[*].id", hasItem("RESTORE_OBSERVATION_OR_RECREATE")))
-                .andExpect(jsonPath("$.data.forks[?(@.kind=='CHANGE_CURATED')]").isEmpty())
                 .andExpect(jsonPath("$.data.forks[?(@.id=='CHANGE_CURATED_TO_OBSERVED')]").isEmpty());
     }
 

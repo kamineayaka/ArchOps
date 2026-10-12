@@ -92,7 +92,7 @@ class ChangeCuratedDraftTracerHttpAcceptanceTest {
 
         // 3. 一般角色认领 → 已接受处理人
 
-        // 4. 诊断 READY：分叉同时含 FIX_ACTUAL 与 CHANGE_CURATED
+        // 4. 诊断 READY：解决动作含修实际与改理想
         waitUntilDiagnosisReady(conflictId);
         mockMvc.perform(get("/api/conflicts/{id}/diagnosis", conflictId)
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)
