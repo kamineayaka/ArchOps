@@ -104,10 +104,9 @@ public class OperationPlanService {
                 .orElseThrow(() -> new BusinessException("FORK_NOT_FOUND",
                         "Fork not present on current diagnosis: " + forkId));
 
-        if (!DiagnosisRuleEngine.FIX_ACTUAL_TO_CURATED.equals(fork.id())
-                && !"FIX_ACTUAL".equals(fork.kind())) {
+        if (!DiagnosisRuleEngine.FIX_ACTUAL_TO_CURATED.equals(fork.id())) {
             throw new BusinessException("FORK_NOT_SUPPORTED",
-                    "Ticket 07 only supports FIX_ACTUAL / 修实际回策展宿主");
+                    "Only the 修实际 action FIX_ACTUAL_TO_CURATED opens an operation plan");
         }
 
         Instant now = Instant.now();

@@ -109,6 +109,7 @@
 44. ~~票 06~~：已完成。基线是 04 与 05 的 git 合并。#119–#123 不并入 main。
 45. ~~票 07~~：已完成。冲突页去掉协作身份控件。
 46. **协作残留删除 01 TDD-done / 本刀闭合。** 认领、已知悉、自任、指派、接受、拒绝、转让返回 404；冲突 GET 不再带协作载荷；冲突读与人审不带头、不记操作者；冲突页去掉演示身份。不要再开下一张票。不要发明未绑定 10。不要自动做编排层 / B-live / 工作台。不要往 `control-plane-executor` 加票 02。不要改 ADR-0046 / 0044 / 0045 正文。不要做解决断点。
+47. **当前 frontier**：ADR-0047 第一刀 [`.scratch/conflict-evidence-not-cause-kind/issues/01-resolution-actions-not-cause-kinds.md`](../.scratch/conflict-evidence-not-cause-kind/issues/01-resolution-actions-not-cause-kinds.md)。本 PR 不含 ADR-0048 / ADR-0049 的实现。
 
 ### 工单阻塞简图
 

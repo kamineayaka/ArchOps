@@ -127,8 +127,7 @@ class VerticalSliceHttpE2eAcceptanceTest {
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status", is("READY")))
-                .andExpect(jsonPath("$.data.forks[*].id", hasItem("FIX_ACTUAL_TO_CURATED")))
-                .andExpect(jsonPath("$.data.forks[?(@.id=='FIX_ACTUAL_TO_CURATED')].kind", hasItem("FIX_ACTUAL")));
+                .andExpect(jsonPath("$.data.forks[*].id", hasItem("FIX_ACTUAL_TO_CURATED")));
 
         // 选「修实际回 A」→ 人审前不可执行
         MvcResult created = mockMvc.perform(post("/api/conflicts/{id}/branch-selection", conflictId)

@@ -72,8 +72,7 @@ class ConflictDiagnosisHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data.status", is("READY")))
                 .andExpect(jsonPath("$.data.source", is("RULES")))
                 .andExpect(jsonPath("$.data.summary", notNullValue()))
-                .andExpect(jsonPath("$.data.forks[*].id", hasItem("FIX_ACTUAL_TO_CURATED")))
-                .andExpect(jsonPath("$.data.forks[?(@.id=='FIX_ACTUAL_TO_CURATED')].kind", hasItem("FIX_ACTUAL")));
+                .andExpect(jsonPath("$.data.forks[*].id", hasItem("FIX_ACTUAL_TO_CURATED")));
     }
 
     @Test
@@ -84,9 +83,7 @@ class ConflictDiagnosisHttpAcceptanceTest {
 
         getDiagnosis(fx.conflictId(), GENERAL_ID)
                 .andExpect(jsonPath("$.data.status", is("READY")))
-                .andExpect(jsonPath("$.data.forks[*].id", hasItems("FIX_ACTUAL_TO_CURATED", "CHANGE_CURATED_TO_OBSERVED")))
-                .andExpect(jsonPath("$.data.forks[?(@.id=='FIX_ACTUAL_TO_CURATED')].kind", hasItem("FIX_ACTUAL")))
-                .andExpect(jsonPath("$.data.forks[?(@.id=='CHANGE_CURATED_TO_OBSERVED')].kind", hasItem("CHANGE_CURATED")));
+                .andExpect(jsonPath("$.data.forks[*].id", hasItems("FIX_ACTUAL_TO_CURATED", "CHANGE_CURATED_TO_OBSERVED")));
     }
 
     @Test
@@ -139,8 +136,6 @@ class ConflictDiagnosisHttpAcceptanceTest {
         getDiagnosis(fx.conflictId(), GENERAL_ID)
                 .andExpect(jsonPath("$.data.status", is("READY")))
                 .andExpect(jsonPath("$.data.forks[*].id", hasItem("RESTORE_HEARTBEAT_CHANNEL")))
-                .andExpect(jsonPath("$.data.forks[?(@.id=='RESTORE_HEARTBEAT_CHANNEL')].kind", hasItem("RESTORE_CHANNEL")))
-                .andExpect(jsonPath("$.data.forks[?(@.kind=='CHANGE_CURATED')]").isEmpty())
                 .andExpect(jsonPath("$.data.forks[?(@.id=='CHANGE_CURATED_TO_OBSERVED')]").isEmpty());
     }
 
@@ -153,8 +148,6 @@ class ConflictDiagnosisHttpAcceptanceTest {
         getDiagnosis(fx.conflictId(), GENERAL_ID)
                 .andExpect(jsonPath("$.data.status", is("READY")))
                 .andExpect(jsonPath("$.data.forks[*].id", hasItem("RESTORE_OBSERVATION_OR_RECREATE")))
-                .andExpect(jsonPath("$.data.forks[?(@.id=='RESTORE_OBSERVATION_OR_RECREATE')].kind", hasItem("RESTORE_CHANNEL")))
-                .andExpect(jsonPath("$.data.forks[?(@.kind=='CHANGE_CURATED')]").isEmpty())
                 .andExpect(jsonPath("$.data.forks[?(@.id=='CHANGE_CURATED_TO_OBSERVED')]").isEmpty());
     }
 
@@ -181,8 +174,7 @@ class ConflictDiagnosisHttpAcceptanceTest {
 
         getDiagnosis(fx.conflictId(), SENIOR_ID)
                 .andExpect(jsonPath("$.data.status", is("READY")))
-                .andExpect(jsonPath("$.data.forks[*].id", hasItem("CHANGE_CURATED_TO_OBSERVED")))
-                .andExpect(jsonPath("$.data.forks[?(@.id=='CHANGE_CURATED_TO_OBSERVED')].kind", hasItem("CHANGE_CURATED")));
+                .andExpect(jsonPath("$.data.forks[*].id", hasItem("CHANGE_CURATED_TO_OBSERVED")));
     }
 
     @Test

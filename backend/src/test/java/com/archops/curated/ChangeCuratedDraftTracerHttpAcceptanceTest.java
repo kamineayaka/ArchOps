@@ -92,7 +92,7 @@ class ChangeCuratedDraftTracerHttpAcceptanceTest {
 
         // 3. 一般角色认领 → 已接受处理人
 
-        // 4. 诊断 READY：分叉同时含 FIX_ACTUAL 与 CHANGE_CURATED
+        // 4. 诊断 READY：解决动作含修实际与改理想
         waitUntilDiagnosisReady(conflictId);
         mockMvc.perform(get("/api/conflicts/{id}/diagnosis", conflictId)
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)
@@ -100,11 +100,7 @@ class ChangeCuratedDraftTracerHttpAcceptanceTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status", is("READY")))
                 .andExpect(jsonPath("$.data.forks[*].id",
-                        hasItems("FIX_ACTUAL_TO_CURATED", "CHANGE_CURATED_TO_OBSERVED")))
-                .andExpect(jsonPath("$.data.forks[?(@.id=='FIX_ACTUAL_TO_CURATED')].kind",
-                        hasItem("FIX_ACTUAL")))
-                .andExpect(jsonPath("$.data.forks[?(@.id=='CHANGE_CURATED_TO_OBSERVED')].kind",
-                        hasItem("CHANGE_CURATED")));
+                        hasItems("FIX_ACTUAL_TO_CURATED", "CHANGE_CURATED_TO_OBSERVED")));
 
         // 5. 处理人选改理想 → 开放草案 ≥2 条；策展 X 仍为 A；无活跃操作计划
         postBranch(conflictId, GENERAL_ID, "CHANGE_CURATED_TO_OBSERVED")
