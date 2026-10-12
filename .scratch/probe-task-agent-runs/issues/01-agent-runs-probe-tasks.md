@@ -79,4 +79,11 @@ Red command: `cd backend && ./gradlew test --tests com.archops.agent.ProbeAgentR
 reuse/regression: first run exit 0. Empty `probeTasks` already skips `probeResults` (`emptyPullDoesNotSubmitProbeResults`). The control plane already refuses a second probe agent in `ProbeTaskJudgmentHttpAcceptanceTest.secondProbeAgentDoesNotReceiveTasksOrSubmitResults`.
 Zero-agent host: `cd backend && ./gradlew test --tests com.archops.observed.ProbeTaskJudgmentHttpAcceptanceTest.storesProbeTaskOnHostWithNoAgentAsHollowNotConflict --tests com.archops.observed.ProbeTaskJudgmentHttpAcceptanceTest.secondProbeAgentDoesNotReceiveTasksOrSubmitResults --offline` exit 0. reuse/regression of ADR-0048 ticket 01. No new production.
 Refactor: no structural change.
-Commit: (this slice) Keep a second heartbeat process from posting probe results.
+Commit: `b729bb3` Keep a second heartbeat process from posting probe results.
+
+### Cycle J — an unreachable control plane stays a failed heartbeat
+Red command: `cd agent && python3 -m unittest test_probe_cycle.UnreachableControlPlaneTests.test_unreachable_control_plane_is_a_probe_cycle_error`
+`urllib.error.URLError: <urlopen error [Errno 111] Connection refused>` (not `ProbeCycleError`). The previous heartbeat client caught `URLError` and returned 1.
+Green command: same unittest, exit 0. `post_heartbeat` raises `ProbeCycleError`, which `heartbeat.py` turns into exit 1.
+Refactor: no structural change.
+Commit: (this slice) Report an unreachable control plane as a failed heartbeat.

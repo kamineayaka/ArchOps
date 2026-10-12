@@ -77,5 +77,11 @@ class SnapshotReportTests(unittest.TestCase):
         self.assertNotIn("kind", posts[1]["probeResults"][0])
 
 
+class UnreachableControlPlaneTests(unittest.TestCase):
+    def test_unreachable_control_plane_is_a_probe_cycle_error(self) -> None:
+        with self.assertRaises(probe_cycle.ProbeCycleError):
+            probe_cycle.post_heartbeat("http://127.0.0.1:1", {"agentId": "a", "hostId": "h"})
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -312,6 +312,12 @@ class ProbeAgentRunHttpAcceptanceTest {
         runPythonUnittest("test_probe_cycle.SnapshotReportTests.test_result_post_omits_snapshot");
     }
 
+    @Test
+    void unreachableControlPlaneIsAProbeCycleError() throws Exception {
+        runPythonUnittest(
+                "test_probe_cycle.UnreachableControlPlaneTests.test_unreachable_control_plane_is_a_probe_cycle_error");
+    }
+
     private void runHeartbeatProcess(String agentId, String hostId) throws Exception {
         Path script = Path.of("..", "agent", "heartbeat.py").toAbsolutePath().normalize();
         Process process = new ProcessBuilder(

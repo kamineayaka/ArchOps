@@ -143,6 +143,8 @@ def post_heartbeat(control_plane: str, payload: dict) -> dict:
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode("utf-8", errors="replace")
         raise ProbeCycleError(f"HTTP {exc.code} {url}: {detail}") from exc
+    except urllib.error.URLError as exc:
+        raise ProbeCycleError(f"unreachable {url}: {exc.reason}") from exc
 
 
 def now() -> str:
