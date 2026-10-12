@@ -40,7 +40,7 @@ class ProbeTaskResolutionHttpAcceptanceTest {
 
         mockMvc.perform(post("/api/agent/heartbeat")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(heartbeatWithUnequal(taskId, hostId))
+                        .content(heartbeatWithUnequal("agent-probe-ui-draft", taskId, hostId))
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk());
 
@@ -74,6 +74,45 @@ class ProbeTaskResolutionHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data.judgment", is("CONFLICT")));
     }
 
+    @Test
+    void fixActualOnProbeConflictOpensReviewPlan() throws Exception {
+        String hostId = createHost("probe-ui-plan-host");
+        String taskId = createTask(hostId);
+
+        mockMvc.perform(post("/api/agent/heartbeat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(heartbeatWithUnequal("agent-probe-ui-plan", taskId, hostId))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+
+        String conflictId = objectMapper.readTree(mockMvc.perform(get("/api/probe-tasks/{id}", taskId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.judgment", is("CONFLICT")))
+                .andReturn()
+                .getResponse()
+                .getContentAsString()).path("data").path("conflictId").asText();
+
+        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, conflictId, GENERAL_ID);
+
+        mockMvc.perform(post("/api/conflicts/{id}/branch-selection", conflictId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"forkId\":\"FIX_ACTUAL_TO_CURATED\"}")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("DRAFT_REVIEW")))
+                .andExpect(jsonPath("$.data.branchKind", is("FIX_ACTUAL")))
+                .andExpect(jsonPath("$.data.selectedForkId", is("FIX_ACTUAL_TO_CURATED")))
+                .andExpect(jsonPath("$.data.createdBy", nullValue()));
+
+        mockMvc.perform(get("/api/probe-tasks/{id}", taskId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.curatedExpected.up", is(true)));
+    }
+
     private String createHost(String name) throws Exception {
         MvcResult result = mockMvc.perform(post("/api/curated/hosts")
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)
@@ -101,10 +140,10 @@ class ProbeTaskResolutionHttpAcceptanceTest {
         return objectMapper.readTree(result.getResponse().getContentAsString()).path("data").path("id").asText();
     }
 
-    private String heartbeatWithUnequal(String taskId, String hostId) {
+    private String heartbeatWithUnequal(String agentId, String taskId, String hostId) {
         return """
                 {
-                  "agentId": "agent-probe-ui-draft",
+                  "agentId": "%s",
                   "hostId": "%s",
                   "probeResults": [{
                     "taskId": "%s",
@@ -113,6 +152,6 @@ class ProbeTaskResolutionHttpAcceptanceTest {
                     "evidence": "stdout=down"
                   }]
                 }
-                """.formatted(hostId, taskId);
+                """.formatted(agentId, hostId, taskId);
     }
 }

@@ -25,4 +25,10 @@ Red command: `cd backend && ./gradlew test --tests com.archops.observed.ProbeTas
 `AssertionError: Status expected:<200> but was:<400>` body `{"success":false,"code":"DRAFT_ITEMS_INCOMPLETE","message":"改理想草案规则夹具需要至少两条可独立确认的「运行于」条目","data":null}`
 Green command: same test, exit 0. Draft `OPEN` / `CHANGE_CURATED`, item `PENDING`, `createdBy` null, task `curatedExpected.up` still true.
 Refactor: runs-on and probe drafts share `insertOpenChangeCuratedDraft` and `appendDraftCreated`. Same test re-run, exit 0.
+Commit: `726e5f3` Open a probe 改理想 draft without writing the curated value.
+
+### Cycle B — 修实际 on a probe conflict opens a review plan
+Red command: `cd backend && ./gradlew test --tests com.archops.observed.ProbeTaskResolutionHttpAcceptanceTest.fixActualOnProbeConflictOpensReviewPlan --offline`
+reuse/regression: first run exit 0. Covered by `OperationPlanService.selectBranch` (`AnonymousBranchSelectionHttpAcceptanceTest.fixActualWithoutIdentityOrHandlerOpensReviewPlan`). Plan `DRAFT_REVIEW` / `FIX_ACTUAL`, `createdBy` null, curated `up` still true.
+Refactor: heartbeat helper takes the agent id. Same test re-run, exit 0.
 
