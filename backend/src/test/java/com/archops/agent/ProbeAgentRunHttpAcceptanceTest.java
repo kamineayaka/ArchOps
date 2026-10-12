@@ -267,6 +267,24 @@ class ProbeAgentRunHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data.conflictId", nullValue()));
     }
 
+    @Test
+    void emptyPullDoesNotSubmitProbeResults() throws Exception {
+        Process process = new ProcessBuilder(
+                "python3",
+                "-m",
+                "unittest",
+                "test_probe_cycle.NoTasksTests.test_no_tasks_posts_one_heartbeat_without_probe_results")
+                .directory(Path.of("..", "agent").toAbsolutePath().normalize().toFile())
+                .start();
+        boolean finished = process.waitFor(30, TimeUnit.SECONDS);
+        String stdout = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+        String stderr = new String(process.getErrorStream().readAllBytes(), StandardCharsets.UTF_8);
+        if (!finished || process.exitValue() != 0) {
+            fail("empty-pull unittest exit " + (finished ? process.exitValue() : "timeout")
+                    + " stdout=" + stdout + " stderr=" + stderr);
+        }
+    }
+
     private JsonNode runAgent(String agentId, String hostId, ObjectNode outcomes) throws Exception {
         Path script = Path.of("..", "agent", "probe_cycle.py").toAbsolutePath().normalize();
         Process process = new ProcessBuilder(

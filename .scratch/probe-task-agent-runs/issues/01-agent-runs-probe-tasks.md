@@ -51,4 +51,11 @@ Commit: `981795a` Omit a timed-out probe command so only that task can go hollow
 Red command: `cd backend && ./gradlew test --tests com.archops.agent.ProbeAgentRunHttpAcceptanceTest.oneTimedOutTaskDoesNotHollowTheEqualTask --offline`
 reuse/regression: first run exit 0. `result_for_task` already decides per task (`timedOutCommandOmitsTheReportAndStaysHollow`, `readableEqualCommandOutputIsNormalWithoutConflict`). The control plane already keeps tasks independent in `ProbeTaskJudgmentHttpAcceptanceTest.oneTaskHollowDoesNotHollowAnotherTaskOnTheSameHost`.
 Refactor: no structural change.
-Commit: (this slice) Keep one host's probe tasks independent when a command times out.
+Commit: `75ff3d5` Keep one host's probe tasks independent when a command times out.
+
+### Cycle F — an empty pull does not submit probeResults
+Red command: `cd agent && python3 -m unittest test_probe_cycle.NoTasksTests.test_no_tasks_posts_one_heartbeat_without_probe_results`
+`TypeError: pull_and_report() got an unexpected keyword argument 'poster'`
+Green command: same unittest, exit 0. One heartbeat, no `probeResults`. Gradle hook `emptyPullDoesNotSubmitProbeResults` exit 0. Equal HTTP path still exit 0.
+Refactor: `poster` is optional so the HTTP client stays the default. No further structural change.
+Commit: (this slice) Skip a result post when the heartbeat returns no probe tasks.

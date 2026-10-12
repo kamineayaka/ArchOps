@@ -73,19 +73,19 @@ def raw_evidence(outcome: CommandOutcome) -> str:
     return "command error"
 
 
-def pull_and_report(control_plane: str, agent_id: str, host_id: str, runner) -> list[dict]:
-    pulled = post_heartbeat(control_plane, {"agentId": agent_id, "hostId": host_id, "sentAt": now()})
+def pull_and_report(control_plane: str, agent_id: str, host_id: str, runner, *, poster=None) -> list[dict]:
+    send = poster or (lambda payload: post_heartbeat(control_plane, payload))
+    pulled = send({"agentId": agent_id, "hostId": host_id, "sentAt": now()})
     tasks = (pulled.get("data") or {}).get("probeTasks") or []
     results = results_for_tasks(tasks, runner)
     if results:
-        post_heartbeat(
-            control_plane,
+        send(
             {
                 "agentId": agent_id,
                 "hostId": host_id,
                 "sentAt": now(),
                 "probeResults": results,
-            },
+            }
         )
     return results
 
