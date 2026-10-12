@@ -5,7 +5,8 @@ import com.archops.conflict.dto.ConflictDiagnosisResponse;
 import java.util.List;
 
 /**
- * Control-plane 规则分叉兜底 (ADR-0041 / ADR-0044). LLM diagnosis lives on the AI 编排层.
+ * Legal resolution actions for the current tracks. Not a cause catalog (ADR-0047).
+ * The control plane holds no model keys; model calls stay on the AI 编排层.
  */
 public final class DiagnosisRuleEngine {
 
@@ -25,7 +26,6 @@ public final class DiagnosisRuleEngine {
         ConflictDiagnosisResponse.ForkSuggestion fork = new ConflictDiagnosisResponse.ForkSuggestion(
                 RESTORE_HEARTBEAT_CHANNEL,
                 "恢复观测通道/心跳/核验",
-                "RESTORE_CHANNEL",
                 "观测因心跳超时进入空洞，当前无可用实际",
                 "先恢复 Host Agent 心跳与状态快照；禁止用过期实际给出唯一落点或继续执行指向旧实际的计划。"
         );
@@ -44,7 +44,6 @@ public final class DiagnosisRuleEngine {
         ConflictDiagnosisResponse.ForkSuggestion fork = new ConflictDiagnosisResponse.ForkSuggestion(
                 EXPLAIN_IDENTITY_LOST,
                 "身份失联",
-                "EXPLAIN",
                 "线索失效，无法认回对象",
                 "当前为身份失联。处理走未绑定观测候选与现场补标，不得以旧实际为唯一落点。"
         );
@@ -65,7 +64,6 @@ public final class DiagnosisRuleEngine {
             ConflictDiagnosisResponse.ForkSuggestion fork = new ConflictDiagnosisResponse.ForkSuggestion(
                     "RESTORE_OBSERVATION_OR_RECREATE",
                     "恢复观测或核验对象存在性",
-                    "RESTORE_CHANNEL",
                     "观测断言对象不存在（观测消失），与策展应存在/应运行于不一致",
                     "先核验标签与观测通道；禁止用过期实际给出唯一落点。纯修现场前须确认对象仍可调度。"
             );
@@ -81,7 +79,6 @@ public final class DiagnosisRuleEngine {
         ConflictDiagnosisResponse.ForkSuggestion fixActual = new ConflictDiagnosisResponse.ForkSuggestion(
                 FIX_ACTUAL_TO_CURATED,
                 "修实际回策展宿主",
-                "FIX_ACTUAL",
                 "观测宿主与策展宿主不一致",
                 "将容器从实际宿主 " + observedLabel
                         + " 迁回策展宿主 " + curatedLabel
@@ -90,7 +87,6 @@ public final class DiagnosisRuleEngine {
         ConflictDiagnosisResponse.ForkSuggestion changeCurated = new ConflictDiagnosisResponse.ForkSuggestion(
                 CHANGE_CURATED_TO_OBSERVED,
                 "改理想",
-                "CHANGE_CURATED",
                 "承认实际、更新策展",
                 "把策展「运行于」从 " + curatedLabel
                         + " 对齐到当前可用观测宿主 " + observedLabel

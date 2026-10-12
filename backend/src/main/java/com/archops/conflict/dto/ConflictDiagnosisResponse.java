@@ -20,7 +20,6 @@ public record ConflictDiagnosisResponse(
     public record ForkSuggestion(
             String id,
             String label,
-            String kind,
             String hypothesis,
             String description
     ) {

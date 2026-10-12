@@ -123,7 +123,7 @@ public class ConflictDiagnosisService {
         DiagnosisRuleEngine.RuleResult rules = rulesFor(conflict, curatedHost, observedHost);
 
         // ADR-0044: control plane holds no model keys. LLM enrichment lives on the AI 编排层.
-        // Until that process exists, 规则分叉兜底 (ADR-0041) remains the only in-process source.
+        // Legal resolution actions come from the tracks (ADR-0047), not a cause catalog.
         DiagnosisSource source = DiagnosisSource.RULES;
         String summary = rules.summary();
 

@@ -95,13 +95,11 @@ public class BranchSelectionService {
     }
 
     private static boolean isChangeCurated(ConflictDiagnosisResponse.ForkSuggestion fork) {
-        return DiagnosisRuleEngine.CHANGE_CURATED_TO_OBSERVED.equals(fork.id())
-                || "CHANGE_CURATED".equals(fork.kind());
+        return DiagnosisRuleEngine.CHANGE_CURATED_TO_OBSERVED.equals(fork.id());
     }
 
     private static boolean isFixActual(ConflictDiagnosisResponse.ForkSuggestion fork) {
-        return DiagnosisRuleEngine.FIX_ACTUAL_TO_CURATED.equals(fork.id())
-                || "FIX_ACTUAL".equals(fork.kind());
+        return DiagnosisRuleEngine.FIX_ACTUAL_TO_CURATED.equals(fork.id());
     }
 
     private ConflictCase requireOpenConflict(String conflictId) {
