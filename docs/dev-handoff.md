@@ -109,7 +109,8 @@
 44. ~~票 06~~：已完成。基线是 04 与 05 的 git 合并。#119–#123 不并入 main。
 45. ~~票 07~~：已完成。冲突页去掉协作身份控件。
 46. **协作残留删除 01 TDD-done / 本刀闭合。** 认领、已知悉、自任、指派、接受、拒绝、转让返回 404；冲突 GET 不再带协作载荷；冲突读与人审不带头、不记操作者；冲突页去掉演示身份。不要再开下一张票。不要发明未绑定 10。不要自动做编排层 / B-live / 工作台。不要往 `control-plane-executor` 加票 02。不要改 ADR-0046 / 0044 / 0045 正文。不要做解决断点。
-47. **当前 frontier**：ADR-0047 第一刀 [`.scratch/conflict-evidence-not-cause-kind/issues/01-resolution-actions-not-cause-kinds.md`](../.scratch/conflict-evidence-not-cause-kind/issues/01-resolution-actions-not-cause-kinds.md)。本 PR 不含 ADR-0048 / ADR-0049 的实现。
+47. ~~ADR-0047 第一刀~~：已合并（PR #131）。解决动作不带原因种类。
+48. **ADR-0048 票 01 TDD-done / 本刀闭合。** 控制面保存探测任务；Host Agent 在心跳上拉取；控制面判决相等 / 不等（带原始证据的冲突，解决动作仍是 ADR-0047）/ 读不出或逾期（该任务观测空洞）。一台主机至多一个探测 Agent。不要自动做 ADR-0049 / Kubernetes / 编排层 gRPC。不要把 Agent 停机写成掏空全部快照观测。不要做 AI 建议正文。→ [`docs/specs/probe-task-control-plane-judges.md`](specs/probe-task-control-plane-judges.md) / [`.scratch/probe-task-control-plane-judges/issues/01-control-plane-judges-probe-results.md`](../.scratch/probe-task-control-plane-judges/issues/01-control-plane-judges-probe-results.md)
 
 ### 工单阻塞简图
 

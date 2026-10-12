@@ -121,10 +121,11 @@ Single-context: frozen `CONTEXT.md` + `docs/adr/` (ADR-0039 / ADR-0043 / ADR-004
 - 代码 vs ADR-0044 只读审计：[`.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md`](.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md)。A1/A2/A3 已闭合；B1/B2 + 单步代发 = 执行引擎 01；**B3 步骤断言 + 控制面 `executionLog` = plan-step-assertion 01 TDD-done**（编排层逐步推送仍后置）；B4/B5/B6 另开。
 - `/implement` 必须走 TDD overlay：[`docs/agents/tdd.md`](docs/agents/tdd.md)
 - ADR-0044 已冻结控制面枢纽 / 执行引擎 / AI 编排层拆分。执行引擎第一刀已落地；控制面不得再加进程内 LLM 出站。
+- ADR-0048 票 01 **TDD-done / 本刀闭合**。[`docs/specs/probe-task-control-plane-judges.md`](docs/specs/probe-task-control-plane-judges.md) / [`.scratch/probe-task-control-plane-judges/issues/01-control-plane-judges-probe-results.md`](.scratch/probe-task-control-plane-judges/issues/01-control-plane-judges-probe-results.md)。控制面保存探测任务并在心跳上交出列表；判决留在控制面。不要自动做 ADR-0049 / Kubernetes / 编排层 gRPC。不要做 AI 建议正文。不要把一条任务失败写成掏空该 Agent 的全部快照观测。
 - 不需要再开技术选型或推倒栈，除非用户明示新 ADR
 
 ## 7. 云端提示词建议（用户可贴）
 
-未绑定 **01–09 已闭合**。冲突升级作废活跃计划 **01 TDD-done / 本刀闭合**（审计 A1）。控制面执行引擎 **01 TDD-done / 本刀闭合**。步骤断言 **01 TDD-done / 本刀闭合**。ADR-0046、ADR-0047、ADR-0048、ADR-0049 已合并。冲突去掉协作身份票 01–07 done。协作残留删除 **TDD-done / 本刀闭合**。没有下一张 frontier 票。不要再开下一张票。不要发明未绑定 10。不要把 WebClient 加回控制面。编排层↔控制面是 gRPC；模型 HTTPS 仍在编排层。不要自动做编排层 / B-live / 工作台。不要往执行引擎目录加票 02。不要做解决断点。不要改 ADR-0046。
+未绑定 **01–09 已闭合**。冲突升级作废活跃计划 **01 TDD-done / 本刀闭合**（审计 A1）。控制面执行引擎 **01 TDD-done / 本刀闭合**。步骤断言 **01 TDD-done / 本刀闭合**。ADR-0047 解决动作刀已合并。ADR-0048 探测任务票 01 **TDD-done / 本刀闭合**。ADR-0046、ADR-0047、ADR-0048、ADR-0049 已合并。冲突去掉协作身份票 01–07 done。协作残留删除 **TDD-done / 本刀闭合**。没有下一张 frontier 票。不要再开下一张票。不要发明未绑定 10。不要把 WebClient 加回控制面。编排层↔控制面是 gRPC；模型 HTTPS 仍在编排层。不要自动做 ADR-0049 / Kubernetes / 编排层 / B-live / 工作台。不要往执行引擎目录加票 02。不要做解决断点。不要改 ADR-0046。
 
 > 读 AGENTS.md、CONTEXT.md、ADR-0046 / 0047 / 0048 / 0049（以及 0044 / 0045）。步骤断言票 01 已闭合。不要复活 Vue/JPA/Neo4j/Maven/LangChain。不要把 LLM 加回控制面。不要把编排层↔控制面写成 WebClient。不要自动做编排层 / B-live / 工作台。

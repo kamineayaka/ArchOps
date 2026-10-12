@@ -1,10 +1,10 @@
 ---
-status: "票 01 ready-for-agent。本刀只做 ADR-0048 的 HTTP 第一刀。"
+status: "票 01 TDD-done。本刀不含 ADR-0049 / Kubernetes / 编排层。"
 ---
 
 # Spec: 探测任务由控制面判决
 
-**Status**: 工单 01 实施中。本刀不含 ADR-0049、编排层 gRPC、Kubernetes、原因种类。  
+**Status**: 工单 01 **TDD-done**。本刀不含 ADR-0049、编排层 gRPC、Kubernetes、原因种类。  
 **Basis**: [`docs/adr/0048-probe-task-control-plane-judges.md`](../adr/0048-probe-task-control-plane-judges.md)。不改 ADR 正文。不改 ADR-0047 的解决动作集合。不改 ADR-0043 / 0044 / 0045 / 0046。  
 **Testing seams (confirmed)**: **唯一验收主接缝 = 控制面公开 HTTP API**（含 Agent 心跳 ingest）。`/implement` 按 [`docs/agents/tdd.md`](../agents/tdd.md) 走 **red → green → refactor**。前端不进本刀。不执行真实 SSH。不要求重新打包 Host Agent。
 
@@ -72,3 +72,11 @@ ADR-0048：探测任务是控制面上的数据。唯一配置的正常是策展
 - **Issue tracker**: [`.scratch/probe-task-control-plane-judges/issues/`](../../.scratch/probe-task-control-plane-judges/issues/)
 - **Contract**: ADR-0048。本刀只有票 01。
 - 心跳契约的可选字段见 `docs/contracts/agent-heartbeat-snapshot.md`。现有 `agent/heartbeat.py` 不解析新字段，因此不必替换已部署的 Agent。
+
+本刀落地时留下的边界：
+
+- 探测冲突的关系类型是 `PROBE`，用 `probeTaskId` 区分任务。两侧目标 id 仍是主机 id，用来满足现有 `conflict_case` 的非空约束。比较的是结构化 JSON。同一主机上的两条探测冲突因此共享合并键 `(主机, PROBE)`。`GET /api/conflicts/by-merge-key?relationType=PROBE` 在这种情况下不确定。
+- 心跳任务列表除命令与间隔外还带 `curatedExpected`。判决仍在控制面。
+- 已经打开的探测冲突：后来读不出或逾期则挂起；后来与策展值相等则进入待确认关闭，确认关闭比较该冲突上的 JSON。任务读模型在相等时是 `NORMAL`，`conflictId` 为空。挂起后的诊断沿用现有「恢复观测通道」，假设句仍写心跳超时。
+- 第二台 Agent 的空心跳仍刷新存活并得到空任务列表。它提交 `probeResults` 时整次心跳返回 `PROBE_AGENT_ALREADY_BOUND`，该次请求的存活写入随事务回滚。
+- 探测结果没有写成通用 `observed_fact`。Agent 停机不掏空快照观测。

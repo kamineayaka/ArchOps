@@ -4,7 +4,7 @@
 
 **Blocked by:** None. Baseline is origin/main at `b883bc4` (PR #131, ADR-0047).
 
-**Status:** ready-for-agent
+**Status:** done
 
 **TDD:** capability。主接缝为控制面 HTTP API。合同：ADR-0048。Spec：[`docs/specs/probe-task-control-plane-judges.md`](../../../docs/specs/probe-task-control-plane-judges.md)。
 
@@ -15,7 +15,9 @@
 - [x] 读不出：`judgment=HOLLOW`，不是冲突
 - [x] 已拉取且 `intervalSeconds=0` 仍未交回：`scan-overdue` 把该任务列入 `hollowedTaskIds`，`judgment=HOLLOW`，不是冲突
 - [x] 同一主机两条任务独立：一条读不出只使自己 HOLLOW，另一条相等的仍是 NORMAL
-- [ ] 第二台 Agent 心跳拿不到任务；它交回结果为 `PROBE_AGENT_ALREADY_BOUND`
+- [x] 第二台 Agent 心跳拿不到任务；它交回结果为 `PROBE_AGENT_ALREADY_BOUND`
+- [x] 已打开冲突后读不出：任务 `HOLLOW`，冲突 `SUSPENDED`
+- [x] 已打开冲突后相等：任务 `NORMAL`，冲突 `PENDING_CLOSE`；确认关闭后 `CLOSED`
 
 **Out of this ticket:** Agent 停机掏空全部快照观测、AI 建议正文、任务推送、SSH 执行命令、重新打包 Agent、Kubernetes、编排层 gRPC、前端、原因种类、「无法归类」。
 
@@ -74,4 +76,22 @@ Red command: `cd backend && ./gradlew test --tests com.archops.observed.ProbeTas
 `AssertionError` at line 287 (`probeTasks` was not empty for the second agent).
 Green command: same test, exit 0. Second heartbeat `probeTasks` length 0; its result is `PROBE_AGENT_ALREADY_BOUND`; the first agent can still report `NORMAL`.
 Refactor: `claimOrMatchProbeAgent` names the first-pull binding.
-Commit: (cycle H)
+Commit: `9e64181` Allow only one probe agent to pull and return tasks for a host.
+
+### Cycle I — a later unreadable result suspends the open probe conflict
+Red command: `cd backend && ./gradlew test --tests com.archops.observed.ProbeTaskJudgmentHttpAcceptanceTest.unreadableAfterConflictSuspendsTheCase --offline`
+`AssertionError` at line 344 (`status` stayed `OPEN`).
+Green command: same test, exit 0. Task `judgment=HOLLOW`, `conflictId` null; conflict `SUSPENDED`, `observationHollow=true`.
+Refactor: no structural change in this cycle.
+Commit: `223cfc9` Move an open probe conflict when a later result changes.
+
+### Cycle J — a later equal result moves the conflict to pending close
+Red command: `cd backend && ./gradlew test --tests com.archops.observed.ProbeTaskJudgmentHttpAcceptanceTest.equalAfterConflictMovesToPendingClose --offline`
+`AssertionError` at line 381 (`status` was not `PENDING_CLOSE`).
+Green command: same test, exit 0. Task `NORMAL`; conflict `PENDING_CLOSE`; `POST /api/conflicts/{id}/confirm-close` returns `CLOSED`.
+Refactor: `probeValuesEqual` reads both JSON columns through one `TypeReference<JsonNode>`. Same test re-run, exit 0.
+Commit: `223cfc9` (same commit as Cycle I; the two follow-ups share `judgeOne`).
+
+### Code review (Standards + Spec), fixed point `b883bc4`
+Standards: no hard violations. Flyway only adds V26–V30. Judgement: `confirmCloseProbe` repeats the close update, and a failed probe confirm-close appends `CONFIRM_FAILED` in the outer transaction so that event rolls back; `onProbeBecameHollow` repeats the heartbeat hollow suspend; judgment outcome is a string; `PROBE` is a new branch in diagnosis and confirm-close.
+Spec: tracer items 1–8 are in the HTTP tests. Accepted limits are in the spec Further Notes: probe conflicts share merge key `(host, PROBE)` and are distinguished by `probeTaskId`; no general `observed_fact` row; pull includes `curatedExpected`; a second agent's result request is 400 and does not refresh liveness; a later equal leaves the case `PENDING_CLOSE` while the task read model is `NORMAL`; suspended probe diagnosis reuses 「恢复观测通道」 and its heartbeat-timeout hypothesis. Full suite after `223cfc9`: `./gradlew test --offline` BUILD SUCCESSFUL, classes=49 tests=289 failures=0 errors=0 skipped=0.
