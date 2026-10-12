@@ -45,4 +45,10 @@ Red command: `cd backend && ./gradlew test --tests com.archops.agent.ProbeAgentR
 `AssertionFailedError: expected: <0> but was: <1>` (`probeResults` still contained the timed-out task).
 Green command: same test, exit 0. `probeResults` empty; `hollowedTaskIds` contains the task; `judgment=HOLLOW`; `evidence` null; `conflictId` null.
 Refactor: `result_for_task` returns nothing on timeout. Same test re-run, exit 0.
-Commit: (this slice) Omit a timed-out probe command so only that task can go hollow.
+Commit: `981795a` Omit a timed-out probe command so only that task can go hollow.
+
+### Cycle E — one timed-out task does not hollow the equal task
+Red command: `cd backend && ./gradlew test --tests com.archops.agent.ProbeAgentRunHttpAcceptanceTest.oneTimedOutTaskDoesNotHollowTheEqualTask --offline`
+reuse/regression: first run exit 0. `result_for_task` already decides per task (`timedOutCommandOmitsTheReportAndStaysHollow`, `readableEqualCommandOutputIsNormalWithoutConflict`). The control plane already keeps tasks independent in `ProbeTaskJudgmentHttpAcceptanceTest.oneTaskHollowDoesNotHollowAnotherTaskOnTheSameHost`.
+Refactor: no structural change.
+Commit: (this slice) Keep one host's probe tasks independent when a command times out.

@@ -223,6 +223,50 @@ class ProbeAgentRunHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data.observedValue", nullValue()));
     }
 
+    @Test
+    void oneTimedOutTaskDoesNotHollowTheEqualTask() throws Exception {
+        String hostId = createHost("probe-run-e-host");
+        String missedCommand = "printf '{\"up\":true}'";
+        String equalCommand = "printf '{\"up\":true}' # equal";
+        String missedTask = createTask(hostId, missedCommand, 0);
+        String equalTask = createTask(hostId, equalCommand, 60);
+
+        JsonNode posted = runAgent(
+                "agent-probe-run-e",
+                hostId,
+                outcomes(
+                        outcome(missedCommand, "", "", 0, true),
+                        outcome(equalCommand, EQUAL_STDOUT, "", 0, false)));
+
+        assertEquals(1, posted.path("probeResults").size());
+        assertEquals(equalTask, posted.path("probeResults").path(0).path("taskId").asText());
+        assertEquals(true, posted.path("probeResults").path(0).path("readable").asBoolean());
+        assertFalse(posted.toString().contains(missedTask));
+
+        mockMvc.perform(post("/api/probe-tasks/scan-overdue")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.hollowedTaskIds", hasItem(missedTask)))
+                .andExpect(jsonPath("$.data.hollowedTaskIds", org.hamcrest.Matchers.not(hasItem(equalTask))));
+
+        mockMvc.perform(get("/api/probe-tasks/{id}", missedTask)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.judgment", is("HOLLOW")))
+                .andExpect(jsonPath("$.data.conflictId", nullValue()))
+                .andExpect(jsonPath("$.data.evidence", nullValue()));
+
+        mockMvc.perform(get("/api/probe-tasks/{id}", equalTask)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.judgment", is("NORMAL")))
+                .andExpect(jsonPath("$.data.observedValue.up", is(true)))
+                .andExpect(jsonPath("$.data.conflictId", nullValue()));
+    }
+
     private JsonNode runAgent(String agentId, String hostId, ObjectNode outcomes) throws Exception {
         Path script = Path.of("..", "agent", "probe_cycle.py").toAbsolutePath().normalize();
         Process process = new ProcessBuilder(
@@ -254,6 +298,15 @@ class ProbeAgentRunHttpAcceptanceTest {
         outcome.put("stderr", stderr);
         outcome.put("exitCode", exitCode);
         outcome.put("timedOut", timedOut);
+        return root;
+    }
+
+    private ObjectNode outcomes(ObjectNode... parts) {
+        ObjectNode root = objectMapper.createObjectNode();
+        ObjectNode merged = root.putObject("outcomesByCommand");
+        for (ObjectNode part : parts) {
+            part.path("outcomesByCommand").fields().forEachRemaining(entry -> merged.set(entry.getKey(), entry.getValue()));
+        }
         return root;
     }
 
