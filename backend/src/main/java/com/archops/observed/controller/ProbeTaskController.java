@@ -2,6 +2,7 @@ package com.archops.observed.controller;
 
 import com.archops.common.api.ApiResponse;
 import com.archops.observed.dto.CreateProbeTaskRequest;
+import com.archops.observed.dto.ProbeOverdueScanResponse;
 import com.archops.observed.dto.ProbeTaskResponse;
 import com.archops.observed.service.ProbeTaskService;
 import jakarta.validation.Valid;
@@ -30,6 +31,11 @@ public class ProbeTaskController {
     @PostMapping
     public ApiResponse<ProbeTaskResponse> create(@Valid @RequestBody CreateProbeTaskRequest request) {
         return ApiResponse.ok(probeTaskService.create(request));
+    }
+
+    @PostMapping("/scan-overdue")
+    public ApiResponse<ProbeOverdueScanResponse> scanOverdue() {
+        return ApiResponse.ok(probeTaskService.scanOverdue());
     }
 
     @GetMapping("/{id}")

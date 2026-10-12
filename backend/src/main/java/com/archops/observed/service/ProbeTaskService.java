@@ -11,6 +11,7 @@ import com.archops.curated.mapper.CuratedObjectMapper;
 import com.archops.observed.domain.ProbeJudgment;
 import com.archops.observed.domain.ProbeTask;
 import com.archops.observed.dto.CreateProbeTaskRequest;
+import com.archops.observed.dto.ProbeOverdueScanResponse;
 import com.archops.observed.dto.ProbeTaskResponse;
 import com.archops.observed.mapper.ProbeJudgmentMapper;
 import com.archops.observed.mapper.ProbeTaskMapper;
@@ -21,7 +22,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -44,19 +47,22 @@ public class ProbeTaskService {
     private final CuratedObjectMapper curatedObjectMapper;
     private final ConflictDetectionService conflictDetectionService;
     private final PersistentJson persistentJson;
+    private final Clock clock;
 
     public ProbeTaskService(
             ProbeTaskMapper probeTaskMapper,
             ProbeJudgmentMapper probeJudgmentMapper,
             CuratedObjectMapper curatedObjectMapper,
             ConflictDetectionService conflictDetectionService,
-            PersistentJson persistentJson
+            PersistentJson persistentJson,
+            Clock clock
     ) {
         this.probeTaskMapper = probeTaskMapper;
         this.probeJudgmentMapper = probeJudgmentMapper;
         this.curatedObjectMapper = curatedObjectMapper;
         this.conflictDetectionService = conflictDetectionService;
         this.persistentJson = persistentJson;
+        this.clock = clock;
     }
 
     @Transactional
@@ -110,14 +116,30 @@ public class ProbeTaskService {
         saveJudgment(task.getId(), JUDGMENT_HOLLOW, null, result.evidence(), null, now);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public List<AgentHeartbeatResponse.ProbeTaskAssignment> assignmentsForHost(String hostId) {
-        return probeTaskMapper.selectList(new LambdaQueryWrapper<ProbeTask>()
-                        .eq(ProbeTask::getHostId, hostId)
-                        .orderByAsc(ProbeTask::getCreatedAt))
-                .stream()
-                .map(this::toAssignment)
-                .toList();
+        List<ProbeTask> tasks = probeTaskMapper.selectList(new LambdaQueryWrapper<ProbeTask>()
+                .eq(ProbeTask::getHostId, hostId)
+                .orderByAsc(ProbeTask::getCreatedAt));
+        Instant now = Instant.now(clock);
+        for (ProbeTask task : tasks) {
+            notePull(task, now);
+        }
+        return tasks.stream().map(this::toAssignment).toList();
+    }
+
+    @Transactional
+    public ProbeOverdueScanResponse scanOverdue() {
+        Instant now = Instant.now(clock);
+        List<ProbeTask> due = probeTaskMapper.selectList(new LambdaQueryWrapper<ProbeTask>()
+                .eq(ProbeTask::getAwaitingResult, true)
+                .le(ProbeTask::getDueAt, now));
+        List<String> hollowed = new ArrayList<>();
+        for (ProbeTask task : due) {
+            saveJudgment(task.getId(), JUDGMENT_HOLLOW, null, null, null, now);
+            hollowed.add(task.getId());
+        }
+        return new ProbeOverdueScanResponse(hollowed);
     }
 
     @Transactional(readOnly = true)
@@ -176,6 +198,7 @@ public class ProbeTaskService {
             created.setConflictId(conflictId);
             created.setJudgedAt(now);
             probeJudgmentMapper.insert(created);
+            clearAwaiting(taskId);
             return;
         }
         probeJudgmentMapper.update(null, new LambdaUpdateWrapper<ProbeJudgment>()
@@ -185,6 +208,27 @@ public class ProbeTaskService {
                 .set(ProbeJudgment::getEvidence, evidence)
                 .set(ProbeJudgment::getConflictId, conflictId)
                 .set(ProbeJudgment::getJudgedAt, now));
+        clearAwaiting(taskId);
+    }
+
+    private void notePull(ProbeTask task, Instant now) {
+        if (task.getAwaitingResult()) {
+            return;
+        }
+        Instant due = now.plusSeconds(task.getIntervalSeconds());
+        probeTaskMapper.update(null, new LambdaUpdateWrapper<ProbeTask>()
+                .eq(ProbeTask::getId, task.getId())
+                .set(ProbeTask::getAwaitingResult, true)
+                .set(ProbeTask::getDueAt, due));
+        task.setAwaitingResult(true);
+        task.setDueAt(due);
+    }
+
+    private void clearAwaiting(String taskId) {
+        probeTaskMapper.update(null, new LambdaUpdateWrapper<ProbeTask>()
+                .eq(ProbeTask::getId, taskId)
+                .set(ProbeTask::getAwaitingResult, false)
+                .set(ProbeTask::getDueAt, null));
     }
 
     private ProbeTask requireTaskOnHost(String taskId, String hostId) {

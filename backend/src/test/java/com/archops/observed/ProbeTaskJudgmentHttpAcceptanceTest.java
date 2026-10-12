@@ -13,6 +13,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
@@ -205,6 +206,33 @@ class ProbeTaskJudgmentHttpAcceptanceTest {
         assertFalse(responseBody.contains("\"kind\""));
         assertFalse(responseBody.contains("无法归类"));
         assertFalse(responseBody.contains("abnormalKind"));
+    }
+
+    @Test
+    void overdueReportIsHollowNotConflict() throws Exception {
+        String hostId = createHost("probe-f-host");
+        String taskId = createTask(hostId, 0);
+
+        mockMvc.perform(post("/api/agent/heartbeat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(heartbeatJson("agent-probe-f", hostId, null))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.probeTasks[0].id", is(taskId)));
+
+        mockMvc.perform(post("/api/probe-tasks/scan-overdue")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.hollowedTaskIds", hasItem(taskId)));
+
+        mockMvc.perform(get("/api/probe-tasks/{id}", taskId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.judgment", is("HOLLOW")))
+                .andExpect(jsonPath("$.data.observationHollow", is(true)))
+                .andExpect(jsonPath("$.data.conflictId", nullValue()));
     }
 
     private String createHost(String name) throws Exception {

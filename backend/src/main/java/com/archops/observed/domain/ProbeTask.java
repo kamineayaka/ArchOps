@@ -15,6 +15,8 @@ public class ProbeTask {
     private String command;
     private String expectedJson;
     private int intervalSeconds;
+    private Instant dueAt;
+    private boolean awaitingResult;
     private Instant createdAt;
 
     public String getId() {
@@ -55,6 +57,22 @@ public class ProbeTask {
 
     public void setIntervalSeconds(int intervalSeconds) {
         this.intervalSeconds = intervalSeconds;
+    }
+
+    public Instant getDueAt() {
+        return dueAt;
+    }
+
+    public void setDueAt(Instant dueAt) {
+        this.dueAt = dueAt;
+    }
+
+    public boolean getAwaitingResult() {
+        return awaitingResult;
+    }
+
+    public void setAwaitingResult(boolean awaitingResult) {
+        this.awaitingResult = awaitingResult;
     }
 
     public Instant getCreatedAt() {
