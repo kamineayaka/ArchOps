@@ -5,6 +5,7 @@ import com.archops.support.HttpAcceptanceTest;
 import com.archops.user.security.TempAuthHeaders;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -235,6 +236,37 @@ class ProbeTaskJudgmentHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data.conflictId", nullValue()));
     }
 
+    @Test
+    void oneTaskHollowDoesNotHollowAnotherTaskOnTheSameHost() throws Exception {
+        String hostId = createHost("probe-g-host");
+        String hollowTask = createTask(hostId, 60);
+        String normalTask = createTask(hostId, 60);
+
+        mockMvc.perform(post("/api/agent/heartbeat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(heartbeatJson("agent-probe-g", hostId, joinResults(
+                                unreadableResult(hollowTask),
+                                readableResult(normalTask, true, "ok"))))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/probe-tasks/{id}", hollowTask)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.judgment", is("HOLLOW")))
+                .andExpect(jsonPath("$.data.conflictId", nullValue()))
+                .andExpect(jsonPath("$.data.evidence", is("command error")));
+
+        mockMvc.perform(get("/api/probe-tasks/{id}", normalTask)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.judgment", is("NORMAL")))
+                .andExpect(jsonPath("$.data.observedValue.up", is(true)))
+                .andExpect(jsonPath("$.data.conflictId", nullValue()));
+    }
+
     private String createHost(String name) throws Exception {
         MvcResult result = mockMvc.perform(post("/api/curated/hosts")
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)
@@ -270,6 +302,14 @@ class ProbeTaskJudgmentHttpAcceptanceTest {
             request.set("probeResults", probeResults);
         }
         return objectMapper.writeValueAsString(request);
+    }
+
+    private ArrayNode joinResults(JsonNode... batches) {
+        ArrayNode all = objectMapper.createArrayNode();
+        for (JsonNode batch : batches) {
+            batch.forEach(all::add);
+        }
+        return all;
     }
 
     private JsonNode readableResult(String taskId, boolean up, String evidence) {
