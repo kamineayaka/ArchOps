@@ -105,7 +105,9 @@ public class ProbeTaskService {
                     result.evidence()
             );
             saveJudgment(task.getId(), JUDGMENT_CONFLICT, observedJson, result.evidence(), conflictId, now);
+            return;
         }
+        saveJudgment(task.getId(), JUDGMENT_HOLLOW, null, result.evidence(), null, now);
     }
 
     @Transactional(readOnly = true)

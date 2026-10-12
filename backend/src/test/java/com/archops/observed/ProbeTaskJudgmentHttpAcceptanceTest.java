@@ -180,6 +180,33 @@ class ProbeTaskJudgmentHttpAcceptanceTest {
         assertFalse(diagnosisBody.contains("RULES_WITH_LLM"));
     }
 
+    @Test
+    void unreadableResultIsHollowNotConflict() throws Exception {
+        String hostId = createHost("probe-e-host");
+        String taskId = createTask(hostId, 60);
+
+        mockMvc.perform(post("/api/agent/heartbeat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(heartbeatJson("agent-probe-e", hostId, unreadableResult(taskId)))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+
+        MvcResult got = mockMvc.perform(get("/api/probe-tasks/{id}", taskId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.judgment", is("HOLLOW")))
+                .andExpect(jsonPath("$.data.observationHollow", is(true)))
+                .andExpect(jsonPath("$.data.observedValue", nullValue()))
+                .andExpect(jsonPath("$.data.conflictId", nullValue()))
+                .andExpect(jsonPath("$.data.evidence", is("command error")))
+                .andReturn();
+        String responseBody = got.getResponse().getContentAsString();
+        assertFalse(responseBody.contains("\"kind\""));
+        assertFalse(responseBody.contains("无法归类"));
+        assertFalse(responseBody.contains("abnormalKind"));
+    }
+
     private String createHost(String name) throws Exception {
         MvcResult result = mockMvc.perform(post("/api/curated/hosts")
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)
@@ -223,6 +250,14 @@ class ProbeTaskJudgmentHttpAcceptanceTest {
         result.put("readable", true);
         result.putObject("value").put("up", up);
         result.put("evidence", evidence);
+        return objectMapper.createArrayNode().add(result);
+    }
+
+    private JsonNode unreadableResult(String taskId) {
+        ObjectNode result = objectMapper.createObjectNode();
+        result.put("taskId", taskId);
+        result.put("readable", false);
+        result.put("evidence", "command error");
         return objectMapper.createArrayNode().add(result);
     }
 }

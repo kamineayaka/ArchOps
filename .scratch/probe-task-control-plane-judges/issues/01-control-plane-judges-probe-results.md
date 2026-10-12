@@ -11,7 +11,7 @@
 - [x] 无 Agent 的主机可保存任务：读回命令 `printf '{"up":true}'` 与策展值 `{"up":true}`，`judgment=HOLLOW`，`conflictId` 为空，响应没有原因种类也没有「无法归类」
 - [x] 该主机 Agent 的心跳响应 `probeTasks` 带上这条任务的命令
 - [x] 可读且等于策展值：`judgment=NORMAL`，不打开冲突，不进 AI
-- [ ] 可读且不等于策展值：冲突附原始证据 `stdout=down`；诊断只有 `FIX_ACTUAL_TO_CURATED` 与 `CHANGE_CURATED_TO_OBSERVED`，没有 `kind`，没有「无法归类」
+- [x] 可读且不等于策展值：冲突附原始证据 `stdout=down`；诊断只有 `FIX_ACTUAL_TO_CURATED` 与 `CHANGE_CURATED_TO_OBSERVED`，没有 `kind`，没有「无法归类」
 - [ ] 读不出：`judgment=HOLLOW`，不是冲突
 - [ ] 已拉取且 `intervalSeconds=0` 仍未交回：`scan-overdue` 把该任务列入 `hollowedTaskIds`，`judgment=HOLLOW`，不是冲突
 - [ ] 同一主机两条任务独立：一条读不出只使自己 HOLLOW，另一条相等的仍是 NORMAL
@@ -47,4 +47,11 @@ Red command: `cd backend && ./gradlew test --tests com.archops.observed.ProbeTas
 `AssertionError` at line 143 (`judgment` was not `CONFLICT`).
 Green command: same test, exit 0. Diagnosis source `RULES`, forks `FIX_ACTUAL_TO_CURATED` / `CHANGE_CURATED_TO_OBSERVED`, no `kind`.
 Refactor: `judgeOne` holds the three-way readable compare.
-Commit: (cycle D)
+Commit: `fe5a88a` Open a conflict when a readable probe value differs from curated.
+
+### Cycle E — unreadable result is hollow, not a conflict
+Red command: `cd backend && ./gradlew test --tests com.archops.observed.ProbeTaskJudgmentHttpAcceptanceTest.unreadableResultIsHollowNotConflict --offline`
+`AssertionError` at line 202 (evidence was not `command error`; the miss was not recorded).
+Green command: same test, exit 0. `judgment=HOLLOW`, `conflictId` null.
+Refactor: no structural change.
+Commit: (cycle E)
