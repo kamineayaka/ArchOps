@@ -1,10 +1,10 @@
 ---
-status: "票 01 ready-for-agent。不重开 ADR-0048 票 01，不重开薄 UI 票 01。"
+status: "票 01 TDD-done。本刀闭合。不重开 ADR-0048 票 01，不重开薄 UI 票 01。"
 ---
 
 # Spec: Host Agent 拉取探测任务、执行命令、交回结构化结果
 
-**Status**: 工单 01 进行中。  
+**Status**: 工单 01 **TDD-done**。本刀闭合。  
 **Basis**: [`docs/adr/0048-probe-task-control-plane-judges.md`](../adr/0048-probe-task-control-plane-judges.md)。控制面保存任务并判决交回已在 [`docs/specs/probe-task-control-plane-judges.md`](probe-task-control-plane-judges.md) 票 01 闭合。薄 UI 已在 [`docs/specs/probe-task-thin-ui.md`](probe-task-thin-ui.md) 票 01 闭合。本刀不重开那两张票，不改 ADR 正文。  
 **Testing seams (confirmed)**: **主接缝 = 控制面公开 HTTP API**（现有 `POST /api/agent/heartbeat` ingest，以及随后的 `GET /api/probe-tasks/{id}` / 冲突诊断）。Host Agent 的命令执行用可注入的 runner 测，不要求真实主机、真实 SSH 或 MINA。`/implement` 按 [`docs/agents/tdd.md`](../agents/tdd.md) 走 **red → green → refactor**。
 

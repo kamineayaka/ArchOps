@@ -4,7 +4,7 @@
 
 **Blocked by:** None. Baseline is origin/main at `ff8cdc0` (PR #133, probe thin UI). ADR-0048 ticket 01 and the thin-UI ticket stay closed.
 
-**Status:** ready-for-agent
+**Status:** done
 
 **TDD:** capability。主接缝为控制面 HTTP API（现有 Agent ingest）。命令执行用可注入 runner，不要求真实主机、SSH 或 MINA。合同：ADR-0048。Spec：[`docs/specs/probe-task-agent-runs.md`](../../../docs/specs/probe-task-agent-runs.md)。
 
@@ -100,8 +100,8 @@ Red command: `cd agent && python3 -m unittest test_probe_cycle.SilentFailureTest
 `AssertionError: '' != 'command error'`
 Green command: same unittest, exit 0. `readable=false`, `evidence` is empty. HTTP `unreadableCommandOutputIsHollowForThatTask` still exit 0 when stderr is `command error`.
 Refactor: no structural change.
-Commit: (this slice) Keep empty command output as empty probe evidence.
+Commit: `bfb937d` Keep empty command output as empty probe evidence.
 
 ### Code review (Standards + Spec), fixed point `ff8cdc0`
 Standards: hard findings were first-run-green capability cycles B/E/I (recorded as reuse/regression; production from an earlier cycle of this ticket plus ADR-0048 ticket 01 was not deleted to manufacture red), Python post-count and snapshot-shape tests that do not themselves call the HTTP API (judgment cycles A–D and H do), and the unreachable-host path dropping `URLError`. Cycle J restores that failure as `ProbeCycleError`. Judgement: duplicated process-wait helpers, repeated agentId/hostId/sentAt, and `probe_cycle.py` holding both the runner and the stdin fixture.
-Spec: stories 1–6 are present. `subprocess_runner` was killing the command at `intervalSeconds`; cycle K removes that kill timer. `raw_evidence` invented `command error` when both streams were empty; cycle L keeps the raw output, including empty. No ADR-0049, no cause kinds, no AI text, no collaboration, no task push, no snapshot-wide hollow, no persisted 「恢复观测通道」.
+Spec: stories 1–6 are present. `subprocess_runner` was killing the command at `intervalSeconds`; cycle K removes that kill timer. `raw_evidence` invented `command error` when both streams were empty; cycle L keeps the raw output, including empty. No ADR-0049, no cause kinds, no AI text, no collaboration, no task push, no snapshot-wide hollow, no persisted 「恢复观测通道」. Full suite after `bfb937d`: `./gradlew test --offline` BUILD SUCCESSFUL, classes=51 tests=303 failures=0 errors=0 skipped=0.
