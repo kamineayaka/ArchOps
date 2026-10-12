@@ -77,6 +77,19 @@ class SnapshotReportTests(unittest.TestCase):
         self.assertNotIn("kind", posts[1]["probeResults"][0])
 
 
+class SubprocessRunnerTests(unittest.TestCase):
+    def test_task_interval_does_not_kill_the_command(self) -> None:
+        outcome = probe_cycle.subprocess_runner(
+            {
+                "command": "sleep 2; printf '{\"up\":true}'",
+                "intervalSeconds": 1,
+            }
+        )
+        self.assertFalse(outcome.timed_out)
+        self.assertEqual(0, outcome.exit_code)
+        self.assertEqual('{"up":true}', outcome.stdout)
+
+
 class UnreachableControlPlaneTests(unittest.TestCase):
     def test_unreachable_control_plane_is_a_probe_cycle_error(self) -> None:
         with self.assertRaises(probe_cycle.ProbeCycleError):

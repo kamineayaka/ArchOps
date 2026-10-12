@@ -30,29 +30,18 @@ class CommandOutcome:
 
 
 def subprocess_runner(task: dict) -> CommandOutcome:
-    """Run the probe command on this host. The control plane does not SSH it."""
-    timeout = task.get("intervalSeconds") or 0
-    if timeout <= 0:
-        timeout = 30
-    try:
-        completed = subprocess.run(
-            task["command"],
-            shell=True,
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-        )
-    except subprocess.TimeoutExpired as exc:
-        return CommandOutcome(_text(exc.stdout), _text(exc.stderr), 124, True)
+    """Run the probe command on this host. The control plane does not SSH it.
+
+    intervalSeconds is the control plane's overdue clock, not a kill timer.
+    A command that never returns is a missed report because this cycle does not post.
+    """
+    completed = subprocess.run(
+        task["command"],
+        shell=True,
+        capture_output=True,
+        text=True,
+    )
     return CommandOutcome(completed.stdout, completed.stderr, completed.returncode, False)
-
-
-def _text(value) -> str:
-    if value is None:
-        return ""
-    if isinstance(value, bytes):
-        return value.decode("utf-8", errors="replace")
-    return str(value)
 
 
 def results_for_tasks(tasks: list[dict], runner) -> list[dict]:

@@ -313,6 +313,11 @@ class ProbeAgentRunHttpAcceptanceTest {
     }
 
     @Test
+    void taskIntervalDoesNotKillTheCommand() throws Exception {
+        runPythonUnittest("test_probe_cycle.SubprocessRunnerTests.test_task_interval_does_not_kill_the_command");
+    }
+
+    @Test
     void unreachableControlPlaneIsAProbeCycleError() throws Exception {
         runPythonUnittest(
                 "test_probe_cycle.UnreachableControlPlaneTests.test_unreachable_control_plane_is_a_probe_cycle_error");

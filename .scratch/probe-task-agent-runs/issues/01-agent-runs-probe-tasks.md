@@ -86,4 +86,11 @@ Red command: `cd agent && python3 -m unittest test_probe_cycle.UnreachableContro
 `urllib.error.URLError: <urlopen error [Errno 111] Connection refused>` (not `ProbeCycleError`). The previous heartbeat client caught `URLError` and returned 1.
 Green command: same unittest, exit 0. `post_heartbeat` raises `ProbeCycleError`, which `heartbeat.py` turns into exit 1.
 Refactor: no structural change.
-Commit: (this slice) Report an unreachable control plane as a failed heartbeat.
+Commit: `00a1d00` Report an unreachable control plane as a failed heartbeat.
+
+### Cycle K — the task interval is not a command kill timer
+Red command: `cd agent && python3 -m unittest test_probe_cycle.SubprocessRunnerTests.test_task_interval_does_not_kill_the_command`
+`AssertionError: True is not false` (`timed_out` after `intervalSeconds=1` killed `sleep 2`).
+Green command: same unittest, exit 0. The command finishes, `timed_out` is false, stdout is `{"up":true}`.
+Refactor: no structural change. `intervalSeconds` stays the control plane overdue clock.
+Commit: (this slice) Let a probe command finish instead of killing it at the task interval.
