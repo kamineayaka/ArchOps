@@ -159,6 +159,39 @@ class ProbeAgentRunHttpAcceptanceTest {
         assertFalse(diagnosisBody.contains("RULES_WITH_LLM"));
     }
 
+    @Test
+    void unreadableCommandOutputIsHollowForThatTask() throws Exception {
+        String hostId = createHost("probe-run-c-host");
+        String taskId = createTask(hostId, COMMAND, 60);
+
+        JsonNode posted = runAgent(
+                "agent-probe-run-c",
+                hostId,
+                outcome(COMMAND, "", "command error", 1, false));
+
+        JsonNode result = posted.path("probeResults").path(0);
+        assertEquals(taskId, result.path("taskId").asText());
+        assertEquals(false, result.path("readable").asBoolean());
+        assertEquals("command error", result.path("evidence").asText());
+        assertFalse(result.has("value"));
+        assertFalse(result.has("judgment"));
+        assertFalse(result.has("kind"));
+        assertFalse(posted.toString().contains("无法归类"));
+
+        MvcResult got = mockMvc.perform(get("/api/probe-tasks/{id}", taskId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.judgment", is("HOLLOW")))
+                .andExpect(jsonPath("$.data.observationHollow", is(true)))
+                .andExpect(jsonPath("$.data.observedValue", nullValue()))
+                .andExpect(jsonPath("$.data.conflictId", nullValue()))
+                .andExpect(jsonPath("$.data.evidence", is("command error")))
+                .andReturn();
+        assertFalse(got.getResponse().getContentAsString().contains("\"kind\""));
+        assertFalse(got.getResponse().getContentAsString().contains("无法归类"));
+    }
+
     private JsonNode runAgent(String agentId, String hostId, ObjectNode outcomes) throws Exception {
         Path script = Path.of("..", "agent", "probe_cycle.py").toAbsolutePath().normalize();
         Process process = new ProcessBuilder(

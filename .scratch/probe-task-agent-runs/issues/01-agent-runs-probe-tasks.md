@@ -10,7 +10,7 @@
 
 - [x] Agent 拉取任务并用注入 runner 执行；stdout `{"up": true}` 交回后 `judgment=NORMAL`，无冲突，不进 AI
 - [x] stdout `{"up": false}` 交回后冲突附该原文；诊断只有 `FIX_ACTUAL_TO_CURATED` 与 `CHANGE_CURATED_TO_OBSERVED`，没有 `kind`，没有「无法归类」
-- [ ] 读不出（`command error`）交回 `readable=false`，该任务 `judgment=HOLLOW`，不是冲突
+- [x] 读不出（`command error`）交回 `readable=false`，该任务 `judgment=HOLLOW`，不是冲突
 - [ ] 命令超时则不交回；`intervalSeconds=0` 时 `scan-overdue` 将该任务列入 `hollowedTaskIds`，`judgment=HOLLOW`，`evidence` 为空
 - [ ] 同一主机两条任务独立：一条超时只使自己 HOLLOW，另一条相等的仍是 NORMAL
 - [ ] 心跳没有任务时不提交 `probeResults`（第二次心跳也不附带快照）
@@ -31,4 +31,11 @@ Commit: `e021107` Have the host agent post a probe result that matches the curat
 Red command: `cd backend && ./gradlew test --tests com.archops.agent.ProbeAgentRunHttpAcceptanceTest.readableUnequalCommandOutputOpensConflictWithRawEvidence --offline`
 reuse/regression: first run exit 0. The agent posts parsed stdout without comparing it to the curated value (`results_for_tasks` from `readableEqualCommandOutputIsNormalWithoutConflict`). The control plane already opens the conflict in `ProbeTaskJudgmentHttpAcceptanceTest.readableUnequalOpensConflictWithEvidenceAndResolutionActions`.
 Refactor: no structural change.
-Commit: (this slice) Lock the unequal probe stdout to the existing conflict judgment.
+Commit: `494e0ca` Lock the unequal probe stdout to the existing conflict judgment.
+
+### Cycle C — unreadable command output is hollow for that task
+Red command: `cd backend && ./gradlew test --tests com.archops.agent.ProbeAgentRunHttpAcceptanceTest.unreadableCommandOutputIsHollowForThatTask --offline`
+`AssertionFailedError: agent exit 1` with `json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)` from `json.loads(outcome.stdout)`.
+Green command: same test, exit 0. `readable=false`, evidence `command error`, `judgment=HOLLOW`, `conflictId` null.
+Refactor: `structured_value` and `raw_evidence` split a readable JSON post from a failed command. Class re-run, exit 0.
+Commit: (this slice) Post an unreadable probe command as observation hollow.

@@ -32,15 +32,42 @@ def results_for_tasks(tasks: list[dict], runner) -> list[dict]:
     results = []
     for task in tasks:
         outcome: CommandOutcome = runner(task)
+        value = structured_value(outcome)
+        if value is None:
+            results.append(
+                {
+                    "taskId": task["id"],
+                    "readable": False,
+                    "evidence": raw_evidence(outcome),
+                }
+            )
+            continue
         results.append(
             {
                 "taskId": task["id"],
                 "readable": True,
-                "value": json.loads(outcome.stdout),
+                "value": value,
                 "evidence": outcome.stdout,
             }
         )
     return results
+
+
+def structured_value(outcome: CommandOutcome):
+    if outcome.exit_code != 0:
+        return None
+    try:
+        return json.loads(outcome.stdout)
+    except json.JSONDecodeError:
+        return None
+
+
+def raw_evidence(outcome: CommandOutcome) -> str:
+    if outcome.stdout:
+        return outcome.stdout
+    if outcome.stderr:
+        return outcome.stderr
+    return "command error"
 
 
 def pull_and_report(control_plane: str, agent_id: str, host_id: str, runner) -> list[dict]:
