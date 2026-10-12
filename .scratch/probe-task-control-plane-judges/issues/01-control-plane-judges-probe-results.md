@@ -9,7 +9,7 @@
 **TDD:** capability。主接缝为控制面 HTTP API。合同：ADR-0048。Spec：[`docs/specs/probe-task-control-plane-judges.md`](../../../docs/specs/probe-task-control-plane-judges.md)。
 
 - [x] 无 Agent 的主机可保存任务：读回命令 `printf '{"up":true}'` 与策展值 `{"up":true}`，`judgment=HOLLOW`，`conflictId` 为空，响应没有原因种类也没有「无法归类」
-- [ ] 该主机 Agent 的心跳响应 `probeTasks` 带上这条任务的命令
+- [x] 该主机 Agent 的心跳响应 `probeTasks` 带上这条任务的命令
 - [ ] 可读且等于策展值：`judgment=NORMAL`，不打开冲突，不进 AI
 - [ ] 可读且不等于策展值：冲突附原始证据 `stdout=down`；诊断只有 `FIX_ACTUAL_TO_CURATED` 与 `CHANGE_CURATED_TO_OBSERVED`，没有 `kind`，没有「无法归类」
 - [ ] 读不出：`judgment=HOLLOW`，不是冲突
@@ -26,4 +26,11 @@ Red command: `cd backend && ./gradlew test --tests com.archops.observed.ProbeTas
 `AssertionError: Status expected:<200> but was:<404>` body `{"success":false,"code":"NOT_FOUND","message":"Not found","data":null}`
 Green command: same test, exit 0.
 Refactor: service comment names the no-result read as 观测空洞.
-Commit: (this slice) Store a probe task whose only normal is the curated value.
+Commit: `ff9969a` Store a probe task whose only normal is the curated value.
+
+### Cycle B — heartbeat pulls the host's probe tasks
+Red command: `cd backend && ./gradlew test --tests com.archops.observed.ProbeTaskJudgmentHttpAcceptanceTest.heartbeatPullsProbeTasksForThatHost --offline`
+`AssertionError` at line 91 caused by `PathNotFoundException` (`probeTasks` missing).
+Green command: same test, exit 0.
+Refactor: heartbeat helper takes `JsonNode`; contract names `probeTasks`.
+Commit: (cycle B)

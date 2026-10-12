@@ -89,7 +89,7 @@ When a container label hits curated object X in the same ingest request:
 
 `data` includes `freshness.lastHeartbeatAt` / `lastSnapshotAt`, plus `matched`, `absent`, `unbound`, `identityLost` summaries for the request. Completion is subsequent operator GETs, not the shape of those summary arrays.
 
-ADR-0048: the same heartbeat response carries this agent's probe task list. The agent pulls tasks on heartbeat and does not judge. The control plane judges each returned result. Comparison stays on the control plane.
+ADR-0048: the same heartbeat response carries this host's probe task list in `data.probeTasks` (`id`, `command`, `intervalSeconds`, `curatedExpected`). The agent pulls tasks on heartbeat and does not judge. Omitting the field on older agents is valid: the stub ignores unknown response fields, so a deployed binary does not need to be replaced. The control plane does not SSH the command. Comparison stays on the control plane. A returned result is an optional `probeResults` array on this same request (`taskId`, `readable`, `value`, `evidence`).
 
 ## Related operator reads
 

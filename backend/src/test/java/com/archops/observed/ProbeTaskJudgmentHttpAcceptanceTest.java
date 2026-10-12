@@ -2,6 +2,7 @@ package com.archops.observed;
 
 import com.archops.support.HttpAcceptanceTest;
 import com.archops.user.security.TempAuthHeaders;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.junit.jupiter.api.Test;
@@ -10,6 +11,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -74,7 +76,23 @@ class ProbeTaskJudgmentHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data.curatedExpected.up", org.hamcrest.Matchers.is(true)))
                 .andExpect(jsonPath("$.data.judgment", org.hamcrest.Matchers.is("HOLLOW")))
                 .andExpect(jsonPath("$.data.conflictId", nullValue()))
-                .andExpect(jsonPath("$.data.observationHollow", org.hamcrest.Matchers.is(true)));
+                .andExpect(jsonPath("$.data.observationHollow", is(true)));
+    }
+
+    @Test
+    void heartbeatPullsProbeTasksForThatHost() throws Exception {
+        String hostId = createHost("probe-b-host");
+        String taskId = createTask(hostId, 60);
+
+        mockMvc.perform(post("/api/agent/heartbeat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(heartbeatJson("agent-probe-b", hostId, null))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.probeTasks[0].id", is(taskId)))
+                .andExpect(jsonPath("$.data.probeTasks[0].command", is(COMMAND)))
+                .andExpect(jsonPath("$.data.probeTasks[0].intervalSeconds", is(60)))
+                .andExpect(jsonPath("$.data.probeTasks[0].curatedExpected.up", is(true)));
     }
 
     private String createHost(String name) throws Exception {
@@ -86,5 +104,31 @@ class ProbeTaskJudgmentHttpAcceptanceTest {
                 .andExpect(status().isOk())
                 .andReturn();
         return objectMapper.readTree(result.getResponse().getContentAsString()).path("data").path("id").asText();
+    }
+
+    private String createTask(String hostId, int intervalSeconds) throws Exception {
+        ObjectNode request = objectMapper.createObjectNode();
+        request.put("hostId", hostId);
+        request.put("command", COMMAND);
+        request.put("intervalSeconds", intervalSeconds);
+        request.putObject("curatedExpected").put("up", true);
+        MvcResult result = mockMvc.perform(post("/api/probe-tasks")
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andReturn();
+        return objectMapper.readTree(result.getResponse().getContentAsString()).path("data").path("id").asText();
+    }
+
+    private String heartbeatJson(String agentId, String hostId, JsonNode probeResults) throws Exception {
+        ObjectNode request = objectMapper.createObjectNode();
+        request.put("agentId", agentId);
+        request.put("hostId", hostId);
+        if (probeResults != null) {
+            request.set("probeResults", probeResults);
+        }
+        return objectMapper.writeValueAsString(request);
     }
 }

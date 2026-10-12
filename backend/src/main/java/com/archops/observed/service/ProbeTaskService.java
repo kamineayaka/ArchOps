@@ -1,5 +1,6 @@
 package com.archops.observed.service;
 
+import com.archops.agent.dto.AgentHeartbeatResponse;
 import com.archops.common.exception.BusinessException;
 import com.archops.common.json.PersistentJson;
 import com.archops.curated.domain.CuratedObject;
@@ -9,12 +10,14 @@ import com.archops.observed.domain.ProbeTask;
 import com.archops.observed.dto.CreateProbeTaskRequest;
 import com.archops.observed.dto.ProbeTaskResponse;
 import com.archops.observed.mapper.ProbeTaskMapper;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -62,6 +65,16 @@ public class ProbeTaskService {
     }
 
     @Transactional(readOnly = true)
+    public List<AgentHeartbeatResponse.ProbeTaskAssignment> assignmentsForHost(String hostId) {
+        return probeTaskMapper.selectList(new LambdaQueryWrapper<ProbeTask>()
+                        .eq(ProbeTask::getHostId, hostId)
+                        .orderByAsc(ProbeTask::getCreatedAt))
+                .stream()
+                .map(this::toAssignment)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
     public ProbeTaskResponse get(String id) {
         ProbeTask task = probeTaskMapper.selectById(id);
         if (task == null) {
@@ -70,8 +83,17 @@ public class ProbeTaskService {
         return toResponse(task);
     }
 
+    private AgentHeartbeatResponse.ProbeTaskAssignment toAssignment(ProbeTask task) {
+        return new AgentHeartbeatResponse.ProbeTaskAssignment(
+                task.getId(),
+                task.getCommand(),
+                task.getIntervalSeconds(),
+                readExpected(task)
+        );
+    }
+
     private ProbeTaskResponse toResponse(ProbeTask task) {
-        JsonNode expected = persistentJson.read(task.getExpectedJson(), JSON_NODE, null);
+        JsonNode expected = readExpected(task);
         return new ProbeTaskResponse(
                 task.getId(),
                 task.getHostId(),
@@ -84,6 +106,10 @@ public class ProbeTaskService {
                 null,
                 null
         );
+    }
+
+    private JsonNode readExpected(ProbeTask task) {
+        return persistentJson.read(task.getExpectedJson(), JSON_NODE, null);
     }
 
     private CuratedObject requireHost(String hostId) {
