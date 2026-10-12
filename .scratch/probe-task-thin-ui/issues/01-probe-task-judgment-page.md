@@ -31,4 +31,12 @@ Commit: `726e5f3` Open a probe 改理想 draft without writing the curated value
 Red command: `cd backend && ./gradlew test --tests com.archops.observed.ProbeTaskResolutionHttpAcceptanceTest.fixActualOnProbeConflictOpensReviewPlan --offline`
 reuse/regression: first run exit 0. Covered by `OperationPlanService.selectBranch` (`AnonymousBranchSelectionHttpAcceptanceTest.fixActualWithoutIdentityOrHandlerOpensReviewPlan`). Plan `DRAFT_REVIEW` / `FIX_ACTUAL`, `createdBy` null, curated `up` still true.
 Refactor: heartbeat helper takes the agent id. Same test re-run, exit 0.
+Commit: `a73f2dd` Record that probe 修实际 already opens a review plan.
+
+### Cycle C — thin page for create, judgment, and resolution actions
+Red command: `cd frontend && npm run build`
+`src/App.tsx(6,28): error TS2307: Cannot find module './pages/ProbeTasksPage' or its corresponding type declarations.`
+Green command: same build, exit 0 (`tsc --noEmit && vite build`).
+Refactor: no structural change. The page keeps one card per task so judgments and actions stay independent.
+
 
