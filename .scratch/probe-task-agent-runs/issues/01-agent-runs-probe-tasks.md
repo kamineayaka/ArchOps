@@ -93,4 +93,15 @@ Red command: `cd agent && python3 -m unittest test_probe_cycle.SubprocessRunnerT
 `AssertionError: True is not false` (`timed_out` after `intervalSeconds=1` killed `sleep 2`).
 Green command: same unittest, exit 0. The command finishes, `timed_out` is false, stdout is `{"up":true}`.
 Refactor: no structural change. `intervalSeconds` stays the control plane overdue clock.
-Commit: (this slice) Let a probe command finish instead of killing it at the task interval.
+Commit: `8eea3c5` Let a probe command finish instead of killing it at the task interval.
+
+### Cycle L — a silent command failure does not invent evidence text
+Red command: `cd agent && python3 -m unittest test_probe_cycle.SilentFailureTests.test_silent_nonzero_exit_keeps_empty_evidence`
+`AssertionError: '' != 'command error'`
+Green command: same unittest, exit 0. `readable=false`, `evidence` is empty. HTTP `unreadableCommandOutputIsHollowForThatTask` still exit 0 when stderr is `command error`.
+Refactor: no structural change.
+Commit: (this slice) Keep empty command output as empty probe evidence.
+
+### Code review (Standards + Spec), fixed point `ff8cdc0`
+Standards: hard findings were first-run-green capability cycles B/E/I (recorded as reuse/regression; production from an earlier cycle of this ticket plus ADR-0048 ticket 01 was not deleted to manufacture red), Python post-count and snapshot-shape tests that do not themselves call the HTTP API (judgment cycles A–D and H do), and the unreachable-host path dropping `URLError`. Cycle J restores that failure as `ProbeCycleError`. Judgement: duplicated process-wait helpers, repeated agentId/hostId/sentAt, and `probe_cycle.py` holding both the runner and the stdin fixture.
+Spec: stories 1–6 are present. `subprocess_runner` was killing the command at `intervalSeconds`; cycle K removes that kill timer. `raw_evidence` invented `command error` when both streams were empty; cycle L keeps the raw output, including empty. No ADR-0049, no cause kinds, no AI text, no collaboration, no task push, no snapshot-wide hollow, no persisted 「恢复观测通道」.

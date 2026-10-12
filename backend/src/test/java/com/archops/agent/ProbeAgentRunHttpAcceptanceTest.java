@@ -313,6 +313,11 @@ class ProbeAgentRunHttpAcceptanceTest {
     }
 
     @Test
+    void silentNonZeroExitKeepsEmptyEvidence() throws Exception {
+        runPythonUnittest("test_probe_cycle.SilentFailureTests.test_silent_nonzero_exit_keeps_empty_evidence");
+    }
+
+    @Test
     void taskIntervalDoesNotKillTheCommand() throws Exception {
         runPythonUnittest("test_probe_cycle.SubprocessRunnerTests.test_task_interval_does_not_kill_the_command");
     }

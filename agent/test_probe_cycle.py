@@ -77,6 +77,20 @@ class SnapshotReportTests(unittest.TestCase):
         self.assertNotIn("kind", posts[1]["probeResults"][0])
 
 
+class SilentFailureTests(unittest.TestCase):
+    def test_silent_nonzero_exit_keeps_empty_evidence(self) -> None:
+        result = probe_cycle.result_for_task(
+            {"id": "task-silent"},
+            probe_cycle.CommandOutcome("", "", 1, False),
+        )
+        self.assertIsNotNone(result)
+        self.assertEqual("task-silent", result["taskId"])
+        self.assertFalse(result["readable"])
+        self.assertEqual("", result["evidence"])
+        self.assertNotIn("value", result)
+        self.assertNotIn("kind", result)
+
+
 class SubprocessRunnerTests(unittest.TestCase):
     def test_task_interval_does_not_kill_the_command(self) -> None:
         outcome = probe_cycle.subprocess_runner(

@@ -84,9 +84,7 @@ def structured_value(outcome: CommandOutcome):
 def raw_evidence(outcome: CommandOutcome) -> str:
     if outcome.stdout:
         return outcome.stdout
-    if outcome.stderr:
-        return outcome.stderr
-    return "command error"
+    return outcome.stderr
 
 
 def pull_and_report(
