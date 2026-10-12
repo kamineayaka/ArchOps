@@ -33,7 +33,7 @@ Environment overrides: `ARCHOPS_CONTROL_PLANE`, `ARCHOPS_AGENT_ID`, `ARCHOPS_HOS
 
 Stdlib only (no pip deps). Endpoint: `POST /api/agent/heartbeat`.
 
-The heartbeat response carries this agent's probe task list (ADR-0048). The agent pulls tasks on heartbeat and does not judge. The control plane judges each returned result.
+The heartbeat response carries this agent's probe task list (ADR-0048). This process runs each command locally and posts `probeResults` on the same ingest. It does not judge and it does not call a model. The control plane judges each returned result. An older process that ignores `probeTasks` can still heartbeat. Delivery remains the systemd unit; there is no task-push channel.
 
 ## systemd (delivery main path)
 

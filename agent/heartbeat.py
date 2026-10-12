@@ -12,9 +12,9 @@ import json
 import os
 import sys
 import time
-import urllib.error
-import urllib.request
 from datetime import datetime, timezone
+
+from probe_cycle import ProbeCycleError, post_heartbeat, pull_and_report, subprocess_runner
 
 
 def build_payload(
@@ -61,30 +61,6 @@ def build_payload(
         "identityLostObjectIds": identity_lost_object_ids,
     }
     return payload
-
-
-def emit_heartbeat(control_plane: str, payload: dict) -> int:
-    body = json.dumps(payload).encode("utf-8")
-    url = control_plane.rstrip("/") + "/api/agent/heartbeat"
-    req = urllib.request.Request(
-        url,
-        data=body,
-        headers={"Content-Type": "application/json", "User-Agent": "archops-agent-stub/0.2"},
-        method="POST",
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            raw = resp.read().decode("utf-8")
-            print(f"[ok] {resp.status} {url}")
-            print(raw)
-            return 0
-    except urllib.error.HTTPError as exc:
-        detail = exc.read().decode("utf-8", errors="replace")
-        print(f"[warn] HTTP {exc.code} {url}: {exc.reason}\n{detail}", file=sys.stderr)
-        return 1
-    except urllib.error.URLError as exc:
-        print(f"[warn] unreachable {url}: {exc.reason}", file=sys.stderr)
-        return 1
 
 
 def main() -> int:
@@ -172,7 +148,27 @@ def main() -> int:
             identity_lost_object_ids=args.identity_lost_object_id,
             unlabeled=args.unlabeled,
         )
-        return emit_heartbeat(args.control_plane, payload)
+        snapshot = payload.get("snapshot")
+
+        def poster(body: dict) -> dict:
+            response = post_heartbeat(args.control_plane, body)
+            print(f"[ok] {args.control_plane.rstrip('/')}/api/agent/heartbeat")
+            print(json.dumps(response))
+            return response
+
+        try:
+            pull_and_report(
+                args.control_plane,
+                args.agent_id,
+                args.host_id,
+                subprocess_runner,
+                snapshot=snapshot,
+                poster=poster,
+            )
+        except ProbeCycleError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+        return 0
 
     if args.interval <= 0:
         return once()
