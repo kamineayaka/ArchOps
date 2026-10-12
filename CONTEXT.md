@@ -2,13 +2,13 @@
 
 运维关系真相系统：以关系真相为主生命线，但产品成立需要三件套——关系真相、连接工作台、AI 诊断（含人审执行）。缺工作台或不能 AI 诊断（仅人看冲突图）均不算已成立。指标类可观测可后置。AI 自我迭代为 Later，但禁区与能力/权力分界已定：迭代只提升能力，不自动扩大权力。关系真相采用双轨（策展 / 观测）：策展是运维要达到的目的，观测是了解现场的方式之一；冲突是理想与实际的偏差。在技术与经济可行时，观测全流程拥有最高优先。v1 用一张统一图表达多种对象与关系，分层只是视图。
 
-**合同状态**：领域语义合同已冻结（见 ADR-0039）。冲突协作的身份句（归属 ≠ 处理人；仅已接受处理人可开/审/执行计划与确认关闭；用户、高级角色、一般角色、已知悉、自任、指派、接受作为领域概念）由 ADR-0046 取代。把规则分叉写成必须覆盖原因、并要求选支来自规则种类的句子，由 ADR-0047 取代。探测任务如何写成一条合并键的观测值，以及控制面如何判决交回，见 ADR-0048。K8s 节点职责分类仍称「角色」。运行时拓扑见 ADR-0044。本文件与有效 ADR 为实现依据；改语义须先立新 ADR。
+**合同状态**：领域语义合同已冻结（见 ADR-0039）。冲突协作的身份句（归属 ≠ 处理人；仅已接受处理人可开/审/执行计划与确认关闭；用户、高级角色、一般角色、已知悉、自任、指派、接受作为领域概念）由 ADR-0046 取代。把规则分叉写成必须覆盖原因、并要求选支来自规则种类的句子，由 ADR-0047 取代。探测任务如何写成一条合并键的观测值，以及控制面如何判决交回，见 ADR-0048。把编排层与控制面写成 HTTP / WebClient、并把三进程的交付目标写成镜像清单的句子，由 ADR-0049 取代。K8s 节点职责分类仍称「角色」。运行时拓扑见 ADR-0044。本文件与有效 ADR 为实现依据；改语义须先立新 ADR。
 
 **Agent 入口**：编码助手（含 Cursor Cloud Agent）必须先读根目录 `AGENTS.md` / `CLAUDE.md`，再读本文件、ADR-0043 与 ADR-0044。
 
 **实现接手**：脚手架已按 ADR-0043 重建。竖切 `.scratch/vertical-slice-mvp/issues/` 已闭合；改策展 `.scratch/change-curated-draft/issues/` 01–06 已闭合。下一刀 `.scratch/unbound-identity-rebind/issues/`（**frontier = 09**；Spec `docs/specs/unbound-identity-rebind.md`）；不复用已删旧域。ADR-0044 拆分实现另开工单，不写入未绑定票。
 
-**技术栈**：ADR-0043，并由 ADR-0044 修订进程切分。Java 21 / Spring Boot 3 / Gradle / MyBatis-Plus；React + Ant Design（同镜像静态）；PostgreSQL（v1 图也落 PG；图库 Later）；Redis（队列/锁/会话/缓存，多副本）；Python Host Agent（systemd）；执行引擎（MINA SSHD）；AI 编排层（WebClient 出站）；交付 `archops:latest` + 执行引擎 + 编排层 + Postgres + Redis。
+**技术栈**：ADR-0043，并由 ADR-0044 修订进程切分。Java 21 / Spring Boot 3 / Gradle / MyBatis-Plus；React + Ant Design（同镜像静态）；PostgreSQL（v1 图也落 PG；图库 Later）；Redis（队列/锁/会话/缓存，多副本）；Python Host Agent（systemd）；执行引擎（MINA SSHD）；编排层与控制面走 gRPC；控制面、执行引擎、AI 编排层在 Kubernetes 上各自独立部署（ADR-0049）。
 
 ## Language
 
