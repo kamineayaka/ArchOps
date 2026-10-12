@@ -1,5 +1,6 @@
 package com.archops.agent;
 
+import com.archops.conflict.ConflictDiagnosisWait;
 import com.archops.support.TestCredentialEncryptionKey;
 import com.archops.user.security.TempAuthHeaders;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -20,7 +21,10 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.concurrent.TimeUnit;
 
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -52,6 +56,7 @@ class ProbeAgentRunHttpAcceptanceTest {
     private static final String GENERAL_ID = "user-general-demo";
     private static final String COMMAND = "printf '{\"up\":true}'";
     private static final String EQUAL_STDOUT = "{\"up\": true}";
+    private static final String UNEQUAL_STDOUT = "{\"up\": false}";
 
     @LocalServerPort
     private int port;
@@ -96,6 +101,62 @@ class ProbeAgentRunHttpAcceptanceTest {
         assertFalse(responseBody.contains("无法归类"));
         assertFalse(responseBody.contains("RULES_WITH_LLM"));
         assertFalse(responseBody.contains("aiSuggestion"));
+    }
+
+    @Test
+    void readableUnequalCommandOutputOpensConflictWithRawEvidence() throws Exception {
+        String hostId = createHost("probe-run-b-host");
+        String taskId = createTask(hostId, COMMAND, 60);
+
+        JsonNode posted = runAgent(
+                "agent-probe-run-b",
+                hostId,
+                outcome(COMMAND, UNEQUAL_STDOUT, "", 0, false));
+
+        JsonNode result = posted.path("probeResults").path(0);
+        assertEquals(taskId, result.path("taskId").asText());
+        assertEquals(true, result.path("readable").asBoolean());
+        assertEquals(false, result.path("value").path("up").asBoolean());
+        assertEquals(UNEQUAL_STDOUT, result.path("evidence").asText());
+        assertFalse(result.has("judgment"));
+        assertFalse(result.has("kind"));
+
+        MvcResult task = mockMvc.perform(get("/api/probe-tasks/{id}", taskId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.judgment", is("CONFLICT")))
+                .andExpect(jsonPath("$.data.observationHollow", is(false)))
+                .andExpect(jsonPath("$.data.observedValue.up", is(false)))
+                .andExpect(jsonPath("$.data.evidence", is(UNEQUAL_STDOUT)))
+                .andExpect(jsonPath("$.data.conflictId", notNullValue()))
+                .andReturn();
+        String conflictId = objectMapper.readTree(task.getResponse().getContentAsString())
+                .path("data").path("conflictId").asText();
+
+        mockMvc.perform(get("/api/conflicts/{id}", conflictId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("OPEN")))
+                .andExpect(jsonPath("$.data.evidence", is(UNEQUAL_STDOUT)))
+                .andExpect(jsonPath("$.data.curatedStructured.up", is(true)))
+                .andExpect(jsonPath("$.data.observedStructured.up", is(false)));
+
+        ConflictDiagnosisWait.waitUntilReady(mockMvc, objectMapper, conflictId, GENERAL_ID);
+        MvcResult diagnosis = mockMvc.perform(get("/api/conflicts/{id}/diagnosis", conflictId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.source", is("RULES")))
+                .andExpect(jsonPath("$.data.forks", hasSize(2)))
+                .andExpect(jsonPath("$.data.forks[*].id", containsInAnyOrder(
+                        "FIX_ACTUAL_TO_CURATED", "CHANGE_CURATED_TO_OBSERVED")))
+                .andReturn();
+        String diagnosisBody = diagnosis.getResponse().getContentAsString();
+        assertFalse(diagnosisBody.contains("\"kind\""));
+        assertFalse(diagnosisBody.contains("无法归类"));
+        assertFalse(diagnosisBody.contains("RULES_WITH_LLM"));
     }
 
     private JsonNode runAgent(String agentId, String hostId, ObjectNode outcomes) throws Exception {

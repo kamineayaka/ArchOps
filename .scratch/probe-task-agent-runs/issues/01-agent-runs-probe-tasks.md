@@ -9,7 +9,7 @@
 **TDD:** capability。主接缝为控制面 HTTP API（现有 Agent ingest）。命令执行用可注入 runner，不要求真实主机、SSH 或 MINA。合同：ADR-0048。Spec：[`docs/specs/probe-task-agent-runs.md`](../../../docs/specs/probe-task-agent-runs.md)。
 
 - [x] Agent 拉取任务并用注入 runner 执行；stdout `{"up": true}` 交回后 `judgment=NORMAL`，无冲突，不进 AI
-- [ ] stdout `{"up": false}` 交回后冲突附该原文；诊断只有 `FIX_ACTUAL_TO_CURATED` 与 `CHANGE_CURATED_TO_OBSERVED`，没有 `kind`，没有「无法归类」
+- [x] stdout `{"up": false}` 交回后冲突附该原文；诊断只有 `FIX_ACTUAL_TO_CURATED` 与 `CHANGE_CURATED_TO_OBSERVED`，没有 `kind`，没有「无法归类」
 - [ ] 读不出（`command error`）交回 `readable=false`，该任务 `judgment=HOLLOW`，不是冲突
 - [ ] 命令超时则不交回；`intervalSeconds=0` 时 `scan-overdue` 将该任务列入 `hollowedTaskIds`，`judgment=HOLLOW`，`evidence` 为空
 - [ ] 同一主机两条任务独立：一条超时只使自己 HOLLOW，另一条相等的仍是 NORMAL
@@ -25,4 +25,10 @@ Red command: `cd backend && ./gradlew test --tests com.archops.agent.ProbeAgentR
 `AssertionFailedError: agent exit 2 stdout= stderr=python3: can't open file '/workspace/agent/probe_cycle.py': [Errno 2] No such file or directory`
 Green command: same test, exit 0. `judgment=NORMAL`, `conflictId` null, evidence `{"up": true}`, no AI fields.
 Refactor: `CommandOutcome` names the runner result; heartbeat errors raise `ProbeCycleError` instead of `SystemExit`. Same test re-run, exit 0.
-Commit: (this slice) Have the host agent post a probe result that matches the curated value.
+Commit: `e021107` Have the host agent post a probe result that matches the curated value.
+
+### Cycle B — readable stdout that differs opens a conflict with that raw output
+Red command: `cd backend && ./gradlew test --tests com.archops.agent.ProbeAgentRunHttpAcceptanceTest.readableUnequalCommandOutputOpensConflictWithRawEvidence --offline`
+reuse/regression: first run exit 0. The agent posts parsed stdout without comparing it to the curated value (`results_for_tasks` from `readableEqualCommandOutputIsNormalWithoutConflict`). The control plane already opens the conflict in `ProbeTaskJudgmentHttpAcceptanceTest.readableUnequalOpensConflictWithEvidenceAndResolutionActions`.
+Refactor: no structural change.
+Commit: (this slice) Lock the unequal probe stdout to the existing conflict judgment.
