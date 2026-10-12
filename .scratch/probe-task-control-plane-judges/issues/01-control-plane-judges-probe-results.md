@@ -14,7 +14,7 @@
 - [x] 可读且不等于策展值：冲突附原始证据 `stdout=down`；诊断只有 `FIX_ACTUAL_TO_CURATED` 与 `CHANGE_CURATED_TO_OBSERVED`，没有 `kind`，没有「无法归类」
 - [x] 读不出：`judgment=HOLLOW`，不是冲突
 - [x] 已拉取且 `intervalSeconds=0` 仍未交回：`scan-overdue` 把该任务列入 `hollowedTaskIds`，`judgment=HOLLOW`，不是冲突
-- [ ] 同一主机两条任务独立：一条读不出只使自己 HOLLOW，另一条相等的仍是 NORMAL
+- [x] 同一主机两条任务独立：一条读不出只使自己 HOLLOW，另一条相等的仍是 NORMAL
 - [ ] 第二台 Agent 心跳拿不到任务；它交回结果为 `PROBE_AGENT_ALREADY_BOUND`
 
 **Out of this ticket:** Agent 停机掏空全部快照观测、AI 建议正文、任务推送、SSH 执行命令、重新打包 Agent、Kubernetes、编排层 gRPC、前端、原因种类、「无法归类」。
@@ -61,4 +61,17 @@ Red command: `cd backend && ./gradlew test --tests com.archops.observed.ProbeTas
 `AssertionError` at line 226 (`POST /api/probe-tasks/scan-overdue` was 404).
 Green command: same test, exit 0. `hollowedTaskIds` contains the task; `judgment=HOLLOW`; `conflictId` null.
 Refactor: pull records `dueAt`; judgment clears the awaiting window.
-Commit: (cycle F)
+Commit: `67bfc57` Hollow a pulled probe task that was not returned by its due time.
+
+### Cycle G — one hollow task does not hollow another task on the same host
+Red command: `cd backend && ./gradlew test --tests com.archops.observed.ProbeTaskJudgmentHttpAcceptanceTest.oneTaskHollowDoesNotHollowAnotherTaskOnTheSameHost --offline`
+reuse/regression: first run exit 0. Covered by `judgeOne` per task (`readableEqualCuratedValueIsNormalWithoutConflict`, `unreadableResultIsHollowNotConflict`).
+Refactor: `joinResults` builds one heartbeat body.
+Commit: `6d24b39` Keep probe tasks on one host independent when one result is unreadable.
+
+### Cycle H — a second agent does not become a second probe agent
+Red command: `cd backend && ./gradlew test --tests com.archops.observed.ProbeTaskJudgmentHttpAcceptanceTest.secondProbeAgentDoesNotReceiveTasksOrSubmitResults --offline`
+`AssertionError` at line 287 (`probeTasks` was not empty for the second agent).
+Green command: same test, exit 0. Second heartbeat `probeTasks` length 0; its result is `PROBE_AGENT_ALREADY_BOUND`; the first agent can still report `NORMAL`.
+Refactor: `claimOrMatchProbeAgent` names the first-pull binding.
+Commit: (cycle H)

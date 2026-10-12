@@ -8,11 +8,13 @@ import com.archops.conflict.service.ConflictDetectionService;
 import com.archops.curated.domain.CuratedObject;
 import com.archops.curated.domain.CuratedObjectKind;
 import com.archops.curated.mapper.CuratedObjectMapper;
+import com.archops.observed.domain.ProbeAgentBinding;
 import com.archops.observed.domain.ProbeJudgment;
 import com.archops.observed.domain.ProbeTask;
 import com.archops.observed.dto.CreateProbeTaskRequest;
 import com.archops.observed.dto.ProbeOverdueScanResponse;
 import com.archops.observed.dto.ProbeTaskResponse;
+import com.archops.observed.mapper.ProbeAgentBindingMapper;
 import com.archops.observed.mapper.ProbeJudgmentMapper;
 import com.archops.observed.mapper.ProbeTaskMapper;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -44,6 +46,7 @@ public class ProbeTaskService {
 
     private final ProbeTaskMapper probeTaskMapper;
     private final ProbeJudgmentMapper probeJudgmentMapper;
+    private final ProbeAgentBindingMapper probeAgentBindingMapper;
     private final CuratedObjectMapper curatedObjectMapper;
     private final ConflictDetectionService conflictDetectionService;
     private final PersistentJson persistentJson;
@@ -52,6 +55,7 @@ public class ProbeTaskService {
     public ProbeTaskService(
             ProbeTaskMapper probeTaskMapper,
             ProbeJudgmentMapper probeJudgmentMapper,
+            ProbeAgentBindingMapper probeAgentBindingMapper,
             CuratedObjectMapper curatedObjectMapper,
             ConflictDetectionService conflictDetectionService,
             PersistentJson persistentJson,
@@ -59,6 +63,7 @@ public class ProbeTaskService {
     ) {
         this.probeTaskMapper = probeTaskMapper;
         this.probeJudgmentMapper = probeJudgmentMapper;
+        this.probeAgentBindingMapper = probeAgentBindingMapper;
         this.curatedObjectMapper = curatedObjectMapper;
         this.conflictDetectionService = conflictDetectionService;
         this.persistentJson = persistentJson;
@@ -84,10 +89,11 @@ public class ProbeTaskService {
     }
 
     @Transactional
-    public void acceptResults(String hostId, List<AgentHeartbeatRequest.ProbeResult> results) {
+    public void acceptResults(String hostId, String agentId, List<AgentHeartbeatRequest.ProbeResult> results) {
         if (results == null || results.isEmpty()) {
             return;
         }
+        requireThisProbeAgent(hostId, agentId);
         Instant now = Instant.now();
         for (AgentHeartbeatRequest.ProbeResult result : results) {
             judgeOne(requireTaskOnHost(result.taskId(), hostId), result, now);
@@ -117,11 +123,14 @@ public class ProbeTaskService {
     }
 
     @Transactional
-    public List<AgentHeartbeatResponse.ProbeTaskAssignment> assignmentsForHost(String hostId) {
+    public List<AgentHeartbeatResponse.ProbeTaskAssignment> assignmentsForHost(String hostId, String agentId) {
         List<ProbeTask> tasks = probeTaskMapper.selectList(new LambdaQueryWrapper<ProbeTask>()
                 .eq(ProbeTask::getHostId, hostId)
                 .orderByAsc(ProbeTask::getCreatedAt));
         Instant now = Instant.now(clock);
+        if (tasks.isEmpty() || !claimOrMatchProbeAgent(hostId, agentId, now)) {
+            return List.of();
+        }
         for (ProbeTask task : tasks) {
             notePull(task, now);
         }
@@ -209,6 +218,33 @@ public class ProbeTaskService {
                 .set(ProbeJudgment::getConflictId, conflictId)
                 .set(ProbeJudgment::getJudgedAt, now));
         clearAwaiting(taskId);
+    }
+
+    /**
+     * First agent to pull tasks on a host becomes its only probe agent.
+     * A different agent keeps a normal heartbeat but receives no tasks.
+     */
+    private boolean claimOrMatchProbeAgent(String hostId, String agentId, Instant now) {
+        ProbeAgentBinding binding = probeAgentBindingMapper.selectById(hostId);
+        if (binding == null) {
+            ProbeAgentBinding created = new ProbeAgentBinding();
+            created.setHostId(hostId);
+            created.setAgentId(agentId);
+            created.setBoundAt(now);
+            probeAgentBindingMapper.insert(created);
+            return true;
+        }
+        return binding.getAgentId().equals(agentId);
+    }
+
+    private void requireThisProbeAgent(String hostId, String agentId) {
+        ProbeAgentBinding binding = probeAgentBindingMapper.selectById(hostId);
+        if (binding != null && !binding.getAgentId().equals(agentId)) {
+            throw new BusinessException(
+                    "PROBE_AGENT_ALREADY_BOUND",
+                    "This host already has a probe agent"
+            );
+        }
     }
 
     private void notePull(ProbeTask task, Instant now) {
