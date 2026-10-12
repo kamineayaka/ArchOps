@@ -17,6 +17,7 @@ import com.archops.plan.service.OperationPlanService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,6 +39,8 @@ import java.util.UUID;
 public class ConflictDetectionService {
 
     private static final String IDENTITY_LOST_REASON = "identity_lost";
+    private static final TypeReference<JsonNode> JSON_NODE = new TypeReference<>() {
+    };
     private static final String CONFLICT_UPGRADE_REASON = "conflict_upgrade";
 
     private static final List<ConflictStatus> ACTIVE = List.of(
@@ -210,6 +213,81 @@ public class ConflictDetectionService {
         ));
         conflictDiagnosisService.scheduleAsyncDiagnosis(created.getId());
         return created.getId();
+    }
+
+    /**
+     * A later unreadable or overdue probe result makes that task 观测空洞.
+     * An already open probe conflict is suspended, not left open, and not closed.
+     */
+    @Transactional
+    public void onProbeBecameHollow(String probeTaskId) {
+        ConflictCase active = findActiveProbe(probeTaskId);
+        if (active == null || active.getStatus() == ConflictStatus.SUSPENDED) {
+            return;
+        }
+        if (active.getStatus() != ConflictStatus.OPEN && active.getStatus() != ConflictStatus.PENDING_CLOSE) {
+            return;
+        }
+        Instant now = Instant.now();
+        conflictCaseMapper.update(null, new LambdaUpdateWrapper<ConflictCase>()
+                .eq(ConflictCase::getId, active.getId())
+                .in(ConflictCase::getStatus, List.of(ConflictStatus.OPEN, ConflictStatus.PENDING_CLOSE))
+                .set(ConflictCase::getStatus, ConflictStatus.SUSPENDED)
+                .set(ConflictCase::getSuspendedAt, now)
+                .set(ConflictCase::getPendingCloseAt, null)
+                .set(ConflictCase::getUpdatedAt, now));
+        conflictEventService.append(active.getId(), ConflictEventType.SUSPENDED, null, Map.of(
+                "reason", "observation_hollow",
+                "probeTaskId", probeTaskId
+        ));
+        voidActivePlans(active.getId(), "observation_hollow");
+        curatedDraftService.voidOpenForConflict(active.getId(), "observation_hollow");
+        conflictDiagnosisService.scheduleAsyncDiagnosis(active.getId());
+    }
+
+    /**
+     * A later readable result equal to the curated value does not auto-close.
+     * An open or hollow-suspended probe conflict becomes 待确认关闭.
+     */
+    @Transactional
+    public void onProbeBecameEqual(String probeTaskId, String observedJson) {
+        ConflictCase active = findActiveProbe(probeTaskId);
+        if (active == null || active.getStatus() == ConflictStatus.PENDING_CLOSE
+                || active.getStatus() == ConflictStatus.CLOSED) {
+            return;
+        }
+        Instant now = Instant.now();
+        conflictCaseMapper.update(null, new LambdaUpdateWrapper<ConflictCase>()
+                .eq(ConflictCase::getId, active.getId())
+                .in(ConflictCase::getStatus, List.of(ConflictStatus.OPEN, ConflictStatus.SUSPENDED))
+                .set(ConflictCase::getStatus, ConflictStatus.PENDING_CLOSE)
+                .set(ConflictCase::getObservedValueJson, observedJson)
+                .set(ConflictCase::getPendingCloseAt, now)
+                .set(ConflictCase::getSuspendedAt, null)
+                .set(ConflictCase::getUpdatedAt, now));
+        conflictEventService.append(active.getId(), ConflictEventType.PENDING_CLOSE, null, Map.of(
+                "probeTaskId", probeTaskId
+        ));
+    }
+
+    @Transactional(readOnly = true)
+    public boolean probeValuesEqual(ConflictCase row) {
+        JsonNode curated = readProbeValue(row.getCuratedValueJson());
+        JsonNode observed = readProbeValue(row.getObservedValueJson());
+        return curated != null && curated.equals(observed);
+    }
+
+    private JsonNode readProbeValue(String json) {
+        if (json == null || json.isBlank()) {
+            return null;
+        }
+        return persistentJson.read(json, JSON_NODE, null);
+    }
+
+    private ConflictCase findActiveProbe(String probeTaskId) {
+        return conflictCaseMapper.selectOne(new LambdaQueryWrapper<ConflictCase>()
+                .eq(ConflictCase::getProbeTaskId, probeTaskId)
+                .in(ConflictCase::getStatus, ACTIVE));
     }
 
     /**

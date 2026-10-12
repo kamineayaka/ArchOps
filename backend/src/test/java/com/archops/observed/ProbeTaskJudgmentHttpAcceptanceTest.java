@@ -307,6 +307,86 @@ class ProbeTaskJudgmentHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data.conflictId", nullValue()));
     }
 
+    @Test
+    void unreadableAfterConflictSuspendsTheCase() throws Exception {
+        String hostId = createHost("probe-i-host");
+        String taskId = createTask(hostId, 60);
+
+        mockMvc.perform(post("/api/agent/heartbeat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(heartbeatJson("agent-probe-i", hostId, readableResult(taskId, false, "stdout=down")))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+        String conflictId = objectMapper.readTree(mockMvc.perform(get("/api/probe-tasks/{id}", taskId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.data.judgment", is("CONFLICT")))
+                .andReturn().getResponse().getContentAsString())
+                .path("data").path("conflictId").asText();
+
+        mockMvc.perform(post("/api/agent/heartbeat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(heartbeatJson("agent-probe-i", hostId, unreadableResult(taskId)))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/probe-tasks/{id}", taskId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.judgment", is("HOLLOW")))
+                .andExpect(jsonPath("$.data.conflictId", nullValue()));
+
+        mockMvc.perform(get("/api/conflicts/{id}", conflictId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("SUSPENDED")))
+                .andExpect(jsonPath("$.data.observationHollow", is(true)));
+    }
+
+    @Test
+    void equalAfterConflictMovesToPendingClose() throws Exception {
+        String hostId = createHost("probe-j-host");
+        String taskId = createTask(hostId, 60);
+
+        mockMvc.perform(post("/api/agent/heartbeat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(heartbeatJson("agent-probe-j", hostId, readableResult(taskId, false, "stdout=down")))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+        String conflictId = objectMapper.readTree(mockMvc.perform(get("/api/probe-tasks/{id}", taskId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andReturn().getResponse().getContentAsString())
+                .path("data").path("conflictId").asText();
+
+        mockMvc.perform(post("/api/agent/heartbeat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(heartbeatJson("agent-probe-j", hostId, readableResult(taskId, true, "stdout=up")))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/probe-tasks/{id}", taskId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.judgment", is("NORMAL")))
+                .andExpect(jsonPath("$.data.observedValue.up", is(true)));
+
+        mockMvc.perform(get("/api/conflicts/{id}", conflictId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("PENDING_CLOSE")))
+                .andExpect(jsonPath("$.data.observationHollow", is(false)));
+
+        mockMvc.perform(post("/api/conflicts/{id}/confirm-close", conflictId)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("CLOSED")));
+    }
+
     private String createHost(String name) throws Exception {
         MvcResult result = mockMvc.perform(post("/api/curated/hosts")
                         .header(TempAuthHeaders.USER_ID, GENERAL_ID)

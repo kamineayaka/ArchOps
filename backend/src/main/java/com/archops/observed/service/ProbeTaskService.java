@@ -104,7 +104,9 @@ public class ProbeTaskService {
         JsonNode value = result.value();
         boolean hasValue = value != null && !value.isNull() && !value.isMissingNode();
         if (result.readable() && hasValue && readExpected(task).equals(value)) {
-            saveJudgment(task.getId(), JUDGMENT_NORMAL, persistentJson.write(value), result.evidence(), null, now);
+            String observedJson = persistentJson.write(value);
+            saveJudgment(task.getId(), JUDGMENT_NORMAL, observedJson, result.evidence(), null, now);
+            conflictDetectionService.onProbeBecameEqual(task.getId(), observedJson);
             return;
         }
         if (result.readable() && hasValue) {
@@ -120,6 +122,7 @@ public class ProbeTaskService {
             return;
         }
         saveJudgment(task.getId(), JUDGMENT_HOLLOW, null, result.evidence(), null, now);
+        conflictDetectionService.onProbeBecameHollow(task.getId());
     }
 
     @Transactional
@@ -146,6 +149,7 @@ public class ProbeTaskService {
         List<String> hollowed = new ArrayList<>();
         for (ProbeTask task : due) {
             saveJudgment(task.getId(), JUDGMENT_HOLLOW, null, null, null, now);
+            conflictDetectionService.onProbeBecameHollow(task.getId());
             hollowed.add(task.getId());
         }
         return new ProbeOverdueScanResponse(hollowed);
