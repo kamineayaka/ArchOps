@@ -19,13 +19,13 @@ public final class DiagnosisRuleEngine {
     }
 
     /**
-     * Pure 观测空洞: only restore observation channel / heartbeat / verification forks.
-     * Never guess a unique physical fix from expired actuals.
+     * 观测空洞: the only resolution action is 恢复观测通道.
+     * Do not offer a physical fix from expired actuals.
      */
     public static RuleResult diagnoseHollow(String curatedHostId, String curatedHostName) {
         ConflictDiagnosisResponse.ForkSuggestion fork = new ConflictDiagnosisResponse.ForkSuggestion(
                 RESTORE_HEARTBEAT_CHANNEL,
-                "恢复观测通道/心跳/核验",
+                "恢复观测通道",
                 "观测因心跳超时进入空洞，当前无可用实际",
                 "先恢复 Host Agent 心跳与状态快照；禁止用过期实际给出唯一落点或继续执行指向旧实际的计划。"
         );

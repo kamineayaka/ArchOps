@@ -10,7 +10,7 @@
 
 - [x] 两侧可读且不等：诊断列出 `FIX_ACTUAL_TO_CURATED` 与 `CHANGE_CURATED_TO_OBSERVED`，文案含修实际与改理想；响应没有原因种类 `kind`，也没有「无法归类」
 - [ ] 请求改理想仍打开逐条草案，且在条目接受前不写策展；请求修实际仍打开待审操作计划
-- [ ] 观测空洞：诊断只有恢复观测通道（`RESTORE_HEARTBEAT_CHANNEL`，文案「恢复观测通道」），不提供凭过期实际的修现场
+- [x] 观测空洞：诊断只有恢复观测通道（`RESTORE_HEARTBEAT_CHANNEL`，文案「恢复观测通道」），不提供凭过期实际的修现场
 - [ ] 身份失联仍是冲突标志；诊断没有 `EXPLAIN_IDENTITY_LOST`，也不把修实际 / 改理想当成唯一落点
 - [ ] 不新增原因枚举，不新增「无法归类」
 
@@ -23,4 +23,11 @@ Red command: `cd backend && ./gradlew test --tests com.archops.conflict.Resoluti
 `AssertionFailedError` at line 68: fork `FIX_ACTUAL_TO_CURATED` still had `"kind":"FIX_ACTUAL"` (expected kind to be absent).
 Green command: same test, exit 0. Diagnosis forks no longer carry `kind`. Branch selection matches the action id.
 Refactor: engine comment states it lists resolution actions, not a cause catalog. Older HTTP tests stop requiring the removed kind field.
+Commit: `53a4575` Stop carrying a cause kind on readable unequal resolution actions.
+
+### Cycle B — 观测空洞 offers only 恢复观测通道
+Red command: `cd backend && ./gradlew test --tests com.archops.conflict.ResolutionActionHttpAcceptanceTest.hollowOffersOnlyRestoreObservationChannel --offline`
+`AssertionFailedError` at line 135: expected label `恢复观测通道` but was `恢复观测通道/心跳/核验`.
+Green command: same test, exit 0. The hollow action id stays `RESTORE_HEARTBEAT_CHANNEL`; the label is the one resolution action. 修实际 and 改理想 are absent.
+Refactor: hollow method comment names the single action.
 Commit: pending.
