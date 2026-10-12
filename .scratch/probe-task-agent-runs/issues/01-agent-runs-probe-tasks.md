@@ -65,4 +65,11 @@ Red command: `cd agent && python3 -m unittest test_probe_cycle.SnapshotReportTes
 `TypeError: pull_and_report() got an unexpected keyword argument 'snapshot'`
 Green command: same unittest, exit 0. First post carries `snapshot` and no `probeResults`; second post carries `probeResults` and no `snapshot`.
 Refactor: Gradle hooks share `runPythonUnittest`. Both hooks re-run, exit 0.
-Commit: (this slice) Keep the probe result heartbeat from repeating the snapshot.
+Commit: `db48d25` Keep the probe result heartbeat from repeating the snapshot.
+
+### Cycle H — the heartbeat process runs the pulled command and posts it
+Red command: `cd backend && ./gradlew test --tests com.archops.agent.ProbeAgentRunHttpAcceptanceTest.heartbeatProcessRunsThePulledCommandAndPostsIt --offline`
+`AssertionError: JSON path "$.data.judgment" Expected: is "NORMAL" but: was "HOLLOW"`
+Green command: same test, exit 0. `evidence` is `{"up":true}`, `conflictId` null.
+Refactor: `heartbeat.py` delegates to `pull_and_report` with `subprocess_runner`. Contract and README say an older process that ignores `probeTasks` can still heartbeat.
+Commit: (this slice) Run pulled probe commands from the host agent heartbeat.

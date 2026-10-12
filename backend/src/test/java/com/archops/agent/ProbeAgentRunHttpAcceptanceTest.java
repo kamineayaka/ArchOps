@@ -268,6 +268,25 @@ class ProbeAgentRunHttpAcceptanceTest {
     }
 
     @Test
+    void heartbeatProcessRunsThePulledCommandAndPostsIt() throws Exception {
+        String hostId = createHost("probe-run-h-host");
+        String command = "printf '{\"up\":true}'";
+        String taskId = createTask(hostId, command, 60);
+
+        runHeartbeatProcess("agent-probe-run-h", hostId);
+
+        mockMvc.perform(get("/api/probe-tasks/{id}", taskId)
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.judgment", is("NORMAL")))
+                .andExpect(jsonPath("$.data.observationHollow", is(false)))
+                .andExpect(jsonPath("$.data.observedValue.up", is(true)))
+                .andExpect(jsonPath("$.data.evidence", is("{\"up\":true}")))
+                .andExpect(jsonPath("$.data.conflictId", nullValue()));
+    }
+
+    @Test
     void emptyPullDoesNotSubmitProbeResults() throws Exception {
         runPythonUnittest("test_probe_cycle.NoTasksTests.test_no_tasks_posts_one_heartbeat_without_probe_results");
     }
@@ -275,6 +294,29 @@ class ProbeAgentRunHttpAcceptanceTest {
     @Test
     void resultReportOmitsSnapshot() throws Exception {
         runPythonUnittest("test_probe_cycle.SnapshotReportTests.test_result_post_omits_snapshot");
+    }
+
+    private void runHeartbeatProcess(String agentId, String hostId) throws Exception {
+        Path script = Path.of("..", "agent", "heartbeat.py").toAbsolutePath().normalize();
+        Process process = new ProcessBuilder(
+                "python3",
+                script.toString(),
+                "--control-plane",
+                "http://127.0.0.1:" + port,
+                "--agent-id",
+                agentId,
+                "--host-id",
+                hostId,
+                "--interval",
+                "0")
+                .start();
+        boolean finished = process.waitFor(30, TimeUnit.SECONDS);
+        String stdout = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+        String stderr = new String(process.getErrorStream().readAllBytes(), StandardCharsets.UTF_8);
+        if (!finished || process.exitValue() != 0) {
+            fail("heartbeat exit " + (finished ? process.exitValue() : "timeout")
+                    + " stdout=" + stdout + " stderr=" + stderr);
+        }
     }
 
     private void runPythonUnittest(String testName) throws Exception {
