@@ -12,11 +12,12 @@ import {
   Typography,
   message,
 } from 'antd';
-import { getDiagnosis } from '../api/conflicts';
+import { confirmCloseConflict, getConflict, getDiagnosis } from '../api/conflicts';
 import { createHost } from '../api/curated';
+import { acceptDraftItem, rejectDraftItem } from '../api/drafts';
 import { createProbeTask, getProbeTask, type ProbeTask } from '../api/probeTasks';
 import { selectBranch } from '../api/plans';
-import type { ConflictDiagnosis, CuratedDraft, OperationPlan } from '../api/types';
+import type { ConflictCase, ConflictDiagnosis, CuratedDraft, OperationPlan } from '../api/types';
 import { ApiError } from '../api/types';
 
 const { Title, Paragraph, Text } = Typography;
@@ -105,6 +106,7 @@ export default function ProbeTasksPage() {
   const [tasks, setTasks] = useState<ProbeTask[]>([]);
   const [plans, setPlans] = useState<Record<string, OperationPlan>>({});
   const [drafts, setDrafts] = useState<Record<string, CuratedDraft>>({});
+  const [conflicts, setConflicts] = useState<Record<string, ConflictCase>>({});
   const [restored, setRestored] = useState<Record<string, boolean>>({});
   const [busyId, setBusyId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -225,6 +227,53 @@ export default function ProbeTasksPage() {
       setDrafts((current) => ({ ...current, [task.id]: result }));
       await reloadOne(task.id);
       message.success('已打开草案，策展值未写入');
+    } catch (err) {
+      const msg = envelopeMessage(err);
+      setError(msg);
+      message.error(msg);
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const reviewDraftItem = async (task: ProbeTask, itemId: string, decision: 'accept' | 'reject') => {
+    const draft = drafts[task.id];
+    if (!draft?.conflictId) {
+      return;
+    }
+    setBusyId(task.id);
+    setError(null);
+    try {
+      const next =
+        decision === 'accept'
+          ? await acceptDraftItem(draft.conflictId, itemId)
+          : await rejectDraftItem(draft.conflictId, itemId);
+      setDrafts((current) => ({ ...current, [task.id]: next }));
+      await reloadOne(task.id);
+      const conflict = await getConflict(draft.conflictId);
+      setConflicts((current) => ({ ...current, [task.id]: conflict }));
+      message.success(decision === 'accept' ? '已接受条目并写入策展' : '已拒绝条目，策展未改');
+    } catch (err) {
+      const msg = envelopeMessage(err);
+      setError(msg);
+      message.error(msg);
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const confirmClose = async (taskId: string) => {
+    const conflict = conflicts[taskId];
+    if (!conflict) {
+      return;
+    }
+    setBusyId(taskId);
+    setError(null);
+    try {
+      const closed = await confirmCloseConflict(conflict.id);
+      setConflicts((current) => ({ ...current, [taskId]: closed }));
+      await reloadOne(taskId);
+      message.success('已确认关闭');
     } catch (err) {
       const msg = envelopeMessage(err);
       setError(msg);
@@ -373,14 +422,53 @@ export default function ProbeTasksPage() {
             ) : null}
 
             {draft ? (
-              <Descriptions column={1} size="small" style={{ marginTop: 12 }} title="改理想草案">
-                <Descriptions.Item label="草案">{draft.id}</Descriptions.Item>
-                <Descriptions.Item label="状态">{draft.status}</Descriptions.Item>
-                <Descriptions.Item label="条目">
-                  {draft.items.map((item) => item.status).join(', ') || '—'}
-                </Descriptions.Item>
-                <Descriptions.Item label="策展">确认前不是策展。上面的策展值尚未改写。</Descriptions.Item>
-              </Descriptions>
+              <div style={{ marginTop: 12 }}>
+                <Descriptions column={1} size="small" title="改理想草案">
+                  <Descriptions.Item label="草案">{draft.id}</Descriptions.Item>
+                  <Descriptions.Item label="状态">{draft.status}</Descriptions.Item>
+                </Descriptions>
+                {draft.items.map((item) => (
+                  <Space key={item.id} wrap style={{ marginTop: 8 }}>
+                    <Tag>{item.status}</Tag>
+                    <Text>把观测结构化值写成策展</Text>
+                    {draft.status === 'OPEN' && item.status === 'PENDING' ? (
+                      <>
+                        <Button
+                          type="primary"
+                          size="small"
+                          loading={busyId === task.id}
+                          onClick={() => void reviewDraftItem(task, item.id, 'accept')}
+                        >
+                          接受
+                        </Button>
+                        <Button
+                          size="small"
+                          danger
+                          loading={busyId === task.id}
+                          onClick={() => void reviewDraftItem(task, item.id, 'reject')}
+                        >
+                          拒绝
+                        </Button>
+                      </>
+                    ) : null}
+                  </Space>
+                ))}
+                {draft.items.some((item) => item.status === 'PENDING') ? (
+                  <Paragraph type="secondary" style={{ marginTop: 8, marginBottom: 0 }}>
+                    确认前不是策展。上面的策展值尚未改写。
+                  </Paragraph>
+                ) : null}
+                {conflicts[task.id]?.status === 'PENDING_CLOSE' ? (
+                  <div style={{ marginTop: 8 }}>
+                    <Button type="primary" loading={busyId === task.id} onClick={() => void confirmClose(task.id)}>
+                      确认关闭
+                    </Button>
+                  </div>
+                ) : null}
+                {conflicts[task.id]?.status === 'CLOSED' ? (
+                  <Paragraph style={{ marginTop: 8, marginBottom: 0 }}>冲突已确认关闭。</Paragraph>
+                ) : null}
+              </div>
             ) : null}
           </Card>
         );
