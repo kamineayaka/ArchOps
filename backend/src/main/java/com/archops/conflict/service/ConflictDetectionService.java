@@ -182,6 +182,10 @@ public class ConflictDetectionService {
                 .eq(ConflictCase::getProbeTaskId, probeTaskId)
                 .in(ConflictCase::getStatus, ACTIVE));
         if (existing != null) {
+            if (existing.getStatus() == ConflictStatus.PENDING_CLOSE) {
+                reopenProbeFromPendingClose(existing, curatedJson, observedJson, evidence, now);
+                return existing.getId();
+            }
             conflictCaseMapper.update(null, new LambdaUpdateWrapper<ConflictCase>()
                     .eq(ConflictCase::getId, existing.getId())
                     .set(ConflictCase::getEvidence, evidence)
@@ -213,6 +217,33 @@ public class ConflictDetectionService {
         ));
         conflictDiagnosisService.scheduleAsyncDiagnosis(created.getId());
         return created.getId();
+    }
+
+    /**
+     * A newer unequal probe result after 待确认关闭 leaves that state.
+     * Same conflict, curated JSON stays the value just written, open 改理想 draft is voided.
+     */
+    private void reopenProbeFromPendingClose(
+            ConflictCase pending,
+            String curatedJson,
+            String observedJson,
+            String evidence,
+            Instant now
+    ) {
+        conflictCaseMapper.update(null, new LambdaUpdateWrapper<ConflictCase>()
+                .eq(ConflictCase::getId, pending.getId())
+                .eq(ConflictCase::getStatus, ConflictStatus.PENDING_CLOSE)
+                .set(ConflictCase::getStatus, ConflictStatus.OPEN)
+                .set(ConflictCase::getEvidence, evidence)
+                .set(ConflictCase::getCuratedValueJson, curatedJson)
+                .set(ConflictCase::getObservedValueJson, observedJson)
+                .set(ConflictCase::getPendingCloseAt, null)
+                .set(ConflictCase::getUpdatedAt, now));
+        conflictEventService.append(pending.getId(), ConflictEventType.UPGRADED, null, Map.of(
+                "reason", "drift_after_pending_close",
+                "probeTaskId", pending.getProbeTaskId() == null ? "" : pending.getProbeTaskId()
+        ));
+        voidOpenDraftsAndPlansThenRediagnose(pending.getId());
     }
 
     /**

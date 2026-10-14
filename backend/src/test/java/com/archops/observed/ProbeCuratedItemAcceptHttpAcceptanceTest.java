@@ -110,6 +110,51 @@ class ProbeCuratedItemAcceptHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data.status", is("CLOSED")));
     }
 
+    @Test
+    void newerUnequalResultBeforeConfirmCloseReopensTheSameConflict() throws Exception {
+        OpenProbeDraft draft = openProbeChangeCuratedDraft("probe-drift-host", "agent-probe-drift");
+        acceptItem(draft);
+
+        mockMvc.perform(post("/api/agent/heartbeat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(heartbeat(draft.agentId(), draft.taskId(), draft.hostId(), true, "stdout=up"))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/conflicts/{id}", draft.conflictId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("OPEN")))
+                .andExpect(jsonPath("$.data.curatedStructured.up", is(false)))
+                .andExpect(jsonPath("$.data.observedStructured.up", is(true)));
+
+        mockMvc.perform(get("/api/probe-tasks/{id}", draft.taskId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.judgment", is("CONFLICT")))
+                .andExpect(jsonPath("$.data.conflictId", is(draft.conflictId())))
+                .andExpect(jsonPath("$.data.curatedExpected.up", is(false)))
+                .andExpect(jsonPath("$.data.observedValue.up", is(true)));
+
+        mockMvc.perform(post("/api/conflicts/{id}/confirm-close", draft.conflictId())
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("CONFLICT_NOT_PENDING_CLOSE")));
+
+        mockMvc.perform(get("/api/conflicts/{id}", draft.conflictId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("OPEN")));
+
+        mockMvc.perform(get("/api/conflicts/{id}/curated-drafts/open", draft.conflictId())
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code", is("DRAFT_NOT_FOUND")));
+    }
+
     private void acceptItem(OpenProbeDraft draft) throws Exception {
         mockMvc.perform(post("/api/conflicts/{id}/curated-drafts/open/items/{itemId}/accept",
                         draft.conflictId(), draft.itemId())
