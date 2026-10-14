@@ -25,6 +25,7 @@ import com.archops.curated.mapper.CuratedDraftItemMapper;
 import com.archops.curated.mapper.CuratedDraftMapper;
 import com.archops.curated.mapper.CuratedFactMapper;
 import com.archops.curated.mapper.CuratedObjectMapper;
+import com.archops.observed.service.ProbeTaskService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -57,6 +58,7 @@ public class CuratedDraftService {
     private final ConflictDetectionService conflictDetectionService;
     private final CuratedTruthService curatedTruthService;
     private final CuratedDraftEventMapper curatedDraftEventMapper;
+    private final ProbeTaskService probeTaskService;
     private final PersistentJson persistentJson;
 
     public CuratedDraftService(
@@ -69,6 +71,7 @@ public class CuratedDraftService {
             ConflictDetectionService conflictDetectionService,
             CuratedTruthService curatedTruthService,
             CuratedDraftEventMapper curatedDraftEventMapper,
+            ProbeTaskService probeTaskService,
             PersistentJson persistentJson
     ) {
         this.curatedDraftMapper = curatedDraftMapper;
@@ -80,6 +83,7 @@ public class CuratedDraftService {
         this.conflictDetectionService = conflictDetectionService;
         this.curatedTruthService = curatedTruthService;
         this.curatedDraftEventMapper = curatedDraftEventMapper;
+        this.probeTaskService = probeTaskService;
         this.persistentJson = persistentJson;
     }
 
@@ -266,14 +270,22 @@ public class CuratedDraftService {
     @Transactional
     public CuratedDraftResponse acceptItem(String conflictId, String itemId) {
         OpenItemReview review = loadOpenItem(conflictId, itemId);
-        writeAcceptedRunsOn(review.item());
+        boolean probeItem = review.item().getKind() == CuratedDraftItemKind.PROBE_CURATED_VALUE;
+        if (probeItem) {
+            String probeTaskId = writeAcceptedProbeValue(review);
+            probeTaskService.rejudgeLatestAgainstCurated(probeTaskId);
+        } else {
+            writeAcceptedRunsOn(review.item());
+        }
         markItem(review.item(), CuratedDraftItemStatus.ACCEPTED);
         conflictEventService.append(
                 conflictId,
                 ConflictEventType.DRAFT_ITEM_ACCEPTED,
                 null,
                 itemAuditDetail(review, "草案条目已接受并写入策展", true));
-        conflictDetectionService.reconcileMergeKey(review.item().getSubjectId(), CuratedRelationType.RUNS_ON);
+        if (!probeItem) {
+            conflictDetectionService.reconcileMergeKey(review.item().getSubjectId(), CuratedRelationType.RUNS_ON);
+        }
         return respond(review.draft());
     }
 
@@ -311,6 +323,17 @@ public class CuratedDraftService {
             throw new BusinessException("DRAFT_ITEM_NOT_PENDING",
                     "草案条目已不是待确认: " + item.getId());
         }
+    }
+
+    private String writeAcceptedProbeValue(OpenItemReview review) {
+        ConflictCase conflict = conflictCaseMapper.selectById(review.draft().getConflictId());
+        if (conflict == null || conflict.getProbeTaskId() == null || conflict.getProbeTaskId().isBlank()) {
+            throw new BusinessException("PROBE_TASK_NOT_FOUND", "探测草案没有对应的探测任务");
+        }
+        JsonNode payload = readJson(review.item().getPayloadJson());
+        JsonNode observed = payload == null ? null : payload.get("observedValue");
+        probeTaskService.writeCuratedExpected(conflict.getProbeTaskId(), observed);
+        return conflict.getProbeTaskId();
     }
 
     private void writeAcceptedRunsOn(CuratedDraftItem item) {

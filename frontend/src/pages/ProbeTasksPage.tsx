@@ -12,16 +12,18 @@ import {
   Typography,
   message,
 } from 'antd';
-import { getDiagnosis } from '../api/conflicts';
+import { confirmCloseConflict, getConflict, getDiagnosis } from '../api/conflicts';
 import { createHost } from '../api/curated';
+import { acceptDraftItem, rejectDraftItem } from '../api/drafts';
 import { createProbeTask, getProbeTask, type ProbeTask } from '../api/probeTasks';
 import { selectBranch } from '../api/plans';
-import type { ConflictDiagnosis, CuratedDraft, OperationPlan } from '../api/types';
+import type { ConflictCase, ConflictDiagnosis, CuratedDraft, OperationPlan } from '../api/types';
 import { ApiError } from '../api/types';
 
 const { Title, Paragraph, Text } = Typography;
 
 const TASK_IDS_KEY = 'archops.probeTaskIds';
+const CONFLICT_IDS_KEY = 'archops.probeConflictIds';
 const FIX_ACTUAL = 'FIX_ACTUAL_TO_CURATED';
 const CHANGE_CURATED = 'CHANGE_CURATED_TO_OBSERVED';
 
@@ -70,6 +72,38 @@ function writeTaskIds(ids: string[]): void {
   }
 }
 
+function readConflictIds(): Record<string, string> {
+  try {
+    const raw = sessionStorage.getItem(CONFLICT_IDS_KEY);
+    if (!raw) {
+      return {};
+    }
+    const parsed = JSON.parse(raw) as unknown;
+    if (parsed == null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return {};
+    }
+    const ids: Record<string, string> = {};
+    for (const [taskId, conflictId] of Object.entries(parsed)) {
+      if (typeof conflictId === 'string' && conflictId) {
+        ids[taskId] = conflictId;
+      }
+    }
+    return ids;
+  } catch {
+    return {};
+  }
+}
+
+function rememberConflictId(taskId: string, conflictId: string): void {
+  try {
+    const ids = readConflictIds();
+    ids[taskId] = conflictId;
+    sessionStorage.setItem(CONFLICT_IDS_KEY, JSON.stringify(ids));
+  } catch {
+    // Confirm-close still works in this view from component state.
+  }
+}
+
 function isPlan(result: OperationPlan | CuratedDraft): result is OperationPlan {
   return 'steps' in result;
 }
@@ -105,6 +139,7 @@ export default function ProbeTasksPage() {
   const [tasks, setTasks] = useState<ProbeTask[]>([]);
   const [plans, setPlans] = useState<Record<string, OperationPlan>>({});
   const [drafts, setDrafts] = useState<Record<string, CuratedDraft>>({});
+  const [conflicts, setConflicts] = useState<Record<string, ConflictCase>>({});
   const [restored, setRestored] = useState<Record<string, boolean>>({});
   const [busyId, setBusyId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -130,6 +165,35 @@ export default function ProbeTasksPage() {
       message.error(msg);
     });
   }, [refresh]);
+
+  useEffect(() => {
+    const stored = readConflictIds();
+    let cancelled = false;
+    for (const task of tasks) {
+      const conflictId = task.conflictId || stored[task.id];
+      if (!conflictId) {
+        continue;
+      }
+      if (task.conflictId) {
+        rememberConflictId(task.id, task.conflictId);
+      }
+      void getConflict(conflictId)
+        .then((conflict) => {
+          if (cancelled) {
+            return;
+          }
+          if (conflict.status === 'PENDING_CLOSE' || conflict.status === 'CLOSED') {
+            setConflicts((current) => ({ ...current, [task.id]: conflict }));
+          }
+        })
+        .catch(() => {
+          // A missing conflict does not hide the task judgment.
+        });
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [tasks]);
 
   const remember = (next: ProbeTask) => {
     setTasks((current) => {
@@ -223,8 +287,59 @@ export default function ProbeTasksPage() {
         throw new ApiError('DRAFT_NOT_FOUND', '改理想没有打开草案', 400);
       }
       setDrafts((current) => ({ ...current, [task.id]: result }));
+      if (result.conflictId) {
+        rememberConflictId(task.id, result.conflictId);
+      }
       await reloadOne(task.id);
       message.success('已打开草案，策展值未写入');
+    } catch (err) {
+      const msg = envelopeMessage(err);
+      setError(msg);
+      message.error(msg);
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const reviewDraftItem = async (task: ProbeTask, itemId: string, decision: 'accept' | 'reject') => {
+    const draft = drafts[task.id];
+    if (!draft?.conflictId) {
+      return;
+    }
+    setBusyId(task.id);
+    setError(null);
+    try {
+      const next =
+        decision === 'accept'
+          ? await acceptDraftItem(draft.conflictId, itemId)
+          : await rejectDraftItem(draft.conflictId, itemId);
+      setDrafts((current) => ({ ...current, [task.id]: next }));
+      rememberConflictId(task.id, draft.conflictId);
+      await reloadOne(task.id);
+      const conflict = await getConflict(draft.conflictId);
+      setConflicts((current) => ({ ...current, [task.id]: conflict }));
+      message.success(decision === 'accept' ? '已接受条目并写入策展' : '已拒绝条目，策展未改');
+    } catch (err) {
+      const msg = envelopeMessage(err);
+      setError(msg);
+      message.error(msg);
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const confirmClose = async (taskId: string) => {
+    const conflict = conflicts[taskId];
+    if (!conflict) {
+      return;
+    }
+    setBusyId(taskId);
+    setError(null);
+    try {
+      const closed = await confirmCloseConflict(conflict.id);
+      setConflicts((current) => ({ ...current, [taskId]: closed }));
+      await reloadOne(taskId);
+      message.success('已确认关闭');
     } catch (err) {
       const msg = envelopeMessage(err);
       setError(msg);
@@ -373,14 +488,54 @@ export default function ProbeTasksPage() {
             ) : null}
 
             {draft ? (
-              <Descriptions column={1} size="small" style={{ marginTop: 12 }} title="改理想草案">
-                <Descriptions.Item label="草案">{draft.id}</Descriptions.Item>
-                <Descriptions.Item label="状态">{draft.status}</Descriptions.Item>
-                <Descriptions.Item label="条目">
-                  {draft.items.map((item) => item.status).join(', ') || '—'}
-                </Descriptions.Item>
-                <Descriptions.Item label="策展">确认前不是策展。上面的策展值尚未改写。</Descriptions.Item>
-              </Descriptions>
+              <div style={{ marginTop: 12 }}>
+                <Descriptions column={1} size="small" title="改理想草案">
+                  <Descriptions.Item label="草案">{draft.id}</Descriptions.Item>
+                  <Descriptions.Item label="状态">{draft.status}</Descriptions.Item>
+                </Descriptions>
+                {draft.items.map((item) => (
+                  <Space key={item.id} wrap style={{ marginTop: 8 }}>
+                    <Tag>{item.status}</Tag>
+                    <Text>把观测结构化值写成策展</Text>
+                    {draft.status === 'OPEN' && item.status === 'PENDING' ? (
+                      <>
+                        <Button
+                          type="primary"
+                          size="small"
+                          loading={busyId === task.id}
+                          onClick={() => void reviewDraftItem(task, item.id, 'accept')}
+                        >
+                          接受
+                        </Button>
+                        <Button
+                          size="small"
+                          danger
+                          loading={busyId === task.id}
+                          onClick={() => void reviewDraftItem(task, item.id, 'reject')}
+                        >
+                          拒绝
+                        </Button>
+                      </>
+                    ) : null}
+                  </Space>
+                ))}
+                {draft.items.some((item) => item.status === 'PENDING') ? (
+                  <Paragraph type="secondary" style={{ marginTop: 8, marginBottom: 0 }}>
+                    确认前不是策展。上面的策展值尚未改写。
+                  </Paragraph>
+                ) : null}
+              </div>
+            ) : null}
+
+            {conflicts[task.id]?.status === 'PENDING_CLOSE' ? (
+              <div style={{ marginTop: 12 }}>
+                <Button type="primary" loading={busyId === task.id} onClick={() => void confirmClose(task.id)}>
+                  确认关闭
+                </Button>
+              </div>
+            ) : null}
+            {conflicts[task.id]?.status === 'CLOSED' ? (
+              <Paragraph style={{ marginTop: 12, marginBottom: 0 }}>冲突已确认关闭。</Paragraph>
             ) : null}
           </Card>
         );
