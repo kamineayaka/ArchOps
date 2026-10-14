@@ -155,6 +155,32 @@ class ProbeCuratedItemAcceptHttpAcceptanceTest {
                 .andExpect(jsonPath("$.code", is("DRAFT_NOT_FOUND")));
     }
 
+    @Test
+    void rejectProbeDraftItemLeavesCuratedValueAndConflictOpen() throws Exception {
+        OpenProbeDraft draft = openProbeChangeCuratedDraft("probe-reject-host", "agent-probe-reject");
+
+        mockMvc.perform(post("/api/conflicts/{id}/curated-drafts/open/items/{itemId}/reject",
+                        draft.conflictId(), draft.itemId())
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[0].status", is("REJECTED")))
+                .andExpect(jsonPath("$.data.createdBy", nullValue()));
+
+        mockMvc.perform(get("/api/probe-tasks/{id}", draft.taskId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.curatedExpected.up", is(true)))
+                .andExpect(jsonPath("$.data.judgment", is("CONFLICT")));
+
+        mockMvc.perform(get("/api/conflicts/{id}", draft.conflictId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("OPEN")))
+                .andExpect(jsonPath("$.data.curatedStructured.up", is(true)));
+    }
+
     private void acceptItem(OpenProbeDraft draft) throws Exception {
         mockMvc.perform(post("/api/conflicts/{id}/curated-drafts/open/items/{itemId}/accept",
                         draft.conflictId(), draft.itemId())

@@ -12,8 +12,8 @@
 - [x] 接受后不交回新心跳：最新结果与新策展值相等时，冲突为待确认关闭（不是已关闭）；任务判决为正常，`conflictId` 为空
 - [x] 待确认关闭且两侧仍相等时，确认关闭后冲突为已关闭
 - [x] 确认关闭前交回更新的不等结果：同一条冲突离开待确认关闭并重开；策展值保持已接受的值；确认关闭不能关单
-- [ ] 拒绝该条目不改策展值，冲突保持开放，条目为已拒绝
-- [ ] 接受、拒绝、确认关闭不带用户身份，不记录操作者
+- [x] 拒绝该条目不改策展值，冲突保持开放，条目为已拒绝
+- [x] 接受、拒绝、确认关闭不带用户身份，不记录操作者
 - [ ] `/probe-tasks` 可以接受条目并确认关闭；`npm run build` 通过
 
 **Out of this ticket:** 执行修实际计划、持久化「恢复观测通道」、Agent 停机掏空全部快照观测、ADR-0049 / Kubernetes / 编排层 gRPC、AI 建议正文、原因种类、「无法归类」、重开已闭合的探测票、协作身份。
@@ -66,4 +66,14 @@ BUILD FAILED
 ```
 Green command: same test, exit 0. Same conflict id, curated `up=false`, observed `up=true`, judgment `CONFLICT`. Confirm-close `CONFLICT_NOT_PENDING_CLOSE` and the conflict stays `OPEN`. Open draft `DRAFT_NOT_FOUND`.
 Refactor: no structural change. `reopenProbeFromPendingClose` already matches the runs-on drift path (status, `UPGRADED`, void open draft).
-Commit: a newer unequal probe result leaves 待确认关闭.
+Commit: `d16bc87` Leave 待确认关闭 when a newer probe result is unequal.
+
+### Cycle E — 拒绝不写策展，冲突保持开放
+Ran:
+```
+cd backend && ./gradlew test --tests com.archops.observed.ProbeCuratedItemAcceptHttpAcceptanceTest.rejectProbeDraftItemLeavesCuratedValueAndConflictOpen --offline
+BUILD SUCCESSFUL
+```
+reuse/regression: first run exit 0. Covered by `CuratedDraftService.rejectItem` (marks `REJECTED`, does not write 策展, does not re-judge). No user header. `createdBy` stays null. Curated `up` stays true. Conflict stays `OPEN`.
+Refactor: no structural change.
+Commit: records that rejecting a probe draft item leaves 策展 unchanged.
