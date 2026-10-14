@@ -23,6 +23,7 @@ import { ApiError } from '../api/types';
 const { Title, Paragraph, Text } = Typography;
 
 const TASK_IDS_KEY = 'archops.probeTaskIds';
+const CONFLICT_IDS_KEY = 'archops.probeConflictIds';
 const FIX_ACTUAL = 'FIX_ACTUAL_TO_CURATED';
 const CHANGE_CURATED = 'CHANGE_CURATED_TO_OBSERVED';
 
@@ -68,6 +69,38 @@ function writeTaskIds(ids: string[]): void {
     sessionStorage.setItem(TASK_IDS_KEY, JSON.stringify(ids));
   } catch {
     // The in-memory list still shows the tasks created in this view.
+  }
+}
+
+function readConflictIds(): Record<string, string> {
+  try {
+    const raw = sessionStorage.getItem(CONFLICT_IDS_KEY);
+    if (!raw) {
+      return {};
+    }
+    const parsed = JSON.parse(raw) as unknown;
+    if (parsed == null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return {};
+    }
+    const ids: Record<string, string> = {};
+    for (const [taskId, conflictId] of Object.entries(parsed)) {
+      if (typeof conflictId === 'string' && conflictId) {
+        ids[taskId] = conflictId;
+      }
+    }
+    return ids;
+  } catch {
+    return {};
+  }
+}
+
+function rememberConflictId(taskId: string, conflictId: string): void {
+  try {
+    const ids = readConflictIds();
+    ids[taskId] = conflictId;
+    sessionStorage.setItem(CONFLICT_IDS_KEY, JSON.stringify(ids));
+  } catch {
+    // Confirm-close still works in this view from component state.
   }
 }
 
@@ -132,6 +165,35 @@ export default function ProbeTasksPage() {
       message.error(msg);
     });
   }, [refresh]);
+
+  useEffect(() => {
+    const stored = readConflictIds();
+    let cancelled = false;
+    for (const task of tasks) {
+      const conflictId = task.conflictId || stored[task.id];
+      if (!conflictId) {
+        continue;
+      }
+      if (task.conflictId) {
+        rememberConflictId(task.id, task.conflictId);
+      }
+      void getConflict(conflictId)
+        .then((conflict) => {
+          if (cancelled) {
+            return;
+          }
+          if (conflict.status === 'PENDING_CLOSE' || conflict.status === 'CLOSED') {
+            setConflicts((current) => ({ ...current, [task.id]: conflict }));
+          }
+        })
+        .catch(() => {
+          // A missing conflict does not hide the task judgment.
+        });
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [tasks]);
 
   const remember = (next: ProbeTask) => {
     setTasks((current) => {
@@ -225,6 +287,9 @@ export default function ProbeTasksPage() {
         throw new ApiError('DRAFT_NOT_FOUND', '改理想没有打开草案', 400);
       }
       setDrafts((current) => ({ ...current, [task.id]: result }));
+      if (result.conflictId) {
+        rememberConflictId(task.id, result.conflictId);
+      }
       await reloadOne(task.id);
       message.success('已打开草案，策展值未写入');
     } catch (err) {
@@ -249,6 +314,7 @@ export default function ProbeTasksPage() {
           ? await acceptDraftItem(draft.conflictId, itemId)
           : await rejectDraftItem(draft.conflictId, itemId);
       setDrafts((current) => ({ ...current, [task.id]: next }));
+      rememberConflictId(task.id, draft.conflictId);
       await reloadOne(task.id);
       const conflict = await getConflict(draft.conflictId);
       setConflicts((current) => ({ ...current, [task.id]: conflict }));
@@ -458,17 +524,18 @@ export default function ProbeTasksPage() {
                     确认前不是策展。上面的策展值尚未改写。
                   </Paragraph>
                 ) : null}
-                {conflicts[task.id]?.status === 'PENDING_CLOSE' ? (
-                  <div style={{ marginTop: 8 }}>
-                    <Button type="primary" loading={busyId === task.id} onClick={() => void confirmClose(task.id)}>
-                      确认关闭
-                    </Button>
-                  </div>
-                ) : null}
-                {conflicts[task.id]?.status === 'CLOSED' ? (
-                  <Paragraph style={{ marginTop: 8, marginBottom: 0 }}>冲突已确认关闭。</Paragraph>
-                ) : null}
               </div>
+            ) : null}
+
+            {conflicts[task.id]?.status === 'PENDING_CLOSE' ? (
+              <div style={{ marginTop: 12 }}>
+                <Button type="primary" loading={busyId === task.id} onClick={() => void confirmClose(task.id)}>
+                  确认关闭
+                </Button>
+              </div>
+            ) : null}
+            {conflicts[task.id]?.status === 'CLOSED' ? (
+              <Paragraph style={{ marginTop: 12, marginBottom: 0 }}>冲突已确认关闭。</Paragraph>
             ) : null}
           </Card>
         );

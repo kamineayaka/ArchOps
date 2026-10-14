@@ -1,10 +1,10 @@
 ---
-status: "票 01。探测冲突上已有的改理想草案逐条确认。不重开 ADR-0048 票 01、薄 UI、Host Agent 执行探测命令。"
+status: "票 01 done。探测冲突上已有的改理想草案逐条确认。不重开 ADR-0048 票 01、薄 UI、Host Agent 执行探测命令。不要开票 02。"
 ---
 
 # Spec: 探测冲突改理想草案逐条确认
 
-**Status**: 工单 01。  
+**Status**: 工单 01 **done**。  
 **Basis**: [`docs/specs/change-curated-draft.md`](change-curated-draft.md)（接受写入策展并立刻比对；拒绝不写；相等只进待确认关闭；确认关闭前再不等则离开待确认关闭）。探测草案的打开已在 [`docs/specs/probe-task-thin-ui.md`](probe-task-thin-ui.md) 闭合：开放草案、一条 `PENDING` 的 `PROBE_CURATED_VALUE`、不写策展。判决与确认关闭比较冲突上的 JSON 已在 [`docs/specs/probe-task-control-plane-judges.md`](probe-task-control-plane-judges.md)。本刀不重开那三张票，不改 ADR 正文。  
 **Testing seams (confirmed)**: 控制面 HTTP API（含 Agent ingest）。Gradle/`MockMvc` 与 Compose `bootRun`+`curl` 是同一接缝。薄 UI 在本票 HTTP 循环变绿之后：`cd frontend && npm run build`，再加上 `/probe-tasks` 上按人的路径点一遍。Playwright 不是完成定义。
 

@@ -4,7 +4,7 @@
 
 **Blocked by:** None. Baseline is origin/main at `6434b8157960e40b6a68ad3a748f392cfc76563c` (PR #134). 改理想打开草案且不写策展已在 PR #133（Flyway V31）。不重开 ADR-0048 票 01、薄 UI、Host Agent 执行探测命令。
 
-**Status:** ready-for-agent
+**Status:** done
 
 **TDD:** capability。`/implement` 走 [`docs/agents/tdd.md`](../../../docs/agents/tdd.md)。主接缝是控制面 HTTP API。Spec：[`docs/specs/probe-curated-item-accept.md`](../../../docs/specs/probe-curated-item-accept.md)。
 
@@ -14,7 +14,7 @@
 - [x] 确认关闭前交回更新的不等结果：同一条冲突离开待确认关闭并重开；策展值保持已接受的值；确认关闭不能关单
 - [x] 拒绝该条目不改策展值，冲突保持开放，条目为已拒绝
 - [x] 接受、拒绝、确认关闭不带用户身份，不记录操作者
-- [ ] `/probe-tasks` 可以接受条目并确认关闭；`npm run build` 通过
+- [x] `/probe-tasks` 可以接受条目并确认关闭；`npm run build` 通过
 
 **Out of this ticket:** 执行修实际计划、持久化「恢复观测通道」、Agent 停机掏空全部快照观测、ADR-0049 / Kubernetes / 编排层 gRPC、AI 建议正文、原因种类、「无法归类」、重开已闭合的探测票、协作身份。
 
@@ -76,4 +76,13 @@ BUILD SUCCESSFUL
 ```
 reuse/regression: first run exit 0. Covered by `CuratedDraftService.rejectItem` (marks `REJECTED`, does not write 策展, does not re-judge). No user header. `createdBy` stays null. Curated `up` stays true. Conflict stays `OPEN`.
 Refactor: no structural change.
-Commit: records that rejecting a probe draft item leaves 策展 unchanged.
+Commit: `c1f1117` Record that rejecting a probe draft item leaves the curated value unchanged.
+
+### Cycle F — `/probe-tasks` 接受并确认关闭
+`cd frontend && npm run build` exit 0 (`tsc --noEmit && vite build`).
+Browser on Vite `:5173` → control plane `:8080`. Task `probe-8c0be653-f57d-4098-87bf-2b5d46bb04ab`: 改理想 leaves 策展 `{"up": true}` and an OPEN/PENDING item; 接受 writes `{"up": false}`, judgment 正常, 确认关闭 appears; 确认关闭 leaves the conflict CLOSED. No identity selector, no cause picker. Reload of a later 待确认关闭 task (`probe-ba8236da-ec96-4805-98d2-90977367a720`) still shows 确认关闭 because the conflict id is kept in sessionStorage after the task read model drops `conflictId`. That click also CLOSED.
+Commit: `02e734b` plus the reload follow-up.
+
+### Code review (Standards + Spec), fixed point `6434b81`
+Standards: no layering, identity, or Flyway hard violation. Accept, reject, and confirm-close use the existing API client and omit the user header. Judgement: `rejudgeLatestAgainstCurated` repeats the equal/unequal shape of `judgeOne`; `reopenProbeFromPendingClose` repeats the runs-on drift path; the page repeats the busy/error wrapper. Cycles C and E were first-run green and are recorded as reuse, same as change-curated 04 confirm-close. Not deleted to manufacture a red.
+Spec: accept writes the item's observed value and re-judges without a new heartbeat; equality is 待确认关闭 and not CLOSED; a newer unequal result reopens the same conflict and confirm-close cannot close it; reject does not write. The page's confirm-close survives reload. No new resolution action. Out of scope stays out.

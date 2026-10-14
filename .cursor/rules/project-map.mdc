@@ -38,6 +38,8 @@ alwaysApply: true
 | `.scratch/probe-task-thin-ui/issues/` | 工单 01 **done** |
 | `docs/specs/probe-task-agent-runs.md` | Host Agent 执行探测命令（**01 TDD-done，本刀闭合**。不重开 ADR-0048 票 01，不重开薄 UI） |
 | `.scratch/probe-task-agent-runs/issues/` | 工单 01 **done** |
+| `docs/specs/probe-curated-item-accept.md` | 探测改理想逐条确认（**01 done，本刀闭合**。不要开票 02） |
+| `.scratch/probe-curated-item-accept/issues/` | 工单 01 **done** |
 | `docs/adr/0049-kubernetes-three-processes-and-orchestrator-grpc.md` | 三个 Kubernetes Deployment；编排层↔控制面 gRPC |
 | `docs/specs/conflict-without-identity.md` | 身份退出冲突领域（**票 01–07 done**。#119–#123 与 #125 已在 main；#124 已关闭未合并） |
 | `.scratch/conflict-without-identity/issues/` | 01–07 done；不要再开下一张票 |

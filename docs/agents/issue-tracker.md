@@ -26,6 +26,7 @@ Already published:
 | probe-task-control-plane-judges | `docs/specs/probe-task-control-plane-judges.md` | `.scratch/probe-task-control-plane-judges/issues/`（**01 TDD-done，本刀闭合**。ADR-0048。不要自动做 ADR-0049 / 编排层 / Kubernetes） |
 | probe-task-thin-ui | `docs/specs/probe-task-thin-ui.md` | `.scratch/probe-task-thin-ui/issues/`（**01 done，本刀闭合**。不重开 ADR-0048 票 01） |
 | probe-task-agent-runs | `docs/specs/probe-task-agent-runs.md` | `.scratch/probe-task-agent-runs/issues/`（**01 TDD-done，本刀闭合**。不重开 ADR-0048 票 01，不重开薄 UI） |
+| probe-curated-item-accept | `docs/specs/probe-curated-item-accept.md` | `.scratch/probe-curated-item-accept/issues/`（**01 done，本刀闭合**。不重开 ADR-0048 票 01、薄 UI、Host Agent 执行探测命令。不要开票 02） |
 
 ## When a skill says "publish to the issue tracker"
 
