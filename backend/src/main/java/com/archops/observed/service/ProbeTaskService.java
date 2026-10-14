@@ -70,6 +70,20 @@ public class ProbeTaskService {
         this.clock = clock;
     }
 
+    /** Writes the task's curated structured value. */
+    @Transactional
+    public void writeCuratedExpected(String taskId, JsonNode curatedExpected) {
+        if (curatedExpected == null || curatedExpected.isNull() || !curatedExpected.isObject()) {
+            throw new BusinessException("PROBE_EXPECTED_REQUIRED", "Probe curated value must be a JSON object");
+        }
+        if (probeTaskMapper.selectById(taskId) == null) {
+            throw new BusinessException("PROBE_TASK_NOT_FOUND", "Probe task not found: " + taskId);
+        }
+        probeTaskMapper.update(null, new LambdaUpdateWrapper<ProbeTask>()
+                .eq(ProbeTask::getId, taskId)
+                .set(ProbeTask::getExpectedJson, persistentJson.write(curatedExpected)));
+    }
+
     @Transactional
     public ProbeTaskResponse create(CreateProbeTaskRequest request) {
         CuratedObject host = requireHost(request.hostId().trim());
