@@ -10,7 +10,7 @@
 
 - [x] 接受待确认条目后，任务策展值变为该条目的观测结构化值；条目为已接受；解决动作仍只有修实际与改理想
 - [x] 接受后不交回新心跳：最新结果与新策展值相等时，冲突为待确认关闭（不是已关闭）；任务判决为正常，`conflictId` 为空
-- [ ] 待确认关闭且两侧仍相等时，确认关闭后冲突为已关闭
+- [x] 待确认关闭且两侧仍相等时，确认关闭后冲突为已关闭
 - [ ] 确认关闭前交回更新的不等结果：同一条冲突离开待确认关闭并重开；策展值保持已接受的值；确认关闭不能关单
 - [ ] 拒绝该条目不改策展值，冲突保持开放，条目为已拒绝
 - [ ] 接受、拒绝、确认关闭不带用户身份，不记录操作者
@@ -43,4 +43,14 @@ BUILD FAILED
 ```
 Green command: same test, exit 0. No new heartbeat. Conflict `PENDING_CLOSE`, both structured values `up=false`. Task judgment `NORMAL`, `conflictId` null. Not `CLOSED`.
 Refactor: `markProbePendingClose` shared with the heartbeat equal path. Same test and `equalAfterConflictMovesToPendingClose` exit 0.
-Commit: re-judges the latest probe result after the curated write.
+Commit: `d67aa55` Re-judge the latest probe result when a 改理想 item is accepted.
+
+### Cycle C — 确认关闭关单
+Ran:
+```
+cd backend && ./gradlew test --tests com.archops.observed.ProbeCuratedItemAcceptHttpAcceptanceTest.confirmCloseAfterEqualRejudgeClosesTheProbeConflict --offline
+BUILD SUCCESSFUL
+```
+reuse/regression: first run exit 0. Covered by `ProbeTaskJudgmentHttpAcceptanceTest.equalAfterConflictMovesToPendingClose` (`ConflictCollaborationService.confirmCloseProbe`). Cycle B left the conflict `PENDING_CLOSE` with equal JSON, so confirm-close closes it and does not auto-close before the request. No user header.
+Refactor: no structural change. The new method only pins that close on the accept path.
+Commit: records confirm-close after the probe curated write.

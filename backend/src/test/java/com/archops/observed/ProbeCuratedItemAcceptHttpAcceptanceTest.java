@@ -93,6 +93,23 @@ class ProbeCuratedItemAcceptHttpAcceptanceTest {
                 .andExpect(jsonPath("$.data.observedValue.up", is(false)));
     }
 
+    @Test
+    void confirmCloseAfterEqualRejudgeClosesTheProbeConflict() throws Exception {
+        OpenProbeDraft draft = openProbeChangeCuratedDraft("probe-close-host", "agent-probe-close");
+        acceptItem(draft);
+
+        mockMvc.perform(get("/api/conflicts/{id}", draft.conflictId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("PENDING_CLOSE")));
+
+        mockMvc.perform(post("/api/conflicts/{id}/confirm-close", draft.conflictId())
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("CLOSED")));
+    }
+
     private void acceptItem(OpenProbeDraft draft) throws Exception {
         mockMvc.perform(post("/api/conflicts/{id}/curated-drafts/open/items/{itemId}/accept",
                         draft.conflictId(), draft.itemId())
