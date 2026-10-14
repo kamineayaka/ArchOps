@@ -84,6 +84,38 @@ public class ProbeTaskService {
                 .set(ProbeTask::getExpectedJson, persistentJson.write(curatedExpected)));
     }
 
+    /**
+     * Compares the latest stored probe result with the task's current curated value.
+     */
+    @Transactional
+    public void rejudgeLatestAgainstCurated(String taskId) {
+        ProbeTask task = probeTaskMapper.selectById(taskId);
+        if (task == null) {
+            throw new BusinessException("PROBE_TASK_NOT_FOUND", "Probe task not found: " + taskId);
+        }
+        ProbeJudgment judgment = probeJudgmentMapper.selectById(taskId);
+        if (judgment == null || judgment.getObservedJson() == null || judgment.getObservedJson().isBlank()) {
+            return;
+        }
+        JsonNode observed = persistentJson.read(judgment.getObservedJson(), JSON_NODE, null);
+        JsonNode expected = readExpected(task);
+        Instant now = Instant.now(clock);
+        if (expected != null && expected.equals(observed)) {
+            saveJudgment(taskId, JUDGMENT_NORMAL, judgment.getObservedJson(), judgment.getEvidence(), null, now);
+            conflictDetectionService.onProbeCuratedWriteEqual(
+                    taskId, task.getExpectedJson(), judgment.getObservedJson());
+            return;
+        }
+        String conflictId = conflictDetectionService.openOrUpdateProbeConflict(
+                task.getHostId(),
+                task.getId(),
+                task.getExpectedJson(),
+                judgment.getObservedJson(),
+                judgment.getEvidence()
+        );
+        saveJudgment(taskId, JUDGMENT_CONFLICT, judgment.getObservedJson(), judgment.getEvidence(), conflictId, now);
+    }
+
     @Transactional
     public ProbeTaskResponse create(CreateProbeTaskRequest request) {
         CuratedObject host = requireHost(request.hostId().trim());

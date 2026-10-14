@@ -70,6 +70,37 @@ class ProbeCuratedItemAcceptHttpAcceptanceTest {
                         "FIX_ACTUAL_TO_CURATED", "CHANGE_CURATED_TO_OBSERVED")));
     }
 
+    @Test
+    void acceptRejudgesLatestResultToPendingCloseWithoutClosing() throws Exception {
+        OpenProbeDraft draft = openProbeChangeCuratedDraft("probe-rejudge-host", "agent-probe-rejudge");
+        acceptItem(draft);
+
+        mockMvc.perform(get("/api/conflicts/{id}", draft.conflictId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status", is("PENDING_CLOSE")))
+                .andExpect(jsonPath("$.data.curatedStructured.up", is(false)))
+                .andExpect(jsonPath("$.data.observedStructured.up", is(false)));
+
+        mockMvc.perform(get("/api/probe-tasks/{id}", draft.taskId())
+                        .header(TempAuthHeaders.USER_ID, GENERAL_ID)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.judgment", is("NORMAL")))
+                .andExpect(jsonPath("$.data.conflictId", nullValue()))
+                .andExpect(jsonPath("$.data.curatedExpected.up", is(false)))
+                .andExpect(jsonPath("$.data.observedValue.up", is(false)));
+    }
+
+    private void acceptItem(OpenProbeDraft draft) throws Exception {
+        mockMvc.perform(post("/api/conflicts/{id}/curated-drafts/open/items/{itemId}/accept",
+                        draft.conflictId(), draft.itemId())
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[0].status", is("ACCEPTED")));
+    }
+
     private OpenProbeDraft openProbeChangeCuratedDraft(String hostName, String agentId) throws Exception {
         String hostId = createHost(hostName);
         String taskId = createTask(hostId);

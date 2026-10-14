@@ -272,7 +272,8 @@ public class CuratedDraftService {
         OpenItemReview review = loadOpenItem(conflictId, itemId);
         boolean probeItem = review.item().getKind() == CuratedDraftItemKind.PROBE_CURATED_VALUE;
         if (probeItem) {
-            writeAcceptedProbeValue(review);
+            String probeTaskId = writeAcceptedProbeValue(review);
+            probeTaskService.rejudgeLatestAgainstCurated(probeTaskId);
         } else {
             writeAcceptedRunsOn(review.item());
         }
@@ -324,7 +325,7 @@ public class CuratedDraftService {
         }
     }
 
-    private void writeAcceptedProbeValue(OpenItemReview review) {
+    private String writeAcceptedProbeValue(OpenItemReview review) {
         ConflictCase conflict = conflictCaseMapper.selectById(review.draft().getConflictId());
         if (conflict == null || conflict.getProbeTaskId() == null || conflict.getProbeTaskId().isBlank()) {
             throw new BusinessException("PROBE_TASK_NOT_FOUND", "探测草案没有对应的探测任务");
@@ -332,6 +333,7 @@ public class CuratedDraftService {
         JsonNode payload = readJson(review.item().getPayloadJson());
         JsonNode observed = payload == null ? null : payload.get("observedValue");
         probeTaskService.writeCuratedExpected(conflict.getProbeTaskId(), observed);
+        return conflict.getProbeTaskId();
     }
 
     private void writeAcceptedRunsOn(CuratedDraftItem item) {

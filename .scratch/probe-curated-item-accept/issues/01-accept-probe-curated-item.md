@@ -9,7 +9,7 @@
 **TDD:** capability。`/implement` 走 [`docs/agents/tdd.md`](../../../docs/agents/tdd.md)。主接缝是控制面 HTTP API。Spec：[`docs/specs/probe-curated-item-accept.md`](../../../docs/specs/probe-curated-item-accept.md)。
 
 - [x] 接受待确认条目后，任务策展值变为该条目的观测结构化值；条目为已接受；解决动作仍只有修实际与改理想
-- [ ] 接受后不交回新心跳：最新结果与新策展值相等时，冲突为待确认关闭（不是已关闭）；任务判决为正常，`conflictId` 为空
+- [x] 接受后不交回新心跳：最新结果与新策展值相等时，冲突为待确认关闭（不是已关闭）；任务判决为正常，`conflictId` 为空
 - [ ] 待确认关闭且两侧仍相等时，确认关闭后冲突为已关闭
 - [ ] 确认关闭前交回更新的不等结果：同一条冲突离开待确认关闭并重开；策展值保持已接受的值；确认关闭不能关单
 - [ ] 拒绝该条目不改策展值，冲突保持开放，条目为已拒绝
@@ -30,4 +30,17 @@ BUILD FAILED
 ```
 Green command: same test, exit 0. Item `ACCEPTED` / `PROBE_CURATED_VALUE`, `createdBy` null, task `curatedExpected.up` false. Diagnosis forks stay `FIX_ACTUAL_TO_CURATED` and `CHANGE_CURATED_TO_OBSERVED`.
 Refactor: one probe-vs-runs-on branch in `acceptItem`. Same test re-run, exit 0.
-Commit: writes the observed probe value as the curated expected.
+Commit: `9ec20af` Accept a probe 改理想 item by writing its observed value as the curated expected.
+
+### Cycle B — 接受后立刻再判决，相等进入待确认关闭
+Red command: `cd backend && ./gradlew test --tests com.archops.observed.ProbeCuratedItemAcceptHttpAcceptanceTest.acceptRejudgesLatestResultToPendingCloseWithoutClosing --offline`
+```
+ProbeCuratedItemAcceptHttpAcceptanceTest > acceptRejudgesLatestResultToPendingCloseWithoutClosing() FAILED
+    java.lang.AssertionError: JSON path "$.data.status"
+Expected: is "PENDING_CLOSE"
+     but: was "OPEN"
+BUILD FAILED
+```
+Green command: same test, exit 0. No new heartbeat. Conflict `PENDING_CLOSE`, both structured values `up=false`. Task judgment `NORMAL`, `conflictId` null. Not `CLOSED`.
+Refactor: `markProbePendingClose` shared with the heartbeat equal path. Same test and `equalAfterConflictMovesToPendingClose` exit 0.
+Commit: re-judges the latest probe result after the curated write.

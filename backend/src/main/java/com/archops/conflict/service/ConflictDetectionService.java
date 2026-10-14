@@ -246,6 +246,27 @@ public class ConflictDetectionService {
     }
 
     /**
+     * Accepted 改理想 wrote a new curated value that matches the latest probe result.
+     * Updates the conflict's curated JSON and enters 待确认关闭 without auto-close.
+     */
+    @Transactional
+    public void onProbeCuratedWriteEqual(String probeTaskId, String curatedJson, String observedJson) {
+        ConflictCase active = findActiveProbe(probeTaskId);
+        if (active == null || active.getStatus() == ConflictStatus.CLOSED) {
+            return;
+        }
+        if (active.getStatus() == ConflictStatus.PENDING_CLOSE) {
+            conflictCaseMapper.update(null, new LambdaUpdateWrapper<ConflictCase>()
+                    .eq(ConflictCase::getId, active.getId())
+                    .set(ConflictCase::getCuratedValueJson, curatedJson)
+                    .set(ConflictCase::getObservedValueJson, observedJson)
+                    .set(ConflictCase::getUpdatedAt, Instant.now()));
+            return;
+        }
+        markProbePendingClose(active, probeTaskId, curatedJson, observedJson);
+    }
+
+    /**
      * A later readable result equal to the curated value does not auto-close.
      * An open or hollow-suspended probe conflict becomes 待确认关闭.
      */
@@ -256,15 +277,28 @@ public class ConflictDetectionService {
                 || active.getStatus() == ConflictStatus.CLOSED) {
             return;
         }
+        markProbePendingClose(active, probeTaskId, null, observedJson);
+    }
+
+    private void markProbePendingClose(
+            ConflictCase active,
+            String probeTaskId,
+            String curatedJson,
+            String observedJson
+    ) {
         Instant now = Instant.now();
-        conflictCaseMapper.update(null, new LambdaUpdateWrapper<ConflictCase>()
+        LambdaUpdateWrapper<ConflictCase> update = new LambdaUpdateWrapper<ConflictCase>()
                 .eq(ConflictCase::getId, active.getId())
                 .in(ConflictCase::getStatus, List.of(ConflictStatus.OPEN, ConflictStatus.SUSPENDED))
                 .set(ConflictCase::getStatus, ConflictStatus.PENDING_CLOSE)
                 .set(ConflictCase::getObservedValueJson, observedJson)
                 .set(ConflictCase::getPendingCloseAt, now)
                 .set(ConflictCase::getSuspendedAt, null)
-                .set(ConflictCase::getUpdatedAt, now));
+                .set(ConflictCase::getUpdatedAt, now);
+        if (curatedJson != null) {
+            update.set(ConflictCase::getCuratedValueJson, curatedJson);
+        }
+        conflictCaseMapper.update(null, update);
         conflictEventService.append(active.getId(), ConflictEventType.PENDING_CLOSE, null, Map.of(
                 "probeTaskId", probeTaskId
         ));
