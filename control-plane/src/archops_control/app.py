@@ -188,8 +188,11 @@ def create_app() -> FastAPI:
 
     @app.post("/api/hosts/{host_id}/role-liveness")
     def report_role_liveness(host_id: str, body: dict) -> dict:
+        entries = body.get("roleLiveness")
+        if not entries:
+            return ok(None)
         with connect() as conn:
-            for item in body["roleLiveness"]:
+            for item in entries:
                 if item.get("up") is True:
                     end_role_alert(conn, host_id, item)
                 else:

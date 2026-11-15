@@ -245,3 +245,24 @@ def test_other_role_liveness_leaves_the_first_alert_unchanged(client: TestClient
         assert alert["role"] == "NameNode"
         assert alert["current"] is True
         assert alert["evidence"] == raw
+
+
+def test_report_without_role_liveness_field_opens_no_alert(client: TestClient):
+    host = _host(client)
+    _place(
+        client,
+        host["id"],
+        {"role": "NameNode", "replicaCount": 3, "capacityBytes": 1099511627776},
+    )
+    response = client.post(
+        f"/api/hosts/{host['id']}/role-liveness",
+        json={"sentAt": "2026-11-15T00:00:00Z"},
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["success"] is True
+    assert body["code"] == "OK"
+    assert body["message"] == "ok"
+    listed = client.get("/api/alerts")
+    assert listed.status_code == 200, listed.text
+    assert listed.json()["data"] == []
