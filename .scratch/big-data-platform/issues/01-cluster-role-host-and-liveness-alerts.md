@@ -64,7 +64,14 @@ FAILED tests/test_cluster_role_liveness_http.py::test_role_up_report_ends_the_sa
 ```
 Green command: same test, exit 0. Same alert id, `current` false, original `evidence` kept, absent from `GET /api/alerts`.
 Refactor: alert reads share `_ALERT_COLUMNS`. Same test re-run, exit 0. Cycle C still green.
-Commit: pending End the same alert when that role is reported up.
+Commit: `98dc385` End the same alert when that role is reported up.
+
+### Cycle E — 同一主机另一个角色的存活不改变第一条告警
+Red command: `cd control-plane && pytest tests/test_cluster_role_liveness_http.py::test_other_role_liveness_leaves_the_first_alert_unchanged -q`
+First-run green (exit 0). Opening and ending an alert already match `host_id` and `role` (cycle D). This test locks that a DataNode down and a later DataNode up leave the NameNode alert's id, current flag, and raw evidence unchanged. No production removed to manufacture a red; no production change.
+Refactor: tests share `_host` and `_place`. Full file re-run, 5 passed.
+Commit: pending Lock that another role's liveness leaves the first alert unchanged.
+
 
 
 

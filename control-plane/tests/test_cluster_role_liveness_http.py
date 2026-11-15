@@ -70,21 +70,25 @@ def _post_ok(client: TestClient, path: str, payload: dict) -> dict:
     return body["data"]
 
 
-def test_registered_namenode_and_nodemanager_configs_are_readable(client: TestClient):
+def _host(client: TestClient, name: str = "host-a") -> dict:
     cluster = _post_ok(client, "/api/clusters", {"name": "east-cluster"})
-    host = _post_ok(
+    return _post_ok(client, f"/api/clusters/{cluster['id']}/hosts", {"name": name})
+
+
+def _place(client: TestClient, host_id: str, body: dict) -> dict:
+    return _post_ok(client, f"/api/hosts/{host_id}/roles", body)
+
+
+def test_registered_namenode_and_nodemanager_configs_are_readable(client: TestClient):
+    host = _host(client)
+    _place(
         client,
-        f"/api/clusters/{cluster['id']}/hosts",
-        {"name": "host-a"},
-    )
-    _post_ok(
-        client,
-        f"/api/hosts/{host['id']}/roles",
+        host["id"],
         {"role": "NameNode", "replicaCount": 3, "capacityBytes": 1099511627776},
     )
-    _post_ok(
+    _place(
         client,
-        f"/api/hosts/{host['id']}/roles",
+        host["id"],
         {
             "role": "NodeManager",
             "queueName": "root.default",
@@ -110,12 +114,7 @@ def test_registered_namenode_and_nodemanager_configs_are_readable(client: TestCl
 def test_role_outside_namenode_datanode_resourcemanager_nodemanager_is_rejected(
     client: TestClient,
 ):
-    cluster = _post_ok(client, "/api/clusters", {"name": "east-cluster"})
-    host = _post_ok(
-        client,
-        f"/api/clusters/{cluster['id']}/hosts",
-        {"name": "host-a"},
-    )
+    host = _host(client)
     for role in ("JournalNode", "SparkDriver"):
         response = client.post(
             f"/api/hosts/{host['id']}/roles",
@@ -136,15 +135,10 @@ def test_role_outside_namenode_datanode_resourcemanager_nodemanager_is_rejected(
 
 
 def test_role_down_report_opens_current_alert_with_raw_evidence(client: TestClient):
-    cluster = _post_ok(client, "/api/clusters", {"name": "east-cluster"})
-    host = _post_ok(
+    host = _host(client)
+    _place(
         client,
-        f"/api/clusters/{cluster['id']}/hosts",
-        {"name": "host-a"},
-    )
-    _post_ok(
-        client,
-        f"/api/hosts/{host['id']}/roles",
+        host["id"],
         {"role": "NameNode", "replicaCount": 3, "capacityBytes": 1099511627776},
     )
     raw = "jps -l\n4123 org.apache.hadoop.hdfs.server.datanode.DataNode"
@@ -174,15 +168,10 @@ def test_role_down_report_opens_current_alert_with_raw_evidence(client: TestClie
 
 
 def test_role_up_report_ends_the_same_alert(client: TestClient):
-    cluster = _post_ok(client, "/api/clusters", {"name": "east-cluster"})
-    host = _post_ok(
+    host = _host(client)
+    _place(
         client,
-        f"/api/clusters/{cluster['id']}/hosts",
-        {"name": "host-a"},
-    )
-    _post_ok(
-        client,
-        f"/api/hosts/{host['id']}/roles",
+        host["id"],
         {"role": "NameNode", "replicaCount": 3, "capacityBytes": 1099511627776},
     )
     raw = "jps -l\n4123 org.apache.hadoop.hdfs.server.datanode.DataNode"
@@ -217,3 +206,42 @@ def test_role_up_report_ends_the_same_alert(client: TestClient):
     assert body["data"]["current"] is False
     assert body["data"]["evidence"] == raw
     assert client.get("/api/alerts").json()["data"] == []
+
+
+def test_other_role_liveness_leaves_the_first_alert_unchanged(client: TestClient):
+    host = _host(client)
+    _place(
+        client,
+        host["id"],
+        {"role": "NameNode", "replicaCount": 3, "capacityBytes": 1099511627776},
+    )
+    _place(
+        client,
+        host["id"],
+        {"role": "DataNode", "replicaCount": 3, "capacityBytes": 1099511627776},
+    )
+    raw = "jps -l\n4123 org.apache.hadoop.hdfs.server.datanode.DataNode"
+    down = client.post(
+        f"/api/hosts/{host['id']}/role-liveness",
+        json={"roleLiveness": [{"role": "NameNode", "up": False, "raw": raw}]},
+    )
+    assert down.status_code == 200, down.text
+    alert_id = client.get("/api/alerts").json()["data"][0]["id"]
+
+    for item in (
+        {"role": "DataNode", "up": False, "raw": "jps -l\n50 DataNode"},
+        {"role": "DataNode", "up": True, "raw": "jps -l\n50 DataNode\n99 NameNode"},
+    ):
+        reported = client.post(
+            f"/api/hosts/{host['id']}/role-liveness",
+            json={"roleLiveness": [item]},
+        )
+        assert reported.status_code == 200, reported.text
+        got = client.get(f"/api/alerts/{alert_id}")
+        assert got.status_code == 200, got.text
+        alert = got.json()["data"]
+        assert alert["id"] == alert_id
+        assert alert["hostId"] == host["id"]
+        assert alert["role"] == "NameNode"
+        assert alert["current"] is True
+        assert alert["evidence"] == raw
