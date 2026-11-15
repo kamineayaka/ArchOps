@@ -20,3 +20,15 @@
 **Out of this ticket:** 修复命令、容量耗尽、节点丢失、对象存储、Spark on K8s、Flink on K8s、删除 Java 代码、原因种类、处理人、确认关闭、Kubernetes 清单、编排层、模型建议、前端页面、执行引擎。
 
 ## Comments
+
+### Cycle A — 登记集群、主机、NameNode 与 NodeManager 后读回副本或队列配置
+Red command: `cd control-plane && pytest tests/test_cluster_role_liveness_http.py::test_registered_namenode_and_nodemanager_configs_are_readable -q`
+```
+E   ModuleNotFoundError: No module named 'archops_control'
+tests/test_cluster_role_liveness_http.py:54: ModuleNotFoundError
+ERROR tests/test_cluster_role_liveness_http.py::test_registered_namenode_and_nodemanager_configs_are_readable
+1 warning, 1 error in 0.32s
+```
+Green command: same test, exit 0.
+Refactor: SQL lives in `migrations/001_cluster_host_role.sql`; one `role_json` maps the stored row. Same test re-run, exit 0.
+Commit: pending Read back a registered NameNode replica and a NodeManager queue.
