@@ -27,6 +27,7 @@ Already published:
 | probe-task-thin-ui | `docs/specs/probe-task-thin-ui.md` | `.scratch/probe-task-thin-ui/issues/`（**01 done，本刀闭合**。不重开 ADR-0048 票 01） |
 | probe-task-agent-runs | `docs/specs/probe-task-agent-runs.md` | `.scratch/probe-task-agent-runs/issues/`（**01 TDD-done，本刀闭合**。不重开 ADR-0048 票 01，不重开薄 UI） |
 | probe-curated-item-accept | `docs/specs/probe-curated-item-accept.md` | `.scratch/probe-curated-item-accept/issues/`（**01 done，本刀闭合**。不重开 ADR-0048 票 01、薄 UI、Host Agent 执行探测命令。不要开票 02） |
+| big-data-platform | `docs/specs/big-data-platform.md` | `.scratch/big-data-platform/issues/`（**01 ready-for-agent**。ADR-0050。只做集群/角色/主机与角色不在的告警。不要在这张票里换自愈命令，不要做对象存储或 K8s 计算） |
 
 ## When a skill says "publish to the issue tracker"
 

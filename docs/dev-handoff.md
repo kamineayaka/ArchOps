@@ -1,6 +1,7 @@
 # 新对话接手指南
 
-领域合同（ADR-0039）与技术栈（ADR-0043）已冻结；运行时拓扑 **ADR-0044**（控制面枢纽 / 执行引擎 / AI 编排层）；控制面→执行引擎运输 **ADR-0045**（gRPC）；冲突身份 **ADR-0046**；原因不分类 **ADR-0047**；探测任务 **ADR-0048**；三进程 Kubernetes 与编排层↔控制面 gRPC **ADR-0049**。  
+产品主线 **ADR-0050**（只运维大数据平台；取消策展/观测判断；第一版 HDFS 与 YARN）。领域合同（ADR-0039）里的判断机制不再扩展。技术栈（ADR-0043）已冻结；运行时拓扑 **ADR-0044**（控制面枢纽 / 执行引擎 / AI 编排层）；控制面→执行引擎运输 **ADR-0045**（gRPC）；冲突身份 **ADR-0046**；原因不分类 **ADR-0047**；探测任务 **ADR-0048**；三进程 Kubernetes 与编排层↔控制面 gRPC **ADR-0049**。  
+**下一张 frontier：** [`.scratch/big-data-platform/issues/01-cluster-role-host-and-liveness-alerts.md`](../.scratch/big-data-platform/issues/01-cluster-role-host-and-liveness-alerts.md)（ready-for-agent）。只做集群、角色、主机，以及角色不在的告警。自愈不换占位命令。对象存储与 K8s 计算不做。  
 **Cloud / 任意 Agent 必读根目录 [`AGENTS.md`](../AGENTS.md)**（及 [`CLAUDE.md`](../CLAUDE.md)）。  
 **脚手架已按 ADR-0043 重建**：`backend/`、`frontend/`、`agent/`、`deploy/`、根 `Dockerfile` 为可启动最小骨架；竖切按工单推进。
 
@@ -181,7 +182,15 @@
 01 删掉认领/已知悉/自任/指派/接受/拒绝/转让与冲突 GET 协作载荷（TDD-done）
 ```
 
-（一次只做一张。不要再开下一张票。不要改 ADR-0046。）
+（一次只做一张。旧主线不要再开下一张票。不要改 ADR-0046。）
+
+大数据平台（ADR-0050，**票 01 ready-for-agent**）：
+
+```
+01 集群、角色、主机配置 + HDFS/YARN 角色不在的告警（ready-for-agent）
+```
+
+自愈仍走现有单步代发，不在票 01 换占位命令。对象存储与 Spark/Flink on K8s 只留边界。
 
 ## 本地启动摘要
 

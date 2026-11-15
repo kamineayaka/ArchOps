@@ -44,6 +44,9 @@ alwaysApply: true
 | `docs/specs/conflict-without-identity.md` | 身份退出冲突领域（**票 01–07 done**。#119–#123 与 #125 已在 main；#124 已关闭未合并） |
 | `.scratch/conflict-without-identity/issues/` | 01–07 done；不要再开下一张票 |
 | `.scratch/delete-collaboration-leftovers/issues/` | 协作残留删除 **01 TDD-done，本刀闭合**。不要再开下一张票。不要改 ADR-0046 |
+| `docs/adr/0050-big-data-platform-ops.md` | 产品只运维大数据平台。取消策展/观测判断。第一版 HDFS 与 YARN |
+| `docs/specs/big-data-platform.md` | 大数据平台第一版（**01 ready-for-agent**。不换自愈命令，不做对象存储与 K8s 计算） |
+| `.scratch/big-data-platform/issues/` | 工单 01 **ready-for-agent** |
 
 ## 模块边界
 
