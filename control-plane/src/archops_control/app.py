@@ -40,6 +40,16 @@ def require_role(name: object) -> str:
     return str(name)
 
 
+def alert_json(row: dict) -> dict:
+    return {
+        "id": str(row["id"]),
+        "hostId": str(row["host_id"]),
+        "role": row["role"],
+        "current": row["current"],
+        "evidence": row["evidence"],
+    }
+
+
 def role_json(row: dict) -> dict:
     return {
         "id": str(row["id"]),
@@ -56,6 +66,34 @@ def role_json(row: dict) -> dict:
 _ROLE_COLUMNS = """
     id, host_id, role, replica_count, capacity_bytes, queue_name, memory_mb, vcores
 """
+
+
+def record_role_down(conn: object, host_id: str, item: dict) -> None:
+    if item.get("up") is not False:
+        return
+    role = require_role(item.get("role"))
+    placed = conn.execute(
+        "SELECT 1 AS placed FROM service_role WHERE host_id = %s AND role = %s",
+        (host_id, role),
+    ).fetchone()
+    if placed is None:
+        return
+    open_alert = conn.execute(
+        """
+        SELECT id FROM alert
+        WHERE host_id = %s AND role = %s AND current
+        """,
+        (host_id, role),
+    ).fetchone()
+    if open_alert is not None:
+        return
+    conn.execute(
+        """
+        INSERT INTO alert (id, host_id, role, current, evidence)
+        VALUES (%s, %s, %s, true, %s)
+        """,
+        (str(uuid4()), host_id, role, item["raw"]),
+    )
 
 
 def create_app() -> FastAPI:
@@ -134,5 +172,25 @@ def create_app() -> FastAPI:
                 (host_id,),
             ).fetchall()
         return ok([role_json(row) for row in rows])
+
+    @app.post("/api/hosts/{host_id}/role-liveness")
+    def report_role_liveness(host_id: str, body: dict) -> dict:
+        with connect() as conn:
+            for item in body["roleLiveness"]:
+                record_role_down(conn, host_id, item)
+        return ok(None)
+
+    @app.get("/api/alerts")
+    def list_current_alerts() -> dict:
+        with connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT id, host_id, role, current, evidence
+                FROM alert
+                WHERE current
+                ORDER BY role
+                """
+            ).fetchall()
+        return ok([alert_json(row) for row in rows])
 
     return app

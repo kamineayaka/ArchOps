@@ -42,5 +42,17 @@ FAILED tests/test_cluster_role_liveness_http.py::test_role_outside_namenode_data
 ```
 Green command: same test, exit 0. `ROLE_NOT_ALLOWED`, data null, role not stored.
 Refactor: `require_role` checks the four-name allow-list. Same test re-run, exit 0. Cycle A still green.
-Commit: pending Reject a role name outside NameNode, DataNode, ResourceManager, and NodeManager.
+Commit: `6241901` Reject a role name outside NameNode, DataNode, ResourceManager, and NodeManager.
+
+### Cycle C — 角色不在则当前告警存在，证据是交回的原始结果
+Red command: `cd control-plane && pytest tests/test_cluster_role_liveness_http.py::test_role_down_report_opens_current_alert_with_raw_evidence -q`
+```
+AssertionError: {"detail":"Not Found"}
+assert 404 == 200
+FAILED tests/test_cluster_role_liveness_http.py::test_role_down_report_opens_current_alert_with_raw_evidence
+```
+Green command: same test, exit 0. `GET /api/alerts` returns one current NameNode alert whose `evidence` is the posted `raw` string.
+Refactor: `record_role_down` opens one current alert for a placed role. Same test re-run, exit 0.
+Commit: pending Open a current alert when a placed role is reported down.
+
 

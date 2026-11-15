@@ -133,3 +133,41 @@ def test_role_outside_namenode_datanode_resourcemanager_nodemanager_is_rejected(
     listed = client.get(f"/api/hosts/{host['id']}/roles")
     assert listed.status_code == 200, listed.text
     assert listed.json()["data"] == []
+
+
+def test_role_down_report_opens_current_alert_with_raw_evidence(client: TestClient):
+    cluster = _post_ok(client, "/api/clusters", {"name": "east-cluster"})
+    host = _post_ok(
+        client,
+        f"/api/clusters/{cluster['id']}/hosts",
+        {"name": "host-a"},
+    )
+    _post_ok(
+        client,
+        f"/api/hosts/{host['id']}/roles",
+        {"role": "NameNode", "replicaCount": 3, "capacityBytes": 1099511627776},
+    )
+    raw = "jps -l\n4123 org.apache.hadoop.hdfs.server.datanode.DataNode"
+
+    response = client.post(
+        f"/api/hosts/{host['id']}/role-liveness",
+        json={"roleLiveness": [{"role": "NameNode", "up": False, "raw": raw}]},
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["success"] is True
+    assert body["code"] == "OK"
+    assert body["message"] == "ok"
+
+    listed = client.get("/api/alerts")
+    assert listed.status_code == 200, listed.text
+    payload = listed.json()
+    assert payload["success"] is True
+    assert payload["code"] == "OK"
+    assert payload["message"] == "ok"
+    assert len(payload["data"]) == 1
+    alert = payload["data"][0]
+    assert alert["hostId"] == host["id"]
+    assert alert["role"] == "NameNode"
+    assert alert["current"] is True
+    assert alert["evidence"] == raw
