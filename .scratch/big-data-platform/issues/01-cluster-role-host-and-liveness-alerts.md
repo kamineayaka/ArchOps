@@ -31,4 +31,16 @@ ERROR tests/test_cluster_role_liveness_http.py::test_registered_namenode_and_nod
 ```
 Green command: same test, exit 0.
 Refactor: SQL lives in `migrations/001_cluster_host_role.sql`; one `role_json` maps the stored row. Same test re-run, exit 0.
-Commit: pending Read back a registered NameNode replica and a NodeManager queue.
+Commit: `816177e` Read back a registered NameNode replica and a NodeManager queue.
+
+### Cycle B — 角色名不是 NameNode、DataNode、ResourceManager、NodeManager 时拒绝
+Red command: `cd control-plane && pytest tests/test_cluster_role_liveness_http.py::test_role_outside_namenode_datanode_resourcemanager_nodemanager_is_rejected -q`
+```
+AssertionError: {"success":true,"code":"OK",...,"role":"JournalNode",...}
+assert 200 == 400
+FAILED tests/test_cluster_role_liveness_http.py::test_role_outside_namenode_datanode_resourcemanager_nodemanager_is_rejected
+```
+Green command: same test, exit 0. `ROLE_NOT_ALLOWED`, data null, role not stored.
+Refactor: `require_role` checks the four-name allow-list. Same test re-run, exit 0. Cycle A still green.
+Commit: pending Reject a role name outside NameNode, DataNode, ResourceManager, and NodeManager.
+

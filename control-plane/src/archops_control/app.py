@@ -6,12 +6,38 @@ from contextlib import asynccontextmanager
 from uuid import uuid4
 
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 
 from archops_control.db import connect, migrate
+
+ALLOWED_ROLES = ("NameNode", "DataNode", "ResourceManager", "NodeManager")
+ROLE_NOT_ALLOWED = (
+    "role must be "
+    + ", ".join(ALLOWED_ROLES[:-1])
+    + ", or "
+    + ALLOWED_ROLES[-1]
+)
+
+
+class ApiError(Exception):
+    def __init__(self, status: int, code: str, message: str) -> None:
+        self.status = status
+        self.code = code
+        self.message = message
 
 
 def ok(data: object) -> dict:
     return {"success": True, "code": "OK", "message": "ok", "data": data}
+
+
+def fail(code: str, message: str) -> dict:
+    return {"success": False, "code": code, "message": message, "data": None}
+
+
+def require_role(name: object) -> str:
+    if name not in ALLOWED_ROLES:
+        raise ApiError(400, "ROLE_NOT_ALLOWED", ROLE_NOT_ALLOWED)
+    return str(name)
 
 
 def role_json(row: dict) -> dict:
@@ -40,6 +66,13 @@ def create_app() -> FastAPI:
 
     app = FastAPI(lifespan=lifespan)
 
+    @app.exception_handler(ApiError)
+    def handle_api_error(_request: object, exc: ApiError) -> JSONResponse:
+        return JSONResponse(
+            status_code=exc.status,
+            content=fail(exc.code, exc.message),
+        )
+
     @app.post("/api/clusters")
     def create_cluster(body: dict) -> dict:
         cluster_id = str(uuid4())
@@ -62,6 +95,7 @@ def create_app() -> FastAPI:
 
     @app.post("/api/hosts/{host_id}/roles")
     def create_role(host_id: str, body: dict) -> dict:
+        role = require_role(body.get("role"))
         role_id = str(uuid4())
         with connect() as conn:
             conn.execute(
@@ -73,7 +107,7 @@ def create_app() -> FastAPI:
                 (
                     role_id,
                     host_id,
-                    body["role"],
+                    role,
                     body.get("replicaCount"),
                     body.get("capacityBytes"),
                     body.get("queueName"),

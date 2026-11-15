@@ -105,3 +105,31 @@ def test_registered_namenode_and_nodemanager_configs_are_readable(client: TestCl
     assert roles["NodeManager"]["queueName"] == "root.default"
     assert roles["NodeManager"]["memoryMb"] == 8192
     assert roles["NodeManager"]["vcores"] == 4
+
+
+def test_role_outside_namenode_datanode_resourcemanager_nodemanager_is_rejected(
+    client: TestClient,
+):
+    cluster = _post_ok(client, "/api/clusters", {"name": "east-cluster"})
+    host = _post_ok(
+        client,
+        f"/api/clusters/{cluster['id']}/hosts",
+        {"name": "host-a"},
+    )
+    for role in ("JournalNode", "SparkDriver"):
+        response = client.post(
+            f"/api/hosts/{host['id']}/roles",
+            json={"role": role, "replicaCount": 3, "capacityBytes": 1},
+        )
+        assert response.status_code == 400, response.text
+        body = response.json()
+        assert body["success"] is False
+        assert body["code"] == "ROLE_NOT_ALLOWED"
+        assert body["message"] == (
+            "role must be NameNode, DataNode, ResourceManager, or NodeManager"
+        )
+        assert body["data"] is None
+
+    listed = client.get(f"/api/hosts/{host['id']}/roles")
+    assert listed.status_code == 200, listed.text
+    assert listed.json()["data"] == []
