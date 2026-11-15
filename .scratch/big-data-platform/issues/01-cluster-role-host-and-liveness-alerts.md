@@ -53,6 +53,18 @@ FAILED tests/test_cluster_role_liveness_http.py::test_role_down_report_opens_cur
 ```
 Green command: same test, exit 0. `GET /api/alerts` returns one current NameNode alert whose `evidence` is the posted `raw` string.
 Refactor: `record_role_down` opens one current alert for a placed role. Same test re-run, exit 0.
-Commit: pending Open a current alert when a placed role is reported down.
+Commit: `0610e9a` Open a current alert when a placed role is reported down.
+
+### Cycle D — 随后报告该角色在，同一条告警结束
+Red command: `cd control-plane && pytest tests/test_cluster_role_liveness_http.py::test_role_up_report_ends_the_same_alert -q`
+```
+AssertionError: {"detail":"Not Found"}
+assert 404 == 200
+FAILED tests/test_cluster_role_liveness_http.py::test_role_up_report_ends_the_same_alert
+```
+Green command: same test, exit 0. Same alert id, `current` false, original `evidence` kept, absent from `GET /api/alerts`.
+Refactor: alert reads share `_ALERT_COLUMNS`. Same test re-run, exit 0. Cycle C still green.
+Commit: pending End the same alert when that role is reported up.
+
 
 

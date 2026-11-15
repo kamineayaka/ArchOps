@@ -66,6 +66,19 @@ def role_json(row: dict) -> dict:
 _ROLE_COLUMNS = """
     id, host_id, role, replica_count, capacity_bytes, queue_name, memory_mb, vcores
 """
+_ALERT_COLUMNS = "id, host_id, role, current, evidence"
+
+
+def end_role_alert(conn: object, host_id: str, item: dict) -> None:
+    role = require_role(item.get("role"))
+    conn.execute(
+        """
+        UPDATE alert
+        SET current = false
+        WHERE host_id = %s AND role = %s AND current
+        """,
+        (host_id, role),
+    )
 
 
 def record_role_down(conn: object, host_id: str, item: dict) -> None:
@@ -79,8 +92,8 @@ def record_role_down(conn: object, host_id: str, item: dict) -> None:
     if placed is None:
         return
     open_alert = conn.execute(
-        """
-        SELECT id FROM alert
+        f"""
+        SELECT {_ALERT_COLUMNS} FROM alert
         WHERE host_id = %s AND role = %s AND current
         """,
         (host_id, role),
@@ -177,20 +190,34 @@ def create_app() -> FastAPI:
     def report_role_liveness(host_id: str, body: dict) -> dict:
         with connect() as conn:
             for item in body["roleLiveness"]:
-                record_role_down(conn, host_id, item)
+                if item.get("up") is True:
+                    end_role_alert(conn, host_id, item)
+                else:
+                    record_role_down(conn, host_id, item)
         return ok(None)
 
     @app.get("/api/alerts")
     def list_current_alerts() -> dict:
         with connect() as conn:
             rows = conn.execute(
-                """
-                SELECT id, host_id, role, current, evidence
+                f"""
+                SELECT {_ALERT_COLUMNS}
                 FROM alert
                 WHERE current
                 ORDER BY role
                 """
             ).fetchall()
         return ok([alert_json(row) for row in rows])
+
+    @app.get("/api/alerts/{alert_id}")
+    def get_alert(alert_id: str) -> dict:
+        with connect() as conn:
+            row = conn.execute(
+                f"SELECT {_ALERT_COLUMNS} FROM alert WHERE id = %s",
+                (alert_id,),
+            ).fetchone()
+        if row is None:
+            raise ApiError(404, "NOT_FOUND", "Not found")
+        return ok(alert_json(row))
 
     return app

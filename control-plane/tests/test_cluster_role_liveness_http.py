@@ -171,3 +171,49 @@ def test_role_down_report_opens_current_alert_with_raw_evidence(client: TestClie
     assert alert["role"] == "NameNode"
     assert alert["current"] is True
     assert alert["evidence"] == raw
+
+
+def test_role_up_report_ends_the_same_alert(client: TestClient):
+    cluster = _post_ok(client, "/api/clusters", {"name": "east-cluster"})
+    host = _post_ok(
+        client,
+        f"/api/clusters/{cluster['id']}/hosts",
+        {"name": "host-a"},
+    )
+    _post_ok(
+        client,
+        f"/api/hosts/{host['id']}/roles",
+        {"role": "NameNode", "replicaCount": 3, "capacityBytes": 1099511627776},
+    )
+    raw = "jps -l\n4123 org.apache.hadoop.hdfs.server.datanode.DataNode"
+    down = client.post(
+        f"/api/hosts/{host['id']}/role-liveness",
+        json={"roleLiveness": [{"role": "NameNode", "up": False, "raw": raw}]},
+    )
+    assert down.status_code == 200, down.text
+    open_alerts = client.get("/api/alerts").json()["data"]
+    assert len(open_alerts) == 1
+    alert_id = open_alerts[0]["id"]
+
+    up = client.post(
+        f"/api/hosts/{host['id']}/role-liveness",
+        json={
+            "roleLiveness": [
+                {"role": "NameNode", "up": True, "raw": "jps -l\n99 NameNode"}
+            ]
+        },
+    )
+    assert up.status_code == 200, up.text
+
+    ended = client.get(f"/api/alerts/{alert_id}")
+    assert ended.status_code == 200, ended.text
+    body = ended.json()
+    assert body["success"] is True
+    assert body["code"] == "OK"
+    assert body["message"] == "ok"
+    assert body["data"]["id"] == alert_id
+    assert body["data"]["hostId"] == host["id"]
+    assert body["data"]["role"] == "NameNode"
+    assert body["data"]["current"] is False
+    assert body["data"]["evidence"] == raw
+    assert client.get("/api/alerts").json()["data"] == []
