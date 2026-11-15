@@ -1,7 +1,7 @@
 # 新对话接手指南
 
 产品主线 **ADR-0050**（只运维大数据平台；取消策展/观测判断；第一版 HDFS 与 YARN）。领域合同（ADR-0039）里的判断机制不再扩展。技术栈（ADR-0043）已冻结；运行时拓扑 **ADR-0044**（控制面枢纽 / 执行引擎 / AI 编排层）；控制面→执行引擎运输 **ADR-0045**（gRPC）；冲突身份 **ADR-0046**；原因不分类 **ADR-0047**；探测任务 **ADR-0048**；三进程 Kubernetes 与编排层↔控制面 gRPC **ADR-0049**。  
-**下一张 frontier：** [`.scratch/big-data-platform/issues/01-cluster-role-host-and-liveness-alerts.md`](../.scratch/big-data-platform/issues/01-cluster-role-host-and-liveness-alerts.md)（ready-for-agent）。只做集群、角色、主机，以及角色不在的告警。自愈不换占位命令。对象存储与 K8s 计算不做。  
+**下一张 frontier：** 无。大数据平台票 01 **done**（[`.scratch/big-data-platform/issues/01-cluster-role-host-and-liveness-alerts.md`](../.scratch/big-data-platform/issues/01-cluster-role-host-and-liveness-alerts.md)）。不要开票 02。修复命令、容量耗尽、节点丢失、对象存储与 K8s 计算都不在这张票里。  
 **Cloud / 任意 Agent 必读根目录 [`AGENTS.md`](../AGENTS.md)**（及 [`CLAUDE.md`](../CLAUDE.md)）。  
 **脚手架已按 ADR-0043 重建**：`backend/`、`frontend/`、`agent/`、`deploy/`、根 `Dockerfile` 为可启动最小骨架；竖切按工单推进。
 
@@ -115,6 +115,7 @@
 49. **探测任务薄 UI 01 done / 本刀闭合。** 页面保存任务并展示控制面判决（正常 / 带原始证据的冲突 / 空洞）。修实际打开待审计划；改理想打开草案且不写策展；空洞只有恢复观测通道。不重开 ADR-0048 票 01。不要自动做 ADR-0049 / Kubernetes / 编排层。→ [`docs/specs/probe-task-thin-ui.md`](specs/probe-task-thin-ui.md) / [`.scratch/probe-task-thin-ui/issues/01-probe-task-judgment-page.md`](../.scratch/probe-task-thin-ui/issues/01-probe-task-judgment-page.md)
 50. **Host Agent 执行探测命令 01 TDD-done / 本刀闭合。** 心跳拉取任务，在主机上执行命令，把结构化结果交回现有 ingest。相等维持正常；不等打开带原始证据的冲突，解决动作仍是 ADR-0047；读不出或超时未交回只空洞该任务。不重开 ADR-0048 票 01，不重开薄 UI。不要自动做 ADR-0049 / Kubernetes / 编排层 gRPC。不要把 Agent 停机写成掏空全部快照观测。不要持久化「恢复观测通道」。→ [`docs/specs/probe-task-agent-runs.md`](specs/probe-task-agent-runs.md) / [`.scratch/probe-task-agent-runs/issues/01-agent-runs-probe-tasks.md`](../.scratch/probe-task-agent-runs/issues/01-agent-runs-probe-tasks.md)
 51. **探测改理想逐条确认 01 done / 本刀闭合。** 已有 OPEN 草案上接受 `PROBE_CURATED_VALUE` 把观测结构化值写成策展并立刻再判决；相等进入待确认关闭，确认关闭可以关单；确认关闭前更新的不等结果离开待确认关闭并重开同一条冲突；拒绝不写策展。不新增解决动作。不重开 ADR-0048 票 01、薄 UI、Host Agent 执行探测命令。不要开票 02。→ [`docs/specs/probe-curated-item-accept.md`](specs/probe-curated-item-accept.md) / [`.scratch/probe-curated-item-accept/issues/01-accept-probe-curated-item.md`](../.scratch/probe-curated-item-accept/issues/01-accept-probe-curated-item.md)
+52. **大数据平台 01 done / 本刀闭合。** Python 控制面（FastAPI + PostgreSQL）登记集群、主机和 NameNode / DataNode / ResourceManager / NodeManager，读回 HDFS 副本与容量或 YARN 队列内存与 vcore。Go Host Agent 交回角色是否在；角色不在则当前告警的证据是交回的原始结果，角色恢复在则同一条告警结束。不记录操作者，没有原因种类。不改 `backend/`。不要开票 02。→ [`docs/specs/big-data-platform.md`](specs/big-data-platform.md) / [`.scratch/big-data-platform/issues/01-cluster-role-host-and-liveness-alerts.md`](../.scratch/big-data-platform/issues/01-cluster-role-host-and-liveness-alerts.md)
 
 ### 工单阻塞简图
 
@@ -184,13 +185,13 @@
 
 （一次只做一张。旧主线不要再开下一张票。不要改 ADR-0046。）
 
-大数据平台（ADR-0050，**票 01 ready-for-agent**）：
+大数据平台（ADR-0050 / 0051 / 0052，**票 01 done**）：
 
 ```
-01 集群、角色、主机配置 + HDFS/YARN 角色不在的告警（ready-for-agent）
+01 集群、角色、主机配置 + HDFS/YARN 角色不在的告警（done）
 ```
 
-自愈仍走现有单步代发，不在票 01 换占位命令。对象存储与 Spark/Flink on K8s 只留边界。
+不要开票 02。修复命令另说。对象存储与 Spark/Flink on K8s 只留边界。
 
 ## 本地启动摘要
 

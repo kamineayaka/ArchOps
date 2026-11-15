@@ -4,18 +4,18 @@
 
 **Blocked by:** None. 合同是 ADR-0050、ADR-0051、ADR-0052。修复不在本票。现有 Java 冲突、草案、探测接口停在原地。
 
-**Status:** ready-for-agent
+**Status:** done
 
 **TDD:** capability。`/implement` 走 [`docs/agents/tdd.md`](../../../docs/agents/tdd.md)。主接缝是新 Python 控制面的 HTTP API。Spec：[`docs/specs/big-data-platform.md`](../../../docs/specs/big-data-platform.md)。
 
-- [ ] 登记集群、主机和 NameNode（或 NodeManager）后，读回角色以及副本或队列配置
-- [ ] 角色名不是 NameNode、DataNode、ResourceManager、NodeManager 时拒绝
-- [ ] Go Agent 报告角色不在：当前告警存在，证据是交回的原始结果
-- [ ] 随后报告该角色在：同一条告警结束
-- [ ] 同一主机另一个角色的存活不改变第一条告警
-- [ ] 不带角色存活字段的上报不制造告警
-- [ ] 登记、上报、读告警不带用户身份，不记录操作者
-- [ ] `backend/` 无改动
+- [x] 登记集群、主机和 NameNode（或 NodeManager）后，读回角色以及副本或队列配置
+- [x] 角色名不是 NameNode、DataNode、ResourceManager、NodeManager 时拒绝
+- [x] Go Agent 报告角色不在：当前告警存在，证据是交回的原始结果
+- [x] 随后报告该角色在：同一条告警结束
+- [x] 同一主机另一个角色的存活不改变第一条告警
+- [x] 不带角色存活字段的上报不制造告警
+- [x] 登记、上报、读告警不带用户身份，不记录操作者
+- [x] `backend/` 无改动
 
 **Out of this ticket:** 修复命令、容量耗尽、节点丢失、对象存储、Spark on K8s、Flink on K8s、删除 Java 代码、原因种类、处理人、确认关闭、Kubernetes 清单、编排层、模型建议、前端页面、执行引擎。
 
@@ -97,7 +97,25 @@ FAILED tests/test_cluster_role_liveness_http.py::test_go_agent_down_report_opens
 ```
 Green command: same test, exit 0. Evidence is `java -Dproc=org.apache.hadoop.hdfs.server.datanode.DataNode`. `go test ./...` in `host-agent` passes: raw listing, omitted `roleLiveness` when no role is collected, no user header.
 Refactor: liveness helpers take a `psycopg.Connection`. Full Python file re-run, 8 passed.
-Commit: pending Report a down NameNode from the Go host agent.
+Commit: `9dc5fa2` Report a down NameNode from the Go host agent.
+
+### Cycle I — 配置必填，进程名按类名匹配，同一角色只有一条当前告警
+Red commands:
+`cd host-agent && go test -count=1 -run TestSecondaryNameNodeIsNotNameNode .`
+```
+--- FAIL: TestSecondaryNameNodeIsNotNameNode (0.00s)
+    report_test.go:49: SecondaryNameNode counted as NameNode
+FAIL
+```
+`cd control-plane && pytest tests/test_cluster_role_liveness_http.py::test_hdfs_role_requires_replica_and_capacity_and_yarn_role_requires_queue -q`
+```
+AssertionError: ... "role":"NameNode","replicaCount":null ...
+assert 200 == 400
+FAILED tests/test_cluster_role_liveness_http.py::test_hdfs_role_requires_replica_and_capacity_and_yarn_role_requires_queue
+```
+Green: both exit 0. `processRunsRole` uses the class simple name, so SecondaryNameNode is not NameNode. HDFS requires `replicaCount` and `capacityBytes`; YARN requires `queueName`, `memoryMb`, and `vcores`. A second down report keeps one current alert and the first raw evidence; partial unique index `alert_one_current_per_host_role` plus `ON CONFLICT DO NOTHING` is what makes that true for two writers. Full `pytest` 10 passed. `go test ./...` passed.
+Review: Standards + Spec against `cursor/big-data-platform-contract`. Cycle E and Cycle G stayed first-run green, as recorded above. No repair command, no cause kind, no operator, `backend/` untouched.
+Commit: pending Keep one current alert and require the role's own config.
 
 
 

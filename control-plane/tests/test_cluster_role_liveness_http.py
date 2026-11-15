@@ -142,6 +142,29 @@ def test_role_outside_namenode_datanode_resourcemanager_nodemanager_is_rejected(
     assert listed.json()["data"] == []
 
 
+def test_hdfs_role_requires_replica_and_capacity_and_yarn_role_requires_queue(
+    client: TestClient,
+):
+    host = _host(client)
+    for body in (
+        {"role": "NameNode"},
+        {"role": "DataNode", "replicaCount": 3},
+        {"role": "NodeManager", "queueName": "root.default"},
+        {"role": "ResourceManager"},
+    ):
+        response = client.post(f"/api/hosts/{host['id']}/roles", json=body)
+        assert response.status_code == 400, response.text
+        payload = response.json()
+        assert payload["success"] is False
+        assert payload["code"] == "ROLE_CONFIG_REQUIRED"
+        assert payload["message"] == (
+            "HDFS role requires replicaCount and capacityBytes; "
+            "YARN role requires queueName, memoryMb, and vcores"
+        )
+        assert payload["data"] is None
+    assert client.get(f"/api/hosts/{host['id']}/roles").json()["data"] == []
+
+
 def test_role_down_report_opens_current_alert_with_raw_evidence(client: TestClient):
     host = _host(client)
     _place(
@@ -173,6 +196,30 @@ def test_role_down_report_opens_current_alert_with_raw_evidence(client: TestClie
     assert alert["role"] == "NameNode"
     assert alert["current"] is True
     assert alert["evidence"] == raw
+
+
+def test_second_down_report_keeps_one_current_alert_and_the_first_evidence(
+    client: TestClient,
+):
+    host = _host(client)
+    _place(
+        client,
+        host["id"],
+        {"role": "NameNode", "replicaCount": 3, "capacityBytes": 1099511627776},
+    )
+    first = "jps -l\n1 DataNode"
+    second = "jps -l\n2 DataNode"
+    for raw in (first, second):
+        response = client.post(
+            f"/api/hosts/{host['id']}/role-liveness",
+            json={"roleLiveness": [{"role": "NameNode", "up": False, "raw": raw}]},
+        )
+        assert response.status_code == 200, response.text
+    alerts = client.get("/api/alerts").json()["data"]
+    assert len(alerts) == 1
+    assert alerts[0]["role"] == "NameNode"
+    assert alerts[0]["current"] is True
+    assert alerts[0]["evidence"] == first
 
 
 def test_role_up_report_ends_the_same_alert(client: TestClient):

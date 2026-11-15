@@ -6,7 +6,7 @@
 
 **Agent 入口**：编码助手（含 Cursor Cloud Agent）必须先读根目录 `AGENTS.md` / `CLAUDE.md`，再读本文件、ADR-0043 与 ADR-0044。
 
-**实现接手**：脚手架已按 ADR-0043 重建。旧主线票已闭合，不再加票。下一张 frontier 是大数据平台票 01（`.scratch/big-data-platform/issues/01-cluster-role-host-and-liveness-alerts.md`）。不复用已删旧域。
+**实现接手**：脚手架已按 ADR-0043 重建。旧主线票已闭合，不再加票。大数据平台票 01 已 done（`.scratch/big-data-platform/issues/01-cluster-role-host-and-liveness-alerts.md`）。不要开票 02。不复用已删旧域。
 
 **技术栈**：ADR-0043，并由 ADR-0044 修订进程切分。Java 21 / Spring Boot 3 / Gradle / MyBatis-Plus；React + Ant Design（同镜像静态）；PostgreSQL（v1 图也落 PG；图库 Later）；Redis（队列/锁/会话/缓存，多副本）；Python Host Agent（systemd）；执行引擎（MINA SSHD）；编排层与控制面走 gRPC；控制面、执行引擎、AI 编排层在 Kubernetes 上各自独立部署（ADR-0049）。
 

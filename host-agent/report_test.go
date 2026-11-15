@@ -41,6 +41,21 @@ func TestDownRoleReportUsesTheProcessListingAsRaw(t *testing.T) {
 	}
 }
 
+func TestSecondaryNameNodeIsNotNameNode(t *testing.T) {
+	down := collect([]string{"NameNode"}, []string{
+		"java org.apache.hadoop.hdfs.server.namenode.SecondaryNameNode",
+	})
+	if down[0].Up {
+		t.Fatal("SecondaryNameNode counted as NameNode")
+	}
+	up := collect([]string{"NameNode"}, []string{
+		"java org.apache.hadoop.hdfs.server.namenode.NameNode",
+	})
+	if !up[0].Up {
+		t.Fatal("NameNode process was not up")
+	}
+}
+
 func TestReportWithoutRolesOmitsLivenessField(t *testing.T) {
 	body, err := reportBody(t.TempDir(), nil)
 	if err != nil {

@@ -54,13 +54,26 @@ func cmdlines(procRoot string) ([]string, error) {
 	return lines, nil
 }
 
+func processRunsRole(line, role string) bool {
+	for _, token := range strings.Fields(line) {
+		base := token
+		if dot := strings.LastIndex(token, "."); dot >= 0 {
+			base = token[dot+1:]
+		}
+		if base == role {
+			return true
+		}
+	}
+	return false
+}
+
 func collect(roles, processes []string) []roleLiveness {
 	raw := strings.Join(processes, "\n")
 	out := make([]roleLiveness, 0, len(roles))
 	for _, role := range roles {
 		up := false
 		for _, line := range processes {
-			if strings.Contains(line, role) {
+			if processRunsRole(line, role) {
 				up = true
 				break
 			}

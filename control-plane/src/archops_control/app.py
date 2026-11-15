@@ -12,11 +12,16 @@ from fastapi.responses import JSONResponse
 from archops_control.db import connect, migrate
 
 ALLOWED_ROLES = ("NameNode", "DataNode", "ResourceManager", "NodeManager")
+HDFS_ROLES = frozenset({"NameNode", "DataNode"})
 ROLE_NOT_ALLOWED = (
     "role must be "
     + ", ".join(ALLOWED_ROLES[:-1])
     + ", or "
     + ALLOWED_ROLES[-1]
+)
+ROLE_CONFIG_REQUIRED = (
+    "HDFS role requires replicaCount and capacityBytes; "
+    "YARN role requires queueName, memoryMb, and vcores"
 )
 
 
@@ -39,6 +44,29 @@ def require_role(name: object) -> str:
     if name not in ALLOWED_ROLES:
         raise ApiError(400, "ROLE_NOT_ALLOWED", ROLE_NOT_ALLOWED)
     return str(name)
+
+
+def _positive_int(value: object) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool) and value >= 1
+
+
+def role_config(body: dict) -> tuple:
+    role = require_role(body.get("role"))
+    if role in HDFS_ROLES:
+        if not _positive_int(body.get("replicaCount")) or not _positive_int(
+            body.get("capacityBytes")
+        ):
+            raise ApiError(400, "ROLE_CONFIG_REQUIRED", ROLE_CONFIG_REQUIRED)
+        return role, body["replicaCount"], body["capacityBytes"], None, None, None
+    queue = body.get("queueName")
+    if (
+        not isinstance(queue, str)
+        or not queue.strip()
+        or not _positive_int(body.get("memoryMb"))
+        or not _positive_int(body.get("vcores"))
+    ):
+        raise ApiError(400, "ROLE_CONFIG_REQUIRED", ROLE_CONFIG_REQUIRED)
+    return role, None, None, queue, body["memoryMb"], body["vcores"]
 
 
 def alert_json(row: dict) -> dict:
@@ -92,19 +120,11 @@ def record_role_down(conn: psycopg.Connection, host_id: str, item: dict) -> None
     ).fetchone()
     if placed is None:
         return
-    open_alert = conn.execute(
-        f"""
-        SELECT {_ALERT_COLUMNS} FROM alert
-        WHERE host_id = %s AND role = %s AND current
-        """,
-        (host_id, role),
-    ).fetchone()
-    if open_alert is not None:
-        return
     conn.execute(
         """
         INSERT INTO alert (id, host_id, role, current, evidence)
         VALUES (%s, %s, %s, true, %s)
+        ON CONFLICT (host_id, role) WHERE current DO NOTHING
         """,
         (str(uuid4()), host_id, role, item["raw"]),
     )
@@ -147,7 +167,9 @@ def create_app() -> FastAPI:
 
     @app.post("/api/hosts/{host_id}/roles")
     def create_role(host_id: str, body: dict) -> dict:
-        role = require_role(body.get("role"))
+        role, replica_count, capacity_bytes, queue_name, memory_mb, vcores = role_config(
+            body
+        )
         role_id = str(uuid4())
         with connect() as conn:
             conn.execute(
@@ -160,11 +182,11 @@ def create_app() -> FastAPI:
                     role_id,
                     host_id,
                     role,
-                    body.get("replicaCount"),
-                    body.get("capacityBytes"),
-                    body.get("queueName"),
-                    body.get("memoryMb"),
-                    body.get("vcores"),
+                    replica_count,
+                    capacity_bytes,
+                    queue_name,
+                    memory_mb,
+                    vcores,
                 ),
             )
             row = conn.execute(

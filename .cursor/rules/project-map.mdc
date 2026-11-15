@@ -14,7 +14,9 @@ alwaysApply: true
 |---|---|
 | `backend/` | Java 21、Spring Boot 3、Gradle、MyBatis-Plus、Flyway、PostgreSQL、Redis |
 | `frontend/` | React + TypeScript + Ant Design（嵌入 `archops:latest`） |
-| `agent/` | Python 3.12+；systemd 交付 |
+| `agent/` | 旧 Python Host Agent，留在原地 |
+| `control-plane/` | 现行控制面：Python、FastAPI、PostgreSQL（ADR-0052） |
+| `host-agent/` | 现行 Host Agent：Go（ADR-0051 / ADR-0052） |
 | `deploy/` | 本地开发 Compose（Postgres、Redis、控制面、执行引擎）。交付目标是三个 Kubernetes Deployment：控制面、执行引擎、AI 编排层（ADR-0049）。Host Agent 留在主机 |
 | `docs/` | 合同、ADR、Spec、prompts、`docs/agents/`（Matt tracker + TDD overlay） |
 | `.cursor/skills/` | Cloud Agent 技能（Matt 工程链 + ArchOps `add-*`） |
@@ -45,8 +47,8 @@ alwaysApply: true
 | `.scratch/conflict-without-identity/issues/` | 01–07 done；不要再开下一张票 |
 | `.scratch/delete-collaboration-leftovers/issues/` | 协作残留删除 **01 TDD-done，本刀闭合**。不要再开下一张票。不要改 ADR-0046 |
 | `docs/adr/0050-big-data-platform-ops.md` | 产品只运维大数据平台。取消策展/观测判断。第一版 HDFS 与 YARN |
-| `docs/specs/big-data-platform.md` | 大数据平台第一版（**01 ready-for-agent**。不换自愈命令，不做对象存储与 K8s 计算） |
-| `.scratch/big-data-platform/issues/` | 工单 01 **ready-for-agent** |
+| `docs/specs/big-data-platform.md` | 大数据平台第一版（**01 done，本刀闭合**。不要开票 02。不换自愈命令，不做对象存储与 K8s 计算） |
+| `.scratch/big-data-platform/issues/` | 工单 01 **done** |
 
 ## 模块边界
 

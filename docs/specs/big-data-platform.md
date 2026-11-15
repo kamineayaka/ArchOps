@@ -1,10 +1,10 @@
 ---
-status: "票 01 ready-for-agent。只做集群/角色/主机配置，以及 HDFS/YARN 角色是否在的故障与告警。不含自愈换命令，不含对象存储与 K8s 计算。"
+status: "票 01 done。集群/角色/主机配置，以及 HDFS/YARN 角色是否在的故障与告警。不含自愈换命令，不含对象存储与 K8s 计算。不要开票 02。"
 ---
 
 # Spec: 大数据平台第一版（HDFS 与 YARN）
 
-**Status**: 工单 01 **ready-for-agent**。  
+**Status**: 工单 01 **done**。  
 **Basis**: [`docs/adr/0050-big-data-platform-ops.md`](../adr/0050-big-data-platform-ops.md)、[`docs/adr/0051-host-agent-collects-and-repairs.md`](../adr/0051-host-agent-collects-and-repairs.md)、[`docs/adr/0052-python-control-plane-go-agent.md`](../adr/0052-python-control-plane-go-agent.md)。判断机制已取消。控制面是新的 Python 服务，Agent 是 Go。不改 `backend/`。  
 **Testing seams (confirmed)**: 新 Python 控制面的 HTTP API。`/implement` 走 [`docs/agents/tdd.md`](../agents/tdd.md)，red → green → refactor。前端不在本票。修复不在本票。
 
