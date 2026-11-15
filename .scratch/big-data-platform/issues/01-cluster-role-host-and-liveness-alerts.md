@@ -81,7 +81,14 @@ FAILED tests/test_cluster_role_liveness_http.py::test_report_without_role_livene
 ```
 Green command: same test, exit 0. Report body has `sentAt` and no `roleLiveness`; `GET /api/alerts` is `[]`.
 Refactor: no structural change. Same test re-run, exit 0. Role-down report still green.
-Commit: pending Ignore a report that does not carry role liveness.
+Commit: `674fed2` Ignore a report that does not carry role liveness.
+
+### Cycle G — 登记、上报、读告警不带用户身份，不记录操作者
+Red command: `cd control-plane && pytest tests/test_cluster_role_liveness_http.py::test_register_report_and_read_alert_need_no_user_and_record_no_operator -q`
+First-run green (exit 0). Register, place, report, and both alert reads accept `X-ArchOps-User-Id: user-should-not-be-stored` and also succeed with no identity header. That id is absent from every body, and no operator / user / actor key is present. The API never grew an auth gate or an operator column, so there was no production behavior to remove.
+Refactor: no structural change.
+Commit: pending Record that registration, liveness, and alerts carry no operator.
+
 
 
 

@@ -266,3 +266,80 @@ def test_report_without_role_liveness_field_opens_no_alert(client: TestClient):
     listed = client.get("/api/alerts")
     assert listed.status_code == 200, listed.text
     assert listed.json()["data"] == []
+
+
+_FORBIDDEN_KEYS = {
+    "operator",
+    "operatorId",
+    "userId",
+    "createdBy",
+    "recordedBy",
+    "actor",
+    "actorId",
+    "acceptedBy",
+    "handledBy",
+}
+
+
+def _assert_no_operator(response, user_id: str) -> None:
+    assert user_id not in response.text
+    found: set[str] = set()
+
+    def walk(value: object) -> None:
+        if isinstance(value, dict):
+            for key, child in value.items():
+                found.add(key)
+                walk(child)
+        elif isinstance(value, list):
+            for child in value:
+                walk(child)
+
+    walk(response.json())
+    assert found.isdisjoint(_FORBIDDEN_KEYS)
+
+
+def test_register_report_and_read_alert_need_no_user_and_record_no_operator(
+    client: TestClient,
+):
+    user_id = "user-should-not-be-stored"
+    headers = {"X-ArchOps-User-Id": user_id}
+    cluster = client.post("/api/clusters", json={"name": "east-cluster"}, headers=headers)
+    _assert_no_operator(cluster, user_id)
+    assert cluster.status_code == 200, cluster.text
+    host = client.post(
+        f"/api/clusters/{cluster.json()['data']['id']}/hosts",
+        json={"name": "host-a"},
+        headers=headers,
+    )
+    _assert_no_operator(host, user_id)
+    assert host.status_code == 200, host.text
+    host_id = host.json()["data"]["id"]
+    placed = client.post(
+        f"/api/hosts/{host_id}/roles",
+        json={"role": "NameNode", "replicaCount": 3, "capacityBytes": 1099511627776},
+        headers=headers,
+    )
+    _assert_no_operator(placed, user_id)
+    assert placed.status_code == 200, placed.text
+    raw = "jps -l\n4123 org.apache.hadoop.hdfs.server.datanode.DataNode"
+    reported = client.post(
+        f"/api/hosts/{host_id}/role-liveness",
+        json={"roleLiveness": [{"role": "NameNode", "up": False, "raw": raw}]},
+        headers=headers,
+    )
+    _assert_no_operator(reported, user_id)
+    assert reported.status_code == 200, reported.text
+    listed = client.get("/api/alerts", headers=headers)
+    _assert_no_operator(listed, user_id)
+    assert listed.status_code == 200, listed.text
+    alert = listed.json()["data"][0]
+    assert alert["evidence"] == raw
+    fetched = client.get(f"/api/alerts/{alert['id']}", headers=headers)
+    _assert_no_operator(fetched, user_id)
+    assert fetched.status_code == 200, fetched.text
+    assert fetched.json()["data"]["id"] == alert["id"]
+
+    anonymous = client.get("/api/alerts")
+    assert anonymous.status_code == 200, anonymous.text
+    assert anonymous.json()["data"][0]["id"] == alert["id"]
+    _assert_no_operator(anonymous, user_id)
