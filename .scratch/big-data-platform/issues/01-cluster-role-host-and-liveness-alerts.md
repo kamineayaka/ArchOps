@@ -115,7 +115,7 @@ FAILED tests/test_cluster_role_liveness_http.py::test_hdfs_role_requires_replica
 ```
 Green: both exit 0. `processRunsRole` uses the class simple name, so SecondaryNameNode is not NameNode. HDFS requires `replicaCount` and `capacityBytes`; YARN requires `queueName`, `memoryMb`, and `vcores`. A second down report keeps one current alert and the first raw evidence; partial unique index `alert_one_current_per_host_role` plus `ON CONFLICT DO NOTHING` is what makes that true for two writers. Full `pytest` 10 passed. `go test ./...` passed.
 Review: Standards + Spec against `cursor/big-data-platform-contract`. Cycle E and Cycle G stayed first-run green, as recorded above. No repair command, no cause kind, no operator, `backend/` untouched.
-Commit: pending Keep one current alert and require the role's own config.
+Commit: `38ae16f` Keep one current alert and require the role's own config.
 
 
 
