@@ -87,7 +87,18 @@ Commit: `674fed2` Ignore a report that does not carry role liveness.
 Red command: `cd control-plane && pytest tests/test_cluster_role_liveness_http.py::test_register_report_and_read_alert_need_no_user_and_record_no_operator -q`
 First-run green (exit 0). Register, place, report, and both alert reads accept `X-ArchOps-User-Id: user-should-not-be-stored` and also succeed with no identity header. That id is absent from every body, and no operator / user / actor key is present. The API never grew an auth gate or an operator column, so there was no production behavior to remove.
 Refactor: no structural change.
-Commit: pending Record that registration, liveness, and alerts carry no operator.
+Commit: `b1e2338` Record that registration, liveness, and alerts carry no operator.
+
+### Cycle H — Go Agent 报告 NameNode 不在，证据是进程列表原文
+Red command: `cd control-plane && pytest tests/test_cluster_role_liveness_http.py::test_go_agent_down_report_opens_alert_with_process_listing -q`
+```
+E   FileNotFoundError: [Errno 2] No such file or directory: PosixPath('/agent/repos/ArchOps/host-agent')
+FAILED tests/test_cluster_role_liveness_http.py::test_go_agent_down_report_opens_alert_with_process_listing
+```
+Green command: same test, exit 0. Evidence is `java -Dproc=org.apache.hadoop.hdfs.server.datanode.DataNode`. `go test ./...` in `host-agent` passes: raw listing, omitted `roleLiveness` when no role is collected, no user header.
+Refactor: liveness helpers take a `psycopg.Connection`. Full Python file re-run, 8 passed.
+Commit: pending Report a down NameNode from the Go host agent.
+
 
 
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 from uuid import uuid4
 
+import psycopg
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
@@ -69,7 +70,7 @@ _ROLE_COLUMNS = """
 _ALERT_COLUMNS = "id, host_id, role, current, evidence"
 
 
-def end_role_alert(conn: object, host_id: str, item: dict) -> None:
+def end_role_alert(conn: psycopg.Connection, host_id: str, item: dict) -> None:
     role = require_role(item.get("role"))
     conn.execute(
         """
@@ -81,7 +82,7 @@ def end_role_alert(conn: object, host_id: str, item: dict) -> None:
     )
 
 
-def record_role_down(conn: object, host_id: str, item: dict) -> None:
+def record_role_down(conn: psycopg.Connection, host_id: str, item: dict) -> None:
     if item.get("up") is not False:
         return
     role = require_role(item.get("role"))

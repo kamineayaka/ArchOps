@@ -6,9 +6,17 @@ Seam: the Python control plane HTTP API (docs/specs/big-data-platform.md).
 from __future__ import annotations
 
 import os
+import shutil
+import socket
+import subprocess
+import tempfile
+import threading
+import time
+from pathlib import Path
 
 import psycopg
 import pytest
+import uvicorn
 from fastapi.testclient import TestClient
 
 DATABASE_URL = os.environ.get(
@@ -343,3 +351,85 @@ def test_register_report_and_read_alert_need_no_user_and_record_no_operator(
     assert anonymous.status_code == 200, anonymous.text
     assert anonymous.json()["data"][0]["id"] == alert["id"]
     _assert_no_operator(anonymous, user_id)
+
+
+def _go_binary() -> str:
+    found = shutil.which("go")
+    if found:
+        return found
+    candidate = Path.home() / ".local" / "go" / "bin" / "go"
+    return str(candidate)
+
+
+class _Server(uvicorn.Server):
+    def install_signal_handlers(self) -> None:
+        return
+
+
+def test_go_agent_down_report_opens_alert_with_process_listing(client: TestClient):
+    host = _host(client)
+    _place(
+        client,
+        host["id"],
+        {"role": "NameNode", "replicaCount": 3, "capacityBytes": 1099511627776},
+    )
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        port = sock.getsockname()[1]
+    from archops_control.app import create_app
+
+    server = _Server(
+        uvicorn.Config(
+            create_app(),
+            host="127.0.0.1",
+            port=port,
+            log_level="error",
+        )
+    )
+    thread = threading.Thread(target=server.run, daemon=True)
+    thread.start()
+    deadline = time.time() + 5
+    while not server.started:
+        if time.time() > deadline:
+            raise AssertionError("control plane did not start")
+        time.sleep(0.01)
+    raw = "java -Dproc=org.apache.hadoop.hdfs.server.datanode.DataNode"
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            cmdline = Path(tmp) / "proc" / "4123" / "cmdline"
+            cmdline.parent.mkdir(parents=True)
+            cmdline.write_bytes(
+                b"java\x00-Dproc=org.apache.hadoop.hdfs.server.datanode.DataNode\x00"
+            )
+            completed = subprocess.run(
+                [
+                    _go_binary(),
+                    "run",
+                    ".",
+                    "--control-plane",
+                    f"http://127.0.0.1:{port}",
+                    "--host-id",
+                    host["id"],
+                    "--role",
+                    "NameNode",
+                    "--proc-root",
+                    str(Path(tmp) / "proc"),
+                ],
+                cwd=Path(__file__).resolve().parents[2] / "host-agent",
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        assert completed.returncode == 0, completed.stderr
+    finally:
+        server.should_exit = True
+        thread.join(timeout=5)
+
+    listed = client.get("/api/alerts")
+    assert listed.status_code == 200, listed.text
+    alerts = listed.json()["data"]
+    assert len(alerts) == 1
+    assert alerts[0]["hostId"] == host["id"]
+    assert alerts[0]["role"] == "NameNode"
+    assert alerts[0]["current"] is True
+    assert alerts[0]["evidence"] == raw
