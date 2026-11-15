@@ -18,6 +18,9 @@
 12. `docs/adr/0047-conflict-evidence-not-cause-kind.md` — 冲突不分类原因；规则引擎不是原因目录。选支是解决动作。
 13. `docs/adr/0048-probe-task-control-plane-judges.md` — 探测任务由 Host Agent 在心跳上拉取；控制面判决；Agent 不判决。
 14. `docs/adr/0049-kubernetes-three-processes-and-orchestrator-grpc.md` — 控制面、执行引擎、AI 编排层各自一个 Kubernetes Deployment。编排层↔控制面是 gRPC。控制面→执行引擎仍是 gRPC。模型 HTTPS 仍在编排层。不用 Eureka。不在内部 gRPC 前放网关。Host Agent 留在主机。
+14b. `docs/adr/0050-big-data-platform-ops.md` — 产品只运维大数据平台。取消策展/观测判断。第一版只有 HDFS 与 YARN：集群、服务角色、主机。故障即告警。对象存储与 Spark/Flink on K8s 只留边界。
+14c. `docs/adr/0051-host-agent-collects-and-repairs.md` — 第一版采集与修复都在 Host Agent。控制面一次只发一步。执行引擎 SSH 不修 HDFS/YARN。集群级状态仍问 NameNode JMX 与 ResourceManager REST。
+14d. `docs/adr/0052-python-control-plane-go-agent.md` — 控制面改为 Python（FastAPI + PostgreSQL）。Host Agent 改为 Go。前端仍是 React。本 ADR 不改代码。
 15. `docs/dev-handoff.md` — 进度与下一票
 16. `/implement` → [`docs/agents/implement-kickoff.md`](docs/agents/implement-kickoff.md)。不要发明一次性 prompt。历史一次性 prompt 在 `docs/archive/`，对新票作废。
 17. `docs/agents/tdd.md` — ArchOps TDD overlay（`/implement` 必读）
@@ -129,6 +132,6 @@ Single-context: frozen `CONTEXT.md` + `docs/adr/` (ADR-0039 / ADR-0043 / ADR-004
 
 ## 7. 云端提示词建议（用户可贴）
 
-未绑定 **01–09 已闭合**。冲突升级作废活跃计划 **01 TDD-done / 本刀闭合**（审计 A1）。控制面执行引擎 **01 TDD-done / 本刀闭合**。步骤断言 **01 TDD-done / 本刀闭合**。ADR-0047 解决动作刀已合并。ADR-0048 探测任务票 01 **TDD-done / 本刀闭合**。探测任务薄 UI **01 done / 本刀闭合**。Host Agent 执行探测命令 **01 TDD-done / 本刀闭合**。探测改理想逐条确认 **01 done / 本刀闭合**。ADR-0046、ADR-0047、ADR-0048、ADR-0049 已合并。冲突去掉协作身份票 01–07 done。协作残留删除 **TDD-done / 本刀闭合**。没有下一张 frontier 票。不要再开下一张票。不要发明未绑定 10。不要把 WebClient 加回控制面。编排层↔控制面是 gRPC；模型 HTTPS 仍在编排层。不要自动做 ADR-0049 / Kubernetes / 编排层 / B-live / 工作台。不要往执行引擎目录加票 02。不要做解决断点。不要改 ADR-0046。不要重开 ADR-0048 票 01。不要重开探测薄 UI。不要开探测改理想票 02。
+未绑定 **01–09 已闭合**。冲突升级作废活跃计划 **01 TDD-done / 本刀闭合**（审计 A1）。控制面执行引擎 **01 TDD-done / 本刀闭合**。步骤断言 **01 TDD-done / 本刀闭合**。ADR-0047 解决动作刀已合并。ADR-0048 探测任务票 01 **TDD-done / 本刀闭合**。探测任务薄 UI **01 done / 本刀闭合**。Host Agent 执行探测命令 **01 TDD-done / 本刀闭合**。探测改理想逐条确认 **01 done / 本刀闭合**。ADR-0046、ADR-0047、ADR-0048、ADR-0049 已合并。冲突去掉协作身份票 01–07 done。协作残留删除 **TDD-done / 本刀闭合**。大数据平台票 01 **done / 本刀闭合**（`.scratch/big-data-platform/issues/01-cluster-role-host-and-liveness-alerts.md`，ADR-0050 / 0051 / 0052）：Python 控制面加 Go Agent，集群、角色、主机配置，以及 HDFS/YARN 角色不在的告警。不改 `backend/`。不要开票 02。修复另说。对象存储与 Spark/Flink on K8s 只留边界。旧主线不要再开下一张票。不要发明未绑定 10。不要把 WebClient 加回控制面。编排层↔控制面是 gRPC；模型 HTTPS 仍在编排层。不要自动做 ADR-0049 / Kubernetes / 编排层 / B-live / 工作台。不要往执行引擎目录加票 02。不要做解决断点。不要改 ADR-0046。不要重开 ADR-0048 票 01。不要重开探测薄 UI。不要开探测改理想票 02。
 
 > 读 AGENTS.md、CONTEXT.md、ADR-0046 / 0047 / 0048 / 0049（以及 0044 / 0045）。步骤断言票 01 已闭合。不要复活 Vue/JPA/Neo4j/Maven/LangChain。不要把 LLM 加回控制面。不要把编排层↔控制面写成 WebClient。不要自动做编排层 / B-live / 工作台。
