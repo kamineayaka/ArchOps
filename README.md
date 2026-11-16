@@ -15,7 +15,7 @@
 | `frontend/` | React + TypeScript + Vite + Ant Design |
 | `agent/` | Python 心跳 stub（交付主推 systemd，见 `agent/README.md`） |
 | `deploy/` | 本地开发 Compose（Postgres、Redis、控制面、执行引擎）。交付目标是三个 Kubernetes Deployment：控制面、执行引擎、AI 编排层（ADR-0049） |
-| `docs/` | 合同、ADR、Spec。一次性 prompt 在 `docs/archive/` |
+| `docs/` | 合同、ADR、Spec。`docs/archive/` 是历史笔记 |
 | `Dockerfile` | 多阶段构建 → 镜像 tag `archops:latest` |
 
 ## 本地开发
