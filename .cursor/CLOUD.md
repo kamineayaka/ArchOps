@@ -20,21 +20,14 @@ Repo config: [`.cursor/environment.json`](./environment.json) + [`.cursor/Docker
 
 Default DB/Redis env matches `deploy/compose/.env.example` (`archops` / `archops` on localhost ports).
 
-Matt workflow skills are **vendored in the repo** (Cloud Agents do not inherit laptop `~/.agents/skills/`):
+编码入口是根目录 `AGENTS.md`。人给出目标、边界、怎样算做完。测试和类型检查是反馈。
 
-| Path | Who reads it |
-|---|---|
-| `.cursor/skills/` | Cursor Cloud Agent (plus ArchOps `add-*` skills) |
-| `.agents/skills/` | skills.sh / desktop Cursor |
-| `docs/agents/` | `/setup-matt-pocock-skills` output: tracker, labels, domain layout |
+## 在这台机器上跑
 
-## Acceptance in Cloud
-
-- Primary seam: HTTP API (`GET /api/health`, then ticket acceptance tests).
-- `/implement` drives `/tdd`: **red → green → refactor**, witnessed red per cycle. Overlay: [`docs/agents/tdd.md`](../docs/agents/tdd.md).
-- Backend unit/HTTP tests: `cd backend && ./gradlew test` (embedded Postgres available for many tests).
-- Manual UI: Vite `:5173` proxies `/api` → `:8080`. UI after that ticket's HTTP cycles are green.
-- Do **not** assume the developer's Windows machine, SteamTools certs, or local Docker Desktop.
+- 健康检查：`GET /api/health`。
+- Java 树的测试：`cd backend && ./gradlew test`（不少 HTTP 测试用内嵌 Postgres）。
+- 前端：Vite `:5173` 把 `/api` 代理到 `:8080`。
+- 不要假设开发者的 Windows 机器、SteamTools 证书或本机 Docker Desktop。
 
 ## Secrets
 

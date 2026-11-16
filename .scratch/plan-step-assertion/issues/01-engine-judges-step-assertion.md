@@ -6,7 +6,7 @@
 
 **Status:** done
 
-**TDD:** `/implement` 走 [`docs/agents/tdd.md`](../../../docs/agents/tdd.md)：**red → green → refactor**，一圈一条 HTTP 测试。Spec：[`docs/specs/plan-step-assertion.md`](../../../docs/specs/plan-step-assertion.md)。合同：`CONTEXT.md`「操作计划」「步骤断言」「执行引擎」「控制面代发」；ADR-0044 决议 4（及决议 2 在本刀收缩后的落控制面）。
+**TDD:** Spec：[`docs/specs/plan-step-assertion.md`](../../../docs/specs/plan-step-assertion.md)。合同：`CONTEXT.md`「操作计划」「步骤断言」「执行引擎」「控制面代发」；ADR-0044 决议 4（及决议 2 在本刀收缩后的落控制面）。
 
 来源：`.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md` **B3 剩余**（无步骤断言、无逐步事件；单步代发已由执行引擎 01 闭合）。用户 grilling 已钉切面 C、slug `plan-step-assertion`、票 01 = 整段 Must。**不要写入** `control-plane-executor` / unbound / 改策展 / A1 目录。
 
@@ -35,7 +35,7 @@ REFRESH_OBSERVATION  expected { "refresh": "ok" }
 
 ## Comments
 
-一次只做本票。票内 TDD 按 Spec HTTP tracer 圈：happy path（带 `expected` COMPLETED + log）→ 退出成功但不匹配 VOIDED → 非 JSON VOIDED → SSH 失败可区分 → 无 `expected` 回归。不要先交只加空字段的骨架。样板：`ExecutorSingleStepDispatchHttpAcceptanceTest`、`OperationPlanReviewHttpAcceptanceTest`、`ControlledSshExecHttpAcceptanceTest`。新测试夹具：引擎在测、`archops.ssh.mode=dispatch`、fake 可脚本化成功 stdout。
+票内 TDD 按 Spec HTTP tracer 圈：happy path（带 `expected` COMPLETED + log）→ 退出成功但不匹配 VOIDED → 非 JSON VOIDED → SSH 失败可区分 → 无 `expected` 回归。不要先交只加空字段的骨架。样板：`ExecutorSingleStepDispatchHttpAcceptanceTest`、`OperationPlanReviewHttpAcceptanceTest`、`ControlledSshExecHttpAcceptanceTest`。新测试夹具：引擎在测、`archops.ssh.mode=dispatch`、fake 可脚本化成功 stdout。
 
 TDD redo (capability): this knife's production removed first. One HTTP method per cycle. Witnessed red required except cycle 4 (执行引擎 01 SSH 失败路径).
 

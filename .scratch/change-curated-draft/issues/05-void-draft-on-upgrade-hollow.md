@@ -6,7 +6,7 @@
 
 **Status:** done
 
-**TDD:** `/implement` 走 [`docs/agents/tdd.md`](../../../docs/agents/tdd.md)。01–05 已 TDD-done；下一 frontier = 06。
+**TDD:** 01–05 已 TDD-done；下一 frontier = 06。
 
 从竖切 MVP 往上长：升级、空洞挂起、作废活跃操作计划已在竖切交付。本票把同一触发接到开放草案（以及已选改理想），不重做挂起/升级/关单产品化，也不引入新的 SSH 计划。
 
@@ -22,7 +22,7 @@
 
 ## Comments
 
-开工 prompt：[`docs/implement-change-curated-draft-05-prompt.md`](../../../docs/implement-change-curated-draft-05-prompt.md)。01–04 TDD-done（04 已合入 `main`）。本票要把竖切已有的升级/空洞接到开放草案；第一圈诚实红灯是 B→C 后草案仍 OPEN（或仍能 accept），不要拆 04 的接受写入与比对，不要重做挂起/计划作废。不要做 06。
+01–04 TDD-done（04 已合入 `main`）。本票要把竖切已有的升级/空洞接到开放草案；第一圈诚实红灯是 B→C 后草案仍 OPEN（或仍能 accept），不要拆 04 的接受写入与比对，不要重做挂起/计划作废。不要做 06。
 
 ### Step A — seams
 
@@ -215,15 +215,4 @@ Includes 01–04 change-curated HTTP, 竖切 upgrade / hollow / plan-void / E2E,
 - Spec: no missing HTTP product clause; no 06 / Y2 / plan-void rewrite. Hollow accept-denied is asserted; reject shares the same `DRAFT_VOIDED` gate as the upgrade cycle.
 
 Frontier = 06. Did not implement 06.
-
-
-
-
-
-
-
-
-
-
-
 

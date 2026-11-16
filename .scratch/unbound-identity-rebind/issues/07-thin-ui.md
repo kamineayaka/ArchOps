@@ -20,7 +20,7 @@
 
 ## Comments
 
-01–06 + 08 已 TDD-done（PR #97 = 票 06 已合入），本票已 unblocked。开场 prompt：[`docs/implement-unbound-identity-rebind-07-prompt.md`](../../../docs/implement-unbound-identity-rebind-07-prompt.md)。本票是演示层：手工/冒烟 + `npm run build`；不要把 Playwright 或新 HTTP 套件当完成定义。不要做票 09。代码 vs ADR-0044 审计 **A2 已由 05 交付**；**A3** 是票 09；**A1** 与 0044 进程债禁止写入本票。见 [`.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md`](../audit-code-vs-adr-0044.md)。
+01–06 + 08 已 TDD-done（PR #97 = 票 06 已合入），本票已 unblocked。本票是演示层：手工/冒烟 + `npm run build`；不要把 Playwright 或新 HTTP 套件当完成定义。不要做票 09。代码 vs ADR-0044 审计 **A2 已由 05 交付**；**A3** 是票 09；**A1** 与 0044 进程债禁止写入本票。见 [`.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md`](../audit-code-vs-adr-0044.md)。
 
 ### Cycle A — 列出待并入未绑定观测候选（reason / 宿主 / runtime / 标签线索）
 Command:
@@ -81,4 +81,4 @@ Commit: d9a870a
 - Spec: 未认证 `isAcceptedHandler` 曾把 `null === null` 当成已接受处理人 → `50aa497` 要求 `!!userId`。未知 id 的 `IDENTITY_LOST_NOT_FOUND` 不再标「未失联」，仅当策展对象仍可读时才如此。冲突旁路失败改为 warning，不再吞掉。失联「列表」仍是冲突 `identityLost=true` 旁路 + 已知 id 查询（禁止失联集合 GET）。标签命中恢复只提供刷新问法，不从本页 POST heartbeat。
 - 未做票 09 / A1 / 新产品 HTTP / Playwright。
 
-票结束：Status done。本刀演示层闭合。票 09 仍待人排期，不要自动做。不要发明未绑定 10。
+票结束：Status done。本刀演示层闭合。票 09 仍待人排期，不要自动做。

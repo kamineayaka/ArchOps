@@ -6,7 +6,7 @@
 
 **Status:** done
 
-**TDD:** `/implement` 走 [`docs/agents/tdd.md`](../../../docs/agents/tdd.md)：**red → green → refactor**。Spec：[`docs/specs/unbound-identity-rebind.md`](../../../docs/specs/unbound-identity-rebind.md)。
+**TDD:** Spec：[`docs/specs/unbound-identity-rebind.md`](../../../docs/specs/unbound-identity-rebind.md)。
 
 从改策展往上长：今日草案只挂在冲突上、条目只有 `运行于` 目标变更。本票新开「从候选来」的草案读取/发起；条目仍全部 PENDING。不要把未绑定伪装成冲突。
 
@@ -23,7 +23,7 @@
 
 01 TDD-done 后再开。不要做 03–07。不要复用 `POST .../branch-selection` 来创建本票草案。
 
-开工 prompt：[`docs/implement-unbound-identity-rebind-02-prompt.md`](../../../docs/implement-unbound-identity-rebind-02-prompt.md)。`/implement` 走 [`docs/agents/tdd.md`](../../../docs/agents/tdd.md)：capability 票须 witnessed red；第一圈必须是已认证 POST 创建草案的诚实红灯，不要用未认证 401 或改策展选支仍绿冒充。不要为装红灯删除改策展 `conflict_id` 生产或插入 dummy 冲突。
+不要为装红灯删除改策展 `conflict_id` 生产或插入 dummy 冲突。
 
 ### Cycle A — general opens OPEN draft from UNKNOWN_OBJECT_ID candidate
 Red command:

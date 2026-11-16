@@ -6,7 +6,7 @@
 
 **Status:** done
 
-**TDD:** UI。判决 HTTP 已绿，不重测。探测冲突上的改理想 / 修实际若还打不开草案或待审计划，先在 HTTP 上补那一个行为（red → green → refactor），再写页面。页面完成定义与冲突去掉协作身份票 07、未绑定票 07 相同：`npm run build` + 浏览器按人的路径点一遍。Spec：[`docs/specs/probe-task-thin-ui.md`](../../../docs/specs/probe-task-thin-ui.md)。
+**Spec：** [`docs/specs/probe-task-thin-ui.md`](../../../docs/specs/probe-task-thin-ui.md)。页面完成是 `npm run build`，以及人在浏览器里按页面路径点一遍。
 
 - [x] 人保存探测任务后读回命令与策展值；尚无交回时判决为空洞
 - [x] 同一主机两条任务的判决互不影响
@@ -48,5 +48,4 @@ Vite `:5173` → control plane `:8080`. One host, five tasks saved on the page. 
 ### Code review (Standards + Spec), fixed point `3b41d29`
 Standards: no hard violation in the production diff. Flyway only adds V31. Review calls omit the user header; draft and plan `createdBy` stay null. Judgement: the two HTTP tests share arrange; the two branch buttons share wait/error handling.
 Spec: create, independent judgments, 正常 / 冲突+evidence / 空洞, 修实际 plan, and 改理想 draft without writing 策展 are in the page and the HTTP test. 恢复观测通道 is the only hollow action and is not a persisted request. Registering a host by name is how the page binds a task when no host id is known.
-
 

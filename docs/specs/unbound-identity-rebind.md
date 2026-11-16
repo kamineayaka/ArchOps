@@ -7,7 +7,7 @@ status: "已闭合。已接受冲突处理人、高级/一般角色才能审冲�
 **Status**: spec published；工单 01–07 已拆，审计后补 08 / 09（**01–09 已闭合**；本刀问法读模型闭合）  
 **Basis**: ADR-0039 领域合同、`CONTEXT.md`、ADR-0043 技术栈、ADR-0006（草案逐条写入）、ADR-0011（对象身份）、ADR-0012（先策展后补标；缺标则身份失联而非同名接龙）、ADR-0015（v1 Must 含未绑定与身份失联）、ADR-0019（待确认关闭；本刀**不含** Y2）、ADR-0038（改策展须草案人审；本刀不在绑定后出操作计划）  
 **Predecessor**: [`docs/specs/vertical-slice-mvp.md`](vertical-slice-mvp.md)（01–13 已闭合；未打标仅为负面：不承诺升级链）与 [`docs/specs/change-curated-draft.md`](change-curated-draft.md)（01–06 TDD-done；**本刀不重做**改理想 `运行于` 写入段，不加 07）。从已实现控制面往上长，不从空骨架重写，不复活旧域包。  
-**Testing seams (confirmed)**: **唯一验收主接缝 = 控制面公开 HTTP API**（含 Agent 心跳/快照 ingest）。驱动可以是 Gradle/`MockMvc` 或 Compose 上 `bootRun`+`curl`，仍是同一条接缝。前端最小 UI 手工/冒烟，不进自动化主接缝。本刀无 SSH 计划，不引入 SSH fake 或 Playwright 作为接缝或替身。`/implement` 按 [`docs/agents/tdd.md`](../agents/tdd.md) 走 **red → green → refactor**；下文 HTTP tracer 是循环顺序，不是一次写完全部测试再实现。
+**Testing seams (confirmed)**: **唯一验收主接缝 = 控制面公开 HTTP API**（含 Agent 心跳/快照 ingest）。驱动可以是 Gradle/`MockMvc` 或 Compose 上 `bootRun`+`curl`，仍是同一条接缝。前端最小 UI 手工/冒烟，不进自动化主接缝。本刀无 SSH 计划，不引入 SSH fake 或 Playwright 作为接缝或替身。下文 HTTP tracer 是循环顺序，不是一次写完全部测试再实现。
 
 **Confirmed scope pins**
 
@@ -208,8 +208,7 @@ Host Agent 心跳快照仍按 `archops.object_id` 匹配。缺标或标签对不
 - Assert **external HTTP behavior** only: status codes, `ApiResponse` envelope, and state readable by subsequent HTTP GETs (未绑定列表、身份失联、规范问法、策展对象/`运行于`、冲突 status + 失联旗标、诊断 forks、选支错误码、草案 item states、事件列表).
 - Do **not** assert MyBatis mapper internals, Redis key shapes, or private call graphs.
 - Prefer one ordered HTTP tracer plus a small negative set over a wide unit pyramid.
-- Drive the tracer **one cycle at a time** (red → green → refactor). See [`docs/agents/tdd.md`](../agents/tdd.md).
-
+- 
 ### Primary seam (confirmed)
 
 - Control-plane public HTTP API, including Agent heartbeat/snapshot ingest.
@@ -281,12 +280,10 @@ Host Agent 心跳快照仍按 `archops.object_id` 匹配。缺标或标签对不
 
 ## Further Notes
 
-- **Issue tracker**: 本地 markdown，见 `docs/agents/issue-tracker.md`。Canonical spec：`docs/specs/unbound-identity-rebind.md`。Tracker 指针：[`.scratch/unbound-identity-rebind/spec.md`](../../.scratch/unbound-identity-rebind/spec.md)。工单：[`.scratch/unbound-identity-rebind/issues/`](../../.scratch/unbound-identity-rebind/issues/)（01–07）。
-- **Next Matt step**: 未绑定 **01–09 已闭合**。现行 frontier：[`conflict-upgrade-void-plans.md`](conflict-upgrade-void-plans.md) 票 01（审计 A1；用户已排期）。不要发明未绑定 10。不要自动做 ADR-0044 进程拆分。不要重拆竖切 01–13 或改策展 01–06。不要加改策展 07。
+- **Issue tracker**: 本地 markdown。Canonical spec：`docs/specs/unbound-identity-rebind.md`。Tracker 指针：[`.scratch/unbound-identity-rebind/spec.md`](../../.scratch/unbound-identity-rebind/spec.md)。工单：[`.scratch/unbound-identity-rebind/issues/`](../../.scratch/unbound-identity-rebind/issues/)（01–07）。
 - **Why no new ADR**: grilling Q4/Q12 pinned 实现已有术语；「接受绑定后的现场实体对应关系」不是新合同词，也不是第四种冲突生命周期。
 - **Why drafts are not on 冲突**: 未绑定不是冲突；复用处理人门禁会把匹配失败推进冲突升级链。
 - **Why bind does not write observed `运行于`**: ADR-0011/0012 — 运行时 ID / 名称只是线索；未打标不承诺升级链。可靠实际仍等标签命中。
 - **Why not Y2 / SSH 补标**: 与改策展「接受即写入」双写张力未在本刀打开；补标是现场，不是策展对齐步骤。
 - **Glossary**: 未绑定观测候选、身份失联、草案、逐条确认、策展真相、观测真相、冲突、观测空洞、观测消失、规范问法、操作计划、待确认关闭、冲突升级。不要发明合同已 Avoid 的词。
 - **Acceptance motto (this knife)**: 匹配失败不升冲突；并入必须逐条；绑定不写可靠实际；补标命中才恢复升级链。
-- **Prompt for next chat**: 读 [`docs/implement-conflict-upgrade-void-plans-01-prompt.md`](../implement-conflict-upgrade-void-plans-01-prompt.md)。进度见 [`docs/dev-handoff.md`](../dev-handoff.md)。

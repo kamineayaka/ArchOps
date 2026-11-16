@@ -6,7 +6,7 @@
 
 **Status:** done
 
-**TDD:** `/implement` 走 [`docs/agents/tdd.md`](../../../docs/agents/tdd.md)：**red → green → refactor**，一圈一条 HTTP 测试。先 witnessed red，再写本票生产代码。Spec：[`docs/specs/unbound-identity-rebind.md`](../../../docs/specs/unbound-identity-rebind.md)。
+**Spec：** [`docs/specs/unbound-identity-rebind.md`](../../../docs/specs/unbound-identity-rebind.md)。
 
 从竖切往上长：今日未绑定每次快照都插入新行；身份失联只信 Agent 声明；GET 未绑定不含 labels；标签稍后命中也不清失联。本票只把观测侧认得出、列得出、问得清；不发起草案、不绑定、不闸门选支。
 
@@ -24,9 +24,7 @@
 
 ## Comments
 
-Frontier。一次只做本票。HTTP 主接缝；Flyway 只增不改历史。不要做 02–07。
-
-开工 prompt：[`docs/implement-unbound-identity-rebind-01-prompt.md`](../../../docs/implement-unbound-identity-rebind-01-prompt.md)。`/implement` 走 [`docs/agents/tdd.md`](../../../docs/agents/tdd.md)：capability 票须 witnessed red；不要为装红灯删除竖切未打标 / 观测消失 / 命中 `运行于` 的生产。
+Frontier。HTTP 主接缝；Flyway 只增不改历史。不要做 02–07。
 
 ### Cycle A — GET 未绑定含现场 labels JSON 对象
 Red command:

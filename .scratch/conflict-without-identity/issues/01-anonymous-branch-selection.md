@@ -6,7 +6,7 @@
 
 **Status:** done
 
-**TDD:** capability。`/implement` 走 [`docs/agents/tdd.md`](../../../docs/agents/tdd.md)：**red → green → refactor**，一圈一条 HTTP 测试。Spec：[`docs/specs/conflict-without-identity.md`](../../../docs/specs/conflict-without-identity.md)。合同：ADR-0046。
+**TDD:** capability。Spec：[`docs/specs/conflict-without-identity.md`](../../../docs/specs/conflict-without-identity.md)。合同：ADR-0046。
 
 - [x] 两侧不等的 OPEN 冲突、诊断 READY、无人认领：不带 `X-ArchOps-User-Id` 的 `POST /api/conflicts/{id}/branch-selection`（`FIX_ACTUAL_TO_CURATED`）→ 200，操作计划 `DRAFT_REVIEW`、`skipsDraft=true`、`createdBy` 为 null；随后 GET 该计划 `createdBy` 仍为 null
 - [x] 同一选支若带了用户身份头，计划 `createdBy` 仍为 null（身份不写成领域事实）

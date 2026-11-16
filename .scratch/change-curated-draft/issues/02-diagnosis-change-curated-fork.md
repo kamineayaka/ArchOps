@@ -6,7 +6,7 @@
 
 **Status:** done
 
-**TDD redo:** yes — 验收标准不变。先前实现与测试同提交，不算 TDD 完成。按 [`docs/agents/tdd.md`](../../../docs/agents/tdd.md) 从 witnessed red 重做。在 01 TDD-done 之后再开（两张 unblocked 时按编号最小）。
+**TDD redo:** yes — 验收标准不变。先前实现与测试同提交，不算 TDD 完成。在 01 TDD-done 之后再开（两张 unblocked 时按编号最小）。
 
 从竖切 MVP 往上长：规则诊断曾在宿主不等时只发出 `FIX_ACTUAL`，既有验收按「仅一条 / 第一条即修实际」断言。本票保留修实际分叉，并增加 `CHANGE_CURATED`（建议稳定 id：`CHANGE_CURATED_TO_OBSERVED`，`kind=CHANGE_CURATED`）；把按序号钉死的断言改成按分叉 id 识别，避免打掉竖切回归。TDD 重做从红灯开始（见 Comments）。
 
@@ -192,5 +192,5 @@ Standards: 0 hard product violations. Judgement: hollow fixture uses `HostAgentM
 
 Spec: 0 missing / wrong / scope-creep. `CHANGE_CURATED` only on available mismatch; hollow/ABSENT stay restore/verify; no 选支写入草案.
 
-No Flyway history edits. No ticket 03 draft write. Frontier now 03 (`docs/implement-change-curated-draft-03-prompt.md`).
+No Flyway history edits. No ticket 03 draft write. Frontier now 03.
 

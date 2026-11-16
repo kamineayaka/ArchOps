@@ -1,27 +1,8 @@
-# 新对话接手指南
+# 进度日志
 
-产品主线 **ADR-0050**（只运维大数据平台；取消策展/观测判断；第一版 HDFS 与 YARN）。领域合同（ADR-0039）里的判断机制不再扩展。技术栈（ADR-0043）已冻结；运行时拓扑 **ADR-0044**（控制面枢纽 / 执行引擎 / AI 编排层）；控制面→执行引擎运输 **ADR-0045**（gRPC）；冲突身份 **ADR-0046**；原因不分类 **ADR-0047**；探测任务 **ADR-0048**；三进程 Kubernetes 与编排层↔控制面 gRPC **ADR-0049**。  
-**下一张 frontier：** 无。大数据平台票 01 **done**（[`.scratch/big-data-platform/issues/01-cluster-role-host-and-liveness-alerts.md`](../.scratch/big-data-platform/issues/01-cluster-role-host-and-liveness-alerts.md)）。不要开票 02。修复命令、容量耗尽、节点丢失、对象存储与 K8s 计算都不在这张票里。  
-**Cloud / 任意 Agent 必读根目录 [`AGENTS.md`](../AGENTS.md)**（及 [`CLAUDE.md`](../CLAUDE.md)）。  
-**脚手架已按 ADR-0043 重建**：`backend/`、`frontend/`、`agent/`、`deploy/`、根 `Dockerfile` 为可启动最小骨架；竖切按工单推进。
+这份文件记录已经做过的事，不规定下一步怎么写。编码入口是根目录 [`AGENTS.md`](../AGENTS.md)。
 
-## 必读
-
-1. `CONTEXT.md`
-2. `docs/adr/0039` … `0049`（栈 **0043**，进程切分 **0044**，控制面→执行引擎 gRPC **0045**，身份退出冲突 **0046**，原因不分类 **0047**，探测任务 **0048**，三进程 Kubernetes 与编排层↔控制面 gRPC **0049**）
-3. 竖切范围以 `docs/specs/vertical-slice-mvp.md` 为准（01–13 已闭合）。`docs/mvp-vertical-slice.md` 已删除，与该 Spec 重复
-4. `docs/specs/vertical-slice-mvp.md`（竖切 Spec；01–13 已闭合）
-5. `docs/specs/change-curated-draft.md`（改策展/草案逐条确认 Spec；**已闭合**）
-6. `docs/specs/unbound-identity-rebind.md`（未绑定 / 身份失联重绑 Spec；**01–09 已闭合**）
-7. `docs/specs/conflict-upgrade-void-plans.md`（冲突升级作废活跃计划；审计 A1；**01 TDD-done，本刀闭合**）
-8. `docs/specs/control-plane-executor.md`（控制面执行引擎；审计 B 第一刀；**01 TDD-done，本刀闭合**）
-9. `docs/specs/plan-step-assertion.md`（步骤断言；审计 B3 剩余；**01 TDD-done，本刀闭合**）
-10. `docs/adr/0046-conflict-discovery-and-resolution-without-identity.md`（冲突主线只有发现与解决；人审不记录操作者）
-11. `docs/specs/conflict-without-identity.md`（身份退出冲突领域；**票 01–07 done**）
-11b. `.scratch/delete-collaboration-leftovers/issues/01-remove-collaboration-leftovers.md`（协作残留删除；**TDD-done，本刀闭合**。不要再开下一张票。不要改 ADR-0046）
-12. `docs/agents/tdd.md`（`/implement` 的 TDD overlay：red → green → refactor）
-13. 一次性脚手架与实现 prompt 在 `docs/archive/`，不是必读
-14. `.cursor/rules/project-map.mdc`
+产品主线在 ADR-0050。现行控制面与 Host Agent 的栈在 ADR-0052。角色存活告警已在 main。
 
 ## 当前状态
 
@@ -49,20 +30,20 @@
 | 改策展草案 Spec | **已发布** → [`docs/specs/change-curated-draft.md`](specs/change-curated-draft.md) |
 | 改策展草案工单 | **TDD-done 06 / 本刀闭合** → [`.scratch/change-curated-draft/issues/`](../.scratch/change-curated-draft/issues/)（**01–06 TDD-done**。从竖切 MVP 往上长，不重拆竖切 01–13） |
 | 未绑定 / 身份失联 Spec | **已发布** → [`docs/specs/unbound-identity-rebind.md`](specs/unbound-identity-rebind.md) |
-| 未绑定 / 身份失联工单 | **01–09 已闭合**（07 = 薄 UI；09 = 失联叠加心跳超时的问法） → [`.scratch/unbound-identity-rebind/issues/`](../.scratch/unbound-identity-rebind/issues/)（不要写进 `change-curated-draft`；不要发明未绑定 10） |
+| 未绑定 / 身份失联工单 | **01–09 已闭合**（07 = 薄 UI；09 = 失联叠加心跳超时的问法） → [`.scratch/unbound-identity-rebind/issues/`](../.scratch/unbound-identity-rebind/issues/)（不要写进 `change-curated-draft`） |
 | 未绑定 01–03 合同审计 | **已出报告** → [`.scratch/unbound-identity-rebind/audit-01-03-opus.md`](../.scratch/unbound-identity-rebind/audit-01-03-opus.md)（三轴 + 探针表；票 08 已处置 C-4 / C-2 / S-3，票 04 已处置 C-3 / S-4 / S-2，票 09 已处置 C-1） |
 | 代码 vs ADR-0044 只读审计 | **已出报告** → [`.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md`](../.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md)（A2 = 票 05；A3 = 票 09 已闭合；**A1 = conflict-upgrade-void-plans 01 TDD-done**；**B1/B2 + 单步代发 = control-plane-executor 01 TDD-done**；**B3 断言 + 控制面 `executionLog` = plan-step-assertion 01 TDD-done**；编排层逐步推送仍后置；B4/B5/B6 另开） |
 | 冲突升级作废活跃计划 | **01 TDD-done / 本刀闭合** → [`docs/specs/conflict-upgrade-void-plans.md`](specs/conflict-upgrade-void-plans.md) / [`.scratch/conflict-upgrade-void-plans/issues/`](../.scratch/conflict-upgrade-void-plans/issues/)（审计 A1；不要写入未绑定目录） |
-| 控制面执行引擎（0044 B 第一刀） | **01 TDD-done / 本刀闭合** → [`docs/specs/control-plane-executor.md`](specs/control-plane-executor.md) / [`.scratch/control-plane-executor/issues/01-executor-single-step-dispatch.md`](../.scratch/control-plane-executor/issues/01-executor-single-step-dispatch.md)（ADR-0045。不要写入 unbound / A1 目录；不要加票 02） |
-| 步骤断言（0044 B3 剩余） | **01 TDD-done / 本刀闭合** → [`docs/specs/plan-step-assertion.md`](specs/plan-step-assertion.md) / [`.scratch/plan-step-assertion/issues/01-engine-judges-step-assertion.md`](../.scratch/plan-step-assertion/issues/01-engine-judges-step-assertion.md)（不要写成执行引擎票 02） |
+| 控制面执行引擎（0044 B 第一刀） | **01 TDD-done / 本刀闭合** → [`docs/specs/control-plane-executor.md`](specs/control-plane-executor.md) / [`.scratch/control-plane-executor/issues/01-executor-single-step-dispatch.md`](../.scratch/control-plane-executor/issues/01-executor-single-step-dispatch.md)（ADR-0045。不要写入 unbound / A1 目录） |
+| 步骤断言（0044 B3 剩余） | **01 TDD-done / 本刀闭合** → [`docs/specs/plan-step-assertion.md`](specs/plan-step-assertion.md) / [`.scratch/plan-step-assertion/issues/01-engine-judges-step-assertion.md`](../.scratch/plan-step-assertion/issues/01-engine-judges-step-assertion.md)（步骤断言落在自己的目录） |
 | ADR-0046 | **已合并** → [`docs/adr/0046-conflict-discovery-and-resolution-without-identity.md`](adr/0046-conflict-discovery-and-resolution-without-identity.md) |
 | 冲突去掉协作身份 | **票 01–07 done**。→ [`docs/specs/conflict-without-identity.md`](specs/conflict-without-identity.md) / [`.scratch/conflict-without-identity/issues/`](../.scratch/conflict-without-identity/issues/) |
-| 冲突协作残留删除 | **01 TDD-done / 本刀闭合**。认领、已知悉、自任、指派、接受、拒绝、转让与冲突 GET 协作载荷已删除；冲突读与人审不带头。Flyway V25。不要再开下一张票。不要改 ADR-0046。→ [`.scratch/delete-collaboration-leftovers/issues/01-remove-collaboration-leftovers.md`](../.scratch/delete-collaboration-leftovers/issues/01-remove-collaboration-leftovers.md) |
-| Matt 工作流 skills / tracker | **已入库**（`.cursor/skills/` + `.agents/skills/` + `docs/agents/`；TDD overlay [`docs/agents/tdd.md`](agents/tdd.md)；Cloud 不依赖本机 `~/.agents`） |
+| 冲突协作残留删除 | **01 TDD-done / 本刀闭合**。认领、已知悉、自任、指派、接受、拒绝、转让与冲突 GET 协作载荷已删除；冲突读与人审不带头。Flyway V25。→ [`.scratch/delete-collaboration-leftovers/issues/01-remove-collaboration-leftovers.md`](../.scratch/delete-collaboration-leftovers/issues/01-remove-collaboration-leftovers.md) |
+| Matt 工作流 | 已从入口和工程链技能里清掉。下面是当时怎么做完的记录 |
 | 国内镜像默认 | **已合并**（PR #53：Gradle 腾讯云 / Maven 阿里云 / npm npmmirror / Docker DaoCloud） |
 | kamiserver 人工验收 | **通过**（2026-08：Compose postgres+redis healthy 且宿主机端口已映射 → `./gradlew bootRun` → `GET /api/health`；竖切演示闭环已在该 VM 走通） |
 
-## 下一对话建议
+## 已完成记录
 
 1. ~~竖切 Spec~~：已发布  
 2. ~~拆票 / to-tickets~~：竖切已发布至 `.scratch/vertical-slice-mvp/issues/`（01–13）  
@@ -71,7 +52,7 @@
 5. ~~kamiserver 人工验收~~：已通过  
 6. ~~竖切工单包已闭合 / 下一刀 to-spec~~：改策展 Spec 已发布  
 7. ~~改策展 `/to-tickets`~~：已发布至 `.scratch/change-curated-draft/issues/`（01–06）  
-8. ~~Agent 约束文档对齐 TDD~~：`docs/agents/tdd.md` + `/tdd` skill 为 **red → green → refactor**（本轮只改文档，未改业务代码）  
+8. ~~当时曾把测试循环写成固定步骤~~（只改过文档，未改业务代码）  
 9. ~~`/implement` `/tdd` 票 01（TDD 重做）~~：已完成（关闭建底 POST 覆盖已有 `运行于`；witnessed red → green → refactor；`CURATED_RUNS_ON_EXISTS`）  
 10. ~~`/implement` `/tdd` 票 02（TDD 重做）~~：已完成（诊断同时给出「修实际」与「改理想」分叉；witnessed red → green → refactor；`CHANGE_CURATED_TO_OBSERVED`）  
 11. ~~`/implement` `/tdd` 票 03（TDD 重做）~~：已完成（选改理想生成开放草案；witnessed red → green → refactor；`CHANGE_CURATED` 出草案、不写策展、不出计划）  
@@ -90,7 +71,7 @@
 24. ~~`/implement` `/tdd` 未绑定票 05~~：已完成（失联闸门：冲突 GET `identityLost`；PENDING_CLOSE→OPEN；诊断不含修实际/改理想/空洞恢复通道集；选支 `IDENTITY_LOST_BLOCKS_BRANCH`；活跃计划与 OPEN CHANGE_CURATED 草案作废；未打标同名仍不新开冲突；清标后闸门解除。witnessed red → green → refactor）。  
 25. ~~`/implement` `/tdd` 未绑定票 06~~：已完成（HTTP 主接缝有序 tracer；suite/tracer 循环；`UnboundIdentityRebindTracerHttpAcceptanceTest`）。  
 26. ~~`/implement` `/tdd` 未绑定票 07~~：已完成（薄 UI：待并入列表 / 身份失联问法 / 不挂冲突的逐条确认；`npm run build` + Vite 冒烟）。本刀演示层闭合。  
-27. ~~`/implement` `/tdd` 未绑定票 09~~：已完成（失联叠加心跳超时时问法仍须说出观测空洞；`availability=HOLLOW` + `identityLost=true`；审计 C-1 / 0044 审计 A3；witnessed red → green → refactor；`IdentityLostHeartbeatTimeoutAskHttpAcceptanceTest`）。本刀问法读模型闭合。不要发明未绑定 10。  
+27. ~~`/implement` `/tdd` 未绑定票 09~~：已完成（失联叠加心跳超时时问法仍须说出观测空洞；`availability=HOLLOW` + `identityLost=true`；审计 C-1 / 0044 审计 A3；witnessed red → green → refactor；`IdentityLostHeartbeatTimeoutAskHttpAcceptanceTest`）。本刀问法读模型闭合。  
 28. ~~人排期开 A1~~：用户 2026-08-27 明示。已发布 Spec + 票 01 → [`docs/specs/conflict-upgrade-void-plans.md`](specs/conflict-upgrade-void-plans.md) / [`.scratch/conflict-upgrade-void-plans/issues/01-upgrade-voids-active-plans.md`](../.scratch/conflict-upgrade-void-plans/issues/01-upgrade-voids-active-plans.md)。  
 29. ~~`/implement` `/tdd` 冲突升级作废计划票 01~~：已完成（审计 A1；`upgradeOpen` / `reopenFromPendingClose` 复用 `voidActivePlans`，`voidReason=conflict_upgrade`；witnessed red → green → refactor；`ConflictUpgradeVoidsActivePlanHttpAcceptanceTest`）。**本刀闭合。**  
 30. ~~`/grill-with-docs` 定 ADR-0044 工单包切面~~：已定为 **执行引擎成真 + 单步 gRPC 代发 + MINA/凭证迁出**（B；slug `control-plane-executor`；ADR-0045）。  
@@ -109,13 +90,13 @@
 43. ~~`/implement` `/tdd` 冲突去掉协作身份票 05~~：已完成（已批准计划可以开工，不询问处理人、不记操作者；`VOIDED` 仍 `PLAN_VOIDED`；`DRAFT_REVIEW` 仍 `PLAN_NOT_APPROVED`）。witnessed red → green → refactor；`AnonymousStartExecutionHttpAcceptanceTest`。
 44. ~~票 06~~：已完成。基线是 04 与 05 的 git 合并。#119–#123 不并入 main。
 45. ~~票 07~~：已完成。冲突页去掉协作身份控件。
-46. **协作残留删除 01 TDD-done / 本刀闭合。** 认领、已知悉、自任、指派、接受、拒绝、转让返回 404；冲突 GET 不再带协作载荷；冲突读与人审不带头、不记操作者；冲突页去掉演示身份。不要再开下一张票。不要发明未绑定 10。不要自动做编排层 / B-live / 工作台。不要往 `control-plane-executor` 加票 02。不要改 ADR-0046 / 0044 / 0045 正文。不要做解决断点。
+46. **协作残留删除 01 TDD-done / 本刀闭合。** 认领、已知悉、自任、指派、接受、拒绝、转让返回 404；冲突 GET 不再带协作载荷；冲突读与人审不带头、不记操作者；冲突页去掉演示身份。不要自动做编排层 / B-live / 工作台。不要往 `control-plane-executor` 加票 02。不要改 ADR-0046 / 0044 / 0045 正文。不要做解决断点。
 47. ~~ADR-0047 第一刀~~：已合并（PR #131）。解决动作不带原因种类。
 48. **ADR-0048 票 01 TDD-done / 本刀闭合。** 控制面保存探测任务；Host Agent 在心跳上拉取；控制面判决相等 / 不等（带原始证据的冲突，解决动作仍是 ADR-0047）/ 读不出或逾期（该任务观测空洞）。一台主机至多一个探测 Agent。不要自动做 ADR-0049 / Kubernetes / 编排层 gRPC。不要把 Agent 停机写成掏空全部快照观测。不要做 AI 建议正文。→ [`docs/specs/probe-task-control-plane-judges.md`](specs/probe-task-control-plane-judges.md) / [`.scratch/probe-task-control-plane-judges/issues/01-control-plane-judges-probe-results.md`](../.scratch/probe-task-control-plane-judges/issues/01-control-plane-judges-probe-results.md)
 49. **探测任务薄 UI 01 done / 本刀闭合。** 页面保存任务并展示控制面判决（正常 / 带原始证据的冲突 / 空洞）。修实际打开待审计划；改理想打开草案且不写策展；空洞只有恢复观测通道。不重开 ADR-0048 票 01。不要自动做 ADR-0049 / Kubernetes / 编排层。→ [`docs/specs/probe-task-thin-ui.md`](specs/probe-task-thin-ui.md) / [`.scratch/probe-task-thin-ui/issues/01-probe-task-judgment-page.md`](../.scratch/probe-task-thin-ui/issues/01-probe-task-judgment-page.md)
 50. **Host Agent 执行探测命令 01 TDD-done / 本刀闭合。** 心跳拉取任务，在主机上执行命令，把结构化结果交回现有 ingest。相等维持正常；不等打开带原始证据的冲突，解决动作仍是 ADR-0047；读不出或超时未交回只空洞该任务。不重开 ADR-0048 票 01，不重开薄 UI。不要自动做 ADR-0049 / Kubernetes / 编排层 gRPC。不要把 Agent 停机写成掏空全部快照观测。不要持久化「恢复观测通道」。→ [`docs/specs/probe-task-agent-runs.md`](specs/probe-task-agent-runs.md) / [`.scratch/probe-task-agent-runs/issues/01-agent-runs-probe-tasks.md`](../.scratch/probe-task-agent-runs/issues/01-agent-runs-probe-tasks.md)
-51. **探测改理想逐条确认 01 done / 本刀闭合。** 已有 OPEN 草案上接受 `PROBE_CURATED_VALUE` 把观测结构化值写成策展并立刻再判决；相等进入待确认关闭，确认关闭可以关单；确认关闭前更新的不等结果离开待确认关闭并重开同一条冲突；拒绝不写策展。不新增解决动作。不重开 ADR-0048 票 01、薄 UI、Host Agent 执行探测命令。不要开票 02。→ [`docs/specs/probe-curated-item-accept.md`](specs/probe-curated-item-accept.md) / [`.scratch/probe-curated-item-accept/issues/01-accept-probe-curated-item.md`](../.scratch/probe-curated-item-accept/issues/01-accept-probe-curated-item.md)
-52. **大数据平台 01 done / 本刀闭合。** Python 控制面（FastAPI + PostgreSQL）登记集群、主机和 NameNode / DataNode / ResourceManager / NodeManager，读回 HDFS 副本与容量或 YARN 队列内存与 vcore。Go Host Agent 交回角色是否在；角色不在则当前告警的证据是交回的原始结果，角色恢复在则同一条告警结束。不记录操作者，没有原因种类。不改 `backend/`。不要开票 02。→ [`docs/specs/big-data-platform.md`](specs/big-data-platform.md) / [`.scratch/big-data-platform/issues/01-cluster-role-host-and-liveness-alerts.md`](../.scratch/big-data-platform/issues/01-cluster-role-host-and-liveness-alerts.md)
+51. **探测改理想逐条确认 01 done / 本刀闭合。** 已有 OPEN 草案上接受 `PROBE_CURATED_VALUE` 把观测结构化值写成策展并立刻再判决；相等进入待确认关闭，确认关闭可以关单；确认关闭前更新的不等结果离开待确认关闭并重开同一条冲突；拒绝不写策展。不新增解决动作。不重开 ADR-0048 票 01、薄 UI、Host Agent 执行探测命令。→ [`docs/specs/probe-curated-item-accept.md`](specs/probe-curated-item-accept.md) / [`.scratch/probe-curated-item-accept/issues/01-accept-probe-curated-item.md`](../.scratch/probe-curated-item-accept/issues/01-accept-probe-curated-item.md)
+52. **大数据平台 01 done / 本刀闭合。** Python 控制面（FastAPI + PostgreSQL）登记集群、主机和 NameNode / DataNode / ResourceManager / NodeManager，读回 HDFS 副本与容量或 YARN 队列内存与 vcore。Go Host Agent 交回角色是否在；角色不在则当前告警的证据是交回的原始结果，角色恢复在则同一条告警结束。不记录操作者，没有原因种类。不改 `backend/`。→ [`docs/specs/big-data-platform.md`](specs/big-data-platform.md) / [`.scratch/big-data-platform/issues/01-cluster-role-host-and-liveness-alerts.md`](../.scratch/big-data-platform/issues/01-cluster-role-host-and-liveness-alerts.md)
 
 ### 工单阻塞简图
 
@@ -183,15 +164,13 @@
 01 删掉认领/已知悉/自任/指派/接受/拒绝/转让与冲突 GET 协作载荷（TDD-done）
 ```
 
-（一次只做一张。旧主线不要再开下一张票。不要改 ADR-0046。）
-
 大数据平台（ADR-0050 / 0051 / 0052，**票 01 done**）：
 
 ```
 01 集群、角色、主机配置 + HDFS/YARN 角色不在的告警（done）
 ```
 
-不要开票 02。修复命令另说。对象存储与 Spark/Flink on K8s 只留边界。
+修复命令另说。对象存储与 Spark/Flink on K8s 只留边界。
 
 ## 本地启动摘要
 
@@ -199,4 +178,4 @@
 
 ## 栈摘要
 
-见 ADR-0043 + **ADR-0044** + **ADR-0045** + **ADR-0049**：Gradle / MyBatis-Plus / React+Ant / PG+Redis 多副本 / Python systemd Host Agent。交付目标是三个 Kubernetes Deployment（控制面、执行引擎、AI 编排层）。Host Agent 留在主机。编排层↔控制面是 gRPC；控制面→执行引擎仍是 gRPC；模型 HTTPS 仍在编排层。本地 Compose 只起开发用的 Postgres、Redis、控制面和执行引擎。生产 MINA SSHD 在执行引擎（Compose `ARCHOPS_SSH_MODE=mina`）；控制面代发 `dispatch`（gRPC）；遗留 HTTP 测试仍可用控制面 `fake`（0044 决议 7）。控制面进程内 WebClient 出站已按 ADR-0044 删除。
+现行栈在 ADR-0052：控制面 Python / FastAPI，Host Agent 是 Go，前端是 React。`backend/` 里的 Java 树还在仓库里。

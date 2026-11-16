@@ -1,62 +1,17 @@
 ---
-description: ArchOps 项目地图与硬约束（每次对话默认生效）
+description: 代码在哪个目录
 alwaysApply: true
 ---
 
-# ArchOps 项目地图
+# 目录
 
-运维关系真相控制平面。  
-**Agent 入口**：根目录 `AGENTS.md`（及 `CLAUDE.md`）。领域：`CONTEXT.md` / ADR-0039。技术栈：ADR-0043。进程切分：ADR-0044。控制面→执行引擎：ADR-0045。冲突身份：ADR-0046。原因不分类：ADR-0047。探测任务：ADR-0048。三进程 Kubernetes 与编排层↔控制面 gRPC：ADR-0049。
-
-## 技术栈（ADR-0043）
-
-| 路径 | 栈 |
+| 路径 | 内容 |
 |---|---|
-| `backend/` | Java 21、Spring Boot 3、Gradle、MyBatis-Plus、Flyway、PostgreSQL、Redis |
-| `frontend/` | React + TypeScript + Ant Design（嵌入 `archops:latest`） |
-| `agent/` | 旧 Python Host Agent，留在原地 |
-| `control-plane/` | 现行控制面：Python、FastAPI、PostgreSQL（ADR-0052） |
-| `host-agent/` | 现行 Host Agent：Go（ADR-0051 / ADR-0052） |
-| `deploy/` | 本地开发 Compose（Postgres、Redis、控制面、执行引擎）。交付目标是三个 Kubernetes Deployment：控制面、执行引擎、AI 编排层（ADR-0049）。Host Agent 留在主机 |
-| `docs/` | 合同、ADR、Spec、prompts、`docs/agents/`（Matt tracker + TDD overlay） |
-| `.cursor/skills/` | Cloud Agent 技能（Matt 工程链 + ArchOps `add-*`） |
-| `.scratch/vertical-slice-mvp/issues/` | 竖切工单（01–13 已闭合） |
-| `.scratch/change-curated-draft/issues/` | 改策展/草案工单（**01–06 TDD-done**；本刀闭合） |
-| `docs/specs/change-curated-draft.md` | 改策展/草案 Spec（已闭合） |
-| `docs/specs/unbound-identity-rebind.md` | 未绑定 / 身份失联重绑 Spec（**01–09 已闭合**） |
-| `.scratch/unbound-identity-rebind/issues/` | 未绑定工单（**01–09 已闭合**；审计报告同目录） |
-| `docs/specs/conflict-upgrade-void-plans.md` | 冲突升级作废活跃计划 Spec（审计 A1；**01 TDD-done，本刀闭合**） |
-| `.scratch/conflict-upgrade-void-plans/issues/` | 工单 01 **done** |
-| `docs/specs/control-plane-executor.md` | 控制面执行引擎 Spec（审计 B 第一刀；ADR-0045；**01 TDD-done，本刀闭合**） |
-| `.scratch/control-plane-executor/issues/` | 工单 01 **done**（不要自动做 B-live / 编排层 / 工作台；不要加票 02） |
-| `docs/specs/plan-step-assertion.md` | 步骤断言 Spec（B3 剩余；**01 TDD-done，本刀闭合**） |
-| `.scratch/plan-step-assertion/issues/` | 工单 01 **done**（不要写入 `control-plane-executor`） |
-| `docs/adr/0046-conflict-discovery-and-resolution-without-identity.md` | 冲突主线只有发现与解决 |
-| `docs/adr/0047-conflict-evidence-not-cause-kind.md` | 冲突不分类原因；规则引擎不是原因目录 |
-| `docs/adr/0048-probe-task-control-plane-judges.md` | 探测任务由 Agent 在心跳上拉取；控制面判决 |
-| `docs/specs/probe-task-control-plane-judges.md` | 探测任务判决 Spec（ADR-0048；**01 TDD-done，本刀闭合**。不要自动做 ADR-0049） |
-| `.scratch/probe-task-control-plane-judges/issues/` | 工单 01 **done** |
-| `docs/specs/probe-task-thin-ui.md` | 探测任务薄 UI（**01 done，本刀闭合**。不重开 ADR-0048 票 01） |
-| `.scratch/probe-task-thin-ui/issues/` | 工单 01 **done** |
-| `docs/specs/probe-task-agent-runs.md` | Host Agent 执行探测命令（**01 TDD-done，本刀闭合**。不重开 ADR-0048 票 01，不重开薄 UI） |
-| `.scratch/probe-task-agent-runs/issues/` | 工单 01 **done** |
-| `docs/specs/probe-curated-item-accept.md` | 探测改理想逐条确认（**01 done，本刀闭合**。不要开票 02） |
-| `.scratch/probe-curated-item-accept/issues/` | 工单 01 **done** |
-| `docs/adr/0049-kubernetes-three-processes-and-orchestrator-grpc.md` | 三个 Kubernetes Deployment；编排层↔控制面 gRPC |
-| `docs/specs/conflict-without-identity.md` | 身份退出冲突领域（**票 01–07 done**。#119–#123 与 #125 已在 main；#124 已关闭未合并） |
-| `.scratch/conflict-without-identity/issues/` | 01–07 done；不要再开下一张票 |
-| `.scratch/delete-collaboration-leftovers/issues/` | 协作残留删除 **01 TDD-done，本刀闭合**。不要再开下一张票。不要改 ADR-0046 |
-| `docs/adr/0050-big-data-platform-ops.md` | 产品只运维大数据平台。取消策展/观测判断。第一版 HDFS 与 YARN |
-| `docs/specs/big-data-platform.md` | 大数据平台第一版（**01 done，本刀闭合**。不要开票 02。不换自愈命令，不做对象存储与 K8s 计算） |
-| `.scratch/big-data-platform/issues/` | 工单 01 **done** |
+| `control-plane/` | Python、FastAPI 控制面 |
+| `host-agent/` | Go Host Agent |
+| `frontend/` | React 前端 |
+| `backend/` | 留存的 Java 控制面 |
+| `agent/` | 留存的 Python Host Agent |
+| `deploy/` | 本地 Compose |
 
-## 模块边界
-
-`curated` / `observed` / `conflict` / `plan` / `user` / `agent` / `common`
-
-## 硬约束
-
-- 遵守 `AGENTS.md`；禁止 Maven、JPA 当地基、Vue 当前端、Neo4j v1 必选、LangChain 主干、Redis 当真相 SSOT
-- SSH：MINA SSHD + Redis 锁；禁止旁路直连与绕过计划冻结
-- Flyway：只增不改历史脚本
-- 一次只做一张 ready 工单；`/implement` 走 **red → green → refactor**（`docs/agents/tdd.md`）；进度见 `docs/dev-handoff.md`
+产品词在 `CONTEXT.md`。决策记录在 `docs/adr/`。编码入口是 `AGENTS.md`。
