@@ -10,6 +10,8 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
 from archops_control.db import connect, migrate
+from archops_control.errors import ApiError
+from archops_control.repair import issued_step, load_repair, record_result, start_repair
 
 ALLOWED_ROLES = ("NameNode", "DataNode", "ResourceManager", "NodeManager")
 HDFS_ROLES = frozenset({"NameNode", "DataNode"})
@@ -23,13 +25,6 @@ ROLE_CONFIG_REQUIRED = (
     "HDFS role requires replicaCount and capacityBytes; "
     "YARN role requires queueName, memoryMb, and vcores"
 )
-
-
-class ApiError(Exception):
-    def __init__(self, status: int, code: str, message: str) -> None:
-        self.status = status
-        self.code = code
-        self.message = message
 
 
 def ok(data: object) -> dict:
@@ -245,5 +240,25 @@ def create_app() -> FastAPI:
         if row is None:
             raise ApiError(404, "NOT_FOUND", "Not found")
         return ok(alert_json(row))
+
+    @app.post("/api/alerts/{alert_id}/repairs")
+    def open_repair(alert_id: str) -> dict:
+        with connect() as conn:
+            return ok(start_repair(conn, alert_id))
+
+    @app.get("/api/repairs/{repair_id}")
+    def get_repair(repair_id: str) -> dict:
+        with connect() as conn:
+            return ok(load_repair(conn, repair_id))
+
+    @app.get("/api/hosts/{host_id}/repair-step")
+    def get_repair_step(host_id: str) -> dict:
+        with connect() as conn:
+            return ok(issued_step(conn, host_id))
+
+    @app.post("/api/hosts/{host_id}/repair-results")
+    def post_repair_result(host_id: str, body: dict) -> dict:
+        with connect() as conn:
+            return ok(record_result(conn, host_id, body))
 
     return app

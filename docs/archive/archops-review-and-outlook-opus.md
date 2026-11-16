@@ -1,3 +1,5 @@
+> 历史笔记，不是现行做法。现行产品只运维 HDFS 与 YARN，采集和一步修复在 Host Agent。
+
 # ArchOps 复盘与展望（Opus，只读）
 
 - Date: 2026-08-22 / Claude Opus 5 / Cursor Cloud Agent

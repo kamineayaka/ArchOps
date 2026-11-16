@@ -2,9 +2,13 @@
 
 这份文件记录已经做过的事，不规定下一步怎么写。编码入口是根目录 [`AGENTS.md`](../AGENTS.md)。
 
-产品主线在 ADR-0050。现行控制面与 Host Agent 的栈在 ADR-0052。角色存活告警已在 main。
+产品主线在 ADR-0050。现行控制面与 Host Agent 的栈在 ADR-0052。角色存活告警，以及 Host Agent 执行的一步修复，都在 `control-plane/` 和 `host-agent/`。
 
-## 当前状态
+## 现行产品
+
+HDFS 与 YARN。Python 控制面登记集群、角色、主机，并保存角色不在的告警。Go Host Agent 采集本机角色是否在，再执行控制面这次发出的一步修复。失败即停。修复输出不进入告警。下一次采集看到角色在，告警结束。
+
+## 留存的 Java 树
 
 | 项 | 状态 |
 |---|---|
@@ -164,17 +168,13 @@
 01 删掉认领/已知悉/自任/指派/接受/拒绝/转让与冲突 GET 协作载荷（TDD-done）
 ```
 
-大数据平台（ADR-0050 / 0051 / 0052，**票 01 done**）：
+大数据平台（ADR-0050 / 0051 / 0052）：
 
-```
-01 集群、角色、主机配置 + HDFS/YARN 角色不在的告警（done）
-```
-
-修复命令另说。对象存储与 Spark/Flink on K8s 只留边界。
+集群、角色、主机，角色不在的告警，以及 Host Agent 上的一步修复，都在 `control-plane/` 与 `host-agent/`。对象存储与 Spark/Flink on K8s 只留边界。
 
 ## 本地启动摘要
 
-见根 `README.md`：Compose 起 postgres/redis → `backend` `./gradlew bootRun` → `frontend` `npm run dev` → `GET /api/health`。
+现行路径见根 `README.md`：Compose 起 Postgres，再跑 `control-plane/` 与 `host-agent/`。留存的 Java 树仍是 `backend` `./gradlew bootRun` 和 `frontend` `npm run dev`。
 
 ## 栈摘要
 

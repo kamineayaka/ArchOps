@@ -1,8 +1,10 @@
 ---
-status: "票 01 TDD-done。本 PR 不含 ADR-0048 / ADR-0049 的实现。"
+status: "历史规格。策展/观测判断已取消，不是现行产品。"
 ---
 
 # Spec: 案件带解决动作，不带原因种类
+
+> 历史规格，不是现行做法。现行产品只运维虚机上的 HDFS 与 YARN：`host-agent/` 采集角色是否在，并执行 `control-plane/` 一次发来的一步修复。见 [`big-data-platform.md`](big-data-platform.md)。不写原因分类这一点仍然适用。
 
 **Status**: 工单 01 **TDD-done**。本 PR 不含 ADR-0048 / ADR-0049 的实现。  
 **Basis**: [`docs/adr/0047-conflict-evidence-not-cause-kind.md`](../adr/0047-conflict-evidence-not-cause-kind.md)。不改 ADR 正文。不改发现的定义。不改 ADR-0043 / 0044 / 0045 / 0046。  

@@ -1,7 +1,8 @@
-# ArchOps Host Agent
+# 留存的 Python 心跳
 
-Python **3.12+** host agent (ADR-0043). Delivery preference: **systemd unit install (S1)**.
-Optional agent container image is Later. Source/manual run is for development only.
+现行 Host Agent 是仓库根目录的 `host-agent/`（Go）。它采集本机 HDFS/YARN 角色是否在，并执行控制面一次发来的一步修复。
+
+本目录是留下的 Python 3.12+ 心跳 stub，对着 Java 控制面。它不是现行采集和修复路径。
 
 **Payload contract**: [`docs/contracts/agent-heartbeat-snapshot.md`](../docs/contracts/agent-heartbeat-snapshot.md).
 
@@ -33,9 +34,9 @@ Environment overrides: `ARCHOPS_CONTROL_PLANE`, `ARCHOPS_AGENT_ID`, `ARCHOPS_HOS
 
 Stdlib only (no pip deps). Endpoint: `POST /api/agent/heartbeat`.
 
-The heartbeat response carries this agent's probe task list (ADR-0048). This process runs each command locally and posts `probeResults` on the same ingest. It does not judge and it does not call a model. The control plane judges each returned result. An older process that ignores `probeTasks` can still heartbeat. Delivery remains the systemd unit; there is no task-push channel.
+The heartbeat response carries this stub's probe task list. This process can run those commands and post `probeResults`. That is not the current product. Collection and one-step repair live in `host-agent/`.
 
-## systemd (delivery main path)
+## systemd
 
 1. Install script to e.g. `/opt/archops-agent/heartbeat.py` (Python 3.12+ on PATH).
 2. Drop a unit such as `/etc/systemd/system/archops-agent.service`:

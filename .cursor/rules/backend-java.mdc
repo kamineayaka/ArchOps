@@ -6,6 +6,8 @@ alwaysApply: false
 
 # 后端 Java 约定
 
+这是留存的 Java 树。HDFS/YARN 的采集和一步修复在 `control-plane/` 与 `host-agent/`，不经过这里的执行引擎。
+
 包根 `com.archops.<模块>`。构建 **Gradle**；持久化 **MyBatis-Plus**（ADR-0043）。不以 JPA 为新代码默认。云端 Agent 另见根目录 `AGENTS.md`。
 
 ## 分层

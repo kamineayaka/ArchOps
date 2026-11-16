@@ -1,8 +1,10 @@
 ---
-status: "已闭合。「As a 冲突处理人」由 ADR-0046 取代；「须基于新诊断重走」由 ADR-0047 取代。升级作废活跃计划仍有效。"
+status: "历史规格。策展/观测判断已取消，不是现行产品。"
 ---
 
 # Spec: 冲突升级作废活跃操作计划
+
+> 历史规格，不是现行做法。现行产品只运维虚机上的 HDFS 与 YARN：`host-agent/` 采集角色是否在，并执行 `control-plane/` 一次发来的一步修复。见 [`big-data-platform.md`](big-data-platform.md)。
 
 **Status**: spec published；工单 01 **TDD-done**；**本刀闭合**  
 **Basis**: `CONTEXT.md`「AI 诊断」「冲突升级」；ADR-0027；ADR-0038；ADR-0039（合同已冻结，本刀**不改**合同、不立新 ADR）  

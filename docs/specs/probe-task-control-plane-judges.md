@@ -1,8 +1,10 @@
 ---
-status: "票 01 TDD-done。本刀不含 ADR-0049 / Kubernetes / 编排层。"
+status: "历史规格。策展/观测判断已取消，不是现行产品。"
 ---
 
 # Spec: 探测任务由控制面判决
+
+> 历史规格，不是现行做法。现行产品只运维虚机上的 HDFS 与 YARN：`host-agent/` 采集角色是否在，并执行 `control-plane/` 一次发来的一步修复。见 [`big-data-platform.md`](big-data-platform.md)。
 
 **Status**: 工单 01 **TDD-done**。本刀不含 ADR-0049、编排层 gRPC、Kubernetes、原因种类。  
 **Basis**: [`docs/adr/0048-probe-task-control-plane-judges.md`](../adr/0048-probe-task-control-plane-judges.md)。不改 ADR 正文。不改 ADR-0047 的解决动作集合。不改 ADR-0043 / 0044 / 0045 / 0046。  

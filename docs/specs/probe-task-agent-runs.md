@@ -1,8 +1,10 @@
 ---
-status: "票 01 TDD-done。本刀闭合。不重开 ADR-0048 票 01，不重开薄 UI 票 01。"
+status: "历史规格。现行 Host Agent 采集 HDFS/YARN 角色存活并执行一步修复，不跑这套探测判决。"
 ---
 
 # Spec: Host Agent 拉取探测任务、执行命令、交回结构化结果
+
+> 历史规格，不是现行做法。现行 Host Agent 在 `host-agent/`，向 `control-plane/` 上报角色是否在，并执行控制面一次发来的一步修复。见 [`big-data-platform.md`](big-data-platform.md)。
 
 **Status**: 工单 01 **TDD-done**。本刀闭合。  
 **Basis**: [`docs/adr/0048-probe-task-control-plane-judges.md`](../adr/0048-probe-task-control-plane-judges.md)。控制面保存任务并判决交回已在 [`docs/specs/probe-task-control-plane-judges.md`](probe-task-control-plane-judges.md) 票 01 闭合。薄 UI 已在 [`docs/specs/probe-task-thin-ui.md`](probe-task-thin-ui.md) 票 01 闭合。本刀不重开那两张票，不改 ADR 正文。  

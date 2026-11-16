@@ -1,8 +1,10 @@
 ---
-status: "已闭合。正文里的已知悉、认领、已接受处理人由 ADR-0046 取代；规则兜底后选支由 ADR-0047 取代。"
+status: "历史规格。策展/观测判断已取消，不是现行产品。"
 ---
 
 # Spec: ArchOps 竖切 MVP（一条冲突闭环）
+
+> 历史规格，不是现行做法。现行产品只运维虚机上的 HDFS 与 YARN：`host-agent/` 采集角色是否在，并执行 `control-plane/` 一次发来的一步修复。见 [`big-data-platform.md`](big-data-platform.md)。
 
 **Status**: done（01–13 已闭合；）  
 **Basis**: ADR-0039 领域合同、`CONTEXT.md`、ADR-0043 技术栈、ADR-0041（竖切范围 + AI 出站）、`docs/mvp-vertical-slice.md`  
