@@ -18,7 +18,6 @@ jobs:
           test -f CONTEXT.md
           test -f docs/adr/0039-domain-contract-frozen.md
           test -f docs/adr/0043-tech-stack.md
-          test -f docs/archive/scaffold-bootstrap-prompt.md
 
   backend:
     name: backend test
