@@ -24,9 +24,9 @@ Default DB/Redis env matches `deploy/compose/.env.example` (`archops` / `archops
 
 ## 在这台机器上跑
 
-- 健康检查：`GET /api/health`。
-- Java 树的测试：`cd backend && ./gradlew test`（不少 HTTP 测试用内嵌 Postgres）。
-- 前端：Vite `:5173` 把 `/api` 代理到 `:8080`。
+- 现行控制面是 `control-plane/`，现行 Host Agent 是 `host-agent/`。角色存活和一步修复：`cd control-plane && pytest`，`cd host-agent && go test ./...`。
+- 留存 Java 树的健康检查：`GET /api/health`。测试：`cd backend && ./gradlew test`（不少 HTTP 测试用内嵌 Postgres）。
+- 前端：Vite `:5173` 把 `/api` 代理到 `:8080`。`agent/` 里的 Python 心跳是留存 stub。
 - 不要假设开发者的 Windows 机器、SteamTools 证书或本机 Docker Desktop。
 
 ## Secrets

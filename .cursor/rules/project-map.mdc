@@ -14,4 +14,4 @@ alwaysApply: true
 | `agent/` | 留存的 Python Host Agent |
 | `deploy/` | 本地 Compose |
 
-产品词在 `CONTEXT.md`。决策记录在 `docs/adr/`。编码入口是 `AGENTS.md`。
+现行产品只运维虚机上的 HDFS 与 YARN。Host Agent 采集角色是否在，并执行控制面一次发来的一步修复。产品词在 `CONTEXT.md`。决策记录在 `docs/adr/`。编码入口是 `AGENTS.md`。

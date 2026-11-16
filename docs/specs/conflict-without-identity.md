@@ -1,8 +1,10 @@
 ---
-status: "已闭合，实现的是 ADR-0046。正文 Status「本 PR 只含票 07；#119–#124 不并入 main」不成立（#119–#123 与 #125 已在 main，#124 已关闭未合并）。选支是解决动作，见 ADR-0047。"
+status: "历史规格。策展/观测判断已取消，不是现行产品。不记录操作者这一点仍然适用。"
 ---
 
 # Spec: 冲突主线去掉协作身份
+
+> 历史规格，不是现行做法。现行产品只运维虚机上的 HDFS 与 YARN：`host-agent/` 采集角色是否在，并执行 `control-plane/` 一次发来的一步修复。见 [`big-data-platform.md`](big-data-platform.md)。
 
 **Status**: spec published；工单 01–07 **done**。本 PR 只含工单 07，基线是票 06 分支。#119–#124 不并入 main。
 **Basis**: ADR-0046（已接受）；`CONTEXT.md` 中被 ADR-0046 取代的协作身份句。不改冲突成立条件，不改 ADR-0043 / 0044 / 0045。  

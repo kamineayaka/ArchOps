@@ -1,8 +1,10 @@
 ---
-status: "已闭合。故事里的认领→已接受处理人由 ADR-0046 取代。范围钉「不立 ADR-0046」是当时的刀。步骤断言由引擎判定仍有效。"
+status: "历史规格。第一版 HDFS/YARN 修复不走执行引擎。"
 ---
 
 # Spec: 步骤断言（引擎判定 + 逐步详细结果落控制面）
+
+> 历史规格，不是现行做法。现行修复由 `host-agent/` 执行 `control-plane/` 一次发来的一步。失败即停，输出不写成告警证据。见 [`big-data-platform.md`](big-data-platform.md)。
 
 **Status**: spec published；工单 01 **TDD-done**；**本刀闭合**  
 **Basis**: ADR-0044 决议 4（步骤断言由执行引擎判定）与决议 2 在本刀收缩后的「逐步详细结果落控制面」；ADR-0045（既有 ExecuteStep 加料，不改 0045 正文）；ADR-0043；`CONTEXT.md`「操作计划」「步骤断言」「执行引擎」「控制面代发」「AI 编排层」（执行期只观察）  

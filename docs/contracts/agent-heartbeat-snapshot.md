@@ -1,3 +1,5 @@
+> 这是留存 Java 控制面的心跳合同，不是现行做法。现行 Host Agent 在 `host-agent/`，向 `control-plane/` 上报角色存活并执行一步修复。
+
 # Agent heartbeat + snapshot contract
 
 **Status**: vertical-slice ticket 03 + unbound-identity-rebind tickets 01 and 04  

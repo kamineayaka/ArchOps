@@ -1,24 +1,53 @@
 # ArchOps
 
-运维关系真相控制平面。领域合同已冻结（`CONTEXT.md`、ADR-0039）；技术栈已冻结（ADR-0043）。  
-实现策略：K1 推倒（ADR-0040）、同仓重写（ADR-0042）。
+只运维大数据平台本身。第一版是虚机上的 HDFS 与 YARN：集群、服务角色、主机，角色不在时告警，以及 Host Agent 上的一步修复。
 
-**脚手架状态**：已按 ADR-0043 重建可启动最小骨架。竖切按工单推进。  
-**AI Agent 入口**：[`AGENTS.md`](./AGENTS.md) · [`CLAUDE.md`](./CLAUDE.md)  
+跑角色的主机装 Go Host Agent。它上报 NameNode、DataNode、ResourceManager、NodeManager 是否在，并执行 Python 控制面一次发来的一步修复。Agent 不自己选下一步。失败就停。修复输出不写成告警证据；角色恢复靠下一次采集。不走执行引擎 SSH。
+
+**入口**：[`AGENTS.md`](./AGENTS.md) · [`CLAUDE.md`](./CLAUDE.md) · 产品词 [`CONTEXT.md`](./CONTEXT.md)  
+**边界**：ADR-0050、ADR-0051、ADR-0052。  
 **Cloud Agent 环境**：[`.cursor/environment.json`](./.cursor/environment.json) · [`.cursor/CLOUD.md`](./.cursor/CLOUD.md)
 
 ## 目录
 
 | 路径 | 说明 |
 |---|---|
-| `backend/` | Java 21 / Spring Boot 3 / Gradle / MyBatis-Plus / Flyway |
+| `control-plane/` | 现行控制面：Python、FastAPI、PostgreSQL |
+| `host-agent/` | 现行 Host Agent：Go。采集角色存活，执行一步修复 |
 | `frontend/` | React + TypeScript + Vite + Ant Design |
-| `agent/` | Python 心跳 stub（交付主推 systemd，见 `agent/README.md`） |
-| `deploy/` | 本地开发 Compose（Postgres、Redis、控制面、执行引擎）。交付目标是三个 Kubernetes Deployment：控制面、执行引擎、AI 编排层（ADR-0049） |
-| `docs/` | 合同、ADR、Spec。`docs/archive/` 是历史笔记 |
-| `Dockerfile` | 多阶段构建 → 镜像 tag `archops:latest` |
+| `backend/` | 留存的 Java 控制面 |
+| `agent/` | 留存的 Python 心跳 stub |
+| `deploy/` | 本地 Compose（Postgres、Redis）。Java 镜像仍可在这里起 |
+| `docs/` | 产品说明、ADR、Spec。`docs/archive/` 是历史笔记 |
+| `Dockerfile` | 留存 Java 控制面的多阶段构建，镜像 tag `archops:latest` |
 
-## 本地开发
+## 现行控制面与 Host Agent
+
+Postgres 用下面的 Compose。控制面默认库是 `archops_platform`（用户和密码都是 `archops`）。
+
+```bash
+docker compose -f deploy/compose/compose.yaml up -d postgres
+export ARCHOPS_PLATFORM_DATABASE_URL=postgresql://archops:archops@127.0.0.1:5432/archops_platform
+cd control-plane
+python3 -m venv .venv && . .venv/bin/activate && pip install -r requirements.txt
+PYTHONPATH=src python -m archops_control
+```
+
+控制面听 `8081`。Host Agent 上报后，若控制面已经发出一步，这次进程只执行这一步：
+
+```bash
+cd host-agent
+go run . --control-plane http://127.0.0.1:8081 --host-id <host-id> --role DataNode
+```
+
+库还不存在时，控制面测试会创建 `archops_platform`。测试：
+
+```bash
+(cd control-plane && . .venv/bin/activate && pytest)
+(cd host-agent && go test ./...)
+```
+
+## 留存的 Java 控制面
 
 ### 1. 基础设施（Postgres + Redis）
 
@@ -65,13 +94,13 @@ npm run dev
 
 打开 Vite 提示的地址（默认 `http://localhost:5173`）。页面标题 **ArchOps**，并代理 `/api` → `:8080` 展示 health 结果。
 
-### 4. Agent stub（可选）
+### 4. 留存的 Python 心跳（可选）
+
+现行采集和修复在 `host-agent/`。这个 stub 仍对着 Java 控制面的 `POST /api/agent/heartbeat`。
 
 ```bash
 python agent/heartbeat.py --interval 0
 ```
-
-控制面已有 ingest：`POST /api/agent/heartbeat`（见 `docs/contracts/agent-heartbeat-snapshot.md`）。心跳响应带回该 Agent 的探测任务列表；控制面判决交回结果（ADR-0048）。
 
 ## 镜像构建与本地 Compose
 
@@ -112,10 +141,11 @@ POSTGRES_IMAGE=postgres:16 REDIS_IMAGE=redis:7-alpine \
 
 ## 明确不做
 
-Neo4j 当 v1 必选、Maven、JPA 当地基、Vue、LangChain 主干。竖切 Spec 见 `docs/specs/vertical-slice-mvp.md`（01–13 已闭合）。
+第一版不做对象存储、Spark on K8s、Flink on K8s、编排层和模型文案。HDFS/YARN 修复不走执行引擎 SSH。不把策展/观测/冲突判断当现行做法。
 
 ## 合同与接手
 
-- 术语：`CONTEXT.md`
-- 栈与交付：`docs/adr/0043-tech-stack.md`、ADR-0049
-- 接手：`docs/dev-handoff.md`
+- 现行产品词：`CONTEXT.md`
+- 边界：ADR-0050、ADR-0051、ADR-0052
+- 行为：`docs/specs/big-data-platform.md`
+- 做过什么：`docs/dev-handoff.md`

@@ -6,7 +6,7 @@ alwaysApply: false
 
 # 前端 React 约定
 
-`React` + TypeScript + Vite + **Ant Design**（ADR-0043）。禁止把 Vue / Naive UI 当作现行前端栈重新引入。
+`React` + TypeScript + Vite + **Ant Design**。禁止把 Vue / Naive UI 当作现行前端栈重新引入。现行产品是 HDFS/YARN 的采集和一步修复；这些页面仍对着留存的 Java API。
 
 ## 目录
 

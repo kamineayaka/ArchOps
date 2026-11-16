@@ -1,46 +1,34 @@
 ---
-status: "票 01 done。集群/角色/主机配置，以及 HDFS/YARN 角色是否在的故障与告警。不含自愈换命令，不含对象存储与 K8s 计算。"
+status: "现行产品。HDFS 与 YARN 的集群、角色、主机、角色存活告警，以及 Host Agent 上的一步修复。不含对象存储与 K8s 计算。"
 ---
 
 # Spec: 大数据平台第一版（HDFS 与 YARN）
 
-**Status**: 工单 01 **done**。  
-**Basis**: [`docs/adr/0050-big-data-platform-ops.md`](../adr/0050-big-data-platform-ops.md)、[`docs/adr/0051-host-agent-collects-and-repairs.md`](../adr/0051-host-agent-collects-and-repairs.md)、[`docs/adr/0052-python-control-plane-go-agent.md`](../adr/0052-python-control-plane-go-agent.md)。判断机制已取消。控制面是新的 Python 服务，Agent 是 Go。不改 `backend/`。  
-**Testing seams (confirmed)**: 新 Python 控制面的 HTTP API。前端不在本票。修复不在本票。
+**Basis**: [`docs/adr/0050-big-data-platform-ops.md`](../adr/0050-big-data-platform-ops.md)、[`docs/adr/0051-host-agent-collects-and-repairs.md`](../adr/0051-host-agent-collects-and-repairs.md)、[`docs/adr/0052-python-control-plane-go-agent.md`](../adr/0052-python-control-plane-go-agent.md)。判断机制已取消。控制面是 `control-plane/` 的 Python 服务，Agent 是 `host-agent/` 的 Go 进程。不改 `backend/`。  
+**测试**: 控制面 HTTP API，以及 `host-agent` 的 `go test`。
 
-## Problem Statement
+## 产品
 
-产品主线已改为只运维大数据平台。仓库里还没有集群、服务角色、主机这三层，也没有「角色不在则告警」。继续加通用公民或主机之间可达会漂移。
+第一版只运维虚机上的 HDFS 与 YARN。人登记集群、主机和服务角色，并写下配置。Host Agent 采集角色是否在。角色不在则告警。控制面一次发一步修复，Agent 执行。失败即停。角色恢复只靠下一次采集。
 
-## Solution
+## 行为
 
 1. 人可以登记一个大数据集群，并在其下登记 HDFS 或 YARN 的服务角色，把角色放到一台主机上。角色只允许 NameNode、DataNode、ResourceManager、NodeManager。一台主机可以有多个角色。
-2. 资源配置在同一条记录上：HDFS 角色带副本数与容量；YARN 角色带队列名、内存与 vcore。这是人写下的配置，不是两轨对账。
-3. Go Host Agent 交回该主机各角色是否在。控制面不 SSH。Agent 不判决。本票不发修复命令。
-4. 角色不在，控制面记下当前故障，并给出告警。角色恢复在，告警结束。故障只保留采集到的原始证据，没有原因种类。
-5. 告警不记录操作者，不要求确认关闭。
+2. 资源配置在同一条记录上：HDFS 角色带副本数与容量；YARN 角色带队列名、内存与 vcore。这是人写下的配置。
+3. Go Host Agent 交回该主机各角色是否在。控制面不 SSH。没有角色存活字段的上报不开告警。
+4. 角色不在，控制面记下当前告警，证据是采集到的原始结果。角色在，同一条告警结束。没有原因种类，不记录操作者。
+5. 对一条当前告警，控制面冻结一份脚本，并只把当前这一步的命令交给该主机的 Agent。NameNode、DataNode、ResourceManager 的脚本是拉起对应进程。NodeManager 先拉起进程，这一步成功之后才发出刷新 YARN 队列。
+6. Agent 执行收到的这一步，把退出码和输出交回，然后停止。它不自己选下一步，也不在同一次运行里再要下一步。
+7. 退出码不是 0 就停。未发出的后续命令不再发出，同一步也不改成成功再跑。
+8. 修复输出记在这一步上。它不写入告警证据。修复成功也不结束告警。
+9. 下一次采集看到该角色在，对应告警结束，证据仍是当初的采集结果。
 
-## User Stories
+## 不做
 
-1. 人登记集群、主机，以及该主机上的 NameNode 或 NodeManager，并能读回角色、副本或队列配置。
-2. 登记 DataNode、ResourceManager 以外的角色名被拒绝。
-3. 心跳报告某角色不在：出现一条当前告警，证据是交回的原始结果。
-4. 随后心跳报告该角色在：同一条告警结束。
-5. 同一主机上另一个角色的在与不在，不改第一条告警。
-6. 请求不带用户身份，响应不记录操作者。
-
-## Out of Scope
-
-- 修复命令。采集与修复都在 Host Agent（ADR-0051），修复另票再做。
-- 容量耗尽、节点丢失。本票的故障只有「角色不在」。ADR-0050 仍把二者留在故障发现的定义里，另票再做。
+- 容量耗尽、节点丢失。
 - 对象存储，Spark on K8s，Flink on K8s。
-- 删除现有冲突、草案、探测接口。
+- 删除 `backend/` 里已有的冲突、草案、探测接口。
 - 原因种类、处理人、已知悉、确认关闭。
 - Kubernetes 清单、编排层进程、模型建议正文。
+- 用执行引擎 SSH 修 HDFS 或 YARN。
 - 前端页面。
-
-## Implementation targets
-
-- 新的 Python 控制面（FastAPI + PostgreSQL）：登记与读回集群、主机、角色配置；接收角色存活；读当前告警。
-- 新的 PostgreSQL 迁移。不改 `backend/` 里已有的 Flyway。
-- Go Host Agent 上报本机角色是否在。不上报时不制造告警。

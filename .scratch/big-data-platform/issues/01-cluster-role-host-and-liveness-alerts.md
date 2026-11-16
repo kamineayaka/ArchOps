@@ -4,7 +4,7 @@
 
 **Blocked by:** None. 合同是 ADR-0050、ADR-0051、ADR-0052。修复不在本票。现有 Java 冲突、草案、探测接口停在原地。
 
-**Status:** done
+**Status:** done。这张工单不含修复。修复已经另外落在 `control-plane/` 与 `host-agent/`：控制面一次发一步，Agent 执行，失败即停，输出不进告警。
 
 **TDD:** capability。主接缝是新 Python 控制面的 HTTP API。Spec：[`docs/specs/big-data-platform.md`](../../../docs/specs/big-data-platform.md)。
 

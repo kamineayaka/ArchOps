@@ -1,8 +1,10 @@
 ---
-status: "已闭合。故事里的已接受处理人由 ADR-0046 取代；「规则诊断兜底仍能选支」由 ADR-0047 取代；「Compose 三件套上只加执行引擎」当交付形态由 ADR-0049 取代。控制面→引擎 gRPC 仍有效。"
+status: "历史规格。第一版 HDFS/YARN 修复不走执行引擎 SSH。"
 ---
 
 # Spec: 控制面执行引擎（单步代发 + MINA/凭证迁出）
+
+> 历史规格，不是现行做法。现行修复由 `host-agent/` 执行 `control-plane/` 一次发来的一步，不调用这里的执行引擎。见 [`big-data-platform.md`](big-data-platform.md)。
 
 **Status**: spec published；工单 01 **TDD-done**；**本刀闭合**  
 **Basis**: ADR-0044（运行时拓扑；本刀**实现** 0044，不重开拒绝项）；ADR-0045（控制面→执行引擎 = gRPC + Protobuf；`grpc.health.v1`；仅控制面可调 / mTLS）；ADR-0043；`CONTEXT.md`「操作计划」「执行引擎」「控制面代发」「步骤断言」（schema 本刀后置）「心跳」  

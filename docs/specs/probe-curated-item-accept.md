@@ -1,8 +1,10 @@
 ---
-status: "票 01 done。探测冲突上已有的改理想草案逐条确认。不重开 ADR-0048 票 01、薄 UI、Host Agent 执行探测命令。"
+status: "历史规格。策展/观测判断已取消，不是现行产品。"
 ---
 
 # Spec: 探测冲突改理想草案逐条确认
+
+> 历史规格，不是现行做法。现行产品只运维虚机上的 HDFS 与 YARN：`host-agent/` 采集角色是否在，并执行 `control-plane/` 一次发来的一步修复。见 [`big-data-platform.md`](big-data-platform.md)。
 
 **Status**: 工单 01 **done**。  
 **Basis**: [`docs/specs/change-curated-draft.md`](change-curated-draft.md)（接受写入策展并立刻比对；拒绝不写；相等只进待确认关闭；确认关闭前再不等则离开待确认关闭）。探测草案的打开已在 [`docs/specs/probe-task-thin-ui.md`](probe-task-thin-ui.md) 闭合：开放草案、一条 `PENDING` 的 `PROBE_CURATED_VALUE`、不写策展。判决与确认关闭比较冲突上的 JSON 已在 [`docs/specs/probe-task-control-plane-judges.md`](probe-task-control-plane-judges.md)。本刀不重开那三张票，不改 ADR 正文。  

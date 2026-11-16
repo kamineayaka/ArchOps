@@ -1,8 +1,10 @@
 ---
-status: "票 01 done。薄 UI。不重开 ADR-0048 票 01。不含 ADR-0049。"
+status: "历史规格。策展/观测判断已取消，不是现行产品。"
 ---
 
 # Spec: 探测任务判决的薄 UI
+
+> 历史规格，不是现行做法。现行产品只运维虚机上的 HDFS 与 YARN：`host-agent/` 采集角色是否在，并执行 `control-plane/` 一次发来的一步修复。见 [`big-data-platform.md`](big-data-platform.md)。
 
 **Status**: 工单 01 **done**。  
 **Basis**: [`docs/adr/0048-probe-task-control-plane-judges.md`](../adr/0048-probe-task-control-plane-judges.md)。判决 HTTP 已在 [`docs/specs/probe-task-control-plane-judges.md`](probe-task-control-plane-judges.md) 票 01 变绿。本刀不重开那张票，不改 ADR 正文。  
