@@ -6,7 +6,7 @@
 
 **Status:** done
 
-**TDD:** `/implement` 走 [`docs/agents/tdd.md`](../../../docs/agents/tdd.md) 的 **Suite / tracer tickets**。01–05 能力票绿灯之后再开。本票钉有序 HTTP 套件，不实现新产品；禁止删除 01–05 生产来装红灯。Spec tracer：[`docs/specs/unbound-identity-rebind.md`](../../../docs/specs/unbound-identity-rebind.md)。
+**TDD:** 01–05 能力票绿灯之后再开。本票钉有序 HTTP 套件，不实现新产品；禁止删除 01–05 生产来装红灯。Spec tracer：[`docs/specs/unbound-identity-rebind.md`](../../../docs/specs/unbound-identity-rebind.md)。
 
 从竖切票 13 / 改策展票 06 往上长：那些套件保持独立，不要重写。本票新开本刀套件（`*HttpAcceptanceTest` 风格、统一信封、只断言后续 HTTP 可读状态）。
 
@@ -40,7 +40,7 @@ Happy path（须按序、可在 CI 稳定跑通）对齐 Spec「HTTP tracer」�
 
 ## Comments
 
-01–05 + 08 已 TDD-done，本票已 unblocked。开场 prompt：[`docs/implement-unbound-identity-rebind-06-prompt.md`](../../../docs/implement-unbound-identity-rebind-06-prompt.md)。suite 首跑绿记 reuse/regression。不要做 07。不要做票 09。代码 vs ADR-0044 审计 **A2 已由 05 交付**；**A3** 是票 09；**A1** 与 0044 进程债禁止写入本票。见 [`.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md`](../audit-code-vs-adr-0044.md)。
+01–05 + 08 已 TDD-done，本票已 unblocked。suite 首跑绿记 reuse/regression。不要做 07。不要做票 09。代码 vs ADR-0044 审计 **A2 已由 05 交付**；**A3** 是票 09；**A1** 与 0044 进程债禁止写入本票。见 [`.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md`](../audit-code-vs-adr-0044.md)。
 
 ### Cycle A — 有序 happy path（Spec tracer 1–8 + 可选 9）
 Command:

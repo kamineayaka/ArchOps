@@ -6,7 +6,7 @@
 
 **Status:** done
 
-**TDD redo:** yes — 验收标准不变。先前实现与测试同提交，不算 TDD 完成。按 [`docs/agents/tdd.md`](../../../docs/agents/tdd.md) 从 witnessed red 重做。02 TDD-done。
+**TDD redo:** yes — 验收标准不变。先前实现与测试同提交，不算 TDD 完成。02 TDD-done。
 
 从竖切 MVP 往上长：选支门禁曾在「出操作计划」服务里，且非 `FIX_ACTUAL` 直接拒绝；操作计划 `branch_kind` 历史约束仍只有修实际。本票复用同一门禁（已接受处理人、当前诊断、每冲突一条活跃处理路径），为改理想走出草案而不是计划。不要把 `CHANGE_CURATED` 加进操作计划分支种类；`FIX_ACTUAL` 的 HTTP 响应须对既有客户端保持有效。HTTP 形状按 Spec 默认：复用选支 POST（可判别 body）或与草案资源配对，只要能 GET 到开放草案。TDD 重做从红灯开始（见 Comments）；不要改已有 V13。
 

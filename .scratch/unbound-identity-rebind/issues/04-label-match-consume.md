@@ -6,7 +6,7 @@
 
 **Status:** done
 
-**TDD:** `/implement` 走 [`docs/agents/tdd.md`](../../../docs/agents/tdd.md)：**red → green → refactor**。Spec：[`docs/specs/unbound-identity-rebind.md`](../../../docs/specs/unbound-identity-rebind.md)。
+**TDD:** Spec：[`docs/specs/unbound-identity-rebind.md`](../../../docs/specs/unbound-identity-rebind.md)。
 
 补标本身不在本票用 SSH / 操作计划完成：测试夹具直接发带正确标签的快照。先策展后补标（ADR-0012）的正向收尾在本票闭合。
 
@@ -23,8 +23,6 @@
 ## Comments
 
 03 TDD-done 后再开。不要做 05–07。不要把命中写成观测空洞恢复。
-
-开工 prompt：[`docs/implement-unbound-identity-rebind-04-prompt.md`](../../../docs/implement-unbound-identity-rebind-04-prompt.md)（钉死消费键、作废范围、absent 与过期记忆释放、第一圈红灯，并把下面四条义务写进步骤）。`/implement` 走 [`docs/agents/tdd.md`](../../../docs/agents/tdd.md)：capability 票须 witnessed red；第一圈必须是「命中后 `GET /api/observed/identity-lost/{X}` 期望 400」的诚实红灯，不要用未认证 401 或既有 PRESENT / ABSENT 绿灯冒充。
 
 ### 来自 01–03 合同审计的三条约束（`audit-01-03-opus.md`）
 

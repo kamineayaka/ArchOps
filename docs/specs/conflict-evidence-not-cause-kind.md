@@ -6,7 +6,7 @@ status: "票 01 TDD-done。本 PR 不含 ADR-0048 / ADR-0049 的实现。"
 
 **Status**: 工单 01 **TDD-done**。本 PR 不含 ADR-0048 / ADR-0049 的实现。  
 **Basis**: [`docs/adr/0047-conflict-evidence-not-cause-kind.md`](../adr/0047-conflict-evidence-not-cause-kind.md)。不改 ADR 正文。不改发现的定义。不改 ADR-0043 / 0044 / 0045 / 0046。  
-**Testing seams (confirmed)**: **唯一验收主接缝 = 控制面公开 HTTP API**（含 Agent 心跳/快照 ingest）。`/implement` 按 [`docs/agents/tdd.md`](../agents/tdd.md) 走 **red → green → refactor**。前端不进本刀自动化主接缝。
+**Testing seams (confirmed)**: **唯一验收主接缝 = 控制面公开 HTTP API**（含 Agent 心跳/快照 ingest）。。前端不进本刀自动化主接缝。
 
 ## Problem Statement
 

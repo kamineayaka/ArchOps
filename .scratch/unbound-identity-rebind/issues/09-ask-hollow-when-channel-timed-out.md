@@ -6,7 +6,7 @@
 
 **Status:** done
 
-**TDD:** `/implement` 走 [`docs/agents/tdd.md`](../../../docs/agents/tdd.md)：**red → green → refactor**。Spec：[`docs/specs/unbound-identity-rebind.md`](../../../docs/specs/unbound-identity-rebind.md)（「`availability` … Must not be set to `HOLLOW` or `ABSENT` **solely** because of 失联」——反过来说，通道确实超时时 `HOLLOW` 就是该答的那个值）。
+**TDD:** Spec：[`docs/specs/unbound-identity-rebind.md`](../../../docs/specs/unbound-identity-rebind.md)（「`availability` … Must not be set to `HOLLOW` or `ABSENT` **solely** because of 失联」——反过来说，通道确实超时时 `HOLLOW` 就是该答的那个值）。
 
 来源：`.scratch/unbound-identity-rebind/audit-01-03-opus.md` 的 **C-1**（FIX-NOW / major）。审计探针命令与失败文本见该报告附录。注意票 10 的扫描会**删除**超时 Agent 写下的观测事实，所以读模型无法靠观测行判断「通道已死」还是「从未观测」；判据要看上报宿主的 `host_agent` 新鲜度。
 
@@ -20,7 +20,7 @@
 
 ## Comments
 
-01–07 + 08 已闭合（PR #99 = 票 07 已合入），本票已 unblocked。开场 prompt：[`docs/implement-unbound-identity-rebind-09-prompt.md`](../../../docs/implement-unbound-identity-rebind-09-prompt.md)。本票是问法读模型能力票：witnessed red → green → refactor。不要做 A1 / ADR-0044 进程拆分 / 发明未绑定 10。不要重做 01–08 / 07 UI。代码 vs ADR-0044 审计 **A3 / 01–03 审计 C-1** 即本票。见 [`.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md`](../audit-code-vs-adr-0044.md)。
+01–07 + 08 已闭合（PR #99 = 票 07 已合入）。本票是问法读模型。不要重做 01–08 / 07 UI。代码 vs ADR-0044 审计 **A3 / 01–03 审计 C-1** 即本票。见 [`.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md`](../audit-code-vs-adr-0044.md)。
 
 审计推荐把这条与票 04 分开做，不要混进同一张票。若你更愿意把「失联与空洞并存时问法的优先级」写成合同，另立 ADR 议题；备选语义：(甲) 通道超时优先报空洞、失联降为旗标（审计推荐、本票采用）；(乙) 失联优先、空洞只在诊断分叉里体现。
 
@@ -84,7 +84,7 @@ Green: 问法只看失联标来源宿主（无则回落策展「运行于」）�
 Refactor: 无。上报通道优先于策展宿主，OR 短路删掉。
 Commit: `41305f9`
 
-票结束：`cd backend && ./gradlew cleanTest test` → BUILD SUCCESSFUL，170 tests, 0 failures。`IdentityLostHeartbeatTimeoutAskHttpAcceptanceTest` 6/6。问法读模型闭合。不要发明未绑定 10。A1 仍另开。不要自动做 A1 / ADR-0044 进程拆分。不改 `CONTEXT.md` / 已有 ADR 正文。
+票结束：`cd backend && ./gradlew cleanTest test` → BUILD SUCCESSFUL，170 tests, 0 failures。`IdentityLostHeartbeatTimeoutAskHttpAcceptanceTest` 6/6。问法读模型闭合。A1 仍另开。不要自动做 A1 / ADR-0044 进程拆分。不改 `CONTEXT.md` / 已有 ADR 正文。
 
 ### Code review（Standards + Spec）
 - Standards: 无硬违规。判断项：`"HOLLOW"` / `"IDENTITY_LOST"` 字面量沿用既有 ask DTO；B–E 首跑绿记 reuse/regression（不删 01/10 生产装红灯）；Cycle F 为 Spec 轴补的上报通道新鲜度。

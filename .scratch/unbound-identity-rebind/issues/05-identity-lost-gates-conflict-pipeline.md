@@ -6,7 +6,7 @@
 
 **Status:** done
 
-**TDD:** `/implement` 走 [`docs/agents/tdd.md`](../../../docs/agents/tdd.md)：**red → green → refactor**。Spec：[`docs/specs/unbound-identity-rebind.md`](../../../docs/specs/unbound-identity-rebind.md)。
+**TDD:** Spec：[`docs/specs/unbound-identity-rebind.md`](../../../docs/specs/unbound-identity-rebind.md)。
 
 本票复用竖切协作/计划/改策展草案，只加闸门。01 完成后即可与 02–04 并行准备，但两张都 unblocked 时按编号最小先做 02。冲突 GET 须能读到失联旗标。
 
@@ -24,7 +24,7 @@
 
 Blocked by 01。01 与本票之间若 02 也已 unblocked，先做 02。不要把失联写成观测空洞。不要做 06–07。
 
-01–04 + 08 已 TDD-done，本票已 unblocked。开场 prompt：[`docs/implement-unbound-identity-rebind-05-prompt.md`](../../../docs/implement-unbound-identity-rebind-05-prompt.md)。代码 vs ADR-0044 审计 **A2** 即本票范围；**A3** 是票 09；**A1**（升级不作废活跃计划）与 0044 进程债禁止写入本票。见 [`.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md`](../audit-code-vs-adr-0044.md)。
+01–04 + 08 已 TDD-done，本票已 unblocked。代码 vs ADR-0044 审计 **A2** 即本票范围；**A3** 是票 09；**A1**（升级不作废活跃计划）与 0044 进程债禁止写入本票。见 [`.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md`](../audit-code-vs-adr-0044.md)。
 
 ### Cycle A — OPEN 冲突主体随后失联：GET 可读 identityLost，不把旧宿主当 PRESENT 实际
 Red command:

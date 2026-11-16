@@ -6,7 +6,7 @@
 
 **Status:** done
 
-**TDD:** capability。`/implement` 走 [`docs/agents/tdd.md`](../../../docs/agents/tdd.md)。主接缝是控制面 HTTP API。Spec：[`docs/specs/probe-curated-item-accept.md`](../../../docs/specs/probe-curated-item-accept.md)。
+**TDD:** capability。主接缝是控制面 HTTP API。Spec：[`docs/specs/probe-curated-item-accept.md`](../../../docs/specs/probe-curated-item-accept.md)。
 
 - [x] 接受待确认条目后，任务策展值变为该条目的观测结构化值；条目为已接受；解决动作仍只有修实际与改理想
 - [x] 接受后不交回新心跳：最新结果与新策展值相等时，冲突为待确认关闭（不是已关闭）；任务判决为正常，`conflictId` 为空

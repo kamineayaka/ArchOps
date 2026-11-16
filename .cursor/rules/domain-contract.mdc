@@ -1,30 +1,10 @@
 ---
-description: 领域合同与防漂移（Cloud/本地 Agent 每次生效）
+description: 编码入口
 alwaysApply: true
 ---
 
-# 领域合同与防漂移
+# 编码
 
-编码前默认已读 `AGENTS.md`、`CONTEXT.md`、ADR-0039、ADR-0043、ADR-0044、ADR-0045、ADR-0046、ADR-0047、ADR-0048、ADR-0049。
+人给出目标、边界、怎样算做完。实现路径由代理自己定。测试和类型检查是反馈。
 
-## 语义
-
-- 策展 = 理想；观测 = 实际；冲突 = 偏差（非对错）
-- 空洞 ≠ 冲突；升级/空洞作废活跃计划
-- 诊断选支、批准并冻结、草案逐条确认、确认关闭与执行不经处理人、不记操作者；认领/已知悉/自任/指派/接受/拒绝/转让已从冲突链删除；计划冻结、失败作废
-- 改语义须新 ADR，禁止实现中偷改合同
-
-## 栈（ADR-0043 + ADR-0044）
-
-- Gradle + MyBatis-Plus + React/Ant + PG + Redis 多副本
-- 控制面枢纽；执行引擎与 AI 编排层独立进程（ADR-0044）；控制面→引擎单步代发 = gRPC（ADR-0045）；编排层↔控制面 = gRPC，模型 HTTPS 仍在编排层（ADR-0049）；控制面不持模型密钥
-- 三进程各自一个 Kubernetes Deployment（控制面、执行引擎、编排层）。Host Agent 留在主机。不用 Eureka。不在内部 gRPC 前放网关（ADR-0049）。Compose 只是本地开发便利
-- 规则引擎不是原因目录（ADR-0047）。无模型不得挡住警告和人审后的执行
-- 探测任务由 Host Agent 在心跳上拉取；控制面判决；Agent 不判决（ADR-0048）
-- 禁止：Maven、JPA 当地基、Vue 现行前端、v1 必选 Neo4j、LangChain 主干、Redis 当真相
-
-## 工作方式
-
-- 一次一张 frontier 票（竖切 / 改策展 / 未绑定 / A1 / 控制面执行引擎 01 / 步骤断言 01 / 协作残留删除 01 / 探测任务 01 均已闭合）。`conflict-without-identity` 票 01–07 done。协作残留删除 01 TDD-done。探测任务 01 TDD-done。探测任务薄 UI 01 done。Host Agent 执行探测命令 01 TDD-done。探测改理想逐条确认 01 done。大数据平台票 01 done（ADR-0050 / 0051 / 0052：HDFS/YARN 的集群、角色、主机，以及角色不在的告警）。不要开票 02。旧主线不要再开下一张票（ADR-0046）。不要重开 ADR-0048 票 01。不要重开薄 UI。不要开探测改理想票 02。不要自动做 ADR-0049 / Kubernetes / 编排层 gRPC。代码 vs ADR-0044 审计：A1/A2/A3 已闭合；B1/B2 + 单步代发已落地；**B3 步骤断言 + 控制面 `executionLog` = plan-step-assertion 01 TDD-done**；B4/B5/B6 不要自动做。不要发明未绑定 10。不要往 `control-plane-executor` 加票 02。不要做解决断点。
-- `/implement` 走 **red → green → refactor**（`docs/agents/tdd.md`）
-- 不复活旧域包；不扩票外范围（自我迭代、可达矩阵、完整 xterm 等）
+入口是根目录 `AGENTS.md`。

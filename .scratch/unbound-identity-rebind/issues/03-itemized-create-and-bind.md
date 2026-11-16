@@ -6,7 +6,7 @@
 
 **Status:** done
 
-**TDD:** `/implement` 走 [`docs/agents/tdd.md`](../../../docs/agents/tdd.md)：**red → green → refactor**。Spec：[`docs/specs/unbound-identity-rebind.md`](../../../docs/specs/unbound-identity-rebind.md)。
+**TDD:** Spec：[`docs/specs/unbound-identity-rebind.md`](../../../docs/specs/unbound-identity-rebind.md)。
 
 确认单位是条目（合同逐条确认）。建底 `POST` 新建主机/容器仍可用；覆盖已有 `运行于` 仍拒绝。从候选并入禁止旁路 POST。
 
@@ -29,7 +29,7 @@
 
 02 TDD-done 后再开。接受绑定后的「现场实体对应 X」是匹配状态，不是新合同词，也不是第四种冲突。不要做 04–07。
 
-开工 prompt：[`docs/implement-unbound-identity-rebind-03-prompt.md`](../../../docs/implement-unbound-identity-rebind-03-prompt.md)。`/implement` 走 [`docs/agents/tdd.md`](../../../docs/agents/tdd.md)：capability 票须 witnessed red；第一圈必须是已认证 POST 未绑定 CREATE 条目 accept 的诚实红灯，不要用未认证 401 或改策展处理人审条仍绿冒充。不要为装红灯删除 02 发起或改策展 accept 生产。
+不要为装红灯删除 02 发起或改策展 accept 生产。
 
 ### Cycle A — 只接受新建、拒绝「运行于」
 Red command:

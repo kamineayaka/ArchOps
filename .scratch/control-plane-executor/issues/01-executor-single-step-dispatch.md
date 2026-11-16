@@ -6,7 +6,7 @@
 
 **Status:** done
 
-**TDD:** `/implement` 走 [`docs/agents/tdd.md`](../../../docs/agents/tdd.md)：**red → green → refactor**，一圈一条测试（主接缝 HTTP；进程/mTLS 接缝见 Spec）。Spec：[`docs/specs/control-plane-executor.md`](../../../docs/specs/control-plane-executor.md)。合同：`CONTEXT.md`「操作计划」「执行引擎」「控制面代发」；ADR-0044 决议 1–3、7；ADR-0045。
+**TDD:** Spec：[`docs/specs/control-plane-executor.md`](../../../docs/specs/control-plane-executor.md)。合同：`CONTEXT.md`「操作计划」「执行引擎」「控制面代发」；ADR-0044 决议 1–3、7；ADR-0045。
 
 来源：`.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md` **B1–B3**（第一刀）。用户 grilling 已钉切面 B、slug `control-plane-executor`、票 01 = 整段 B Must。**不要写入** unbound / 改策展 / A1 目录。
 
@@ -25,7 +25,7 @@
 
 ## Comments
 
-开场 prompt：[`docs/implement-control-plane-executor-01-prompt.md`](../../../docs/implement-control-plane-executor-01-prompt.md)。一次只做本票。票内 TDD 按故事圈（夹具起引擎 → 一步代发 → 迁 MINA/凭证 → 空洞停发/丢弃 → health/mTLS 负面），不要先交只探活的空骨架。样板：`ControlledSshExecHttpAcceptanceTest`、`HeartbeatTimeoutHollowHttpAcceptanceTest`、`VerticalSliceHttpE2eAcceptanceTest`。
+票内 TDD 按故事圈（夹具起引擎 → 一步代发 → 迁 MINA/凭证 → 空洞停发/丢弃 → health/mTLS 负面），不要先交只探活的空骨架。样板：`ControlledSshExecHttpAcceptanceTest`、`HeartbeatTimeoutHollowHttpAcceptanceTest`、`VerticalSliceHttpE2eAcceptanceTest`。
 
 ### Cycle 1 witnessed red (2026-09-01)
 

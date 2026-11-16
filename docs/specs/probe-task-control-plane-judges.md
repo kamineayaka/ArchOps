@@ -6,7 +6,7 @@ status: "票 01 TDD-done。本刀不含 ADR-0049 / Kubernetes / 编排层。"
 
 **Status**: 工单 01 **TDD-done**。本刀不含 ADR-0049、编排层 gRPC、Kubernetes、原因种类。  
 **Basis**: [`docs/adr/0048-probe-task-control-plane-judges.md`](../adr/0048-probe-task-control-plane-judges.md)。不改 ADR 正文。不改 ADR-0047 的解决动作集合。不改 ADR-0043 / 0044 / 0045 / 0046。  
-**Testing seams (confirmed)**: **唯一验收主接缝 = 控制面公开 HTTP API**（含 Agent 心跳 ingest）。`/implement` 按 [`docs/agents/tdd.md`](../agents/tdd.md) 走 **red → green → refactor**。前端不进本刀。不执行真实 SSH。不要求重新打包 Host Agent。
+**Testing seams (confirmed)**: **唯一验收主接缝 = 控制面公开 HTTP API**（含 Agent 心跳 ingest）。。前端不进本刀。不执行真实 SSH。不要求重新打包 Host Agent。
 
 ## Problem Statement
 

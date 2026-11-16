@@ -6,7 +6,7 @@
 
 **Status:** done
 
-**TDD:** `/implement` 走 [`docs/agents/tdd.md`](../../../docs/agents/tdd.md)：**red → green → refactor**，一圈一条 HTTP 测试。Spec：[`docs/specs/conflict-upgrade-void-plans.md`](../../../docs/specs/conflict-upgrade-void-plans.md)。合同：`CONTEXT.md`「AI 诊断」升级后作废活跃计划；ADR-0027。
+**TDD:** Spec：[`docs/specs/conflict-upgrade-void-plans.md`](../../../docs/specs/conflict-upgrade-void-plans.md)。合同：`CONTEXT.md`「AI 诊断」升级后作废活跃计划；ADR-0027。
 
 来源：`.scratch/unbound-identity-rebind/audit-code-vs-adr-0044.md` **A1**（合同冲突）。用户 2026-08-27 明示人排期开本票。**不要写入** `.scratch/unbound-identity-rebind/`。
 
@@ -23,7 +23,7 @@
 
 ## Comments
 
-用户明示排期。开场 prompt：[`docs/implement-conflict-upgrade-void-plans-01-prompt.md`](../../../docs/implement-conflict-upgrade-void-plans-01-prompt.md)。一次只做本票。样板：`HeartbeatTimeoutHollowHttpAcceptanceTest`（空洞作废）与 `IdentityLostPipelineGateHttpAcceptanceTest`（失联作废）的计划夹具；生产改动应落在 `upgradeOpen` / `reopenFromPendingClose` 调用既有 `voidActivePlans(...)`，reason 字面量 `conflict_upgrade`（与草案 void 理由一致）。
+用户明示排期。样板：`HeartbeatTimeoutHollowHttpAcceptanceTest`（空洞作废）与 `IdentityLostPipelineGateHttpAcceptanceTest`（失联作废）的计划夹具；生产改动应落在 `upgradeOpen` / `reopenFromPendingClose` 调用既有 `voidActivePlans(...)`，reason 字面量 `conflict_upgrade`（与草案 void 理由一致）。
 
 ### Cycle A witnessed red (2026-08-27)
 

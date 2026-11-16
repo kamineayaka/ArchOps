@@ -6,7 +6,7 @@
 
 **Status:** done
 
-**TDD:** `/implement` 走 [`docs/agents/tdd.md`](../../../docs/agents/tdd.md)：**red → green → refactor**，一圈一条 HTTP 测试。Spec：[`docs/specs/unbound-identity-rebind.md`](../../../docs/specs/unbound-identity-rebind.md)（故事 30、33、34；ADR-0011 / ADR-0012）。
+**TDD:** Spec：[`docs/specs/unbound-identity-rebind.md`](../../../docs/specs/unbound-identity-rebind.md)（故事 30、33、34；ADR-0011 / ADR-0012）。
 
 来源：`.scratch/unbound-identity-rebind/audit-01-03-opus.md` 的 **C-4**（FIX-NOW / major）、**C-2**（FIX-NOW / major）、**S-3**（TEST-GAP / nit）。按审计推荐，本票排在票 04 之前做，不改 04/05 语义。
 
@@ -20,7 +20,7 @@
 
 ## Comments
 
-审计结论经用户批准后开工。一次只做本票；不要顺手做 04/05，不要重构 `CuratedDraftService`。
+审计结论经用户批准后开工。不要重构 `CuratedDraftService`。
 
 ### Cycle A — 失联之前曾 PRESENT 的对象可以绑回
 Red command:

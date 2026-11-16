@@ -6,7 +6,7 @@
 
 **Status:** done
 
-**TDD:** `/implement` 走 [`docs/agents/tdd.md`](../../../docs/agents/tdd.md)。01–03 与本票已 TDD-done；下一 frontier = 05。
+**TDD:** 01–03 与本票已 TDD-done；下一 frontier = 05。
 
 从竖切 MVP 往上长：今日比对只在观测写入后触发；策展突变不会自己走进待确认关闭。关单、待确认关闭提醒可见、确认时若已漂移则失败——这些已由竖切票交付，本票只复用，不重做关单产品化。合法策展改写在本刀只剩「接受的草案条目」；建底 POST 覆盖已由 01 关闭。
 
@@ -28,7 +28,7 @@
 
 ## Comments
 
-开工 prompt：[`docs/implement-change-curated-draft-04-prompt.md`](../../../docs/implement-change-curated-draft-04-prompt.md)。01–03 TDD-done。本票尚无 accept/reject HTTP；第一圈红灯应为 404 或编译失败。不要用建底 POST 覆盖已有 `运行于` 来写策展。不要做 05–06。
+01–03 TDD-done。本票尚无 accept/reject HTTP；第一圈红灯应为 404 或编译失败。不要用建底 POST 覆盖已有 `运行于` 来写策展。不要做 05–06。
 
 ### Step A — seams
 

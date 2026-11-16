@@ -6,9 +6,9 @@
 
 **Status:** done
 
-**TDD redo:** yes — 验收标准不变。先前实现与测试同提交，不算 TDD 完成。按 [`docs/agents/tdd.md`](../../../docs/agents/tdd.md) 从 witnessed red 重做。
+**TDD redo:** yes — 验收标准不变。先前实现与测试同提交，不算 TDD 完成。
 
-从竖切 MVP 往上长：建底 POST 曾对已有 `运行于` 覆盖写入。本票只关掉这条旁路，不引入草案、不改诊断、不改选支。TDD 重做从红灯开始（见 Comments）。
+从竖切 MVP 往上长：建底 POST 曾对已有 `运行于` 覆盖写入。本票只关掉这条旁路，不引入草案、不改诊断、不改选支。
 
 - [x] 对尚无 `运行于` 的容器，建底 POST 仍可插入第一条事实，随后「应该在哪」可读到该宿主
 - [x] 对已有 `运行于` 的容器，再 POST（同一或不同宿主）被拒绝；事实与「应该在哪」均不变
@@ -21,7 +21,7 @@
 
 HTTP 接缝（先前同提交落地，**不是** TDD 完成证据）：`CuratedTruthHttpAcceptanceTest.bootstrapRunsOnPostRejectsOverwriteOfExistingFact`。`confirmRunsOn` 对已有 `运行于` 抛 `CURATED_RUNS_ON_EXISTS`（统一信封 400）；首次插入与「应该在哪」保留。无草案表、无 Flyway。
 
-TDD 重做：若覆盖拒绝测试对当前生产代码已绿，先恢复「已有则 update target」让第一圈变成诚实红灯（第二下 POST 为 200 且「应该在哪」变成 B；不要只删 throw 去撞 UNIQUE 变 500）。一圈一条测试；红灯输出贴本段；绿灯后重构再提交。开工 prompt：[`docs/implement-change-curated-draft-01-prompt.md`](../../../docs/implement-change-curated-draft-01-prompt.md)。不要做 02–06。
+TDD 重做：若覆盖拒绝测试对当前生产代码已绿，先恢复「已有则 update target」让第一圈变成诚实红灯（第二下 POST 为 200 且「应该在哪」变成 B；不要只删 throw 去撞 UNIQUE 变 500）。一圈一条测试；红灯输出贴本段；绿灯后重构再提交。不要做 02–06。
 
 ### Step A — restore overwrite (honest red; not product-done)
 
@@ -147,4 +147,4 @@ Standards: 0 hard violations. Judgement only (duplicated POST shape in HTTP test
 
 Spec: 0 wrong implementations. Partial: same-host test did not GET `facts/runs-on` after reject. Fixed by adding `assertRunsOnTarget` (still HTTP seam; production unchanged). `./gradlew test --tests com.archops.curated.CuratedTruthHttpAcceptanceTest` green after that.
 
-No Flyway history edits. No draft/diagnosis/SSH/UI. Ticket 02 production code untouched. Frontier now 02 (`docs/implement-change-curated-draft-02-prompt.md`).
+No Flyway history edits. No draft/diagnosis/SSH/UI. Ticket 02 production code untouched. Frontier now 02.
